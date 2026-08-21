@@ -56,6 +56,18 @@ class Gate:
 
 
 @dataclass(slots=True)
+class Confirmation:
+    """Une confirmation independante, en mode quorum."""
+
+    name: str
+    passed: bool
+    detail: str = ""
+
+    def __str__(self) -> str:  # pragma: no cover
+        return f"{'oui' if self.passed else 'non'} {self.name}" + (f" ({self.detail})" if self.detail else "")
+
+
+@dataclass(slots=True)
 class ScoreComponent:
     """Une brique du score de confluence."""
 
@@ -74,6 +86,10 @@ class Evaluation:
     setup: str = ""
     score: float = 0.0
     threshold: float = 0.0
+    mode: str = "confluence"
+    confirmations: list[Confirmation] = field(default_factory=list)
+    confirmed: int = 0
+    required: int = 0
     gates: list[Gate] = field(default_factory=list)
     components: list[ScoreComponent] = field(default_factory=list)
     entry: float = 0.0
@@ -88,10 +104,16 @@ class Evaluation:
 
     @property
     def valid(self) -> bool:
-        """Le trade est-il autorise ? Tous les filtres + le seuil de score."""
-        return (self.side is not None
-                and all(g.passed for g in self.gates)
-                and self.score >= self.threshold)
+        """Le trade est-il autorise ?
+
+        En confluence : tous les filtres passes ET le score au-dessus du seuil.
+        En quorum     : tous les filtres passes ET assez de confirmations.
+        """
+        if self.side is None or not all(g.passed for g in self.gates):
+            return False
+        if self.mode == "quorum":
+            return self.confirmed >= self.required
+        return self.score >= self.threshold
 
     def failed_gates(self) -> list[Gate]:
         return [g for g in self.gates if not g.passed]
@@ -100,21 +122,32 @@ class Evaluation:
         """Explication lisible de la decision (journal et alertes)."""
         head = f"{self.symbol} "
         if self.valid:
-            head += (f"{self.side.value} [{self.setup}] score {self.score:.2f}/"
-                     f"{self.threshold:.2f} | entree {self.entry} SL {self.stop_loss} "
-                     f"TP {self.take_profit} (RR {self.rr:.2f})")
+            if self.mode == "quorum":
+                noms = ", ".join(c.name for c in self.confirmations if c.passed)
+                head += (f"{self.side.value} [{self.setup}] {self.confirmed}/{self.required} "
+                         f"confirmations ({noms}) | entree {self.entry} SL {self.stop_loss} "
+                         f"TP {self.take_profit} (RR {self.rr:.2f})")
+            else:
+                head += (f"{self.side.value} [{self.setup}] score {self.score:.2f}/"
+                         f"{self.threshold:.2f} | entree {self.entry} SL {self.stop_loss} "
+                         f"TP {self.take_profit} (RR {self.rr:.2f})")
         else:
             failed = self.failed_gates()
             if failed:
                 head += f"ecarte -> {failed[0].name} : {failed[0].detail}"
             elif self.side is None:
                 head += f"ecarte -> aucun scenario ({self.rejected_by or 'pas de configuration'})"
+            elif self.mode == "quorum":
+                manquantes = ", ".join(c.name for c in self.confirmations if not c.passed)
+                head += (f"ecarte -> {self.confirmed}/{self.required} confirmations "
+                         f"(manque : {manquantes[:70]})")
             else:
                 head += f"ecarte -> score {self.score:.2f} < seuil {self.threshold:.2f}"
         return head
 
     def detail_lines(self) -> list[str]:
         lines = [f"  {g}" for g in self.gates]
+        lines += [f"  {c}" for c in self.confirmations]
         lines += [f"  + {c.name} {c.value:+.3f} ({c.detail})" for c in self.components if abs(c.value) > 1e-6]
         return lines
 
@@ -131,6 +164,19 @@ class StrategyConfig:
     trigger_tf: str = "M1"        # affinage de l'entree
     context_tf: str = "M15"       # contexte immediat
     bias_tf: str = "H1"           # biais de fond
+
+    # --- Mode de decision ---
+    #
+    # "confluence" : toutes les lectures sont ponderees et doivent produire
+    #                un score eleve. Peu de trades, forte conviction.
+    # "quorum"     : il suffit qu'un nombre minimal de confirmations
+    #                INDEPENDANTES soient d'accord (les bougies plus deux ou
+    #                trois indicateurs). Beaucoup plus de trades, chacun
+    #                moins argumente. C'est le mode du trading rapide.
+    mode: str = "confluence"
+    min_confirmations: int = 3          # quorum : nombre de confirmations exigees
+    require_candle_confirmation: bool = True   # la lecture des bougies est obligatoire
+    confirmation_margin: int = 1        # avance minimale sur le sens oppose
 
     # --- Seuil de validation ---
     min_score: float = 0.55       # score de confluence minimal
@@ -211,7 +257,8 @@ class Strategy:
         """Evalue un instrument et retourne le verdict complet."""
         cfg = self.config
         now = now or time.time()
-        ev = Evaluation(symbol=instrument.symbol, asset_class=instrument.asset_class, ts=now)
+        ev = Evaluation(symbol=instrument.symbol, asset_class=instrument.asset_class,
+                        ts=now, mode=cfg.mode)
 
         entry_ind = indicators.get(cfg.entry_tf)
         ctx_ind = indicators.get(cfg.context_tf)
@@ -265,6 +312,11 @@ class Strategy:
                              news.reason if (news and news.reason) else "aucune annonce bloquante"))
         if not news_ok:
             return ev
+
+        # ---------- Branche rapide : mode quorum ----------
+        if cfg.mode == "quorum":
+            return self._finish_quorum(ev, instrument, entry_ind, ctx_ind, bias_ind,
+                                       chart, tick, price, atr, score_bonus)
 
         # ---------- Determination du scenario ----------
         setup = self._detect_setup(entry_ind, ctx_ind, bias_ind, chart, news)
@@ -376,6 +428,189 @@ class Strategy:
         # la qualite du signal, de la marge disponible et du poids de l'actif.
         ev.priority_score = round(
             ev.score * instrument.priority * (1.0 + min(ev.rr, 4.0) * 0.05), 4)
+        return ev
+
+    # ---------------------------------------------------------------
+    # Mode quorum : un nombre minimal de confirmations independantes
+    # ---------------------------------------------------------------
+    def confirmations(
+        self,
+        side: Side,
+        entry: IndicatorSet,
+        ctx: IndicatorSet,
+        bias: IndicatorSet,
+        chart: ChartRead,
+    ) -> list[Confirmation]:
+        """Liste des confirmations pour un sens donne.
+
+        Chaque confirmation est INDEPENDANTE des autres : elle interroge une
+        famille d'information differente (price action, tendance, momentum,
+        volume, structure). C'est ce qui donne du sens au comptage — additionner
+        trois lectures du meme phenomene ne prouverait rien.
+        """
+        sign = side.sign
+        haussier = side is Side.BUY
+        price = entry.last.close if entry.last else 0.0
+        atr = entry.atr.value or 0.0
+        out: list[Confirmation] = []
+
+        # 1. Bougies japonaises : la lecture du prix lui-meme.
+        hits = K.scan(list(entry.candles)[-3:], atr)
+        pattern = K.pattern_score(hits)
+        noms = ", ".join(h.name for h in hits) or "aucun motif"
+        out.append(Confirmation("bougies", sign * pattern >= 0.25 and not K.has_blocker(hits), noms))
+
+        # 2. Tendance courte : position et ordre des moyennes mobiles.
+        tendance = False
+        detail_t = "moyennes non pretes"
+        if entry.ema_fast.ready and entry.ema_mid.ready:
+            au_dessus = sign * (price - entry.ema_mid.value) > 0
+            ordonnees = sign * (entry.ema_fast.value - entry.ema_mid.value) > 0
+            tendance = au_dessus and ordonnees
+            detail_t = (f"prix {'au-dessus' if au_dessus else 'en dessous'} de l'EMA, "
+                        f"moyennes {'ordonnees' if ordonnees else 'melangees'}")
+        out.append(Confirmation("tendance", tendance, detail_t))
+
+        # 3. Momentum : expansion de l'histogramme MACD.
+        macd_ok = (entry.macd.rising and haussier) or (entry.macd.falling and not haussier)
+        out.append(Confirmation("momentum", bool(macd_ok),
+                                f"histogramme {'en expansion' if macd_ok else 'sans appui'}"))
+
+        # 4. Supertrend : filtre directionnel autonome.
+        st_ok = entry.supertrend.ready and (entry.supertrend.direction > 0) == haussier
+        out.append(Confirmation("supertrend", bool(st_ok),
+                                "haussier" if entry.supertrend.direction > 0 else "baissier"))
+
+        # 5. Oscillateur : ni epuise, ni contre le sens.
+        osc_ok, detail_o = False, "RSI non pret"
+        if entry.rsi.ready and entry.rsi.value is not None:
+            r = entry.rsi.value
+            if haussier:
+                osc_ok = 45.0 <= r <= 78.0
+            else:
+                osc_ok = 22.0 <= r <= 55.0
+            detail_o = f"RSI {r:.0f}"
+            if entry.stoch.ready and (
+                    (entry.stoch.cross_up() and haussier) or (entry.stoch.cross_down() and not haussier)):
+                osc_ok = True
+                detail_o += ", croisement stochastique"
+        out.append(Confirmation("oscillateur", osc_ok, detail_o))
+
+        # 6. Volume : le mouvement est-il porte ?
+        vol_ok = False
+        bits = []
+        if abs(entry.obv.slope) > 0.03 and sign * entry.obv.slope > 0:
+            vol_ok = True
+            bits.append(f"OBV {entry.obv.slope:+.2f}")
+        if entry.mfi.ready and entry.mfi.value is not None:
+            if (haussier and entry.mfi.value > 52) or (not haussier and entry.mfi.value < 48):
+                vol_ok = True
+                bits.append(f"MFI {entry.mfi.value:.0f}")
+        out.append(Confirmation("volume", vol_ok, ", ".join(bits) or "sans appui volume"))
+
+        # 7. VWAP : reference des intervenants de la journee.
+        vwap_ok = entry.vwap.ready and sign * (price - entry.vwap.value) > 0
+        out.append(Confirmation("vwap", bool(vwap_ok),
+                                "du bon cote" if vwap_ok else "mauvais cote"))
+
+        # 8. Structure : appui sur une zone ou un niveau dans le bon sens.
+        zone = chart.zone_support(price, side, atr)
+        niveau = False
+        if atr > 0:
+            cible = "support" if haussier else "resistance"
+            niveau = any(l.kind == cible and abs(l.price - price) <= 0.8 * atr
+                         and l.strength >= 0.4 for l in chart.levels)
+        out.append(Confirmation("structure", zone > 0.2 or niveau,
+                                "appui sur zone" if zone > 0.2 else
+                                ("appui sur niveau" if niveau else "rien de proche")))
+
+        # 9. Contexte : l'unite superieure ne s'y oppose pas.
+        voulu = "bullish" if haussier else "bearish"
+        contraire = "bearish" if haussier else "bullish"
+        ctx_ok = ctx.trend_bias() != contraire and bias.trend_bias() != contraire
+        out.append(Confirmation("contexte", ctx_ok,
+                                f"{ctx.trend_bias()} / {bias.trend_bias()} pour un {voulu}"))
+
+        return out
+
+    def _finish_quorum(
+        self,
+        ev: Evaluation,
+        instrument: Instrument,
+        entry: IndicatorSet,
+        ctx: IndicatorSet,
+        bias: IndicatorSet,
+        chart: ChartRead,
+        tick: Tick,
+        price: float,
+        atr: float,
+        score_bonus: float,
+    ) -> Evaluation:
+        """Decide en comptant les confirmations, sans exiger l'unanimite."""
+        cfg = self.config
+
+        pour_achat = self.confirmations(Side.BUY, entry, ctx, bias, chart)
+        pour_vente = self.confirmations(Side.SELL, entry, ctx, bias, chart)
+        n_achat = sum(1 for c in pour_achat if c.passed)
+        n_vente = sum(1 for c in pour_vente if c.passed)
+
+        # Le sens retenu est celui qui rassemble le plus de confirmations, et
+        # il doit devancer l'autre : a egalite, le marche est indecis.
+        if n_achat >= n_vente + cfg.confirmation_margin:
+            side, confirmations, compte = Side.BUY, pour_achat, n_achat
+        elif n_vente >= n_achat + cfg.confirmation_margin:
+            side, confirmations, compte = Side.SELL, pour_vente, n_vente
+        else:
+            ev.confirmations = pour_achat if n_achat >= n_vente else pour_vente
+            ev.confirmed, ev.required = max(n_achat, n_vente), cfg.min_confirmations
+            ev.rejected_by = f"aucun sens ne se degage ({n_achat} achat contre {n_vente} vente)"
+            ev.gates.append(Gate("direction", False, ev.rejected_by))
+            return ev
+
+        ev.side, ev.confirmations, ev.confirmed = side, confirmations, compte
+        ev.gates.append(Gate("direction", True,
+                             f"{side.value} : {n_achat} confirmations achat contre {n_vente} vente"))
+
+        # Le quorum exige peut etre releve par l'avancement de l'objectif :
+        # en retard, on ne prend pas plus de risque, on demande plus de preuves.
+        ev.required = cfg.min_confirmations + (1 if score_bonus >= 0.06 else 0)
+
+        # La lecture des bougies peut etre rendue obligatoire : c'est la seule
+        # information qui vienne du prix lui-meme et non d'un calcul derive.
+        if cfg.require_candle_confirmation:
+            bougies = next((c for c in confirmations if c.name == "bougies"), None)
+            ok = bool(bougies and bougies.passed)
+            ev.gates.append(Gate("bougies_obligatoires", ok,
+                                 bougies.detail if bougies else "non evaluees"))
+            if not ok:
+                return ev
+
+        # Niveaux de sortie, identiques aux deux modes.
+        structure_stop = self._structure_stop(side, entry, atr)
+        sl, tp = self.trade_manager.initial_levels(
+            side, price, atr, spread=tick.spread,
+            structure_stop=structure_stop, digits=instrument.digits)
+        ev.stop_loss, ev.take_profit = sl, tp
+        risque = abs(price - sl)
+        ev.rr = abs(tp - price) / risque if risque > 0 else 0.0
+
+        rr_ok = ev.rr >= cfg.min_rr - 1e-9
+        ev.gates.append(Gate("ratio_rr", rr_ok, f"{ev.rr:.2f} (min {cfg.min_rr:.2f})"))
+        if not rr_ok:
+            return ev
+
+        ev.setup = "quorum"
+        # Le score reste calcule pour le journal et le classement entre
+        # instruments, mais il ne conditionne plus l'entree.
+        ev.components = self._score_components(side, entry, ctx, bias, chart, None, None, "quorum")
+        ev.score = round(sum(c.value for c in ev.components), 4)
+        ev.threshold = 0.0
+        ev.gates.append(Gate("quorum", compte >= ev.required,
+                             f"{compte} confirmations sur {len(confirmations)} "
+                             f"(minimum {ev.required})"))
+        ev.priority_score = round(
+            (compte / max(1, len(confirmations))) * instrument.priority
+            * (1.0 + min(ev.rr, 4.0) * 0.05), 4)
         return ev
 
     # ---------------------------------------------------------------

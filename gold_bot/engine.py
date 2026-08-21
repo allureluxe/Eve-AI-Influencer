@@ -144,6 +144,11 @@ class TradingEngine:
             f"Risque/trade   : {self.risk.effective_risk_pct()[0]:.2f} % "
             f"(plafond {self.config.risk.max_risk_pct:.2f} %)",
             f"Positions      : {len(self.broker.positions())} reprises",
+            f"Palier capital : {self.capital_tier()['palier']} — "
+            f"{self.capital_tier()['positions_simultanees']} position(s) a la fois",
+            f"Decision       : mode {self.config.strategy.mode}"
+            + (f", {self.config.strategy.min_confirmations} confirmations minimum"
+               if self.config.strategy.mode == "quorum" else ""),
         ])
         self.notifier.info("Robot demarre", body)
         self._running = True
@@ -206,6 +211,12 @@ class TradingEngine:
         state.peak_equity = self.risk.account.peak_equity
 
         positions = self.broker.positions()
+
+        # Le nombre de positions simultanees suit la taille du compte : sur un
+        # micro-compte, deux positions ouvertes en meme temps representent une
+        # part de risque que le lot minimum rend impossible a maitriser.
+        palier = self.capital_tier()
+        self.risk.config.max_positions = palier["positions_simultanees"]
 
         # 2. Gestion des positions ouvertes (priorite absolue)
         self._manage_positions(positions)
@@ -385,11 +396,18 @@ class TradingEngine:
         sizing = self.risk.size_position(
             instrument, ev.side, ev.entry, ev.stop_loss, ev.take_profit,
             open_positions=positions, universe_lookup=self.universe.get,
-            extra_multiplier=multiplier)
+            extra_multiplier=multiplier, spread=ev.spread)
 
         if not sizing.allowed:
             logger.info("%s ecarte au dimensionnement : %s", ev.symbol, sizing.reason)
             self.notifier.notify("debug", f"Trade non dimensionnable — {ev.symbol}", sizing.reason)
+            # Certains refus ne dependent pas des conditions du moment mais du
+            # capital : ils se reproduiront a l'identique au prochain cycle.
+            # On met l'instrument de cote plutot que de le redemander sans fin.
+            structurel = any(m in sizing.reason for m in
+                             ("cout d'execution", "lot minimum", "capital insuffisant", "levier autorise"))
+            if structurel:
+                self.scanner.sleep_symbol(ev.symbol, 3600.0, sizing.reason.split(":")[0].strip())
             return
 
         try:
@@ -547,6 +565,41 @@ class TradingEngine:
         self._running = False
 
     # ---------------------------------------------------------------
+    def capital_tier(self) -> dict:
+        """Ce que le capital courant permet reellement de trader.
+
+        Le robot n'a pas besoin qu'on lui dise quels instruments prendre : le
+        lot minimum et le cout d'execution le decident pour lui. Cette methode
+        rend cette decision lisible, et ajuste le nombre de positions
+        simultanees a la taille du compte.
+        """
+        equity = self.risk.account.equity
+        cfg = self.config.risk
+
+        if equity < 100:
+            palier, positions = "micro", 1
+        elif equity < 500:
+            palier, positions = "petit", 1
+        elif equity < 2000:
+            palier, positions = "moyen", 2
+        else:
+            palier, positions = "confortable", cfg.max_positions
+
+        positions = min(positions, cfg.max_positions)
+        if cfg.max_positions != positions:
+            logger.info("capital %.2f (%s) : %d position(s) simultanee(s)", equity, palier, positions)
+
+        endormis = {sym: motif for sym, (fin, motif) in self.scanner.dormant.items()
+                    if fin > time.time()}
+        return {
+            "palier": palier,
+            "capital": round(equity, 2),
+            "positions_simultanees": positions,
+            "instruments_actifs": [i.symbol for i in self.universe.tradable()
+                                   if i.symbol not in endormis],
+            "instruments_en_sommeil": endormis,
+        }
+
     def status(self) -> dict:
         """Etat complet du robot (diagnostic, supervision)."""
         acc = self.broker.account()
@@ -560,6 +613,7 @@ class TradingEngine:
             "positions": len(self.broker.positions()),
             "risque": self.risk.snapshot(),
             "objectif": self.objectives.status(),
+            "palier_capital": self.capital_tier(),
             "marches_ouverts": [i.symbol for i in self.universe.tradable()],
             "sources": self.registry.status(),
             "alertes": self.notifier.active_channels(),

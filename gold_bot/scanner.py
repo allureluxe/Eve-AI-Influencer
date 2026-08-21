@@ -121,8 +121,36 @@ class Scanner:
         self.news = news
         self.history = history
         self.contexts: dict[str, SymbolContext] = {}
+        # Instruments mis en sommeil : symbole -> (fin de la mise en sommeil, motif).
+        # Quand un instrument est structurellement inexploitable pour le capital
+        # courant (lot minimum trop lourd, cout d'execution disproportionne), le
+        # redemander a chaque cycle ne sert a rien : on consomme du quota d'API
+        # pour un refus certain. On le met de cote, et on le reessaie plus tard —
+        # le capital change, les conditions aussi.
+        self.dormant: dict[str, tuple[float, str]] = {}
 
     # ---------------------------------------------------------------
+    def sleep_symbol(self, symbol: str, seconds: float, reason: str) -> None:
+        """Met un instrument de cote pour un temps donne."""
+        fin = time.time() + seconds
+        connu = self.dormant.get(symbol)
+        if connu is None or connu[0] < fin:
+            self.dormant[symbol] = (fin, reason)
+            logger.info("%s mis de cote %.0f min : %s", symbol, seconds / 60, reason)
+
+    def wake_symbol(self, symbol: str) -> None:
+        self.dormant.pop(symbol, None)
+
+    def is_dormant(self, symbol: str, now: Optional[float] = None) -> tuple[bool, str]:
+        fin_motif = self.dormant.get(symbol)
+        if not fin_motif:
+            return False, ""
+        fin, motif = fin_motif
+        if (now or time.time()) >= fin:
+            self.dormant.pop(symbol, None)
+            return False, ""
+        return True, motif
+
     def context(self, symbol: str) -> SymbolContext:
         ctx = self.contexts.get(symbol)
         if ctx is None:
@@ -191,6 +219,10 @@ class Scanner:
 
         for instrument in self.universe.tradable(now):
             if instrument.symbol in exclude:
+                continue
+            endormi, motif = self.is_dormant(instrument.symbol, now)
+            if endormi:
+                result.errors[instrument.symbol] = f"en sommeil : {motif}"
                 continue
             if allow is not None:
                 ok, why = allow(instrument)

@@ -58,6 +58,22 @@ class RiskConfig:
     # --- Qualite minimale ---
     min_rr: float = 1.5                # ratio rendement/risque minimum
 
+    # --- Cout d'execution ---
+    #
+    # Le rapport entre ce que coute un aller-retour (spread + commission) et
+    # ce que le trade risque est LE facteur qui decide de la survie d'un
+    # petit compte en trading rapide. Simulation a l'appui : avec un systeme
+    # a 55 % de reussite et 1,3 de ratio, 20 trades par jour sur 50 EUR
+    # donnent 446 EUR en trois mois quand le cout vaut 17 % du risque, et
+    # 15 EUR (compte detruit) quand il en vaut 30 %. Meme systeme, meme
+    # nombre de trades : seul le cout change.
+    #
+    # On refuse donc en amont tout trade dont le cout ronge l'esperance,
+    # plutot que de le decouvrir sur le releve de compte.
+    max_cost_ratio_pct: float = 15.0   # cout / risque, en %
+    commission_per_lot: float = 0.0    # commission fixe eventuelle du broker
+    commission_pct: float = 0.0        # commission proportionnelle au notionnel
+
 
 @dataclass(slots=True)
 class LadderStep:
@@ -152,6 +168,8 @@ class SizingDecision:
     risk_amount: float = 0.0
     risk_pct: float = 0.0
     stop_distance: float = 0.0
+    cost: float = 0.0            # cout estime de l'aller-retour
+    cost_ratio_pct: float = 0.0  # ce cout rapporte au risque engage
     reason: str = ""
     factors: list[str] = field(default_factory=list)
 
@@ -336,6 +354,7 @@ class RiskManager:
         open_positions: Optional[list[Position]] = None,
         universe_lookup=None,
         extra_multiplier: float = 1.0,
+        spread: float = 0.0,
     ) -> SizingDecision:
         """Calcule le volume a engager. Refuse si une regle est violee."""
         acc, cfg = self.account, self.config
@@ -345,8 +364,10 @@ class RiskManager:
         stop_distance = abs(entry_price - stop_loss)
         if stop_distance <= 0:
             return SizingDecision(False, reason="stop-loss invalide (distance nulle)")
-        if take_profit and abs(take_profit - entry_price) / stop_distance < cfg.min_rr:
-            rr = abs(take_profit - entry_price) / stop_distance
+        # Tolerance sur la comparaison : un objectif place exactement au ratio
+        # minimal ne doit pas etre refuse a cause d'un arrondi binaire.
+        rr = abs(take_profit - entry_price) / stop_distance if take_profit else 0.0
+        if take_profit and rr < cfg.min_rr - 1e-9:
             return SizingDecision(False, reason=f"ratio rendement/risque insuffisant ({rr:.2f} < {cfg.min_rr})")
 
         risk_pct, factors = self.effective_risk_pct(extra_multiplier)
@@ -410,14 +431,60 @@ class RiskManager:
                 factors=factors,
             )
 
+        # Cout de l'aller-retour : on paie le spread a l'ouverture et a la
+        # fermeture, plus l'eventuelle commission du broker.
+        cost = self.execution_cost(instrument, lots, entry_price, spread)
+        cost_ratio = cost / real_risk * 100.0 if real_risk > 0 else 100.0
+        if cfg.max_cost_ratio_pct > 0 and cost_ratio > cfg.max_cost_ratio_pct:
+            return SizingDecision(
+                False,
+                lots=lots,
+                cost=round(cost, 4),
+                cost_ratio_pct=round(cost_ratio, 1),
+                stop_distance=stop_distance,
+                reason=(f"cout d'execution trop lourd sur {instrument.symbol} : "
+                        f"{cost:.3f} {acc.currency} pour {real_risk:.2f} de risque "
+                        f"({cost_ratio:.0f} % du risque, maximum {cfg.max_cost_ratio_pct:.0f} %). "
+                        f"Un stop plus large ou une unite de temps superieure corrigerait cela."),
+                factors=factors,
+            )
+        factors.append(f"cout {cost:.3f} = {cost_ratio:.0f} % du risque")
+
         return SizingDecision(
             allowed=True,
             lots=lots,
             risk_amount=round(real_risk, 2),
             risk_pct=round(real_pct, 3),
             stop_distance=stop_distance,
+            cost=round(cost, 4),
+            cost_ratio_pct=round(cost_ratio, 1),
             factors=factors,
         )
+
+    def execution_cost(self, instrument: Instrument, lots: float,
+                       price: float, spread: float = 0.0) -> float:
+        """Cout estime d'un aller-retour, dans la devise du compte."""
+        cfg = self.config
+        ecart = spread if spread > 0 else instrument.typical_spread
+        cout = ecart * instrument.value_per_price_unit(lots)
+        cout += cfg.commission_per_lot * lots
+        cout += price * instrument.contract_size * lots * cfg.commission_pct * 2
+        return cout
+
+    def cost_ratio_for(self, instrument: Instrument, stop_distance: float,
+                       price: float, spread: float = 0.0) -> float:
+        """Rapport cout/risque au lot minimum, independamment du capital.
+
+        Sert au filtrage amont : si meme le lot minimum est trop cher a
+        traiter sur cette unite de temps, l'instrument est ecarte sans
+        qu'on ait besoin de calculer quoi que ce soit d'autre.
+        """
+        if stop_distance <= 0:
+            return 100.0
+        risque = stop_distance * instrument.value_per_price_unit(instrument.min_lot)
+        if risque <= 0:
+            return 100.0
+        return self.execution_cost(instrument, instrument.min_lot, price, spread) / risque * 100.0
 
     # ---------------------------------------------------------------
     def halt(self, reason: str) -> None:

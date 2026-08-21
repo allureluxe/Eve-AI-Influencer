@@ -410,7 +410,116 @@ Par honnêteté, et parce que ces limites conditionnent l'usage :
   plafonnement et la modulation de la sélectivité limitent les dégâts de cette
   contrainte, ils ne la rendent pas réaliste sur un petit capital.
 
-## 15. Petit capital : ce que le lot minimum impose
+## 15. Trading rapide : mode quorum et coût d'exécution
+
+### Le mode quorum
+
+Par défaut, le robot exige une **confluence** : neuf lectures pondérées qui
+doivent produire un score élevé. Peu de trades, forte conviction.
+
+Le mode **quorum** renverse la logique : il suffit qu'un nombre minimal de
+confirmations **indépendantes** soient d'accord.
+
+```json
+"strategy": { "mode": "quorum", "min_confirmations": 3,
+              "require_candle_confirmation": true }
+```
+
+Les neuf confirmations, chacune interrogeant une famille d'information
+différente — additionner trois lectures du même phénomène ne prouverait rien :
+
+| Confirmation | Ce qu'elle regarde |
+|---|---|
+| `bougies` | motif de price action dans le sens du trade |
+| `tendance` | prix du bon côté de l'EMA, moyennes ordonnées |
+| `momentum` | histogramme MACD en expansion |
+| `supertrend` | filtre directionnel ATR |
+| `oscillateur` | RSI en zone saine, croisement stochastique |
+| `volume` | pente OBV, Money Flow Index |
+| `vwap` | prix du bon côté du VWAP de séance |
+| `structure` | appui sur une zone ou un niveau sérieux |
+| `contexte` | l'unité supérieure ne s'y oppose pas |
+
+Le sens retenu est celui qui rassemble le plus de confirmations, et il doit
+**devancer** l'autre d'au moins `confirmation_margin` : à égalité, le marché
+est indécis et le robot passe.
+
+Un retard sur l'objectif hebdomadaire relève le quorum d'un cran — en retard,
+le robot ne prend pas plus de risque, il exige une preuve de plus.
+
+### Le coût d'exécution : le paramètre qui décide de tout
+
+C'est le résultat le plus important de la mise au point du mode rapide, et il
+n'est pas intuitif : **ce n'est pas le capital qui décide de la viabilité du
+scalping, c'est le rapport entre le coût d'un aller-retour et le risque du
+trade.**
+
+Simulation Monte-Carlo, 4 000 tirages, compte de 50 €, 20 trades par jour
+pendant 3 mois, avec un système réellement bon (55 % de réussite à 1,3 de
+ratio) :
+
+| Coût par trade | Rapport coût/risque | Capital médian à 3 mois |
+|---|---|---|
+| 0,00 € (théorique) | 0 % | 1 107 € |
+| 0,08 € (EURUSD 0,01 lot) | 17 % | **446 €** |
+| 0,20 € (GBPUSD, USDCAD) | 30 % | **15 € — compte détruit** |
+| 0,40 € (or 0,01 lot) | 40 % | **15 € — compte détruit** |
+
+Même système, même nombre de trades, même edge. Seul le coût change.
+
+Le robot refuse donc en amont tout trade dont le coût dépasse
+`max_cost_ratio_pct` (15 % par défaut) du risque engagé, plutôt que de le
+découvrir sur le relevé de compte.
+
+Conséquence directe, en M1 :
+
+| Unité de temps | Instruments dont le coût reste sous 15 % du risque |
+|---|---|
+| **M1** | XAUUSD, BTCUSD, ETHUSD, SOLUSD |
+| **M5** | + EURUSD, GBPUSD, AUDUSD, USDCAD, USDJPY |
+| **M15** | tous, y compris XAGUSD et XRPUSD |
+
+Le forex en M1 coûte 17 à 28 % du risque : le robot l'écarte tout seul. Le
+remède n'est jamais « accepter quand même », c'est **élargir le stop** ou
+**monter d'une unité de temps**.
+
+### Mode micro-capital
+
+`robot.micro.json` combine les deux mécanismes pour un compte de 20 à 100 €,
+en M1, quorum de 3 confirmations, jusqu'à 40 trades par jour.
+
+```bash
+python3 run_bot.py run --config robot.micro.json
+```
+
+Backtest de contrôle : **63 trades sur 2,8 jours, soit environ 23 par jour** —
+la cadence visée.
+
+Gain attendu par trade gagnant au lot minimum, en M1 : environ **0,16 € sur
+BTC, 0,08 € sur ETH**. Ce sont de petits montants, c'est le principe du mode.
+Ils grossissent avec le capital, puisque la taille suit la courbe de résultats.
+
+### Adaptation automatique au capital
+
+Le robot n'a pas besoin qu'on lui dise quoi trader : le lot minimum et le coût
+d'exécution le décident pour lui.
+
+| Capital | Palier | Positions simultanées |
+|---|---|---|
+| < 100 € | micro | 1 |
+| 100 à 500 € | petit | 1 |
+| 500 à 2 000 € | moyen | 2 |
+| > 2 000 € | confortable | selon la configuration |
+
+Quand un instrument est refusé pour une raison **structurelle** — lot minimum
+trop lourd, coût disproportionné, levier dépassé — il est mis en sommeil une
+heure au lieu d'être redemandé à chaque cycle. Cela économise le quota d'API et
+fait converger le robot sur l'ensemble réellement traitable. Il se réveille
+tout seul quand le capital a changé.
+
+---
+
+## 16. Petit capital : ce que le lot minimum impose
 
 Le pas de lot du broker est un **plancher physique** : on ne peut pas risquer
 moins que ce que coûte un lot minimum. Sur un petit compte, c'est lui qui
@@ -461,7 +570,7 @@ python3 run_bot.py run --config robot.live.json
 
 ---
 
-## 16. Avant d'engager de l'argent réel
+## 17. Avant d'engager de l'argent réel
 
 1. `python3 run_bot.py check` — vérifier que les sources répondent.
 2. Faire tourner en `--broker paper` pendant plusieurs jours de marché.
