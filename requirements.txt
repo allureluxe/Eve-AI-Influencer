@@ -1,3 +1,6 @@
+# ==========================================================================
+#  Eve AI — bot d'influence (Instagram / TikTok)
+# ==========================================================================
 instagrapi==2.0.0
 TikTokApi==1.0.0
 python-dotenv==1.0.0
@@ -9,3 +12,14 @@ OpenAI==1.3.0
 stability-sdk==0.7.1
 aiofiles==23.2.1
 pydantic==2.3.0
+
+# ==========================================================================
+#  Robot de trading
+# ==========================================================================
+# Aucune dependance : le robot n'utilise que la librairie standard de
+# Python 3.11+ (urllib, json, dataclasses, deque...). C'est un choix
+# deliberé — il tourne sur n'importe quel VPS, demarre en une seconde, et
+# rien ne peut casser a cause d'une mise a jour de dependance pendant qu'il
+# gere une position ouverte.
+#
+#   python3 run_bot.py check

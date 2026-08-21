@@ -1,0 +1,422 @@
+# Robot de trading autonome — documentation
+
+Robot multi-actifs (or, forex, cryptos) qui analyse, décide et **passe ses
+ordres seul**, 24 h/24, avec stop-loss et take-profit systématiques, un
+objectif qui se déplace quand le mouvement continue, et une gestion du
+capital qui s'adapte à la courbe de résultats.
+
+---
+
+## 1. Démarrage rapide
+
+```bash
+# 1. Vérifier que tout répond (sources de données, calendrier, exécution)
+python3 run_bot.py check
+
+# 2. Voir ce que le robot pense du marché, sans rien exécuter
+python3 run_bot.py scan
+python3 run_bot.py analyse XAUUSD
+
+# 3. Rejouer l'historique
+python3 run_bot.py backtest XAUUSD --bars 5000
+
+# 4. Tourner en simulation, en continu
+python3 run_bot.py run --broker paper
+
+# 5. Passer en réel sur MoonX (le robot exécute seul)
+export MOONX_API_URL="https://..." MOONX_API_KEY="..."
+python3 run_bot.py run --broker moonx
+```
+
+Aucune dépendance à installer : tout est en Python 3.11+ standard.
+
+---
+
+## 2. Comment une décision est prise
+
+Deux étages, dans cet ordre. **Le second n'est jamais atteint si le premier
+échoue** — c'est ce qui empêche un beau signal de compenser un contexte
+mauvais.
+
+### Étage 1 — Les filtres éliminatoires
+
+Chaque instrument doit franchir *tous* ces filtres. Un seul échec et le robot
+passe à la paire suivante.
+
+| Filtre | Ce qu'il vérifie | Pourquoi |
+|---|---|---|
+| `donnees` | indicateurs prêts sur M5, M15 et H1 | décider sur un historique incomplet, c'est deviner |
+| `marche_ouvert` | séance active pour cet actif | l'or dort la nuit, les cryptos non |
+| `spread` | ≤ spread max **et** ≤ 22 % de l'ATR | un spread anormal mange le gain espéré |
+| `volatilite` | ATR entre le 20ᵉ et le 95ᵉ percentile | marché mort = pas de mouvement ; marché fou = stop balayé |
+| `calendrier` | pas d'annonce à fort impact imminente | l'or bouge de 20 à 40 $ en secondes sur NFP/CPI/FOMC |
+| `configuration` | un scénario reconnu est présent | pas de scénario, pas de trade |
+| `regime` | ADX ≥ 18 et régime exploitable | on ne suit pas une tendance qui n'existe pas |
+| `alignement_mtf` | M15 et H1 ne contredisent pas le sens | acheter contre l'unité supérieure coûte cher |
+| `marge_structurelle` | ≥ 1,2 ATR avant le prochain niveau **sérieux** | ne pas acheter sous une résistance |
+| `ratio_rr` | rendement/risque ≥ 1,5 | un système gagnant a besoin d'un R correct |
+| `objectif_atteignable` | ≥ 1,5R de place jusqu'au prochain obstacle | un TP qu'on ne peut pas atteindre ne sert à rien |
+| `macro` | pas d'opposition fondamentale marquée | acheter l'or quand les taux réels s'envolent, c'est ramer |
+| `score` | confluence ≥ seuil | dernier arbitrage |
+
+`python3 run_bot.py analyse XAUUSD` affiche cette grille ligne par ligne, avec
+le détail chiffré de chaque filtre.
+
+### Étage 2 — Le score de confluence
+
+Neuf lectures indépendantes, chacune ramenée dans `[-1, +1]` puis pondérée :
+
+| Brique | Poids | Contenu |
+|---|---|---|
+| tendance | 0,22 | biais M5/M15/H1, Supertrend, nuage Ichimoku |
+| momentum | 0,16 | MACD, RSI, stochastique, ADX |
+| bougies | 0,16 | avalement, pin bar, étoile, marubozu, harami, pénétrante… |
+| figures | 0,10 | double sommet/creux, épaule-tête-épaule, triangles |
+| divergences | 0,08 | RSI vs prix, régulières et cachées |
+| zones | 0,08 | Fair Value Gaps, order blocks, profil de volume |
+| volume | 0,06 | OBV, MFI, position vs VWAP |
+| macro | 0,08 | taux réels, dollar, VIX, positionnement COT |
+| news | 0,06 | surprise des dernières publications vs consensus |
+
+Score maximal théorique : 1,00. Seuil par défaut : **0,55** (0,75 à
+contre-tendance), relevé automatiquement selon l'avancement de l'objectif.
+
+### Les trois scénarios reconnus
+
+1. **`tendance_repli`** — tendance établie, repli sur EMA / zone / Fibonacci,
+   bougie de reprise. Le scénario de référence.
+2. **`cassure`** — sortie de canal de Donchian, hors compression, confirmée
+   par le volume.
+3. **`retournement_niveau`** — uniquement en régime de retour à la moyenne :
+   rejet d'un niveau + divergence + bougie de retournement.
+4. **`cassure_post_annonce`** — après une publication majeure, une fois la
+   première impulsion digérée (6 à 45 min après).
+
+---
+
+## 3. Gestion de position : le cœur du système
+
+C'est le comportement demandé : **à l'approche de l'objectif, si la dynamique
+tient, le TP recule d'un cran et le stop remonte dans le même mouvement.**
+
+```
+  0R ──────────► 0,8R  break-even : le stop passe à l'entrée, le trade ne peut plus perdre
+  0,8R ────────► 1R    prise partielle de 40 % du volume
+  1R ──────────► ...   stop suiveur (chandelier ATR) qui ne recule jamais
+  85 % du TP ──► ...   ★ extension de l'objectif + verrouillage du stop
+  dynamique KO ──►     stop resserré, objectif inchangé, on encaisse
+```
+
+### L'extension automatique, en détail
+
+Quand le prix a parcouru **85 %** du chemin vers le TP, le robot mesure la
+dynamique (`compute_momentum`) : Supertrend, position vs EMA rapide, expansion
+du MACD, force de l'ADX, épuisement du RSI, bougies récentes, marge jusqu'au
+prochain niveau — le tout amorti si le marché n'a pas de tendance (ADX < 20,
+régime de retour à la moyenne, compression de volatilité).
+
+- **Dynamique ≥ 0,35** → le TP recule de `max(1,2 × ATR ; 0,5R)`, plafonné à
+  90 % de la distance jusqu'au prochain obstacle. **Simultanément**, le stop
+  monte au plus haut de : 0,35R verrouillé, ou 1,1 ATR sous le prix courant.
+  Maximum 4 extensions par trade.
+- **Dynamique < 0,35** → le TP ne bouge pas, le stop se resserre à 1,0 ATR.
+  On prend ce qui est acquis.
+
+Tout est symétrique à la vente : « monter le TP » veut dire le descendre.
+
+**Garantie testée** : le gain verrouillé ne recule jamais
+(`test_le_gain_verrouille_ne_recule_jamais`). Une extension ne peut pas rendre
+un trade plus risqué qu'avant.
+
+### Sorties de sécurité
+
+- retournement confirmé alors qu'au moins 0,5R est acquis → on sort ;
+- stop temporel : 4 h sans dépasser 0,25R → le capital est libéré ;
+- perte anormale (gap, stop non honoré) au-delà de 1,5R → sortie immédiate ;
+- annonce imminente → stop resserré sur les positions ouvertes.
+
+---
+
+## 4. Money management
+
+### Dimensionnement
+
+```
+volume = (capital × risque%) / (distance au stop × valeur du point)
+```
+
+L'arrondi au pas de lot se fait **toujours vers le bas** : dépasser le risque
+visé à cause d'un arrondi serait une erreur silencieuse, répétée à chaque
+trade.
+
+### Échelle adaptative (anti-martingale)
+
+La taille suit la courbe de capital. On augmente **avec les gains**, jamais
+pour se refaire.
+
+| Capital vs référence | Multiplicateur |
+|---|---|
+| +50 % | ×1,80 |
+| +25 % | ×1,45 |
+| +10 % | ×1,20 |
+| référence | ×1,00 |
+| −5 % | ×0,85 |
+| −8 % | ×0,75 |
+| −15 % | ×0,50 |
+| −25 % | ×0,35 |
+
+Bornes dures : ×0,30 à ×2,00. La référence se recale chaque semaine sur le
+sommet atteint, pour ne pas re-risquer un capital déjà rendu.
+
+S'y ajoutent : réduction après 2 pertes consécutives, réduction continue en
+drawdown, et un **plafond dur de 1,5 % par trade** que rien ne peut franchir.
+
+### Coupe-circuits
+
+| Limite | Défaut | Effet |
+|---|---|---|
+| perte journalière | 4 % | arrêt jusqu'au lendemain |
+| perte hebdomadaire | 8 % | arrêt jusqu'à lundi |
+| drawdown maximal | 20 % | arrêt complet, redémarrage manuel |
+| gain journalier | +6 % | journée protégée, on ne rejoue pas |
+| pertes consécutives | 4 | pause de 90 min |
+| positions simultanées | 3 | — |
+| risque total ouvert | 3 % | — |
+| trades par jour | 12 | — |
+| corrélation | 1 par groupe | pas d'or + argent + AUD en même temps |
+
+---
+
+## 5. Le défi hebdomadaire
+
+Objectif de la semaine 1, puis un palier de plus à chaque objectif atteint.
+
+```bash
+python3 run_bot.py objectifs
+```
+
+**Trois règles qui protègent le compte :**
+
+1. **Un retard ne fait jamais monter le risque.** Il relève le seuil de
+   validation : moins de trades, mais meilleurs. C'est l'inverse exact d'une
+   martingale.
+2. **L'objectif est plafonné par le capital** (8 % par semaine par défaut).
+   Viser 100 € sur un compte de 500 € revient à chercher +20 % en une
+   semaine : le robot affiche l'objectif nominal, applique l'objectif
+   soutenable, et indique le capital nécessaire pour viser le nominal
+   (1 250 € pour 100 €/semaine).
+3. **Le palier ne monte que sur résultat**, pas sur calendrier. Une semaine
+   perdante fait redescendre d'un cran.
+
+Une fois l'objectif atteint : risque ×0,4, seuil +0,15. Au-delà de 160 % de
+l'objectif : arrêt jusqu'à lundi.
+
+---
+
+## 6. Univers et couverture 24/7
+
+| Actif | Classe | Séances (UTC) | Groupe corrélé |
+|---|---|---|---|
+| XAUUSD, XAGUSD | métal | 07 h–21 h, lun–ven | metals |
+| EURUSD, GBPUSD, USDJPY, AUDUSD, USDCAD | forex | 07 h–21 h, lun–ven | usd_major / commodity_fx |
+| BTCUSD, ETHUSD, SOLUSD, XRPUSD | crypto | 24/7 | crypto |
+
+L'or est prioritaire (coefficient de conviction 1,25). Quand le forex et l'or
+ferment, seules les cryptos restent dans la liste — le robot continue de
+travailler la nuit et le week-end.
+
+---
+
+## 7. Sources de données
+
+Bascule automatique : si une source tombe, la suivante prend le relais, et la
+défaillante est mise en quarantaine 5 minutes.
+
+| Source | Clé requise | Couverture |
+|---|---|---|
+| MoonX | `MOONX_API_KEY` | tout (prix du lieu d'exécution — prioritaire) |
+| Binance | non | cryptos, à la minute |
+| Yahoo Finance | non | or, forex, cryptos, DXY, VIX, S&P 500, 10 ans US |
+| TwelveData | `TWELVEDATA_API_KEY` | XAU/USD natif, forex, crypto |
+| Finnhub | `FINNHUB_API_KEY` | forex, crypto + calendrier économique |
+| Polygon | `POLYGON_API_KEY` | agrégats forex/crypto |
+| AlphaVantage | `ALPHAVANTAGE_API_KEY` | forex, crypto |
+| MetalpriceAPI | `METALPRICE_API_KEY` | cotation spot or/argent |
+| Stooq | non | historique journalier |
+| FRED | `FRED_API_KEY` | taux réels 10 ans (driver n°1 de l'or) |
+| CFTC | non | positionnement COT sur l'or |
+
+Optimisation : le robot télécharge la plus petite unité de temps et agrège
+localement M5/M15/H1 — moins de requêtes, moins de quota consommé.
+
+---
+
+## 8. Calendrier économique
+
+Sources : Finnhub, Financial Modeling Prep, TradingEconomics, fichier local
+`data/economic_calendar.json`, et un **calendrier récurrent intégré** qui
+fonctionne sans aucune clé (NFP le 1ᵉʳ vendredi 12 h 30 UTC, CPI vers le 10-15,
+FOMC les mercredis de milieu de mois, allocations chômage chaque jeudi).
+
+- **Blackout** : 20 min avant / 20 min après une annonce majeure.
+- **Protection** : stops resserrés dès 45 min avant.
+- **Breakout** : réouverture possible 6 à 45 min après la publication.
+- **Biais** : la surprise vs consensus alimente le score (une inflation
+  au-dessus des attentes pèse sur l'or à court terme).
+
+---
+
+## 9. Exécution sur MoonX
+
+Deux modes, détectés automatiquement :
+
+**Mode API REST** (recommandé, totalement autonome)
+```bash
+export MOONX_API_URL="https://api.moon-x.io"
+export MOONX_API_KEY="votre_cle"
+export MOONX_ACCOUNT_ID="votre_compte"      # optionnel
+python3 run_bot.py run --broker moonx
+```
+
+**Mode pont** (quand l'accès passe par le connecteur MCP plutôt qu'une clé)
+```bash
+export MOONX_BRIDGE_FILE="data/ordres_moonx.jsonl"
+python3 run_bot.py run --broker moonx
+```
+Le robot dépose ses ordres en JSON Lines ; un exécuteur externe les consomme.
+
+**Routes et champs configurables** — si l'API de MoonX diffère de la
+convention retenue, rien à recompiler :
+```bash
+export MOONX_ORDER_PATH="/v2/orders"
+export MOONX_POSITIONS_PATH="/v2/positions"
+export MOONX_SYMBOL_XAUUSD="GOLD"           # mapping par symbole
+```
+
+Le stop-loss part **dans l'ordre d'ouverture** : si la connexion tombe juste
+après, la position reste protégée côté plateforme.
+
+---
+
+## 10. Fonctionnement 24/7
+
+Cadence adaptative : 5 s en position, 20 s en recherche, 5 min marchés fermés.
+
+- **Reprise après redémarrage** : les positions ouvertes sont récupérées avec
+  leur état de gestion (extensions déjà faites, break-even, plus haut atteint).
+  Sans cela, une position reprise repartirait de zéro et pourrait voir son stop
+  reculer.
+- **Résilience** : toute exception de cycle est capturée, comptée, suivie d'un
+  délai croissant. Il faut 12 cycles en échec consécutifs pour déclencher la
+  mise en sécurité.
+- **Arrêt propre** (`Ctrl+C`, `SIGTERM`) : l'état est sauvegardé, les positions
+  restent ouvertes et protégées par leur stop. Les fermer automatiquement
+  transformerait un simple redémarrage en perte sèche.
+
+### Service systemd
+
+```bash
+sudo cp deploy/gold-bot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now gold-bot
+journalctl -u gold-bot -f
+```
+
+### Docker
+
+```bash
+docker build -t gold-bot -f deploy/Dockerfile .
+docker run -d --name gold-bot --env-file .env -v $(pwd)/data:/app/data gold-bot
+```
+
+---
+
+## 11. Alertes
+
+| Canal | Configuration | Niveau par défaut |
+|---|---|---|
+| console | toujours actif | info |
+| journal JSONL | `GB_JOURNAL_FILE` | tout |
+| Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | trades |
+| webhook (Discord/Slack) | `GB_WEBHOOK_URL` | trades |
+| boîte d'envoi mail | `GB_ALERT_EMAIL` | alertes |
+
+Sont notifiés : ouverture (avec tous les facteurs validés), **extension
+d'objectif**, clôture (avec avancement de l'objectif hebdomadaire), suspension
+sur coupe-circuit, signe de vie horaire, bilan quotidien.
+
+---
+
+## 12. Configuration
+
+Trois niveaux, du plus faible au plus fort : valeurs par défaut → fichier JSON
+→ variables d'environnement.
+
+```bash
+cp robot.example.json robot.json
+python3 run_bot.py run --config robot.json
+```
+
+Surcharge ponctuelle :
+```bash
+GB_RISK_BASE_RISK_PCT=0.5 GB_STRATEGY_MIN_SCORE=0.65 python3 run_bot.py run
+```
+
+La configuration est **validée au démarrage** : un objectif initial sous le
+ratio minimal exigé, un break-even placé après le TP, ou un risque total
+inférieur au risque d'un seul trade sont refusés avec un message explicite.
+
+Les clés API ne passent **que** par l'environnement, jamais par le fichier de
+configuration.
+
+---
+
+## 13. Tests
+
+```bash
+python3 run_tests.py              # 149 tests
+python3 run_tests.py trade_manager -v
+```
+
+| Fichier | Couvre |
+|---|---|
+| `test_trade_manager.py` | break-even, trailing, **extension du TP**, sorties |
+| `test_indicators.py` | valeurs exactes des indicateurs, agrégation, Hurst |
+| `test_candles.py` | patterns de bougies, niveaux, divergences, FVG |
+| `test_strategy.py` | filtres éliminatoires, chemin nominal, score borné |
+| `test_risk.py` | dimensionnement, échelle adaptative, coupe-circuits |
+| `test_objectives.py` | paliers, plafonnement, modulation du risque |
+| `test_execution.py` | simulateur, MoonX, persistance, statistiques |
+
+---
+
+## 14. Ce que ce système ne fait pas
+
+Par honnêteté, et parce que ces limites conditionnent l'usage :
+
+- **Il ne garantit aucun gain.** Les filtres et la gestion du risque
+  améliorent l'espérance et bornent les pertes ; ils ne créent pas de
+  rentabilité là où le marché n'en offre pas.
+- **Les backtests sur données synthétiques ne prouvent rien** sur la
+  performance réelle. Ils valident la mécanique, pas le profit. Un backtest
+  sur données réelles reste une approximation : il ne reproduit ni
+  l'élargissement des spreads sur annonce, ni le slippage, ni les rejets
+  d'ordre.
+- **L'API MoonX n'a pas pu être testée en conditions réelles** depuis
+  l'environnement de développement (domaine bloqué). Le mode `--dry-run`
+  existe pour valider le format des ordres avant d'engager de l'argent.
+- **Un objectif hebdomadaire chiffré reste une contrainte artificielle.** Le
+  marché ne donne pas 100 € parce que c'est écrit dans un fichier. Le
+  plafonnement et la modulation de la sélectivité limitent les dégâts de cette
+  contrainte, ils ne la rendent pas réaliste sur un petit capital.
+
+## 15. Avant d'engager de l'argent réel
+
+1. `python3 run_bot.py check` — vérifier que les sources répondent.
+2. Faire tourner en `--broker paper` pendant plusieurs jours de marché.
+3. Passer en `--broker moonx --dry-run` : ordres formatés et journalisés, rien
+   envoyé. Vérifier le contenu de `data/journal.jsonl`.
+4. Démarrer en réel avec `GB_RISK_BASE_RISK_PCT=0.25` et
+   `GB_RISK_MAX_POSITIONS=1`, puis remonter progressivement.
+5. Garder les alertes Telegram actives : un robot autonome doit rester
+   observable.

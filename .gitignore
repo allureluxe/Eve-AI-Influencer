@@ -1,0 +1,18 @@
+# Donnees de travail du robot : etat, journal, historique des trades.
+# Elles sont propres a chaque installation et ne doivent jamais etre versionnees.
+data/
+*.jsonl
+robot.json
+
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Images generees par le module Eve
+generated_images/
