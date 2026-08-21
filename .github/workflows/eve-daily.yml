@@ -1,0 +1,70 @@
+# Exécution quotidienne de l'agent Eve.
+#
+# Les runners GitHub sont éphémères : la base SQLite et les vidéos sont
+# conservées via le cache et les artefacts. Pour un usage sérieux et
+# durable, un petit VPS avec cron reste plus simple.
+name: Eve — cycle quotidien
+
+on:
+  schedule:
+    - cron: "30 10 * * *"   # 06:30 America/New_York (heure d'été)
+    - cron: "0 22 * * *"    # 18:00 America/New_York
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "1 = ne rien publier"
+        default: "1"
+        type: string
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Restaurer l'état de l'agent
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: eve-state-${{ github.run_id }}
+          restore-keys: eve-state-
+
+      - name: Contrôles de conformité
+        run: python -m pytest tests -q
+
+      - name: Cycle quotidien
+        env:
+          DRY_RUN: ${{ inputs.dry_run || '1' }}
+          REQUIRE_HUMAN_REVIEW: "0"
+          IMAGE_PROVIDER: ${{ vars.IMAGE_PROVIDER || 'pollinations' }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'template' }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+          PUBLIC_MEDIA_BASE_URL: ${{ vars.PUBLIC_MEDIA_BASE_URL }}
+          LINKINBIO_URL: ${{ vars.LINKINBIO_URL }}
+          AMAZON_ASSOCIATE_TAG: ${{ vars.AMAZON_ASSOCIATE_TAG }}
+        run: python -m eve.cli run --days 3 --max-publish 2
+
+      - name: Récupérer les vidéos et le rapport
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eve-output-${{ github.run_number }}
+          path: |
+            output/videos/**/*.mp4
+            output/reports/*.md
+          retention-days: 14

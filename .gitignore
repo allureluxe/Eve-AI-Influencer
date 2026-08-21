@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Contenus générés (volumineux, reproductibles)
+output/
+data/
+assets/music/*
+!assets/music/.gitkeep
+assets/reference/*
+!assets/reference/.gitkeep
