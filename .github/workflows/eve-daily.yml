@@ -1,14 +1,22 @@
-# Exécution quotidienne de l'agent Eve.
+# Exécution de l'agent Eve sur GitHub.
+#
+# Déclenchement MANUEL pour l'instant : onglet Actions → « Eve — cycle
+# quotidien » → « Run workflow ». Les vidéos produites se téléchargent en
+# bas de la page d'exécution (section Artifacts).
+#
+# Pour passer en automatique, décommenter le bloc `schedule` ci-dessous.
+# À ne faire qu'une fois les comptes créés : sans cela, chaque exécution
+# produit du contenu que personne ne publie.
 #
 # Les runners GitHub sont éphémères : la base SQLite et les vidéos sont
-# conservées via le cache et les artefacts. Pour un usage sérieux et
-# durable, un petit VPS avec cron reste plus simple.
+# conservées via le cache et les artefacts. Pour un usage durable, un petit
+# VPS avec cron reste plus simple.
 name: Eve — cycle quotidien
 
 on:
-  schedule:
-    - cron: "30 10 * * *"   # 06:30 America/New_York (heure d'été)
-    - cron: "0 22 * * *"    # 18:00 America/New_York
+  # schedule:
+  #   - cron: "30 10 * * *"   # 06:30 America/New_York (heure d'été)
+  #   - cron: "0 22 * * *"    # 18:00 America/New_York
   workflow_dispatch:
     inputs:
       dry_run:

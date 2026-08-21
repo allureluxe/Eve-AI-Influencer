@@ -1,5 +1,11 @@
 # Démarrer — 3 étapes
 
+> **Sans rien installer ?** Onglet **Actions** du dépôt GitHub → *Eve — cycle
+> quotidien* → **Run workflow**. Les vidéos se téléchargent en bas de la page
+> d'exécution, section *Artifacts*. Pratique pour essayer depuis un téléphone.
+> Les trois étapes ci-dessous restent la bonne façon de travailler au
+> quotidien.
+
 ## 1. Lancer
 
 ```bash
