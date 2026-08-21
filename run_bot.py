@@ -2,6 +2,7 @@
 """Interface en ligne de commande du robot de trading.
 
     python3 run_bot.py check                 verifie l'installation et les acces
+    (les options --config, --broker... s'ecrivent avant ou apres la commande)
     python3 run_bot.py scan                  un balayage unique, sans rien executer
     python3 run_bot.py analyse XAUUSD        analyse detaillee d'un instrument
     python3 run_bot.py backtest XAUUSD       rejeu historique
@@ -342,34 +343,54 @@ def cmd_status(args) -> int:
 
 
 # ==========================================================================
+# Valeurs par defaut des options communes. Elles sont declarees avec
+# argparse.SUPPRESS pour pouvoir etre acceptees AVANT comme APRES la
+# commande : sans cela, "run_bot.py check --config x.json" echouait, ce qui
+# est pourtant la facon la plus naturelle de l'ecrire.
+DEFAUTS_COMMUNS = {
+    "config": "", "broker": None, "dry_run": False, "offline": False,
+    "symbols": "", "balance": 0.0, "verbose": False,
+}
+
+
+def options_communes() -> argparse.ArgumentParser:
+    """Options acceptees a n'importe quelle position de la ligne de commande."""
+    commun = argparse.ArgumentParser(add_help=False, argument_default=argparse.SUPPRESS)
+    commun.add_argument("--config", help="fichier de configuration JSON")
+    commun.add_argument("--broker", choices=["paper", "moonx"], help="lieu d'execution")
+    commun.add_argument("--dry-run", action="store_true", help="analyser sans envoyer d'ordre")
+    commun.add_argument("--offline", action="store_true", help="donnees synthetiques (tests)")
+    commun.add_argument("--symbols", help="liste d'instruments, separes par des virgules")
+    commun.add_argument("--balance", type=float, help="capital de reference")
+    commun.add_argument("--verbose", action="store_true", help="detail complet")
+    return commun
+
+
 def main() -> int:
+    commun = options_communes()
     parser = argparse.ArgumentParser(
         description="Robot de trading autonome multi-actifs",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__)
-    parser.add_argument("--config", default="", help="fichier de configuration JSON")
-    parser.add_argument("--broker", choices=["paper", "moonx"], help="lieu d'execution")
-    parser.add_argument("--dry-run", action="store_true", help="analyser sans envoyer d'ordre")
-    parser.add_argument("--offline", action="store_true", help="donnees synthetiques (tests)")
-    parser.add_argument("--symbols", default="", help="liste d'instruments, separes par des virgules")
-    parser.add_argument("--balance", type=float, default=0.0, help="capital de reference")
-    parser.add_argument("--verbose", action="store_true", help="detail complet")
+        epilog=__doc__, parents=[commun])
 
     sub = parser.add_subparsers(dest="command")
-    sub.add_parser("check", help="verifier l'installation et les acces")
-    sub.add_parser("scan", help="un balayage unique de l'univers")
-    p = sub.add_parser("analyse", help="analyse detaillee d'un instrument")
+    sub.add_parser("check", help="verifier l'installation et les acces", parents=[commun])
+    sub.add_parser("scan", help="un balayage unique de l'univers", parents=[commun])
+    p = sub.add_parser("analyse", help="analyse detaillee d'un instrument", parents=[commun])
     p.add_argument("symbol")
-    p = sub.add_parser("backtest", help="rejeu historique")
+    p = sub.add_parser("backtest", help="rejeu historique", parents=[commun])
     p.add_argument("symbol", nargs="?", default="XAUUSD")
     p.add_argument("--bars", type=int, default=1500)
-    sub.add_parser("objectifs", help="etat du defi hebdomadaire")
-    p = sub.add_parser("stats", help="statistiques des trades")
+    sub.add_parser("objectifs", help="etat du defi hebdomadaire", parents=[commun])
+    p = sub.add_parser("stats", help="statistiques des trades", parents=[commun])
     p.add_argument("--days", type=int, default=0)
-    sub.add_parser("run", help="lancer le robot en continu")
-    sub.add_parser("status", help="etat courant du robot")
+    sub.add_parser("run", help="lancer le robot en continu", parents=[commun])
+    sub.add_parser("status", help="etat courant du robot", parents=[commun])
 
     args = parser.parse_args()
+    for nom, defaut in DEFAUTS_COMMUNS.items():
+        if not hasattr(args, nom):
+            setattr(args, nom, defaut)
     setup_logging(args.verbose)
 
     handlers = {
