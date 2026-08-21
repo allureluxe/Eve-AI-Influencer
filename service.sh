@@ -34,7 +34,10 @@ installer)
     exiger_root installer
 
     [ -f "$DOSSIER/.env" ] || { souci "Fichier .env absent. Lancez d'abord : bash installer.sh"; exit 1; }
-    [ -f "$DOSSIER/robot.live.json" ] || { souci "robot.live.json absent."; exit 1; }
+    # La configuration retenue est celle choisie a l'installation.
+    CONFIG=$(grep -E "^GB_CONFIG=" "$DOSSIER/.env" 2>/dev/null | cut -d= -f2-)
+    CONFIG=${CONFIG:-robot.micro.json}
+    [ -f "$DOSSIER/$CONFIG" ] || { souci "$CONFIG absent."; exit 1; }
 
     # Le service tourne sous le compte proprietaire du dossier, jamais root :
     # un robot qui gere de l'argent n'a aucun besoin des droits administrateur.
@@ -54,7 +57,7 @@ Type=simple
 User=${UTILISATEUR}
 WorkingDirectory=${DOSSIER}
 EnvironmentFile=${DOSSIER}/.env
-ExecStart=${PYTHON} ${DOSSIER}/run_bot.py run --config ${DOSSIER}/robot.live.json
+ExecStart=${PYTHON} ${DOSSIER}/run_bot.py run --config ${DOSSIER}/${CONFIG}
 
 Restart=always
 RestartSec=30
@@ -84,6 +87,7 @@ EOF
     systemctl enable "$NOM" >/dev/null 2>&1
 
     ok "Service installe : $UNITE"
+    ok "Configuration : $CONFIG"
     ok "Compte utilise : $UTILISATEUR"
     ok "Demarrage automatique au boot : active"
     echo

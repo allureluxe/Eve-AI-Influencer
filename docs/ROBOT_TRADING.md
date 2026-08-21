@@ -266,7 +266,83 @@ FOMC les mercredis de milieu de mois, allocations chômage chaque jeudi).
 
 ---
 
-## 9. Exécution sur MoonX
+## 9. Exécution
+
+Le robot ne sait pas où il passe ses ordres : toute la stratégie est écrite
+contre une interface unique (`Broker`). Changer de plateforme ne demande
+aucune modification de la logique de trading.
+
+| Lieu | État | Usage |
+|---|---|---|
+| `paper` | intégré | simulation, backtest, mise au point |
+| `binance` | **opérationnel** | Binance Futures USDT-M, testnet inclus |
+| `moonx` | en attente d'un accès API | prêt côté code, bloqué côté plateforme |
+
+### Binance Futures — le chemin recommandé
+
+```bash
+export BINANCE_API_KEY="..." BINANCE_API_SECRET="..."
+export BINANCE_TESTNET=1          # argent fictif, même API
+python3 run_bot.py run --config robot.binance.json
+```
+
+**Pourquoi les futures et non le spot.** Le spot ne permet que d'acheter : la
+moitié des signaux du robot — les ventes — serait perdue. Les futures
+autorisent les deux sens et acceptent surtout des ordres stop et objectif
+**déposés sur la plateforme** : si le robot s'arrête, si le serveur redémarre
+ou si le réseau tombe, la position reste protégée.
+
+**Le levier n'est pas un réglage de risque.** Il vaut 10 par défaut non pour
+amplifier quoi que ce soit, mais pour que la marge immobilisée laisse de la
+place. À 50 USDT, une position BTC au lot minimum représente environ 270 USDT
+de notionnel : sans levier suffisant, Binance refuserait l'ordre faute de
+marge. Le risque réel reste borné par le stop et par `base_risk_pct` :
+
+| Capital | BTCUSD | ETHUSD | SOLUSD | Risque par trade |
+|---|---|---|---|---|
+| 20 USDT | 0,001 | 0,03 | *lot minimum trop grand* | 0,5 – 0,8 % |
+| 50 USDT | 0,004 | 0,09 | 1 | 0,7 – 1,0 % |
+| 100 USDT | 0,009 | 0,18 | 2 | 0,7 – 1,0 % |
+| 250 USDT | 0,024 | 0,46 | 6 | 0,9 – 1,0 % |
+
+**Le testnet d'abord.** `BINANCE_TESTNET=1` utilise la même API avec de
+l'argent fictif (`testnet.binancefuture.com`). C'est la seule façon de valider
+une intégration sans rien risquer. Le testnet est le **défaut** : on ne part
+jamais en argent réel par omission.
+
+**Trois précautions intégrées :**
+
+- Les contraintes réelles de la plateforme (pas de lot, pas de prix, notionnel
+  minimum) sont lues sur `exchangeInfo` au démarrage et **écrasent** celles
+  déclarées par défaut. Sans cela, le robot calculerait par exemple 0,4 SOL
+  alors que Binance exige des unités entières.
+- Le stop est déposé **immédiatement** après l'entrée. S'il ne peut pas
+  l'être, la position est refermée dans la foulée plutôt que laissée nue.
+- Binance ne sait pas *modifier* un ordre stop : il faut l'annuler et le
+  reposer. Comme le robot déplace son stop en permanence, il ne repose l'ordre
+  que si le niveau a bougé de plus de 8 % du risque initial — sinon le quota
+  d'API serait consommé pour des variations invisibles.
+
+Binance Futures ne propose que des cryptos : l'or et le forex sont retirés de
+l'univers automatiquement au démarrage.
+
+### MoonX — état des lieux
+
+Le code est prêt (`gold_bot/brokers/moonx.py`), mais la plateforme ne fournit
+pas d'accès API en libre-service :
+
+- `api.moon-x.io` existe et répond
+  (`{"message":"Missing or invalid authorization header","statusCode":401}`),
+  ce qui indique une API REST authentifiée par en-tête `Authorization`.
+- Aucune section API dans l'interface du compte.
+- Aucune documentation publique, aucune page Swagger aux adresses usuelles.
+- Le connecteur MCP échoue à l'inscription OAuth et réclame un Client ID que
+  seul MoonX peut délivrer.
+
+Il faut donc passer par leur support. Dès qu'un accès est fourni, l'adaptateur
+se configure entièrement par variables d'environnement, sans toucher au code.
+
+## 10. Configuration MoonX (référence)
 
 Deux modes, détectés automatiquement :
 
@@ -298,7 +374,7 @@ après, la position reste protégée côté plateforme.
 
 ---
 
-## 10. Fonctionnement 24/7
+## 11. Fonctionnement 24/7
 
 Cadence adaptative : 5 s en position, 20 s en recherche, 5 min marchés fermés.
 
@@ -331,7 +407,7 @@ docker run -d --name gold-bot --env-file .env -v $(pwd)/data:/app/data gold-bot
 
 ---
 
-## 11. Alertes
+## 12. Alertes
 
 | Canal | Configuration | Niveau par défaut |
 |---|---|---|
@@ -347,7 +423,7 @@ sur coupe-circuit, signe de vie horaire, bilan quotidien.
 
 ---
 
-## 12. Configuration
+## 13. Configuration
 
 Trois niveaux, du plus faible au plus fort : valeurs par défaut → fichier JSON
 → variables d'environnement.
@@ -371,7 +447,7 @@ configuration.
 
 ---
 
-## 13. Tests
+## 14. Tests
 
 ```bash
 python3 run_tests.py              # 149 tests
@@ -390,7 +466,7 @@ python3 run_tests.py trade_manager -v
 
 ---
 
-## 14. Ce que ce système ne fait pas
+## 15. Ce que ce système ne fait pas
 
 Par honnêteté, et parce que ces limites conditionnent l'usage :
 
@@ -410,7 +486,7 @@ Par honnêteté, et parce que ces limites conditionnent l'usage :
   plafonnement et la modulation de la sélectivité limitent les dégâts de cette
   contrainte, ils ne la rendent pas réaliste sur un petit capital.
 
-## 15. Trading rapide : mode quorum et coût d'exécution
+## 16. Trading rapide : mode quorum et coût d'exécution
 
 ### Le mode quorum
 
@@ -595,7 +671,7 @@ tout seul quand le capital a changé.
 
 ---
 
-## 16. Petit capital : ce que le lot minimum impose
+## 17. Petit capital : ce que le lot minimum impose
 
 Le pas de lot du broker est un **plancher physique** : on ne peut pas risquer
 moins que ce que coûte un lot minimum. Sur un petit compte, c'est lui qui
@@ -646,7 +722,7 @@ python3 run_bot.py run --config robot.live.json
 
 ---
 
-## 17. Avant d'engager de l'argent réel
+## 18. Avant d'engager de l'argent réel
 
 1. `python3 run_bot.py check` — vérifier que les sources répondent.
 2. Faire tourner en `--broker paper` pendant plusieurs jours de marché.

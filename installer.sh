@@ -60,6 +60,18 @@ else
     ok "Fichier .env cree a partir du modele."
 fi
 
+ecrire_valeur() {
+    # ecrire_valeur NOM VALEUR  (sans question, pour les reglages non secrets)
+    local nom="$1" valeur="$2" tmp
+    if grep -qE "^${nom}=" .env; then
+        tmp=$(mktemp)
+        awk -v n="$nom" -v v="$valeur" -F= '$1==n {print n "=" v; next} {print}' .env > "$tmp"
+        mv "$tmp" .env
+    else
+        echo "${nom}=${valeur}" >> .env
+    fi
+}
+
 ecrire_cle() {
     # ecrire_cle NOM_VARIABLE "question" [masquer]
     local nom="$1" question="$2" masquer="${3:-non}" valeur=""
@@ -91,13 +103,49 @@ ecrire_cle() {
 }
 
 # --------------------------------------------------------------------------
-titre "3/5  Acces MoonX"
+titre "3/5  Plateforme d'execution"
 
-echo "  Ces informations viennent de votre compte MoonX (section API)."
-echo "  Elles restent dans le fichier .env, sur cette machine uniquement."
+echo "  Ou le robot doit-il passer ses ordres ?"
 echo
-ecrire_cle "MOONX_API_URL" "Adresse de l'API MoonX (ex: https://api.moon-x.io)"
-ecrire_cle "MOONX_API_KEY" "Cle API MoonX (elle ne s'affichera pas)" oui
+echo "    1) Binance Futures  (recommande : API publique, testnet gratuit)"
+echo "    2) MoonX            (necessite un acces API fourni par leur support)"
+echo "    3) Aucune pour l'instant (simulation seulement)"
+echo
+read -r -p "  Votre choix [1] : " choix_plateforme
+choix_plateforme=${choix_plateforme:-1}
+
+case "$choix_plateforme" in
+1)
+    echo
+    echo "  Creez vos cles sur Binance : Profil > Gestion API > Creer une API."
+    echo "  Cochez UNIQUEMENT 'Activer les Futures'. Ne cochez JAMAIS les retraits."
+    echo "  Pour le testnet (argent fictif) : testnet.binancefuture.com"
+    echo
+    ecrire_cle "BINANCE_API_KEY"    "Cle API Binance" oui
+    ecrire_cle "BINANCE_API_SECRET" "Secret API Binance" oui
+    echo
+    read -r -p "  Commencer sur le testnet, avec de l'argent fictif ? [O/n] : " testnet
+    if [[ "$testnet" =~ ^[Nn] ]]; then
+        ecrire_valeur "BINANCE_TESTNET" "0"
+        echo -e "  ${ROUGE}ATTENTION${FIN} : mode reel. Les ordres engageront de l'argent veritable."
+    else
+        ecrire_valeur "BINANCE_TESTNET" "1"
+        ok "Testnet actif : aucun risque tant que vous ne changerez pas ce reglage."
+    fi
+    ecrire_valeur "GB_CONFIG" "robot.binance.json"
+    ;;
+2)
+    echo
+    echo "  Ces informations viennent de votre compte MoonX."
+    ecrire_cle "MOONX_API_URL" "Adresse de l'API MoonX (ex: https://api.moon-x.io)"
+    ecrire_cle "MOONX_API_KEY" "Cle API MoonX (elle ne s'affichera pas)" oui
+    ecrire_valeur "GB_CONFIG" "robot.live.json"
+    ;;
+*)
+    info "Aucune plateforme configuree : le robot tournera en simulation."
+    ecrire_valeur "GB_CONFIG" "robot.micro.json"
+    ;;
+esac
 
 # --------------------------------------------------------------------------
 titre "4/5  Alertes sur telephone (fortement conseille)"
@@ -123,7 +171,7 @@ cat > verifier.sh <<'EOF'
 # Verifie que tout repond, sans rien executer.
 cd "$(dirname "$0")" || exit 1
 set -a; [ -f .env ] && . ./.env; set +a
-python3 run_bot.py check --config robot.live.json
+python3 run_bot.py check --config "${GB_CONFIG:-robot.micro.json}"
 EOF
 
 cat > essai.sh <<'EOF'
@@ -134,7 +182,7 @@ cat > essai.sh <<'EOF'
 cd "$(dirname "$0")" || exit 1
 set -a; [ -f .env ] && . ./.env; set +a
 echo "MODE ESSAI : aucun ordre ne sera envoye. Ctrl+C pour arreter."
-python3 run_bot.py run --config robot.live.json --dry-run
+python3 run_bot.py run --config "${GB_CONFIG:-robot.micro.json}" --dry-run
 EOF
 
 cat > demarrer.sh <<'EOF'
@@ -152,7 +200,7 @@ echo
 read -r -p "Taper OUI pour confirmer : " reponse
 [ "$reponse" != "OUI" ] && { echo "Annule."; exit 0; }
 
-python3 run_bot.py run --config robot.live.json
+python3 run_bot.py run --config "${GB_CONFIG:-robot.micro.json}"
 EOF
 
 cat > resultats.sh <<'EOF'
@@ -162,7 +210,7 @@ cd "$(dirname "$0")" || exit 1
 set -a; [ -f .env ] && . ./.env; set +a
 python3 run_bot.py stats
 echo
-python3 run_bot.py objectifs --config robot.live.json
+python3 run_bot.py objectifs --config "${GB_CONFIG:-robot.micro.json}"
 EOF
 
 chmod +x verifier.sh essai.sh demarrer.sh resultats.sh

@@ -136,6 +136,17 @@ def cmd_check(args) -> int:
         print(f"   mode MoonX : {broker.mode}")
         if broker.mode == "non configure":
             print("   -> definir MOONX_API_URL et MOONX_API_KEY, ou MOONX_BRIDGE_FILE")
+    elif cfg.engine.broker == "binance":
+        from gold_bot.brokers import BinanceBroker
+        broker = BinanceBroker()
+        print(f"   mode Binance : {broker.mode}")
+        if broker.connect():
+            acc = broker.account()
+            print(f"   compte : {acc.equity:.2f} {acc.currency} "
+                  f"(disponible {acc.margin_free:.2f})")
+            print(f"   instruments : {', '.join(s for s in broker.SYMBOLES) if hasattr(broker, 'SYMBOLES') else 'crypto'}")
+        else:
+            print("   -> definir BINANCE_API_KEY et BINANCE_API_SECRET")
 
     print("\n[Alertes]")
     print(f"   canaux actifs : {', '.join(Notifier().active_channels())}")
@@ -316,9 +327,10 @@ def cmd_run(args) -> int:
         print(f"demarrage impossible : {exc}")
         return 2
 
-    if cfg.engine.broker == "moonx" and not cfg.engine.dry_run:
+    if cfg.engine.broker in ("moonx", "binance") and not cfg.engine.dry_run:
+        nom = "MoonX" if cfg.engine.broker == "moonx" else "Binance"
         print("\n" + "!" * 74)
-        print("  EXECUTION REELLE : le robot va passer des ordres seul sur MoonX.")
+        print(f"  EXECUTION REELLE : le robot va passer des ordres seul sur {nom}.")
         print("  Coupe-circuits actifs : "
               f"perte journaliere {cfg.risk.daily_loss_limit_pct} %, "
               f"hebdomadaire {cfg.risk.weekly_loss_limit_pct} %, "
@@ -357,7 +369,7 @@ def options_communes() -> argparse.ArgumentParser:
     """Options acceptees a n'importe quelle position de la ligne de commande."""
     commun = argparse.ArgumentParser(add_help=False, argument_default=argparse.SUPPRESS)
     commun.add_argument("--config", help="fichier de configuration JSON")
-    commun.add_argument("--broker", choices=["paper", "moonx"], help="lieu d'execution")
+    commun.add_argument("--broker", choices=["paper", "moonx", "binance"], help="lieu d'execution")
     commun.add_argument("--dry-run", action="store_true", help="analyser sans envoyer d'ordre")
     commun.add_argument("--offline", action="store_true", help="donnees synthetiques (tests)")
     commun.add_argument("--symbols", help="liste d'instruments, separes par des virgules")

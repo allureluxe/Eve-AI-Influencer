@@ -27,7 +27,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from .brokers import Broker, BrokerError, MoonXBroker, MoonXConfig, PaperBroker, PaperConfig
+from .brokers import (BinanceBroker, BinanceConfig, Broker, BrokerError,
+                      MoonXBroker, MoonXConfig, PaperBroker, PaperConfig)
 from .core import ClosedTrade, Position, Side, Tick
 from .datasources import DataRegistry, build_registry
 from .macro import MacroEngine
@@ -91,9 +92,26 @@ class TradingEngine:
             if cfg.dry_run:
                 mx.dry_run = True
             broker = MoonXBroker(mx)
+        elif cfg.broker == "binance":
+            bn = BinanceConfig.from_env()
+            if cfg.dry_run:
+                bn.dry_run = True
+            broker = BinanceBroker(bn)
         else:
             broker = PaperBroker(PaperConfig(start_balance=cfg.start_balance,
                                              currency=cfg.currency))
+
+        # Un lieu d'execution ne propose pas forcement tout l'univers : scanner
+        # un instrument qu'on ne pourra pas trader gaspille des appels reseau
+        # et produit des signaux inexploitables.
+        if hasattr(broker, "supports"):
+            traitables = [i.symbol for i in self.universe if broker.supports(i.symbol)]
+            ecartes = [i.symbol for i in self.universe if not broker.supports(i.symbol)]
+            if ecartes:
+                logger.info("%s ne propose pas %s : ecarte(s) de l'univers",
+                            broker.name, ", ".join(ecartes))
+            self.universe.enable_only(traitables)
+
         for inst in self.universe:
             if hasattr(broker, "register_instrument"):
                 broker.register_instrument(inst)
@@ -106,6 +124,14 @@ class TradingEngine:
         """Prepare le robot. Retourne False si le demarrage est impossible."""
         cfg = self.config.engine
 
+        if cfg.broker == "binance" and not cfg.dry_run:
+            bn = getattr(self.broker, "config", None)
+            if bn is not None and not bn.testnet:
+                self.notifier.warning(
+                    "Binance en mode REEL",
+                    "Les ordres engagent de l'argent veritable. "
+                    "BINANCE_TESTNET=1 bascule sur de l'argent fictif.")
+
         if cfg.broker == "moonx" and cfg.offline:
             self.notifier.critical("Demarrage refuse",
                                    "execution reelle demandee avec des donnees synthetiques")
@@ -115,6 +141,11 @@ class TradingEngine:
             self.notifier.critical("Connexion au broker impossible",
                                    f"broker={cfg.broker} — verifier la configuration")
             return False
+
+        # Les contraintes de la plateforme font foi sur celles declarees par
+        # defaut : tailles de lot, pas de prix, notionnel minimum.
+        if hasattr(self.broker, "apply_market_rules"):
+            self.broker.apply_market_rules(self.universe)
 
         acc = self.broker.account()
         self.risk.sync_account(acc.equity, acc.balance, acc.currency)
@@ -204,6 +235,11 @@ class TradingEngine:
 
         # 1. Etat reel du compte et des positions
         self.broker.sync()
+        # Les contraintes de la plateforme font foi sur celles declarees par
+        # defaut : tailles de lot, pas de prix, notionnel minimum.
+        if hasattr(self.broker, "apply_market_rules"):
+            self.broker.apply_market_rules(self.universe)
+
         acc = self.broker.account()
         self.risk.sync_account(acc.equity, acc.balance, acc.currency)
         self.objectives.sync(acc.equity)

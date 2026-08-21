@@ -35,10 +35,10 @@ python3 run_bot.py run              # lancer en continu (simulation par défaut)
 | **Gestion** | SL/TP systématiques, break-even, prise partielle, trailing ATR, **extension automatique de l'objectif** |
 | **Capital** | taille indexée sur la courbe de résultats, plafond dur de 1,5 % par trade, 8 coupe-circuits |
 | **Objectifs** | défi hebdomadaire par paliers, plafonné par la capacité du compte |
-| **Exécution** | MoonX (API REST ou pont), simulateur intégré |
+| **Exécution** | Binance Futures (testnet inclus), simulateur intégré, MoonX prêt |
 | **Fonctionnement** | daemon 24/7, reprise après crash, systemd et Docker fournis |
 | **Dépendances** | aucune — Python 3.11+ standard |
-| **Tests** | 149 tests |
+| **Tests** | 204 tests |
 
 ### Le comportement central
 
@@ -50,9 +50,9 @@ l'achat et à la vente.
 
 ### Avant d'engager de l'argent réel
 
-`--broker paper` pendant plusieurs jours, puis `--broker moonx --dry-run`
-(ordres formatés et journalisés, rien envoyé), puis réel avec
-`GB_RISK_BASE_RISK_PCT=0.25`. Aucun système ne garantit un gain : les filtres
+`--broker paper` pendant plusieurs jours, puis Binance **testnet**
+(`BINANCE_TESTNET=1`, même API, argent fictif), puis réel avec
+`GB_RISK_BASE_RISK_PCT=0.5`. Aucun système ne garantit un gain : les filtres
 et la gestion du risque améliorent l'espérance et bornent les pertes, ils ne
 créent pas de rentabilité là où le marché n'en offre pas.
 
