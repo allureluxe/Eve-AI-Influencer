@@ -22,24 +22,26 @@ Tout le personnage tient dans un seul fichier — [`eve/persona/eve.yaml`](eve/p
 qui pilote la génération d'images, le ton des textes et les garde-fous. Modifie
 ce fichier, tout le reste suit.
 
-## Démarrage en 5 minutes
+## Démarrer
 
 ```bash
-pip install -r requirements.txt
-sudo apt install ffmpeg          # macOS : brew install ffmpeg
-cp .env.example .env
-
-python -m eve.cli doctor         # diagnostic de l'installation
-python -m eve.cli preview        # un script de vidéo, sans rien générer
-python -m eve.cli plan --days 7  # calendrier éditorial de la semaine
-python -m eve.cli produce --limit 1   # images + voix + sous-titres + MP4
-python -m eve.cli run            # cycle complet (en dry-run, rien n'est publié)
+python3 demarrer.py
 ```
 
-Aucune clé d'API n'est nécessaire pour ces commandes. La vidéo produite arrive
-dans `output/videos/<id>/`.
+Une seule commande : elle installe, vérifie, et produit une première vidéo.
+Rien n'est publié. Le guide pas-à-pas tient sur une page :
+**[DEMARRAGE.md](DEMARRAGE.md)**.
 
-## Ce que fait l'agent
+Ensuite, une seule commande à retenir :
+
+```bash
+python3 -m eve.cli go --videos 3     # produire le contenu suivant
+```
+
+## Sous le capot
+
+<details>
+<summary>Les dix modules que <code>go</code> enchaîne</summary>
 
 | Étape | Module | Détail |
 |---|---|---|
@@ -53,6 +55,8 @@ dans `output/videos/<id>/`.
 | Mesurer | `analytics/collector.py` | Vues, engagement, normalisés entre plateformes |
 | Optimiser | `analytics/optimizer.py` | Ré-pondère les piliers selon les résultats réels |
 | Monétiser | `monetization/` | Affiliation, programme PDF, media kit, suivi des revenus |
+
+</details>
 
 ## Deux verrous de sécurité, actifs par défaut
 
@@ -83,7 +87,7 @@ local avec une LoRA de visage : `IMAGE_PROVIDER=comfyui`.
 Détail complet et chiffré dans [docs/MONETISATION.md](docs/MONETISATION.md).
 Résumé de l'ordre à suivre :
 
-1. **Produit numérique** (jour 1) — `python -m eve.cli product` génère un
+1. **Produit numérique** (jour 1) — `python3 -m eve.cli product` génère un
    programme 4 semaines vendable et un media kit. Aucun seuil d'abonnés requis.
 2. **Affiliation** (dès les premiers abonnés) — matériel de sport, liens
    suivis en UTM, mention `#ad` ajoutée automatiquement.
@@ -93,7 +97,7 @@ Résumé de l'ordre à suivre :
    explicitement la nature IA du compte, c'est ce que les marques exigent.
 
 ```bash
-python -m eve.cli revenue --followers 12000 --views 400000
+python3 -m eve.cli revenue --followers 12000 --views 400000
 ```
 
 ## Conformité — non négociable
@@ -111,19 +115,20 @@ font bannir le compte — elles ont été retirées du projet.
 
 ## Automatisation
 
-- En local : `python -m eve.cli loop --hours 12`
-- Sur serveur : `0 6,18 * * * cd /chemin/eve && python -m eve.cli run`
+- En local : `python3 -m eve.cli loop --hours 12`
+- Sur serveur : `0 6,18 * * * cd /chemin/eve && python3 -m eve.cli run`
 - Sur GitHub Actions : [`.github/workflows/eve-daily.yml`](.github/workflows/eve-daily.yml)
   (gratuit sur dépôt public)
 
 ## Tests
 
 ```bash
-python -m pytest tests -q      # 38 tests, dont toute la politique de conformité
+python3 -m pytest tests -q     # 54 tests, dont toute la politique de conformité
 ```
 
 ## Documentation
 
+- [DEMARRAGE.md](DEMARRAGE.md) — **commence par là** : 3 étapes, une page
 - [docs/SETUP.md](docs/SETUP.md) — créer les comptes et obtenir les jetons API
 - [docs/RENDU-REALISTE.md](docs/RENDU-REALISTE.md) — qualité d'image et cohérence du visage
 - [docs/MONETISATION.md](docs/MONETISATION.md) — sources de revenus, seuils, chiffres

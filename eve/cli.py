@@ -1,5 +1,9 @@
 """Interface en ligne de commande de l'agent Eve.
 
+    python -m eve.cli go              # ⭐ tout faire en une commande
+
+Les commandes ci-dessous sont les briques que `go` enchaîne pour toi :
+
     python -m eve.cli doctor          # diagnostic de l'installation
     python -m eve.cli preview         # un script de vidéo, sans rien produire
     python -m eve.cli plan --days 7   # calendrier éditorial
@@ -212,10 +216,84 @@ def cmd_persona(args) -> int:
     return 0
 
 
+def cmd_go(args) -> int:
+    """Tout en une commande : vérifier, planifier, produire, expliquer la suite.
+
+    C'est le point d'entrée pour qui ne veut pas apprendre le reste du CLI.
+    Rien n'est publié : `go` s'exécute toujours en mode dry-run.
+    """
+    persona = load_persona()
+    env = settings.paths.root / ".env"
+    example = settings.paths.root / ".env.example"
+    if not env.exists() and example.exists():
+        env.write_text(example.read_text(encoding="utf-8"), encoding="utf-8")
+        print(f"{OK} Fichier .env créé à partir du modèle.")
+
+    print(f"\n🤖 {persona.raw()['identity']['full_name']} — @{persona.handle}")
+    print(f"   {persona.raw()['expertise']['positioning']}\n")
+
+    manques = []
+    if not ffmpeg_available():
+        manques.append("ffmpeg (montage vidéo) → sudo apt install ffmpeg  /  brew install ffmpeg")
+    if not shutil.which("edge-tts"):
+        manques.append("edge-tts (voix off) → pip install edge-tts")
+    if manques:
+        print(f"{WARN}Il manque de quoi produire une vidéo complète :")
+        for m in manques:
+            print(f"    · {m}")
+        print("   Je continue quand même avec ce qui est disponible.\n")
+
+    agent = EveAgent(persona=persona)
+    nouveaux = agent.plan(days=args.days)
+    en_attente = agent.store.pieces_by_status("draft", limit=200)
+    for row in en_attente:
+        agent.store.set_status(row["id"], "approved")
+    print(f"{OK} Calendrier : {len(nouveaux)} nouveau(x) contenu(s) sur {args.days} jours.")
+
+    faits = []
+    for row in agent.store.pieces_by_status("approved", limit=args.videos):
+        piece = _piece_from_row(row)
+        print(f"⏳ Production de « {piece.title} » ({len(piece.beats)} plans)…")
+        piece = agent.produce(piece)
+        if piece.assets.get("video"):
+            faits.append(piece)
+            print(f"   {OK} {piece.assets['video']}")
+        else:
+            print(f"   {KO} vidéo non montée : {piece.assets.get('video_error', 'cause inconnue')}")
+        if piece.assets.get("warning"):
+            print(f"   {WARN}{piece.assets['warning']}")
+
+    produit = export_program(persona)
+    kit = build_media_kit(persona, {})
+
+    print(f"\n{'═' * 58}\n  CE QUE TU AS MAINTENANT\n{'═' * 58}")
+    if faits:
+        print(f"  🎬 {len(faits)} vidéo(s) prête(s) dans  output/videos/")
+    print(f"  📄 Programme à vendre        {produit['html']}")
+    print(f"  📊 Media kit pour les marques {kit}")
+    print(f"\n{'═' * 58}\n  LA SUITE, DANS L'ORDRE\n{'═' * 58}")
+    print("""  1. Regarde les vidéos produites. Si le rendu te plaît, continue.
+  2. Crée les comptes TikTok et Instagram (Instagram en compte
+     Professionnel), mets la mention IA dans la bio :
+       « 🤖 AI-generated fitness coach · virtual creator »
+  3. Publie les MP4 à la main pendant une à deux semaines. C'est le
+     moyen le plus rapide de voir ce qui accroche, sans aucune clé d'API.
+  4. Quand le rythme est pris : docs/SETUP.md pour connecter les API,
+     puis DRY_RUN=0 dans .env pour laisser l'agent publier seul.
+  5. Pour produire la suite :  python -m eve.cli go""")
+    print(f"\n  Tout est en dry-run : {WARN}rien n'a été publié.\n")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser("eve", description="Agent autonome pour l'influenceuse IA Eve.")
     p.add_argument("--log-level", default=None)
     sub = p.add_subparsers(dest="command", required=True)
+
+    go = sub.add_parser("go", help="⭐ tout faire en une commande (recommandé)")
+    go.add_argument("--days", type=int, default=3, help="jours de contenu à planifier")
+    go.add_argument("--videos", type=int, default=1, help="vidéos à produire maintenant")
+    go.set_defaults(func=cmd_go)
 
     sub.add_parser("doctor", help="diagnostic complet").set_defaults(func=cmd_doctor)
 
