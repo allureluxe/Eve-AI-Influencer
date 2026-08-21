@@ -130,6 +130,62 @@ class TestCapitalInsuffisant(unittest.TestCase):
         self.assertNotIn("levier", d.reason)
 
 
+class TestLiquidites(unittest.TestCase):
+    """Au comptant, le capital total n'est pas de l'argent disponible.
+
+    Une partie peut deja etre investie en cryptos. Dimensionner sur le total
+    ferait proposer des ordres que la plateforme refuserait a chaque cycle,
+    faute de liquidites.
+    """
+
+    def setUp(self):
+        self.universe = Universe()
+        btc = self.universe.get("BTCUSD")
+        btc.min_lot, btc.lot_step = 0.00001, 0.00001
+        self.tm = TradeManager(TradeManagerConfig(atr_stop_mult=1.4, min_stop_atr=1.0,
+                                                  max_cost_ratio_pct=15.0, tp_r_multiple=2.0))
+        self.prix = 77000.0
+        self.sl, self.tp = self.tm.initial_levels(Side.BUY, self.prix, self.prix * 0.011,
+                                                  spread=7.7, digits=2)
+
+    def _decision(self, dispo):
+        rm = RiskManager(RiskConfig(base_risk_pct=1.0, max_cost_ratio_pct=15.0,
+                                    commission_pct=0.001, max_leverage=1.0, min_rr=1.5))
+        rm.sync_account(equity=29.29, balance=29.29, currency="USDT")
+        return rm.size_position(self.universe.get("BTCUSD"), Side.BUY, self.prix,
+                                self.sl, self.tp, universe_lookup=self.universe.get,
+                                spread=7.7, available_cash=dispo)
+
+    def test_sans_liquidites_le_trade_est_refuse(self):
+        d = self._decision(0.0)
+        self.assertFalse(d.allowed)
+        self.assertIn("liquidites insuffisantes", d.reason)
+
+    def test_les_liquidites_plafonnent_la_taille(self):
+        petit = self._decision(5.0)
+        gros = self._decision(29.29)
+        self.assertTrue(petit.allowed, petit.reason)
+        self.assertTrue(gros.allowed, gros.reason)
+        self.assertLess(petit.lots, gros.lots)
+        self.assertLessEqual(petit.lots * self.prix, 5.0 + 1e-6)
+        self.assertTrue(any("liquidites" in f for f in petit.factors))
+
+    def test_au_dela_des_liquidites_c_est_le_risque_qui_limite(self):
+        # Avec assez de liquidites, la contrainte redevient le risque : la
+        # taille ne doit pas continuer a grandir avec l'argent disponible.
+        d = self._decision(29.29)
+        self.assertLessEqual(d.risk_pct, 1.05)
+
+    def test_sans_plafond_le_comportement_est_inchange(self):
+        rm = RiskManager(RiskConfig(base_risk_pct=1.0, max_cost_ratio_pct=15.0,
+                                    commission_pct=0.001, max_leverage=1.0, min_rr=1.5))
+        rm.sync_account(equity=29.29, balance=29.29, currency="USDT")
+        d = rm.size_position(self.universe.get("BTCUSD"), Side.BUY, self.prix, self.sl,
+                             self.tp, universe_lookup=self.universe.get, spread=7.7)
+        self.assertTrue(d.allowed)
+        self.assertFalse(any("liquidites" in f for f in d.factors))
+
+
 class TestPrixMoyen(unittest.TestCase):
     def test_calcul_sur_les_executions(self):
         reponse = {"fills": [{"qty": "0.5", "price": "100"}, {"qty": "0.5", "price": "102"}]}

@@ -443,7 +443,8 @@ class TradingEngine:
         sizing = self.risk.size_position(
             instrument, ev.side, ev.entry, ev.stop_loss, ev.take_profit,
             open_positions=positions, universe_lookup=self.universe.get,
-            extra_multiplier=multiplier, spread=ev.spread)
+            extra_multiplier=multiplier, spread=ev.spread,
+            available_cash=self.broker.account().margin_free)
 
         if not sizing.allowed:
             logger.info("%s ecarte au dimensionnement : %s", ev.symbol, sizing.reason)

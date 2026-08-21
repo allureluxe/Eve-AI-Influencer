@@ -355,6 +355,7 @@ class RiskManager:
         universe_lookup=None,
         extra_multiplier: float = 1.0,
         spread: float = 0.0,
+        available_cash: Optional[float] = None,
     ) -> SizingDecision:
         """Calcule le volume a engager. Refuse si une regle est violee."""
         acc, cfg = self.account, self.config
@@ -387,6 +388,27 @@ class RiskManager:
             return SizingDecision(False, reason="taille de contrat invalide")
 
         raw_lots = risk_amount / (stop_distance * value_per_unit)
+
+        # Argent reellement disponible. Au comptant, le capital total inclut
+        # ce qui est deja investi : on ne peut pas acheter avec. Sans cette
+        # limite, le robot proposerait des ordres que la plateforme refuserait
+        # a chaque cycle, faute de liquidites.
+        if available_cash is not None and available_cash >= 0:
+            valeur_unitaire = entry_price * instrument.contract_size
+            if valeur_unitaire > 0:
+                max_lots_cash = available_cash / valeur_unitaire
+                if max_lots_cash < instrument.min_lot:
+                    return SizingDecision(
+                        False,
+                        reason=(f"liquidites insuffisantes : {available_cash:.2f} "
+                                f"{acc.currency} disponible, il en faut "
+                                f"{instrument.min_lot * valeur_unitaire:.2f} pour le "
+                                f"minimum sur {instrument.symbol}"),
+                        factors=factors,
+                    )
+                if raw_lots > max_lots_cash:
+                    raw_lots = max_lots_cash
+                    factors.append(f"limite par les liquidites ({available_cash:.2f} {acc.currency})")
 
         # Plafond de levier : la valeur notionnelle ne doit pas exploser.
         max_lots_leverage = None
