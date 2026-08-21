@@ -190,15 +190,21 @@ class Scanner:
         if self.news is not None:
             window = self.news.check(instrument.asset_class, instrument.symbol, now)
 
+        # L'unite de temps de declenchement peut dependre de l'instrument :
+        # on retient la plus rapide dont le cout d'execution reste tenable.
+        entry_tf, motif = self.strategy.pick_timeframe(
+            instrument, ctx.indicators, tick.spread)
+        if motif != "unite de temps fixe":
+            logger.debug("%s : unite %s (%s)", instrument.symbol, entry_tf, motif)
+
         charts = {}
-        entry_tf = self.strategy.config.entry_tf
         chart = ctx.chart(entry_tf, instrument.round_step)
         if chart is not None:
             charts[entry_tf] = chart
 
         return self.strategy.evaluate(
             instrument, ctx.indicators, tick, news=window,
-            charts=charts, score_bonus=score_bonus, now=now)
+            charts=charts, score_bonus=score_bonus, now=now, entry_tf=entry_tf)
 
     # ---------------------------------------------------------------
     def scan(

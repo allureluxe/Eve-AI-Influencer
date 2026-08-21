@@ -34,6 +34,10 @@ from .news import NewsWindow
 
 logger = logging.getLogger(__name__)
 
+# Marge du plancher de cout : on vise 90 % du plafond autorise pour que
+# l'arrondi au tick de l'instrument ne fasse jamais franchir la limite.
+COST_FLOOR_SAFETY = 0.90
+
 
 class ActionType(str, Enum):
     MODIFY_STOP = "MODIFY_STOP"
@@ -67,6 +71,26 @@ class TradeManagerConfig:
     max_stop_atr: float = 3.0
     tp_r_multiple: float = 2.0         # TP initial = 2R
     spread_buffer_mult: float = 1.5    # marge de spread ajoutee au stop
+
+    # --- Plancher de stop impose par le cout d'execution ---
+    #
+    # Le rapport cout/risque se simplifie exactement :
+    #
+    #     cout / risque = (spread x valeur) / (stop x valeur) = spread / stop
+    #
+    # Ni le capital ni le volume n'y entrent. Pour qu'un aller-retour coute
+    # au plus X % de ce que le trade risque, il suffit donc que :
+    #
+    #     stop >= spread / X
+    #
+    # A 15 %, cela veut dire un stop d'au moins 6,67 fois le spread. C'est ce
+    # qui rend le forex traitable en unite de temps courte : sur EURUSD le
+    # stop passe de 2,4 a 2,7 ATR et le cout retombe sous le seuil, sans rien
+    # changer d'autre. Quand le plancher exige un stop plus large que
+    # `max_stop_atr_for_cost`, c'est que l'unite de temps est trop fine pour
+    # cet instrument : mieux vaut monter d'un cran que d'elargir a l'absurde.
+    max_cost_ratio_pct: float = 15.0
+    max_stop_atr_for_cost: float = 4.0
 
     # --- Break-even ---
     breakeven_at_r: float = 0.8        # a 0.8R, le stop passe a l'entree
@@ -260,9 +284,42 @@ class TradeManager:
         distance = max(cfg.min_stop_atr * atr, min(cfg.max_stop_atr * atr, distance))
         distance += cfg.spread_buffer_mult * max(spread, 0.0)
 
+        # Plancher de cout : un stop si serre que le spread en represente une
+        # part enorme transforme un bon systeme en systeme perdant, quel que
+        # soit le capital engage.
+        #
+        # On vise volontairement un peu SOUS le plafond (marge de securite) :
+        # viser la limite exacte donnait un stop qui, une fois le prix arrondi
+        # au tick de l'instrument, repassait de quelques millioniemes au-dessus
+        # du seuil — et le trade etait refuse a chaque fois. Le forex etait
+        # ainsi integralement bloque alors qu'il n'en manquait presque rien.
+        if cfg.max_cost_ratio_pct > 0 and spread > 0:
+            cible = cfg.max_cost_ratio_pct * COST_FLOOR_SAFETY / 100.0
+            plancher = spread / cible
+            if plancher > distance:
+                distance = min(plancher, cfg.max_stop_atr_for_cost * atr)
+
         stop = entry_price - sign * distance
         target = entry_price + sign * distance * cfg.tp_r_multiple
         return round(stop, digits), round(target, digits)
+
+    def cost_ratio(self, atr: float, spread: float, structure_stop_distance: float = 0.0) -> float:
+        """Part du risque que represente le spread, pour cette volatilite.
+
+        Sert au choix de l'unite de temps : on retient la plus fine ou ce
+        rapport reste acceptable.
+        """
+        cfg = self.config
+        if atr <= 0 or spread <= 0:
+            return 0.0
+        distance = structure_stop_distance or cfg.atr_stop_mult * atr
+        distance = max(cfg.min_stop_atr * atr, min(cfg.max_stop_atr * atr, distance))
+        distance += cfg.spread_buffer_mult * spread
+        if cfg.max_cost_ratio_pct > 0:
+            cible = cfg.max_cost_ratio_pct * COST_FLOOR_SAFETY / 100.0
+            plancher = min(spread / cible, cfg.max_stop_atr_for_cost * atr)
+            distance = max(distance, plancher)
+        return spread / distance * 100.0
 
     # ---------------------------------------------------------------
     # Gestion en cours de vie

@@ -87,6 +87,7 @@ class Evaluation:
     score: float = 0.0
     threshold: float = 0.0
     mode: str = "confluence"
+    timeframe: str = ""
     confirmations: list[Confirmation] = field(default_factory=list)
     confirmed: int = 0
     required: int = 0
@@ -124,7 +125,8 @@ class Evaluation:
         if self.valid:
             if self.mode == "quorum":
                 noms = ", ".join(c.name for c in self.confirmations if c.passed)
-                head += (f"{self.side.value} [{self.setup}] {self.confirmed}/{self.required} "
+                head += (f"{self.side.value} [{self.setup} {self.timeframe}] "
+                         f"{self.confirmed}/{self.required} "
                          f"confirmations ({noms}) | entree {self.entry} SL {self.stop_loss} "
                          f"TP {self.take_profit} (RR {self.rr:.2f})")
             else:
@@ -164,6 +166,21 @@ class StrategyConfig:
     trigger_tf: str = "M1"        # affinage de l'entree
     context_tf: str = "M15"       # contexte immediat
     bias_tf: str = "H1"           # biais de fond
+
+    # --- Choix automatique de l'unite de temps ---
+    #
+    # Chaque instrument a son propre rapport spread / mouvement. Sur EURUSD
+    # le spread vaut 17 % d'un stop en M1 ; sur AUDUSD il en vaut 28 %, et
+    # aucun elargissement raisonnable du stop n'y change rien. Plutot que
+    # d'ecarter ces instruments, le robot descend d'un cran : en M5 le meme
+    # AUDUSD retombe a 14 %.
+    #
+    # Le robot retient donc, pour chaque instrument, l'unite de temps LA PLUS
+    # FINE ou le cout reste acceptable — c'est-a-dire la cadence la plus
+    # rapide qu'il peut se permettre sur cet instrument.
+    adaptive_timeframe: bool = False
+    timeframe_ladder: list[str] = field(default_factory=lambda: ["M1", "M5", "M15"])
+    max_cost_ratio_pct: float = 15.0
 
     # --- Mode de decision ---
     #
@@ -226,12 +243,45 @@ class Strategy:
         self.macro = macro
 
     # ---------------------------------------------------------------
+    ORDRE_TF = {"M1": 1, "M3": 3, "M5": 5, "M15": 15,
+                "M30": 30, "H1": 60, "H4": 240, "D1": 1440}
+
     @property
     def timeframes(self) -> list[str]:
         cfg = self.config
-        return sorted({cfg.trigger_tf, cfg.entry_tf, cfg.context_tf, cfg.bias_tf},
-                      key=lambda tf: {"M1": 1, "M3": 3, "M5": 5, "M15": 15,
-                                      "M30": 30, "H1": 60, "H4": 240, "D1": 1440}[tf])
+        besoin = {cfg.trigger_tf, cfg.entry_tf, cfg.context_tf, cfg.bias_tf}
+        if cfg.adaptive_timeframe:
+            besoin |= set(cfg.timeframe_ladder)
+        return sorted(besoin, key=lambda tf: self.ORDRE_TF[tf])
+
+    def pick_timeframe(
+        self,
+        instrument: Instrument,
+        indicators: dict[str, IndicatorSet],
+        spread: float,
+    ) -> tuple[str, str]:
+        """Unite de temps la plus fine ou le cout d'execution reste tenable.
+
+        Retourne (unite retenue, explication). Si aucune ne convient, on
+        rend la plus lente de l'echelle : l'evaluation la refusera ensuite
+        proprement, avec un motif lisible.
+        """
+        cfg = self.config
+        if not cfg.adaptive_timeframe or spread <= 0:
+            return cfg.entry_tf, "unite de temps fixe"
+
+        essais: list[str] = []
+        for tf in sorted(cfg.timeframe_ladder, key=lambda t: self.ORDRE_TF[t]):
+            ind = indicators.get(tf)
+            if ind is None or not ind.ready or not ind.atr.value:
+                continue
+            ratio = self.trade_manager.cost_ratio(ind.atr.value, spread)
+            essais.append(f"{tf} {ratio:.0f}%")
+            if ratio <= cfg.max_cost_ratio_pct + 1e-9:
+                return tf, f"cout {ratio:.0f} % du risque ({' -> '.join(essais)})"
+
+        lente = max(cfg.timeframe_ladder, key=lambda t: self.ORDRE_TF[t])
+        return lente, f"aucune unite sous le seuil ({' -> '.join(essais) or 'donnees absentes'})"
 
     def build_indicators(self, candles_by_tf: dict[str, list[Candle]]) -> dict[str, IndicatorSet]:
         """Alimente un jeu d'indicateurs par unite de temps."""
@@ -253,6 +303,7 @@ class Strategy:
         charts: Optional[dict[str, ChartRead]] = None,
         score_bonus: float = 0.0,
         now: Optional[float] = None,
+        entry_tf: Optional[str] = None,
     ) -> Evaluation:
         """Evalue un instrument et retourne le verdict complet."""
         cfg = self.config
@@ -260,12 +311,14 @@ class Strategy:
         ev = Evaluation(symbol=instrument.symbol, asset_class=instrument.asset_class,
                         ts=now, mode=cfg.mode)
 
-        entry_ind = indicators.get(cfg.entry_tf)
+        entry_tf = entry_tf or cfg.entry_tf
+        ev.timeframe = entry_tf
+        entry_ind = indicators.get(entry_tf)
         ctx_ind = indicators.get(cfg.context_tf)
         bias_ind = indicators.get(cfg.bias_tf)
 
         # ---------- Filtre 1 : donnees suffisantes ----------
-        missing = [tf for tf in (cfg.entry_tf, cfg.context_tf, cfg.bias_tf)
+        missing = [tf for tf in (entry_tf, cfg.context_tf, cfg.bias_tf)
                    if tf not in indicators or not indicators[tf].ready]
         ev.gates.append(Gate("donnees", not missing,
                              "indicateurs prets" if not missing
@@ -277,7 +330,7 @@ class Strategy:
         atr = entry_ind.atr.value or 0.0
         ev.atr, ev.entry, ev.spread = atr, price, tick.spread
 
-        chart = (charts or {}).get(cfg.entry_tf) or read_chart(entry_ind, instrument.round_step)
+        chart = (charts or {}).get(entry_tf) or read_chart(entry_ind, instrument.round_step)
 
         # ---------- Filtre 2 : marche ouvert ----------
         market_open = instrument.is_open(now)

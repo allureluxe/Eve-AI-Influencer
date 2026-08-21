@@ -18,9 +18,28 @@
     "cryptos : le forex y coute 17 a 28 % du risque, il est ecarte tout seul.",
     "L'or reste dans la liste et se reactivera quand le capital le permettra.",
     "",
+    "3. PLANCHER DE STOP. Le rapport cout/risque se simplifie exactement en",
+    "   spread / distance du stop : ni le capital ni le volume n'y entrent.",
+    "   Pour tenir sous 15 %, il suffit donc d'un stop d'au moins 6,67 fois le",
+    "   spread. C'est ce qui rend le forex traitable en M1 : sur EURUSD le stop",
+    "   passe de 2,4 a 2,7 ATR et le cout retombe sous le seuil.",
+    "",
+    "Note sur le levier : sur un micro-compte, 0,01 lot de forex represente",
+    "mecaniquement un levier eleve (1 085 EUR de notionnel pour 50 EUR de",
+    "capital, soit 21x). Ce n'est pas le levier qui mesure le risque ici, c'est",
+    "le stop : le plafond est donc large (120x) et sert de garde-fou, pas de",
+    "contrainte. Le risque reel reste borne par base_risk_pct.",
+    "",
+    "4. UNITE DE TEMPS PAR INSTRUMENT. Quand meme ce plancher ne suffit pas",
+    "   (AUDUSD, XAGUSD, XRPUSD : spread trop large pour la M1), le robot",
+    "   descend d'un cran tout seul et les traite en M5.",
+    "",
+    "Resultat : EURUSD, GBPUSD, USDJPY, USDCAD, l'or et les cryptos en M1 ;",
+    "AUDUSD, XAGUSD et XRPUSD en M5. Plus aucun instrument n'est perdu.",
+    "",
     "Gains attendus par trade gagnant au lot minimum, en M1 : environ 0,16 EUR",
-    "sur BTC, 0,08 EUR sur ETH. Ce sont de petits montants, c'est le principe.",
-    "Ils grossissent avec le capital, puisque la taille suit la courbe."
+    "sur BTC, 0,63 EUR sur EURUSD, 0,79 EUR sur GBPUSD. Ils grossissent avec le",
+    "capital, puisque la taille suit la courbe de resultats."
   ],
 
   "engine": {
@@ -32,7 +51,8 @@
     "closed_market_seconds": 120.0,
     "heartbeat_minutes": 240.0,
     "daily_report_hour": 21,
-    "symbols": ["BTCUSD", "ETHUSD", "SOLUSD", "XAUUSD", "EURUSD"],
+    "symbols": ["EURUSD", "GBPUSD", "USDCAD", "AUDUSD",
+                "BTCUSD", "ETHUSD", "SOLUSD", "XAUUSD"],
     "currency": "EUR",
     "verbose_scan": false
   },
@@ -47,6 +67,10 @@
     "trigger_tf": "M1",
     "context_tf": "M5",
     "bias_tf": "M15",
+
+    "adaptive_timeframe": true,
+    "timeframe_ladder": ["M1", "M5", "M15"],
+    "max_cost_ratio_pct": 15.0,
 
     "max_spread_atr_ratio": 0.30,
     "min_atr_percentile": 0.15,
@@ -71,9 +95,9 @@
     "max_positions": 1,
     "max_per_correlation_group": 1,
     "max_total_risk_pct": 2.0,
-    "max_daily_trades": 40,
+    "max_daily_trades": 30,
     "min_seconds_between_trades": 20.0,
-    "max_leverage": 20.0,
+    "max_leverage": 120.0,
 
     "max_consecutive_losses": 5,
     "pause_after_losses_minutes": 45.0,
@@ -84,6 +108,8 @@
     "atr_stop_mult": 1.4,
     "min_stop_atr": 0.9,
     "max_stop_atr": 2.5,
+    "max_cost_ratio_pct": 15.0,
+    "max_stop_atr_for_cost": 4.0,
     "tp_r_multiple": 1.5,
     "spread_buffer_mult": 2.0,
 

@@ -221,3 +221,125 @@ class TestMiseEnSommeil(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestPlancherDeCout(unittest.TestCase):
+    """Le stop ne doit jamais etre si serre que le spread en mange l'essentiel.
+
+    Formule exacte : cout / risque = (spread x valeur) / (stop x valeur),
+    soit spread / stop. Ni le capital ni le volume n'y entrent. Pour tenir
+    sous X %, il suffit d'un stop d'au moins spread / X.
+    """
+
+    def setUp(self):
+        from gold_bot.trade_manager import TradeManagerConfig
+        self.universe = Universe()
+        self.strict = TradeManager(TradeManagerConfig(
+            max_cost_ratio_pct=15.0, max_stop_atr_for_cost=4.0))
+        self.sans = TradeManager(TradeManagerConfig(max_cost_ratio_pct=0.0))
+
+    def _ratio(self, manager, price, atr, spread, digits):
+        sl, _ = manager.initial_levels(Side.BUY, price, atr, spread=spread, digits=digits)
+        return spread / (price - sl) * 100.0
+
+    def test_le_plancher_ramene_le_forex_sous_le_seuil(self):
+        # EURUSD en M1 : 19 % sans plancher, sous 15 % avec.
+        sans = self._ratio(self.sans, 1.085, 0.000195, 0.00008, 5)
+        avec = self._ratio(self.strict, 1.085, 0.000195, 0.00008, 5)
+        self.assertGreater(sans, 15.0)
+        self.assertLessEqual(avec, 15.0)
+
+    def test_le_plancher_laisse_intact_ce_qui_va_deja_bien(self):
+        # BTCUSD est deja a 7 % : le stop ne doit pas etre elargi pour rien.
+        sans = self.sans.initial_levels(Side.BUY, 68000.0, 61.2, spread=8.0, digits=2)[0]
+        avec = self.strict.initial_levels(Side.BUY, 68000.0, 61.2, spread=8.0, digits=2)[0]
+        self.assertAlmostEqual(sans, avec, places=2)
+
+    def test_le_plancher_est_borne(self):
+        # Un spread absurde ne doit pas produire un stop absurde : au-dela de
+        # max_stop_atr_for_cost, c'est l'unite de temps qui est en cause.
+        atr = 0.000118
+        sl, _ = self.strict.initial_levels(Side.BUY, 0.655, atr, spread=0.00012, digits=5)
+        self.assertLessEqual((0.655 - sl) / atr, 4.0 + 1e-6)
+
+    def test_marge_contre_l_arrondi_au_tick(self):
+        # Regression : viser exactement le plafond donnait un stop qui, une
+        # fois arrondi au tick, repassait juste au-dessus — et TOUT le forex
+        # etait refuse alors qu'il n'en manquait presque rien.
+        for price, atr, spread, digits in ((1.085, 0.000195, 0.00008, 5),
+                                           (1.270, 0.000229, 0.00012, 5),
+                                           (152.0, 0.0274, 0.010, 3),
+                                           (2650.0, 0.9275, 0.30, 2)):
+            ratio = self._ratio(self.strict, price, atr, spread, digits)
+            self.assertLessEqual(ratio, 15.0,
+                                 f"arrondi au tick : {ratio:.3f} % depasse le plafond")
+
+    def test_le_ratio_annonce_correspond_au_stop_reel(self):
+        estime = self.strict.cost_ratio(0.000195, 0.00008)
+        reel = self._ratio(self.strict, 1.085, 0.000195, 0.00008, 5)
+        self.assertAlmostEqual(estime, reel, delta=0.5)
+
+
+class TestUniteDeTempsAdaptative(unittest.TestCase):
+    """Le robot retient l'unite la plus fine dont le cout reste tenable."""
+
+    def _indicateurs(self, price: float, atr_par_tf: dict[str, float]):
+        from gold_bot.core import Candle
+        from gold_bot.indicators import IndicatorSet
+        out = {}
+        for tf, atr in atr_par_tf.items():
+            ind = IndicatorSet()
+            p = price
+            for i in range(120):
+                o = p
+                p = p + (atr * 0.3 if i % 2 else -atr * 0.25)
+                ind.update(Candle(i * 60, o, max(o, p) + atr * 0.5, min(o, p) - atr * 0.5, p, 100))
+            out[tf] = ind
+        return out
+
+    def _strategie(self):
+        from gold_bot.trade_manager import TradeManagerConfig
+        cfg = StrategyConfig(adaptive_timeframe=True, timeframe_ladder=["M1", "M5", "M15"],
+                             max_cost_ratio_pct=15.0)
+        return Strategy(cfg, TradeManager(TradeManagerConfig(
+            max_cost_ratio_pct=15.0, max_stop_atr_for_cost=4.0)), macro=None)
+
+    def test_la_crypto_reste_en_m1(self):
+        u = Universe()
+        inds = self._indicateurs(68000.0, {"M1": 61.2, "M5": 204.0, "M15": 374.0})
+        tf, motif = self._strategie().pick_timeframe(u.get("BTCUSD"), inds, 8.0)
+        self.assertEqual(tf, "M1", motif)
+
+    def test_une_paire_a_spread_large_descend_en_m5(self):
+        # AUDUSD : 20 % en M1 meme avec le plancher, 12 % en M5.
+        u = Universe()
+        inds = self._indicateurs(0.655, {"M1": 0.000118, "M5": 0.000393, "M15": 0.000721})
+        tf, motif = self._strategie().pick_timeframe(u.get("AUDUSD"), inds, 0.00012)
+        self.assertEqual(tf, "M5", motif)
+        self.assertIn("M1", motif)
+
+    def test_le_mode_fixe_ne_change_rien(self):
+        u = Universe()
+        strategy = Strategy(StrategyConfig(adaptive_timeframe=False, entry_tf="M5"),
+                            TradeManager(), macro=None)
+        inds = self._indicateurs(0.655, {"M1": 0.000118, "M5": 0.000393})
+        tf, motif = strategy.pick_timeframe(u.get("AUDUSD"), inds, 0.00012)
+        self.assertEqual(tf, "M5")
+        self.assertEqual(motif, "unite de temps fixe")
+
+    def test_les_donnees_de_toute_l_echelle_sont_chargees(self):
+        strategy = self._strategie()
+        for tf in ("M1", "M5", "M15"):
+            self.assertIn(tf, strategy.timeframes)
+
+    def test_l_unite_retenue_apparait_dans_le_verdict(self):
+        u = Universe()
+        strategy = self._strategie()
+        strategy.config.mode = "quorum"
+        ind = pullback_setup_indicators(-1)
+        inds = {tf: ind for tf in ("M1", "M5", "M15", "H1")}
+        p = ind.last.close
+        ev = strategy.evaluate(u.get("XAUUSD"), inds,
+                               Tick(mardi_14h(), p - 0.15, p + 0.15),
+                               now=mardi_14h(), entry_tf="M5")
+        self.assertEqual(ev.timeframe, "M5")

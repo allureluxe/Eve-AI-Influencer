@@ -483,6 +483,68 @@ Le forex en M1 coûte 17 à 28 % du risque : le robot l'écarte tout seul. Le
 remède n'est jamais « accepter quand même », c'est **élargir le stop** ou
 **monter d'une unité de temps**.
 
+### Le plancher de stop : ce qui rend le forex traitable
+
+Le rapport coût/risque se simplifie **exactement** :
+
+```
+coût / risque = (spread × valeur) / (stop × valeur) = spread / stop
+```
+
+Ni le capital ni le volume n'y entrent. Pour qu'un aller-retour coûte au plus
+X % de ce que le trade risque, il suffit donc que :
+
+```
+stop  ≥  spread / X          →  à 15 % :  stop ≥ 6,67 × spread
+```
+
+Le robot applique ce plancher automatiquement. Effet sur un stop en M1 :
+
+| Instrument | Stop sans plancher | Ratio | Stop avec plancher | Ratio |
+|---|---|---|---|---|
+| EURUSD | 0,00043 | 19 % | 0,00053 (2,7 ATR) | **14 %** |
+| GBPUSD | 0,00055 | 22 % | 0,00080 (3,5 ATR) | **14 %** |
+| USDJPY | 0,05900 | 17 % | 0,06700 (2,4 ATR) | **14 %** |
+| XAUUSD | 1,93 | 16 % | 2,00 (2,2 ATR) | **14 %** |
+| BTCUSD | 109,92 | 7 % | inchangé | 7 % |
+
+Le forex redevient traitable en M1 en élargissant le stop de 20 à 45 % — pas
+en changeant de marché. Le plancher est borné par `max_stop_atr_for_cost`
+(4 ATR) : au-delà, ce n'est plus le stop qui est en cause mais l'unité de temps.
+
+### L'unité de temps choisie par instrument
+
+Quand même le plancher ne suffit pas, le robot descend d'un cran tout seul :
+
+```json
+"strategy": { "adaptive_timeframe": true,
+              "timeframe_ladder": ["M1", "M5", "M15"] }
+```
+
+| Instrument | Unité retenue | Chemin |
+|---|---|---|
+| BTCUSD, ETHUSD, SOLUSD | M1 | 6-13 % dès la M1 |
+| EURUSD, GBPUSD, USDJPY, USDCAD | M1 | grâce au plancher de stop |
+| XAUUSD | M1 | 13 % |
+| AUDUSD | **M5** | M1 20 % → M5 12 % |
+| XAGUSD | **M5** | M1 36 % → M5 15 % |
+| XRPUSD | **M5** | M1 28 % → M5 15 % |
+
+Aucun instrument n'est perdu : chacun est traité à la cadence la plus rapide
+qu'il peut se permettre.
+
+### Une note sur la volatilité
+
+Contre-intuitif mais mesurable : le forex majeur est le **moins** volatil des
+instruments suivis. Amplitude journalière typique — SOL 6 %, XRP 5 %, ETH
+4,5 %, BTC 3,5 %, argent 2 %, or 1,2 %, puis AUDUSD 0,70 %, GBPUSD 0,65 %,
+EURUSD 0,55 %.
+
+C'est précisément pour cela que le spread y pèse si lourd en unité de temps
+courte : le prix ne parcourt pas assez de distance pour l'amortir. Le forex
+compense par une liquidité et des spreads très serrés en valeur absolue — d'où
+l'efficacité du plancher de stop, qui suffit à le remettre dans le jeu.
+
 ### Mode micro-capital
 
 `robot.micro.json` combine les deux mécanismes pour un compte de 20 à 100 €,
@@ -492,8 +554,22 @@ en M1, quorum de 3 confirmations, jusqu'à 40 trades par jour.
 python3 run_bot.py run --config robot.micro.json
 ```
 
-Backtest de contrôle : **63 trades sur 2,8 jours, soit environ 23 par jour** —
-la cadence visée.
+Backtest de contrôle sur l'univers complet, 2,8 jours de données M1 :
+
+| Instrument | Trades | Par jour |
+|---|---|---|
+| ETHUSD | 95 | 34,2 |
+| BTCUSD | 63 | 22,7 |
+| SOLUSD | 31 | 11,2 |
+| EURUSD | 6 | 2,2 |
+| GBPUSD | 2 | 0,7 |
+| **Total** | **197** | **70,9** |
+
+Le plafond `max_daily_trades` (30) et la limite d'une position à la fois
+ramènent cela dans la fourchette visée de 20 à 30 trades par jour. Le forex
+en produit nettement moins que les cryptos : il est fermé la moitié du temps
+et ses motifs de bougies passent moins souvent le test de significativité
+en M1.
 
 Gain attendu par trade gagnant au lot minimum, en M1 : environ **0,16 € sur
 BTC, 0,08 € sur ETH**. Ce sont de petits montants, c'est le principe du mode.
