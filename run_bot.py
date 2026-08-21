@@ -144,7 +144,10 @@ def cmd_check(args) -> int:
             acc = broker.account()
             print(f"   compte : {acc.equity:.2f} {acc.currency} "
                   f"(disponible {acc.margin_free:.2f})")
-            print(f"   instruments : {', '.join(s for s in broker.SYMBOLES) if hasattr(broker, 'SYMBOLES') else 'crypto'}")
+            from gold_bot.brokers.binance import SYMBOLES as BN_SYMBOLES
+            print(f"   instruments : {', '.join(sorted(BN_SYMBOLES))}")
+            if not broker.healthy():
+                print("   ATTENTION : la cle Binance a ete refusee, le solde affiche est fictif")
         else:
             print("   -> definir BINANCE_API_KEY et BINANCE_API_SECRET")
 

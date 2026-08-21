@@ -200,9 +200,26 @@ class BinanceBroker(Broker):
         cfg = self.config
         if cfg.dry_run:
             logger.warning("Binance en simulation : les ordres sont journalises, pas envoyes")
-            self._account = AccountInfo(float(os.getenv("BINANCE_DRYRUN_EQUITY", "50") or 50),
-                                        float(os.getenv("BINANCE_DRYRUN_EQUITY", "50") or 50),
-                                        "USDT")
+            # Le mode simulation bloque l'ENVOI d'ordres, pas la LECTURE. Si des
+            # cles sont fournies, on lit quand meme le compte reel : c'est la
+            # seule facon de verifier qu'elles fonctionnent avant de les
+            # utiliser pour de vrai. Sans cela, la simulation donnerait un faux
+            # sentiment de securite — tout aurait l'air correct avec une cle
+            # invalide, et l'echec n'apparaitrait qu'au premier ordre reel.
+            if cfg.api_key and cfg.api_secret:
+                try:
+                    self._charger_regles()
+                    self._lire_compte()
+                    logger.info("cle Binance valide : %.2f USDT lus sur le compte reel",
+                                self._account.equity)
+                    return True
+                except Exception as exc:  # noqa: BLE001
+                    self._last_error = str(exc)
+                    logger.error("cle Binance refusee : %s", str(exc)[:250])
+                    logger.error("le robot tournera sur un solde fictif tant que "
+                                 "la cle ne sera pas valide")
+            solde = float(os.getenv("BINANCE_DRYRUN_EQUITY", "50") or 50)
+            self._account = AccountInfo(solde, solde, "USDT")
             return True
         if not (cfg.api_key and cfg.api_secret):
             self._last_error = "BINANCE_API_KEY et BINANCE_API_SECRET absents"
@@ -297,6 +314,13 @@ class BinanceBroker(Broker):
     # ------------------------------------------------------------------
     def sync(self) -> None:
         if self.config.dry_run:
+            # En simulation on rafraichit quand meme le solde reel : le
+            # dimensionnement doit raisonner sur le vrai capital.
+            if self.config.api_key and self.config.api_secret and not self._last_error:
+                try:
+                    self._lire_compte()
+                except Exception:  # noqa: BLE001
+                    pass
             return
         compte = self._appel("GET", "/fapi/v2/account")
         for actif in compte.get("assets", []):
@@ -311,6 +335,22 @@ class BinanceBroker(Broker):
                 )
                 break
         self._sync_positions(compte)
+
+    def _lire_compte(self) -> AccountInfo:
+        """Lit le solde reel du compte. Lecture seule, sans risque."""
+        compte = self._appel("GET", "/fapi/v2/account")
+        for actif in compte.get("assets", []):
+            if actif.get("asset") == "USDT":
+                self._account = AccountInfo(
+                    equity=float(actif.get("marginBalance", 0) or 0),
+                    balance=float(actif.get("walletBalance", 0) or 0),
+                    currency="USDT",
+                    margin_used=float(actif.get("initialMargin", 0) or 0),
+                    margin_free=float(actif.get("availableBalance", 0) or 0),
+                    leverage=float(self.config.leverage),
+                )
+                break
+        return self._account
 
     def _sync_positions(self, compte: Optional[dict] = None) -> None:
         lignes = (compte or {}).get("positions")
