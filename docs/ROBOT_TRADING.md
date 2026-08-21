@@ -410,7 +410,58 @@ Par honnêteté, et parce que ces limites conditionnent l'usage :
   plafonnement et la modulation de la sélectivité limitent les dégâts de cette
   contrainte, ils ne la rendent pas réaliste sur un petit capital.
 
-## 15. Avant d'engager de l'argent réel
+## 15. Petit capital : ce que le lot minimum impose
+
+Le pas de lot du broker est un **plancher physique** : on ne peut pas risquer
+moins que ce que coûte un lot minimum. Sur un petit compte, c'est lui qui
+décide de ce qui est tradable, pas la configuration.
+
+Risque représenté par **un seul lot minimum**, selon le capital :
+
+| Instrument | Lot min | Notionnel | 150 € | 250 € | 500 € | 1 000 € |
+|---|---|---|---|---|---|---|
+| XAUUSD | 0,01 | 2 650 € | refusé | refusé | 1,11 % | 0,55 % |
+| XAGUSD | 0,01 | 1 550 € | refusé | refusé | 0,90 % | 0,45 % |
+| USDCAD | 0,01 | 1 380 € | 1,03 % | 0,62 % | 0,31 % | 0,16 % |
+| GBPUSD | 0,01 | 1 270 € | 0,93 % | 0,56 % | 0,28 % | 0,14 % |
+| EURUSD | 0,01 | 1 085 € | 0,77 % | 0,46 % | 0,23 % | 0,12 % |
+| AUDUSD | 0,01 | 655 € | 0,54 % | 0,32 % | 0,16 % | 0,08 % |
+| BTCUSD | 0,001 | 68 € | 0,23 % | 0,14 % | 0,07 % | 0,03 % |
+| ETHUSD | 0,01 | 33 € | 0,11 % | 0,07 % | 0,03 % | 0,02 % |
+| SOLUSD | 0,1 | 16 € | 0,06 % | 0,03 % | 0,02 % | 0,01 % |
+| USDJPY | 0,01 | 152 000 € | refusé | refusé | refusé | refusé |
+
+« Refusé » = le lot minimum dépasse le plafond de risque, le robot n'ouvre pas.
+
+**Conséquences concrètes :**
+
+- **Sous ~370 €, l'or n'est pas tradable.** Le robot le sait et bascule seul
+  sur les cryptos et le forex. Il se remettra à trader XAUUSD automatiquement
+  dès que le capital passera ce seuil — aucune configuration à changer.
+- **Sous ~300 €, viser un risque de 0,25 % par trade est impossible** sur le
+  forex : le lot minimum vaut déjà 0,5 à 1 %. Seules les cryptos offrent une
+  granularité assez fine.
+- **USDJPY est hors de portée** en dessous de 10 700 € : il est retiré de
+  l'univers de rodage.
+
+### Configuration de rodage fournie
+
+`robot.live.json` est calibré pour un compte réel de moins de 300 € : une
+seule position à la fois, risque 0,5 % (plafond 1 %), perte journalière
+limitée à 3 %, hebdomadaire à 6 %, drawdown maximal 15 %, 6 trades par jour
+maximum, 2 minutes minimum entre deux trades, contre-tendance désactivée et
+seuil de score relevé à 0,60.
+
+```bash
+python3 run_bot.py run --config robot.live.json
+```
+
+À relever quand le capital dépasse 1 000 € : `max_positions` à 2 puis 3, et
+`base_risk_pct` à 0,75.
+
+---
+
+## 16. Avant d'engager de l'argent réel
 
 1. `python3 run_bot.py check` — vérifier que les sources répondent.
 2. Faire tourner en `--broker paper` pendant plusieurs jours de marché.

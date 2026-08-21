@@ -73,6 +73,10 @@ class BotConfig:
     def apply(self, data: dict[str, Any]) -> None:
         """Applique un dictionnaire de configuration (imbrique par section)."""
         for section_name, values in (data or {}).items():
+            # Les cles prefixees par "_" sont des commentaires du fichier de
+            # configuration (JSON n'en accepte pas nativement).
+            if section_name.startswith("_"):
+                continue
             section = getattr(self, section_name, None)
             if section is None or not is_dataclass(section) or not isinstance(values, dict):
                 continue
