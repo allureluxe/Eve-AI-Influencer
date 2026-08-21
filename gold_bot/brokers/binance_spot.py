@@ -34,7 +34,7 @@ from ..core import ClosedTrade, Position, Side, Tick
 from ..datasources.base import http_get
 from ..universe import Instrument
 from .base import AccountInfo, Broker, BrokerError
-from .binance import SYMBOLES, BinanceConfig, RegleSymbole
+from .binance import ACTIFS, DEVISE_DEFAUT, BinanceConfig, RegleSymbole, paire
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,6 @@ class SpotConfig(BinanceConfig):
     """Configuration du spot. Herite des champs communs."""
 
     fee_rate: float = FRAIS_PAR_SENS
-    quote_asset: str = "USDT"
 
     @classmethod
     def from_env(cls) -> "SpotConfig":
@@ -60,9 +59,9 @@ class SpotConfig(BinanceConfig):
             testnet=base.testnet, leverage=1, margin_type="NONE",
             recv_window=base.recv_window, timeout=base.timeout,
             dry_run=base.dry_run,
+            quote_asset=base.quote_asset,
             stop_move_threshold_r=base.stop_move_threshold_r,
             fee_rate=float(os.getenv("BINANCE_FEE_RATE", str(FRAIS_PAR_SENS)) or FRAIS_PAR_SENS),
-            quote_asset=os.getenv("BINANCE_QUOTE_ASSET", "USDT"),
         )
 
 
@@ -96,13 +95,24 @@ class BinanceSpotBroker(Broker):
         self._instruments[instrument.symbol] = instrument
 
     def symbol_for(self, symbol: str) -> str:
-        code = SYMBOLES.get(symbol.upper())
+        code = paire(symbol, self.config.quote_asset)
         if not code:
             raise BrokerError(f"{symbol} n'est pas disponible sur Binance Spot")
         return code
 
     def supports(self, symbol: str) -> bool:
-        return symbol.upper() in SYMBOLES
+        """L'instrument est-il reellement cotable dans la devise choisie ?
+
+        Toutes les paires n'existent pas dans toutes les devises : BTC/USDC
+        est cote, telle autre crypto peut ne l'etre qu'en USDT. Une fois les
+        regles de marche chargees, elles font foi — sinon le robot enverrait
+        des ordres sur une paire inexistante.
+        """
+        if symbol.upper() not in ACTIFS:
+            return False
+        if not self._regles:
+            return True          # regles pas encore chargees : on ne prejuge pas
+        return paire(symbol, self.config.quote_asset) in self._regles
 
     def regle(self, symbol: str) -> RegleSymbole:
         code = self.symbol_for(symbol)
@@ -153,7 +163,7 @@ class BinanceSpotBroker(Broker):
     def _charger_regles(self) -> None:
         """Contraintes reelles de la plateforme, lues et non devinees."""
         data = http_get(f"{self.base}/api/v3/exchangeInfo", timeout=self.config.timeout)
-        attendus = set(SYMBOLES.values())
+        attendus = {paire(sym, self.config.quote_asset) for sym in ACTIFS}
         for ligne in data.get("symbols", []):
             code = ligne.get("symbol")
             if code not in attendus or ligne.get("status") != "TRADING":
@@ -176,7 +186,7 @@ class BinanceSpotBroker(Broker):
     def apply_market_rules(self, universe) -> list[str]:
         modifies: list[str] = []
         for inst in universe:
-            code = SYMBOLES.get(inst.symbol.upper())
+            code = paire(inst.symbol, self.config.quote_asset)
             regle = self._regles.get(code) if code else None
             if regle is None:
                 continue

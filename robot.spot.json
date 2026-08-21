@@ -31,7 +31,14 @@
     "s'arrete, la position reste bornee des deux cotes.",
     "",
     "Astuce : activer le paiement des frais en BNB les fait passer de 0,1 % a",
-    "0,075 %, ce qui ramene le cout a 10 % du risque en H1."
+    "0,075 %, ce qui ramene le cout a 10 % du risque en H1.",
+    "",
+    "DEVISE DE COTATION : depuis MiCA, Binance restreint l'USDT aux",
+    "particuliers europeens et propose l'USDC a la place. Definir",
+    "BINANCE_QUOTE_ASSET=USDC fait travailler le robot sur les paires en USDC",
+    "— a la fois pour lire les prix et pour passer les ordres, afin que les",
+    "niveaux calcules correspondent exactement a ceux envoyes. Les paires",
+    "inexistantes dans cette devise sont ecartees automatiquement."
   ],
 
   "engine": {
@@ -44,7 +51,7 @@
     "heartbeat_minutes": 240.0,
     "daily_report_hour": 21,
     "symbols": ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD"],
-    "currency": "USDT",
+    "currency": "USDC",
     "verbose_scan": false
   },
 

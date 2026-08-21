@@ -45,13 +45,33 @@ logger = logging.getLogger(__name__)
 REEL = "https://fapi.binance.com"
 TESTNET = "https://testnet.binancefuture.com"
 
-# Correspondance entre les symboles du robot et ceux de Binance.
-SYMBOLES = {
-    "BTCUSD": "BTCUSDT", "ETHUSD": "ETHUSDT", "SOLUSD": "SOLUSDT",
-    "XRPUSD": "XRPUSDT", "DOGEUSD": "DOGEUSDT", "ADAUSD": "ADAUSDT",
-    "BNBUSD": "BNBUSDT", "AVAXUSD": "AVAXUSDT", "LINKUSD": "LINKUSDT",
-    "LTCUSD": "LTCUSDT", "PAXGUSD": "PAXGUSDT",
+# Actif de base de chaque symbole du robot. La devise de cotation est
+# choisie separement : depuis l'entree en vigueur de MiCA, Binance restreint
+# l'USDT aux particuliers de l'Union europeenne et propose l'USDC a la
+# place. Les deux valent un dollar, seule la paire change.
+ACTIFS = {
+    "BTCUSD": "BTC", "ETHUSD": "ETH", "SOLUSD": "SOL", "XRPUSD": "XRP",
+    "DOGEUSD": "DOGE", "ADAUSD": "ADA", "BNBUSD": "BNB", "AVAXUSD": "AVAX",
+    "LINKUSD": "LINK", "LTCUSD": "LTC", "PAXGUSD": "PAXG",
 }
+
+# Devise de cotation par defaut, surchargeable par BINANCE_QUOTE_ASSET.
+DEVISE_DEFAUT = os.getenv("BINANCE_QUOTE_ASSET", "USDT").upper()
+
+
+def paire(symbole: str, devise: str = "") -> Optional[str]:
+    """Code Binance d'un symbole du robot, pour la devise de cotation choisie.
+
+    Exemple : paire("BTCUSD", "USDC") -> "BTCUSDC"
+    """
+    actif = ACTIFS.get(symbole.upper())
+    if not actif:
+        return None
+    return f"{actif}{(devise or DEVISE_DEFAUT).upper()}"
+
+
+# Conserve pour compatibilite : correspondance avec la devise par defaut.
+SYMBOLES = {sym: f"{actif}{DEVISE_DEFAUT}" for sym, actif in ACTIFS.items()}
 
 
 @dataclass(slots=True)
@@ -69,6 +89,9 @@ class BinanceConfig:
     recv_window: int = 5000
     timeout: float = DEFAULT_TIMEOUT
     dry_run: bool = False
+    # Devise de cotation des paires. MiCA impose l'USDC aux particuliers
+    # europeens la ou le reste du monde utilise l'USDT.
+    quote_asset: str = DEVISE_DEFAUT
     # Seuil de deplacement du stop en dessous duquel on ne repose pas
     # l'ordre sur la plateforme, en fraction du risque initial.
     stop_move_threshold_r: float = 0.08
@@ -82,6 +105,7 @@ class BinanceConfig:
             leverage=int(os.getenv("BINANCE_LEVERAGE", "10") or 10),
             margin_type=os.getenv("BINANCE_MARGIN_TYPE", "ISOLATED").upper(),
             dry_run=os.getenv("BINANCE_DRY_RUN", "").lower() in ("1", "true", "yes", "oui"),
+            quote_asset=os.getenv("BINANCE_QUOTE_ASSET", "USDT").upper(),
         )
 
 
@@ -144,13 +168,17 @@ class BinanceBroker(Broker):
         self._instruments[instrument.symbol] = instrument
 
     def symbol_for(self, symbol: str) -> str:
-        code = SYMBOLES.get(symbol.upper())
+        code = paire(symbol, self.devise)
         if not code:
             raise BrokerError(f"{symbol} n'existe pas sur Binance Futures")
         return code
 
     def supports(self, symbol: str) -> bool:
-        return symbol.upper() in SYMBOLES
+        return symbol.upper() in ACTIFS
+
+    @property
+    def devise(self) -> str:
+        return getattr(self.config, "quote_asset", DEVISE_DEFAUT)
 
     # ------------------------------------------------------------------
     # Communication signee
@@ -247,7 +275,7 @@ class BinanceBroker(Broker):
         data = http_get(f"{self.base}/fapi/v1/exchangeInfo", timeout=self.config.timeout)
         for ligne in data.get("symbols", []):
             code = ligne.get("symbol")
-            if code not in SYMBOLES.values():
+            if code not in {paire(s, self.devise) for s in ACTIFS}:
                 continue
             regle = RegleSymbole(symbol=code,
                                  quantity_precision=int(ligne.get("quantityPrecision", 3)),
@@ -279,7 +307,7 @@ class BinanceBroker(Broker):
         """
         modifies: list[str] = []
         for inst in universe:
-            code = SYMBOLES.get(inst.symbol.upper())
+            code = paire(inst.symbol, self.devise)
             regle = self._regles.get(code) if code else None
             if regle is None:
                 continue
@@ -357,7 +385,7 @@ class BinanceBroker(Broker):
         if lignes is None:
             lignes = self._appel("GET", "/fapi/v2/positionRisk")
 
-        inverse = {v: k for k, v in SYMBOLES.items()}
+        inverse = {paire(s, self.devise): s for s in ACTIFS}
         vus: set[str] = set()
         for ligne in lignes:
             code = ligne.get("symbol")

@@ -215,3 +215,39 @@ class TestConfiguration(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestDeviseDeCotation(unittest.TestCase):
+    """MiCA restreint l'USDT aux particuliers europeens : l'USDC prend le relais.
+
+    La devise doit suivre partout — lecture des prix ET envoi des ordres —
+    sinon les niveaux calcules ne correspondraient pas a ceux transmis.
+    """
+
+    def test_les_paires_suivent_la_devise(self):
+        from gold_bot.brokers.binance import paire
+        self.assertEqual(paire("BTCUSD", "USDT"), "BTCUSDT")
+        self.assertEqual(paire("BTCUSD", "USDC"), "BTCUSDC")
+        self.assertEqual(paire("SOLUSD", "USDC"), "SOLUSDC")
+
+    def test_symbole_inconnu(self):
+        from gold_bot.brokers.binance import paire
+        self.assertIsNone(paire("XAUUSD", "USDC"))
+
+    def test_le_broker_utilise_la_devise_configuree(self):
+        b = BinanceSpotBroker(SpotConfig(dry_run=True, quote_asset="USDC"))
+        self.assertEqual(b.symbol_for("BTCUSD"), "BTCUSDC")
+        self.assertEqual(b.symbol_for("ETHUSD"), "ETHUSDC")
+
+    def test_une_paire_absente_de_la_plateforme_est_ecartee(self):
+        # Toutes les cryptos ne sont pas cotees dans toutes les devises.
+        from gold_bot.brokers.binance import RegleSymbole
+        b = BinanceSpotBroker(SpotConfig(dry_run=True, quote_asset="USDC"))
+        b._regles = {"BTCUSDC": RegleSymbole("BTCUSDC")}
+        self.assertTrue(b.supports("BTCUSD"))
+        self.assertFalse(b.supports("XRPUSD"), "paire non cotee : doit etre ecartee")
+
+    def test_sans_regles_chargees_on_ne_prejuge_pas(self):
+        b = BinanceSpotBroker(SpotConfig(dry_run=True, quote_asset="USDC"))
+        b._regles = {}
+        self.assertTrue(b.supports("BTCUSD"))

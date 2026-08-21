@@ -110,17 +110,25 @@ class BinanceProvider(PriceProvider):
     name = "binance"
     capabilities = ProviderCapabilities(asset_classes=("crypto",), rate_limit_per_min=120)
 
-    MAP = {
-        "BTCUSD": "BTCUSDT", "ETHUSD": "ETHUSDT", "SOLUSD": "SOLUSDT",
-        "XRPUSD": "XRPUSDT", "DOGEUSD": "DOGEUSDT", "ADAUSD": "ADAUSDT",
-        "BNBUSD": "BNBUSDT", "AVAXUSD": "AVAXUSDT", "LINKUSD": "LINKUSDT",
-        "PAXGUSD": "PAXGUSDT",   # or tokenise : proxy de l'or disponible 24/7
+    # Actifs de base. La devise de cotation suit celle de l'execution
+    # (BINANCE_QUOTE_ASSET) : lire les prix sur BTC/USDT tout en achetant sur
+    # BTC/USDC introduirait un ecart entre les niveaux calcules et ceux
+    # reellement envoyes a la plateforme.
+    ACTIFS = {
+        "BTCUSD": "BTC", "ETHUSD": "ETH", "SOLUSD": "SOL", "XRPUSD": "XRP",
+        "DOGEUSD": "DOGE", "ADAUSD": "ADA", "BNBUSD": "BNB", "AVAXUSD": "AVAX",
+        "LINKUSD": "LINK", "PAXGUSD": "PAXG",   # PAXG : or tokenise, 24/7
     }
     INTERVALS = {"M1": "1m", "M3": "3m", "M5": "5m", "M15": "15m",
                  "M30": "30m", "H1": "1h", "H4": "4h", "D1": "1d"}
 
+    @property
+    def devise(self) -> str:
+        return os.getenv("BINANCE_QUOTE_ASSET", "USDT").upper()
+
     def symbol_for(self, symbol: str, asset_class: str) -> Optional[str]:
-        return self.MAP.get(symbol.upper())
+        actif = self.ACTIFS.get(symbol.upper())
+        return f"{actif}{self.devise}" if actif else None
 
     def fetch_candles(self, symbol: str, asset_class: str, timeframe: str, limit: int) -> list[Candle]:
         code = self.symbol_for(symbol, asset_class)
