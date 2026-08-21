@@ -136,9 +136,12 @@ def cmd_check(args) -> int:
         print(f"   mode MoonX : {broker.mode}")
         if broker.mode == "non configure":
             print("   -> definir MOONX_API_URL et MOONX_API_KEY, ou MOONX_BRIDGE_FILE")
-    elif cfg.engine.broker == "binance":
-        from gold_bot.brokers import BinanceBroker
-        broker = BinanceBroker()
+    elif cfg.engine.broker in ("binance", "binance_spot"):
+        from gold_bot.brokers import BinanceBroker, BinanceSpotBroker
+        broker = (BinanceSpotBroker() if cfg.engine.broker == "binance_spot"
+                  else BinanceBroker())
+        if not getattr(broker, "supports_short", True):
+            print("   ACHAT SEUL : le spot ne permet pas la vente a decouvert")
         print(f"   mode Binance : {broker.mode}")
         if broker.connect():
             acc = broker.account()
@@ -330,8 +333,8 @@ def cmd_run(args) -> int:
         print(f"demarrage impossible : {exc}")
         return 2
 
-    if cfg.engine.broker in ("moonx", "binance") and not cfg.engine.dry_run:
-        nom = "MoonX" if cfg.engine.broker == "moonx" else "Binance"
+    if cfg.engine.broker in ("moonx", "binance", "binance_spot") and not cfg.engine.dry_run:
+        nom = {"moonx": "MoonX", "binance": "Binance Futures"}.get(cfg.engine.broker, "Binance Spot")
         print("\n" + "!" * 74)
         print(f"  EXECUTION REELLE : le robot va passer des ordres seul sur {nom}.")
         print("  Coupe-circuits actifs : "
@@ -372,7 +375,7 @@ def options_communes() -> argparse.ArgumentParser:
     """Options acceptees a n'importe quelle position de la ligne de commande."""
     commun = argparse.ArgumentParser(add_help=False, argument_default=argparse.SUPPRESS)
     commun.add_argument("--config", help="fichier de configuration JSON")
-    commun.add_argument("--broker", choices=["paper", "moonx", "binance"], help="lieu d'execution")
+    commun.add_argument("--broker", choices=["paper", "moonx", "binance", "binance_spot"], help="lieu d'execution")
     commun.add_argument("--dry-run", action="store_true", help="analyser sans envoyer d'ordre")
     commun.add_argument("--offline", action="store_true", help="donnees synthetiques (tests)")
     commun.add_argument("--symbols", help="liste d'instruments, separes par des virgules")

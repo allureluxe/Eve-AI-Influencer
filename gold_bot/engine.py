@@ -27,8 +27,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from .brokers import (BinanceBroker, BinanceConfig, Broker, BrokerError,
-                      MoonXBroker, MoonXConfig, PaperBroker, PaperConfig)
+from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker, Broker,
+                      BrokerError, MoonXBroker, MoonXConfig, PaperBroker,
+                      PaperConfig, SpotConfig)
 from .core import ClosedTrade, Position, Side, Tick
 from .datasources import DataRegistry, build_registry
 from .macro import MacroEngine
@@ -97,6 +98,11 @@ class TradingEngine:
             if cfg.dry_run:
                 bn.dry_run = True
             broker = BinanceBroker(bn)
+        elif cfg.broker == "binance_spot":
+            sp = SpotConfig.from_env()
+            if cfg.dry_run:
+                sp.dry_run = True
+            broker = BinanceSpotBroker(sp)
         else:
             broker = PaperBroker(PaperConfig(start_balance=cfg.start_balance,
                                              currency=cfg.currency))
@@ -177,6 +183,9 @@ class TradingEngine:
             f"Positions      : {len(self.broker.positions())} reprises",
             f"Palier capital : {self.capital_tier()['palier']} — "
             f"{self.capital_tier()['positions_simultanees']} position(s) a la fois",
+            f"Sens possibles : "
+            + ("achat et vente" if getattr(self.broker, "supports_short", True)
+               else "ACHAT SEUL (le spot ne permet pas la vente a decouvert)"),
             f"Decision       : mode {self.config.strategy.mode}"
             + (f", {self.config.strategy.min_confirmations} confirmations minimum"
                if self.config.strategy.mode == "quorum" else ""),
@@ -411,7 +420,9 @@ class TradingEngine:
         def exposure_ok(inst: Instrument) -> tuple[bool, str]:
             return self.risk.check_exposure(inst, Side.BUY, positions, self.universe.get)
 
-        result = self.scanner.scan(score_bonus=bonus, exclude=held, allow=exposure_ok)
+        sens = None if getattr(self.broker, "supports_short", True) else {Side.BUY}
+        result = self.scanner.scan(score_bonus=bonus, exclude=held,
+                                   allow=exposure_ok, allowed_sides=sens)
         logger.info("%s", result.summary())
         if self.config.engine.verbose_scan:
             for line in self.scanner.report(result, verbose=True)[1:]:

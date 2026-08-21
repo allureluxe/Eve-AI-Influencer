@@ -404,6 +404,18 @@ class RiskManager:
         # L'arrondi peut ramener au lot minimum, qui peut lui-meme depasser
         # le plafond de levier : on verifie apres normalisation.
         if max_lots_leverage is not None and lots > max_lots_leverage:
+            if cfg.max_leverage <= 1.0:
+                # Sans levier (le comptant), la contrainte n'est pas un plafond
+                # de risque mais l'argent disponible : on ne peut pas acheter
+                # plus cher que ce qu'on possede. Le message doit le dire.
+                besoin = instrument.min_lot * entry_price * instrument.contract_size
+                return SizingDecision(
+                    False,
+                    reason=(f"capital insuffisant pour acheter le minimum sur "
+                            f"{instrument.symbol} : il faudrait {besoin:.2f} "
+                            f"{acc.currency} pour {acc.equity:.2f} disponible"),
+                    factors=factors,
+                )
             return SizingDecision(
                 False,
                 reason=(f"le lot minimum ({instrument.min_lot}) depasse le levier autorise "

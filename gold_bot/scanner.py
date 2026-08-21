@@ -213,11 +213,16 @@ class Scanner:
         exclude: Optional[set[str]] = None,
         allow: Optional[Callable[[Instrument], tuple[bool, str]]] = None,
         now: Optional[float] = None,
+        allowed_sides: Optional[set] = None,
     ) -> ScanResult:
         """Cycle complet : evalue tous les instruments ouverts et classe.
 
-        `exclude` : symboles deja en position.
-        `allow`   : filtre externe (regles d'exposition du gestionnaire de risque).
+        `exclude`       : symboles deja en position.
+        `allow`         : filtre externe (regles d'exposition du gestionnaire de risque).
+        `allowed_sides` : sens realisables sur ce lieu d'execution. En spot,
+                          seul l'achat est possible : une vente parfaitement
+                          valide doit alors etre ecartee du classement, sans
+                          empecher une opportunite d'achat ailleurs.
         """
         started = time.perf_counter()
         result = ScanResult(ts=now or time.time())
@@ -247,6 +252,13 @@ class Scanner:
                 result.errors[instrument.symbol] = f"erreur interne : {str(exc)[:120]}"
 
         valid = sorted(result.valid_ones(), key=lambda e: -e.priority_score)
+        if allowed_sides is not None:
+            ecartes = [e for e in valid if e.side not in allowed_sides]
+            for e in ecartes:
+                result.errors[e.symbol] = (
+                    f"{e.side.value} valide mais impossible ici "
+                    f"(seul {'/'.join(s.value for s in allowed_sides)} est realisable)")
+            valid = [e for e in valid if e.side in allowed_sides]
         result.best = valid[0] if valid else None
         result.duration_ms = (time.perf_counter() - started) * 1000.0
         return result

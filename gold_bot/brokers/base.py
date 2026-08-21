@@ -35,6 +35,10 @@ class Broker(ABC):
 
     name: str = "abstract"
     is_live: bool = False
+    # Certains lieux d'execution ne permettent que l'achat (le spot, par
+    # exemple). Le moteur doit le savoir pour ne pas proposer de ventes
+    # qu'il ne pourra pas passer.
+    supports_short: bool = True
 
     @abstractmethod
     def connect(self) -> bool:

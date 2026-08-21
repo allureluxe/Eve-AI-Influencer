@@ -1,0 +1,138 @@
+{
+  "_lisez_moi": [
+    "Binance Spot — la seule execution reellement accessible depuis la France,",
+    "les Futures etant fermes aux particuliers par la reglementation.",
+    "",
+    "DEUX CONTRAINTES STRUCTURELLES, ET ELLES DICTENT TOUTE CETTE CONFIGURATION.",
+    "",
+    "1. ACHAT SEUL. Pas de vente a decouvert en spot. Le robot ecarte ses",
+    "   signaux de vente : il ne travaille que dans les phases de hausse.",
+    "   Cela retire environ la moitie des occasions.",
+    "",
+    "2. LES FRAIS IMPOSENT L'ECHELLE DE TEMPS. Binance preleve 0,1 % a l'achat",
+    "   et 0,1 % a la vente. Rapporte au risque du trade :",
+    "",
+    "       M1  : stop 0,13 % -> les frais valent 159 % du risque",
+    "       M5  : stop 0,42 % -> 48 %",
+    "       M15 : stop 0,77 % -> 26 %",
+    "       H1  : stop 1,54 % -> 13 %   <- viable",
+    "       H4  : stop 3,08 % -> 6 %    <- viable",
+    "",
+    "   Pour tenir sous 15 %, il faut un stop d'au moins 1,3 % du prix, soit",
+    "   du H1 ou plus. Ce n'est pas un reglage a forcer, c'est de",
+    "   l'arithmetique : en dessous, le trade est perdant avant d'avoir",
+    "   commence.",
+    "",
+    "CE QU'IL FAUT EN ATTENDRE : 1 a 4 trades par jour, tenus 2 a 8 heures,",
+    "visant 1,5 a 2 % de mouvement. Pas 20 a 30 trades. C'est moins",
+    "spectaculaire, mais c'est ce qui survit aux frais.",
+    "",
+    "Le stop et l'objectif sont poses en OCO sur la plateforme : si le robot",
+    "s'arrete, la position reste bornee des deux cotes.",
+    "",
+    "Astuce : activer le paiement des frais en BNB les fait passer de 0,1 % a",
+    "0,075 %, ce qui ramene le cout a 10 % du risque en H1."
+  ],
+
+  "engine": {
+    "broker": "binance_spot",
+    "dry_run": false,
+    "offline": false,
+    "poll_seconds": 20.0,
+    "idle_poll_seconds": 60.0,
+    "closed_market_seconds": 120.0,
+    "heartbeat_minutes": 240.0,
+    "daily_report_hour": 21,
+    "symbols": ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD"],
+    "currency": "USDT",
+    "verbose_scan": false
+  },
+
+  "strategy": {
+    "mode": "quorum",
+    "min_confirmations": 3,
+    "require_candle_confirmation": true,
+    "confirmation_margin": 1,
+
+    "trigger_tf": "M15",
+    "entry_tf": "H1",
+    "context_tf": "H4",
+    "bias_tf": "D1",
+
+    "adaptive_timeframe": true,
+    "timeframe_ladder": ["H1", "H4"],
+    "max_cost_ratio_pct": 15.0,
+
+    "max_spread_atr_ratio": 0.10,
+    "min_atr_percentile": 0.15,
+    "max_atr_percentile": 0.95,
+    "min_atr_price_ratio": 0.00300,
+    "min_rr": 1.5,
+    "history": 300
+  },
+
+  "risk": {
+    "base_risk_pct": 1.0,
+    "min_risk_pct": 0.3,
+    "max_risk_pct": 2.0,
+
+    "max_cost_ratio_pct": 15.0,
+    "commission_pct": 0.001,
+
+    "daily_loss_limit_pct": 5.0,
+    "weekly_loss_limit_pct": 10.0,
+    "max_drawdown_pct": 25.0,
+    "daily_profit_target_pct": 10.0,
+
+    "max_positions": 1,
+    "max_per_correlation_group": 1,
+    "max_total_risk_pct": 2.0,
+    "max_daily_trades": 6,
+    "min_seconds_between_trades": 600.0,
+    "max_leverage": 1.0,
+
+    "max_consecutive_losses": 4,
+    "pause_after_losses_minutes": 240.0,
+    "min_rr": 1.5
+  },
+
+  "trade": {
+    "atr_stop_mult": 1.4,
+    "min_stop_atr": 1.0,
+    "max_stop_atr": 3.0,
+    "max_cost_ratio_pct": 15.0,
+    "max_stop_atr_for_cost": 4.0,
+    "tp_r_multiple": 2.0,
+    "spread_buffer_mult": 2.0,
+
+    "breakeven_at_r": 0.8,
+    "breakeven_offset_r": 0.15,
+    "partial_enabled": false,
+
+    "trail_start_r": 1.0,
+    "trail_atr_mult": 1.8,
+    "trail_tighten_atr_mult": 1.0,
+
+    "extend_enabled": true,
+    "extend_at_progress": 0.85,
+    "extend_by_atr": 1.2,
+    "extend_by_r_min": 0.5,
+    "max_extensions": 3,
+    "extend_min_momentum": 0.35,
+    "lock_r_on_extend": 0.4,
+
+    "time_stop_minutes": 480.0,
+    "time_stop_min_r": 0.2,
+    "reversal_exit_r": 0.5
+  },
+
+  "objectives": {
+    "base_target": 10.0,
+    "escalation": 1.5,
+    "max_weekly_target_pct": 10.0,
+    "promote_only_on_success": true,
+    "demote_on_losing_week": true,
+    "protect_after_target": true,
+    "protect_multiplier": 0.5
+  }
+}

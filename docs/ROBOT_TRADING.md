@@ -275,7 +275,8 @@ aucune modification de la logique de trading.
 | Lieu | État | Usage |
 |---|---|---|
 | `paper` | intégré | simulation, backtest, mise au point |
-| `binance` | **opérationnel** | Binance Futures USDT-M, testnet inclus |
+| `binance` | opérationnel | Binance Futures USDT-M — **fermé aux particuliers en France** |
+| `binance_spot` | **opérationnel** | Binance Spot — accessible en France, achat seul |
 | `moonx` | en attente d'un accès API | prêt côté code, bloqué côté plateforme |
 
 ### Binance Futures — le chemin recommandé
@@ -325,6 +326,56 @@ jamais en argent réel par omission.
 
 Binance Futures ne propose que des cryptos : l'or et le forex sont retirés de
 l'univers automatiquement au démarrage.
+
+### Binance Spot — la voie accessible depuis la France
+
+Les Futures sont fermés aux particuliers français par la réglementation.
+Le comptant reste ouvert, et impose deux contraintes structurelles.
+
+**1. On ne peut qu'acheter.** Pas de vente à découvert. Le robot écarte ses
+signaux de vente — le scanner les signale mais ne les retient pas, sans pour
+autant bloquer une opportunité d'achat ailleurs. Cela retire environ la
+moitié des occasions.
+
+**2. Les frais imposent l'échelle de temps.** Binance prélève 0,1 % à l'achat
+et 0,1 % à la vente. Rapporté au risque du trade :
+
+| Unité | Stop | Frais / risque | |
+|---|---|---|---|
+| M1 | 0,13 % | **159 %** | impossible |
+| M5 | 0,42 % | **48 %** | impossible |
+| M15 | 0,77 % | **26 %** | impossible |
+| **H1** | 1,54 % | **13 %** | ✅ |
+| **H4** | 3,08 % | **6 %** | ✅ |
+
+Pour tenir sous 15 %, il faut un stop d'au moins **1,3 % du prix** — soit du
+H1 ou plus. Ce n'est pas un réglage à forcer : en dessous, le trade est
+perdant avant d'avoir commencé.
+
+**Ce qu'il faut en attendre : 1 à 4 trades par jour**, tenus 2 à 8 heures,
+visant 1,5 à 2 % de mouvement. Pas 20 à 30.
+
+```bash
+python3 run_bot.py run --config robot.spot.json
+```
+
+Dimensionnement vérifié, avec les contraintes réelles du comptant (notionnel
+minimum 5 USDT, pas de quantité fin) :
+
+| Capital | Investi par trade | Risque | Frais | Frais / risque |
+|---|---|---|---|---|
+| 20 USDT | ~12,7 | 0,20 (1,0 %) | 0,027 | 13-14 % |
+| 50 USDT | ~31,8 | 0,50 (1,0 %) | 0,067 | 13-14 % |
+| 100 USDT | ~63,9 | 1,00 (1,0 %) | 0,134 | 13-14 % |
+| 250 USDT | ~160,0 | 2,50 (1,0 %) | 0,336 | 13-14 % |
+
+Le stop et l'objectif sont posés en **OCO** (l'un annule l'autre) sur la
+plateforme : si le robot s'arrête, la position reste bornée des deux côtés.
+Si l'OCO ne peut pas être posé, la position est refermée immédiatement plutôt
+que laissée nue.
+
+💡 Activer le paiement des frais en **BNB** les fait passer de 0,1 % à
+0,075 %, ce qui ramène le coût à 10 % du risque en H1.
 
 ### MoonX — état des lieux
 
