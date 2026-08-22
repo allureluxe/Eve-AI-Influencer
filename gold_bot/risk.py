@@ -78,6 +78,20 @@ class RiskConfig:
     commission_per_lot: float = 0.0    # commission fixe eventuelle du broker
     commission_pct: float = 0.0        # commission proportionnelle au notionnel
 
+    # Glissement : ecart entre le prix vu et le prix obtenu, en fraction du
+    # spread. Un ordre au marche ne s'execute jamais exactement au prix
+    # affiche — il consomme le carnet, et d'autant plus que le marche est
+    # nerveux ou l'instrument peu liquide.
+    #
+    # Compte pour DEUX passages : l'entree et la sortie. Le negliger fait
+    # paraitre rentables des trades qui ne le sont pas, et c'est le poste
+    # de cout qu'on oublie le plus souvent parce qu'il n'apparait sur
+    # aucune facture.
+    # Une marge de securite supplementaire serait de la prudence comptee
+    # deux fois : `max_cost_ratio_pct` joue deja ce role, et lui est
+    # reglable par l'utilisateur.
+    slippage_spread_ratio: float = 0.5
+
 
 @dataclass(slots=True)
 class LadderStep:
@@ -505,12 +519,30 @@ class RiskManager:
 
     def execution_cost(self, instrument: Instrument, lots: float,
                        price: float, spread: float = 0.0) -> float:
-        """Cout estime d'un aller-retour, dans la devise du compte."""
+        """Cout estime d'un aller-retour, dans la devise du compte.
+
+        Trois postes, et le dernier est celui qu'on oublie :
+
+          1. le SPREAD, compte une seule fois : on achete a l'offre et on
+             revend a la demande, l'ecart n'est franchi qu'une fois sur
+             l'aller-retour ;
+          2. les COMMISSIONS, sur les deux cotes ;
+          3. le GLISSEMENT, sur les deux cotes, parce qu'un ordre au marche
+             consomme le carnet et n'obtient pas le prix affiche.
+
+        Le glissement n'apparait sur aucune facture, et c'est pour ca qu'on
+        l'oublie. Le negliger fait passer pour rentables des trades qui ne
+        le sont pas — erreur qui ne se voit que sur le releve de compte.
+        """
         cfg = self.config
         ecart = spread if spread > 0 else instrument.typical_spread
-        cout = ecart * instrument.value_per_price_unit(lots)
+        valeur_par_point = instrument.value_per_price_unit(lots)
+
+        cout = ecart * valeur_par_point
         cout += cfg.commission_per_lot * lots
         cout += price * instrument.contract_size * lots * cfg.commission_pct * 2
+        # Glissement des deux cotes, exprime en fraction du spread.
+        cout += ecart * valeur_par_point * max(0.0, cfg.slippage_spread_ratio) * 2
         return cout
 
     def cost_ratio_for(self, instrument: Instrument, stop_distance: float,
