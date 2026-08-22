@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from .apprentissage import PoidsAdaptatifs, alimenter_depuis_journal
+from .calibrage import calibrer
 from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker,
                       BitvavoBroker, BitvavoConfig, Broker,
                       BrokerError, MoonXBroker, MoonXConfig, OkxBroker,
@@ -224,6 +225,59 @@ class TradingEngine:
         return ecartes
 
     # ---------------------------------------------------------------
+    def _calibrer_sur_le_capital(self) -> None:
+        """Aligne la strategie sur ce que le capital permet reellement.
+
+        Le risque par trade peut etre remonte, jamais au-dela du plafond
+        ecrit dans la configuration. C'est une deduction arithmetique a
+        partir du ticket minimum de la plateforme, pas une reaction aux
+        resultats : augmenter la mise parce qu'on vient de gagner est une
+        facon connue de se ruiner, et le calibrage ne fait pas cela.
+        """
+        cfg = self.config
+        ticket = 0.0
+        if hasattr(self.broker, "notionnel_minimum"):
+            try:
+                ticket = float(self.broker.notionnel_minimum())
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("ticket minimum illisible : %s", str(exc)[:120])
+        frais = float(getattr(getattr(self.broker, "config", None), "fee_rate", 0.0)
+                      or cfg.risk.commission_pct or 0.0)
+
+        cal = calibrer(
+            equity=self.broker.account().equity,
+            ticket_minimum=ticket,
+            frais_par_cote=frais,
+            risk_pct_demande=cfg.risk.base_risk_pct,
+            risk_pct_max=cfg.risk.max_risk_pct,
+            plafond_cout_pct=cfg.risk.max_cost_ratio_pct,
+            plafond_positions=cfg.risk.max_positions,
+            part_engageable_pct=cfg.risk.max_capital_engaged_pct,
+        )
+        self.calibrage = cal
+        for ligne in cal.resume():
+            logger.info("calibrage : %s", ligne)
+
+        if not cal.viable:
+            self.notifier.warning(
+                "Capital insuffisant pour cette plateforme", "\n".join(cal.resume()))
+            return
+
+        if cal.risk_pct > cfg.risk.base_risk_pct:
+            logger.warning("risque par trade porte a %.3f %% (ticket minimum "
+                           "de %.2f a atteindre)", cal.risk_pct, cal.ticket_minimum)
+            cfg.risk.base_risk_pct = cal.risk_pct
+
+        # L'unite d'entree suit ce que le capital autorise, sauf si la
+        # configuration en demande deja une plus lente — on ne descend
+        # jamais vers une unite que les frais rendent perdante.
+        if cal.unite_conseillee and cfg.strategy.entry_tf not in cal.unites:
+            logger.warning("unite d'entree %s hors de portee a ce capital, "
+                           "bascule sur %s", cfg.strategy.entry_tf, cal.unite_conseillee)
+            cfg.strategy.entry_tf = cal.unite_conseillee
+            self.strategy.config.entry_tf = cal.unite_conseillee
+
+    # ---------------------------------------------------------------
     # Demarrage
     # ---------------------------------------------------------------
     def start(self) -> bool:
@@ -266,6 +320,11 @@ class TradingEngine:
         # defaut : tailles de lot, pas de prix, notionnel minimum.
         if hasattr(self.broker, "apply_market_rules"):
             self.broker.apply_market_rules(self.universe)
+
+        # C'est seulement ici qu'on connait a la fois le capital reel et le
+        # ticket minimum reel de la plateforme. Le calibrage en deduit ce
+        # que ce compte peut viser — aucun capital n'est suppose ailleurs.
+        self._calibrer_sur_le_capital()
 
         # Les regles de marche viennent d'arriver : c'est seulement maintenant
         # qu'on sait quelles paires existent vraiment dans la devise choisie.

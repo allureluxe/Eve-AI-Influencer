@@ -64,8 +64,16 @@ class Confirmation:
     name: str
     passed: bool
     detail: str = ""
+    # Une confirmation qu'on ne PEUT PAS evaluer n'est pas une confirmation
+    # ratee. Le carnet d'ordres n'existe pas dans un rejeu historique : l'y
+    # compter comme echouee retire une confirmation atteignable a chaque
+    # bougie, et rend le backtest structurellement plus severe que le reel.
+    # Elle sort donc du numerateur ET du denominateur.
+    applicable: bool = True
 
     def __str__(self) -> str:  # pragma: no cover
+        if not self.applicable:
+            return f"n/a {self.name}" + (f" ({self.detail})" if self.detail else "")
         return f"{'oui' if self.passed else 'non'} {self.name}" + (f" ({self.detail})" if self.detail else "")
 
 
@@ -607,10 +615,11 @@ class Strategy:
             favorable = sign * desequilibre >= 0.12
             detail_c = (f"desequilibre {desequilibre:+.0%} "
                         f"({'favorable' if favorable else 'neutre ou contraire'})")
+            out.append(Confirmation("carnet", favorable, detail_c))
         else:
-            desequilibre, favorable = 0.0, False
-            detail_c = "tailles du carnet indisponibles"
-        out.append(Confirmation("carnet", favorable, detail_c))
+            # La source est muette : on ne sait rien, ni pour ni contre.
+            out.append(Confirmation("carnet", False,
+                                    "tailles du carnet indisponibles", applicable=False))
 
         return out
 
@@ -632,8 +641,8 @@ class Strategy:
 
         pour_achat = self.confirmations(Side.BUY, entry, ctx, bias, chart, tick)
         pour_vente = self.confirmations(Side.SELL, entry, ctx, bias, chart, tick)
-        n_achat = sum(1 for c in pour_achat if c.passed)
-        n_vente = sum(1 for c in pour_vente if c.passed)
+        n_achat = sum(1 for c in pour_achat if c.applicable and c.passed)
+        n_vente = sum(1 for c in pour_vente if c.applicable and c.passed)
 
         # Le sens retenu est celui qui rassemble le plus de confirmations, et
         # il doit devancer l'autre : a egalite, le marche est indecis.
@@ -686,8 +695,9 @@ class Strategy:
         ev.components = self._score_components(side, entry, ctx, bias, chart, None, None, "quorum")
         ev.score = round(sum(c.value for c in ev.components), 4)
         ev.threshold = 0.0
+        evaluables = sum(1 for c in confirmations if c.applicable)
         ev.gates.append(Gate("quorum", compte >= ev.required,
-                             f"{compte} confirmations sur {len(confirmations)} "
+                             f"{compte} confirmations sur {evaluables} evaluables "
                              f"(minimum {ev.required})"))
         # La ponderation apprise agit ICI et nulle part ailleurs : elle
         # departage des candidats deja valides quand les places sont
@@ -696,7 +706,7 @@ class Strategy:
         # son risque a partir de ses bons resultats augmente la mise juste
         # avant de rendre les gains.
         ev.priority_score = round(
-            (compte / max(1, len(confirmations))) * instrument.priority
+            (compte / max(1, evaluables)) * instrument.priority
             * (1.0 + min(ev.rr, 4.0) * 0.05)
             * self.poids.poids(instrument.correlation_group), 4)
         return ev
