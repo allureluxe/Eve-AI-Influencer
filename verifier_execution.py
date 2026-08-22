@@ -108,7 +108,41 @@ def main() -> int:
     compte = broker.account()
     ok(f"solde : {compte.equity:.2f} {config.quote_asset}")
 
-    titre("3. Choix de la paire de test")
+    titre("3. Permissions reelles de la cle")
+    # Binance sait dire exactement ce que la cle a le droit de faire. Sans
+    # cette lecture, une erreur -2015 laisse le choix entre trois causes
+    # possibles ; avec elle, la cause est nommee.
+    restrictions = None
+    try:
+        restrictions = broker._appel("GET", "/sapi/v1/account/apiRestrictions")
+    except Exception as exc:
+        print(f"  (permissions illisibles : {str(exc)[:100]})")
+
+    if isinstance(restrictions, dict):
+        lecture = restrictions.get("enableReading")
+        trading = restrictions.get("enableSpotAndMarginTrading")
+        ip_restreinte = restrictions.get("ipRestrict")
+
+        print(f"  lecture du compte        : {'oui' if lecture else 'non'}")
+        print(f"  trading spot et marge    : {'oui' if trading else 'NON'}")
+        print(f"  restriction par adresse  : {'oui' if ip_restreinte else 'non'}")
+
+        if not trading:
+            echec("La cle n'a PAS le droit de trader.")
+            print("\n  A corriger sur Binance :")
+            print("    Profil > Gestion des API > modifier la cle")
+            print("    Cocher « Activer le trading Spot et Margin »")
+            print("    La modification demande une confirmation par e-mail.")
+            return 4
+
+        if ip_restreinte:
+            print("\n  \033[1;33m[!]\033[0m La cle n'accepte que certaines adresses IP.")
+            print("      L'adresse de ce serveur doit figurer dans la liste :")
+            print("      \033[1m92.222.90.65\033[0m")
+            print("      Profil > Gestion des API > modifier > restriction d'acces.")
+        ok("permissions de trading presentes")
+
+    titre("4. Choix de la paire de test")
     candidats = [args.paire.upper()] if args.paire else ["BTCUSD", "ETHUSD", "SOLUSD"]
     symbole = next((s for s in candidats if broker.supports(s)), "")
     if not symbole:
@@ -123,7 +157,7 @@ def main() -> int:
         return 2
     ok(f"{code} a {prix:.8f}")
 
-    titre("4. Calcul de l'ordre")
+    titre("5. Calcul de l'ordre")
     # On vise nettement au-dessus du minimum : la commission est prelevee dans
     # l'actif achete, donc la revente porte sur un peu moins que l'achat. Trop
     # juste, elle repasserait sous le notionnel minimum et resterait bloquee.
@@ -148,14 +182,21 @@ def main() -> int:
         print("      python3 verifier_execution.py --confirmer")
         return 0
 
-    titre("5. ACHAT au marche")
+    titre("6. ACHAT au marche")
     try:
         achat = broker._appel("POST", "/api/v3/order", {
             "symbol": code, "side": "BUY", "type": "MARKET",
             "quantity": formater(quantite, regle), "newOrderRespType": "FULL",
         })
     except Exception as exc:
-        echec(f"achat refuse : {exc}")
+        message = str(exc)
+        echec(f"achat refuse : {message}")
+        if "-2015" in message or "-2014" in message:
+            print("\n  Binance refuse l'action elle-meme, pas l'ordre : la cle lit le")
+            print("  compte mais n'a pas le droit de passer un ordre. Deux causes :")
+            print("    1. « Activer le trading Spot et Margin » n'est pas coche ;")
+            print("    2. la cle est restreinte a des adresses IP qui n'incluent")
+            print("       pas celle de ce serveur : 92.222.90.65")
         return 3
 
     achete = float(achat.get("executedQty", 0) or 0)
@@ -171,7 +212,7 @@ def main() -> int:
     revendable = regle.arrondir_quantite(min(achete, disponible))
     print(f"  solde {actif} apres frais : {disponible} -> revente de {revendable}")
 
-    titre("6. VENTE au marche")
+    titre("7. VENTE au marche")
     if revendable < regle.min_qty:
         echec(f"quantite revendable ({revendable}) sous le minimum. "
               f"Le {actif} reste sur le compte, a revendre a la main.")
