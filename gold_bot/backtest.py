@@ -126,6 +126,35 @@ class Backtester:
         buffers: dict[str, list[Candle]] = {tf: [] for tf in higher}
         last_bucket: dict[str, float] = {tf: -1.0 for tf in higher}
 
+        # PRECHAUFFAGE DES UNITES SUPERIEURES
+        #
+        # Les regrouper depuis la serie d'entree les affame : 1439 bougies
+        # H1 ne donnent que 60 bougies journalieres, et les indicateurs D1
+        # ne sont prets qu'aux trois quarts du parcours. Resultat, le robot
+        # reste aveugle sur la majeure partie de l'echantillon et le
+        # backtest mesure surtout son propre temps de chauffe.
+        #
+        # Le robot en reel ne connait pas ce probleme : il telecharge
+        # chaque unite separement. On fait donc pareil ici, en ne gardant
+        # que l'historique ANTERIEUR au debut du parcours — sinon on
+        # donnerait au robot des bougies qu'il ne pouvait pas connaitre.
+        debut = base[0].ts
+        for tf in higher:
+            try:
+                anterieures = [c for c in self.registry.candles(
+                    instrument.symbol, instrument.asset_class, tf, cfg.strategy.history)
+                    if c.ts < debut]
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("prechauffage %s impossible sur %s : %s",
+                               tf, instrument.symbol, str(exc)[:120])
+                continue
+            for c in anterieures:
+                indicators[tf].update(c)
+            if anterieures:
+                last_bucket[tf] = int(anterieures[-1].ts // tf_seconds(tf)) * tf_seconds(tf)
+                logger.info("%s %s : %d bougies de prechauffage",
+                            instrument.symbol, tf, len(anterieures))
+
         warmup = 150
         for i, candle in enumerate(base):
             result.bars += 1

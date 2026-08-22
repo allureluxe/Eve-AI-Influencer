@@ -144,3 +144,37 @@ class TestResume:
         if ligne:
             assert "33.330 %" not in ligne
             assert c.risk_pct < 1.0
+
+
+class TestPrechauffageDuBacktest:
+    """Les unites superieures doivent avoir leur propre historique.
+
+    Les regrouper depuis la serie d'entree les affame : 1439 bougies H1 ne
+    donnent que 60 bougies journalieres. Les indicateurs D1 n'etaient prets
+    qu'aux trois quarts du parcours, et le backtest mesurait surtout son
+    propre temps de chauffe — 1050 bougies sur 1439 rejetees pour
+    « donnees insuffisantes ».
+    """
+
+    def test_le_prechauffage_ne_montre_pas_le_futur(self, monkeypatch):
+        """Garde-fou : seules les bougies ANTERIEURES au parcours comptent.
+
+        Prechauffer avec des bougies posterieures donnerait au robot des
+        informations qu'il ne pouvait pas connaitre — le backtest
+        deviendrait un oracle et ses resultats, une fiction.
+        """
+        import inspect
+
+        from gold_bot.backtest import Backtester
+        source = inspect.getsource(Backtester.run)
+        assert "c.ts < debut" in source, \
+            "le prechauffage doit filtrer sur l'anteriorite stricte"
+
+    def test_le_prechauffage_est_tolerant_a_une_panne(self):
+        """Une source muette ne doit pas faire echouer tout le backtest."""
+        import inspect
+
+        from gold_bot.backtest import Backtester
+        source = inspect.getsource(Backtester.run)
+        bloc = source[source.index("PRECHAUFFAGE"):source.index("warmup = 150")]
+        assert "except" in bloc, "le prechauffage doit survivre a une source indisponible"
