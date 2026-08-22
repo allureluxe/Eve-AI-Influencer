@@ -745,6 +745,8 @@ class OkxBroker(Broker):
             data = self._appel("GET", "/api/v5/market/ticker",
                                params={"instId": self.symbol_for(symbol)}, signe=False)
             ligne = data[0]
-            return Tick(time.time(), float(ligne["bidPx"]), float(ligne["askPx"]))
+            tailles = (ligne.get("bidSz"), ligne.get("askSz"))
+            return Tick(time.time(), float(ligne["bidPx"]), float(ligne["askPx"]),
+                        *(float(t) if t not in (None, "") else None for t in tailles))
         except Exception:  # noqa: BLE001
             return None

@@ -760,6 +760,8 @@ class BitvavoBroker(Broker):
         try:
             data = self._appel("GET", "/ticker/book",
                                params={"market": self.symbol_for(symbol)}, signe=False)
-            return Tick(time.time(), float(data["bid"]), float(data["ask"]))
+            tailles = (data.get("bidSize"), data.get("askSize"))
+            return Tick(time.time(), float(data["bid"]), float(data["ask"]),
+                        *(float(t) if t not in (None, "") else None for t in tailles))
         except Exception:  # noqa: BLE001
             return None

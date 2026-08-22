@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
+from .apprentissage import PoidsAdaptatifs, alimenter_depuis_journal
 from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker,
                       BitvavoBroker, BitvavoConfig, Broker,
                       BrokerError, MoonXBroker, MoonXConfig, OkxBroker,
@@ -127,7 +128,13 @@ class TradingEngine:
         self.macro = MacroEngine(self.registry)
         self.news = NewsFilter()
         self.trade_manager = TradeManager(cfg.trade)
-        self.strategy = Strategy(cfg.strategy, self.trade_manager, self.macro)
+        # Ce que le robot a reellement gagne ou perdu, relu au demarrage.
+        # C'est la seule source de verite disponible pour apprendre : les
+        # trades fermes. Sans journal, la ponderation reste neutre.
+        self.poids = PoidsAdaptatifs()
+        alimenter_depuis_journal(self.poids, self.journal.path)
+        self.strategy = Strategy(cfg.strategy, self.trade_manager, self.macro,
+                                 poids=self.poids)
         self.scanner = Scanner(self.registry, self.universe, self.strategy,
                                self.news, cfg.strategy.history,
                                max_workers=cfg.engine.scan_workers)

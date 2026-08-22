@@ -82,6 +82,12 @@ class Tick:
     ts: float
     bid: float
     ask: float
+    # Tailles au meilleur prix. Facultatives : toutes les sources ne les
+    # donnent pas, et une taille absente ne doit pas valoir zero — zero
+    # signifierait « personne a l'achat », ce qui est une information, pas
+    # une absence d'information.
+    bid_size: Optional[float] = None
+    ask_size: Optional[float] = None
 
     @property
     def mid(self) -> float:

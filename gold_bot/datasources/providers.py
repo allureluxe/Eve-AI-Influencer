@@ -32,6 +32,22 @@ from .base import (
 logger = logging.getLogger(__name__)
 
 
+def _flottant(valeur) -> Optional[float]:
+    """Convertit si possible, rend None sinon.
+
+    None et 0.0 ne veulent pas dire la meme chose sur une taille de
+    carnet : 0.0 signifie « plus personne a ce prix », None signifie
+    « la source ne le dit pas ». Les confondre inventerait un
+    desequilibre maximal la ou il n'y a qu'une donnee manquante.
+    """
+    if valeur is None or valeur == "":
+        return None
+    try:
+        return float(valeur)
+    except (TypeError, ValueError):
+        return None
+
+
 # ==========================================================================
 # Yahoo Finance - gratuit, sans cle, intraday 1m/5m/15m
 # ==========================================================================
@@ -263,7 +279,10 @@ class BitvavoProvider(PriceProvider):
                     f"{self.name}: {symbol} non cote en {self.devise}") from exc
             raise
         try:
-            return Tick(time.time(), float(data["bid"]), float(data["ask"]))
+            # Les tailles arrivent dans la meme reponse : les lire ne coute
+            # aucun appel de plus.
+            return Tick(time.time(), float(data["bid"]), float(data["ask"]),
+                        _flottant(data.get("bidSize")), _flottant(data.get("askSize")))
         except (KeyError, TypeError, ValueError):
             return None
 
@@ -360,7 +379,9 @@ class OkxProvider(PriceProvider):
         if not data:
             return None
         try:
-            return Tick(time.time(), float(data[0]["bidPx"]), float(data[0]["askPx"]))
+            ligne = data[0]
+            return Tick(time.time(), float(ligne["bidPx"]), float(ligne["askPx"]),
+                        _flottant(ligne.get("bidSz")), _flottant(ligne.get("askSz")))
         except (KeyError, TypeError, ValueError):
             return None
 

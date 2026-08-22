@@ -65,8 +65,21 @@ class TestQuorum(BaseQuorum):
         ev = self.evaluate(self.strategy(), pullback_setup_indicators(1))
         noms = {c.name for c in ev.confirmations}
         attendus = {"bougies", "tendance", "momentum", "supertrend",
-                    "oscillateur", "volume", "vwap", "structure", "contexte"}
+                    "oscillateur", "volume", "vwap", "structure", "contexte",
+                    "balayage", "carnet"}
         self.assertEqual(noms, attendus)
+
+    def test_le_carnet_echoue_faute_de_donnees(self):
+        """Une taille de carnet absente ne doit jamais valoir confirmation.
+
+        Sans tick, la source ne dit rien sur la pression au meilleur prix.
+        Compter ce silence comme favorable donnerait une confirmation
+        gratuite a chaque instrument dont la source est muette.
+        """
+        ev = self.evaluate(self.strategy(), pullback_setup_indicators(1))
+        carnet = next(c for c in ev.confirmations if c.name == "carnet")
+        self.assertFalse(carnet.passed)
+        self.assertIn("indisponibles", carnet.detail)
 
     def test_marche_indecis_refuse(self):
         # Sans avance nette d'un sens sur l'autre, aucun trade.

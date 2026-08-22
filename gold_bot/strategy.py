@@ -31,6 +31,8 @@ from typing import Optional
 from . import candles as K
 from .chart import ChartRead, read_chart
 from .core import Candle, Side, Tick
+from .apprentissage import PoidsAdaptatifs
+from .microstructure import balayage_de_liquidite, desequilibre_carnet
 from .indicators import IndicatorSet
 from .macro import MacroBias, MacroEngine
 from .news import NewsWindow
@@ -237,10 +239,14 @@ class Strategy:
         config: Optional[StrategyConfig] = None,
         trade_manager: Optional[TradeManager] = None,
         macro: Optional[MacroEngine] = None,
+        poids: Optional[PoidsAdaptatifs] = None,
     ) -> None:
         self.config = config or StrategyConfig()
         self.trade_manager = trade_manager or TradeManager(TradeManagerConfig())
         self.macro = macro
+        # Ponderation apprise sur les trades reellement fermes. Neutre par
+        # defaut : sans historique, elle ne change rien.
+        self.poids = poids or PoidsAdaptatifs()
 
     # ---------------------------------------------------------------
     ORDRE_TF = {"M1": 1, "M3": 3, "M5": 5, "M15": 15,
@@ -493,6 +499,7 @@ class Strategy:
         ctx: IndicatorSet,
         bias: IndicatorSet,
         chart: ChartRead,
+        tick: Optional[Tick] = None,
     ) -> list[Confirmation]:
         """Liste des confirmations pour un sens donne.
 
@@ -584,6 +591,27 @@ class Strategy:
         out.append(Confirmation("contexte", ctx_ok,
                                 f"{ctx.trend_bias()} / {bias.trend_bias()} pour un {voulu}"))
 
+        # 10. Balayage de liquidite : le prix est alle chercher les stops
+        # juste derriere l'extreme, puis a ete rejete. Ce n'est pas une
+        # cassure — c'est souvent le contraire d'une cassure.
+        sens_balayage, force, detail_b = balayage_de_liquidite(
+            list(entry.candles), atr)
+        out.append(Confirmation("balayage", sens_balayage == sign and force > 0,
+                                detail_b))
+
+        # 11. Carnet d'ordres : qui est pose au meilleur prix.
+        # Sans tailles, la confirmation echoue plutot que de passer : une
+        # information absente n'est pas une information favorable.
+        if tick is not None and tick.bid_size is not None and tick.ask_size is not None:
+            desequilibre = desequilibre_carnet(tick.bid_size, tick.ask_size)
+            favorable = sign * desequilibre >= 0.12
+            detail_c = (f"desequilibre {desequilibre:+.0%} "
+                        f"({'favorable' if favorable else 'neutre ou contraire'})")
+        else:
+            desequilibre, favorable = 0.0, False
+            detail_c = "tailles du carnet indisponibles"
+        out.append(Confirmation("carnet", favorable, detail_c))
+
         return out
 
     def _finish_quorum(
@@ -602,8 +630,8 @@ class Strategy:
         """Decide en comptant les confirmations, sans exiger l'unanimite."""
         cfg = self.config
 
-        pour_achat = self.confirmations(Side.BUY, entry, ctx, bias, chart)
-        pour_vente = self.confirmations(Side.SELL, entry, ctx, bias, chart)
+        pour_achat = self.confirmations(Side.BUY, entry, ctx, bias, chart, tick)
+        pour_vente = self.confirmations(Side.SELL, entry, ctx, bias, chart, tick)
         n_achat = sum(1 for c in pour_achat if c.passed)
         n_vente = sum(1 for c in pour_vente if c.passed)
 
@@ -661,9 +689,16 @@ class Strategy:
         ev.gates.append(Gate("quorum", compte >= ev.required,
                              f"{compte} confirmations sur {len(confirmations)} "
                              f"(minimum {ev.required})"))
+        # La ponderation apprise agit ICI et nulle part ailleurs : elle
+        # departage des candidats deja valides quand les places sont
+        # limitees. Elle ne peut pas rendre valide un trade refuse, ni
+        # elargir un stop, ni augmenter le risque. Un robot qui ajuste seul
+        # son risque a partir de ses bons resultats augmente la mise juste
+        # avant de rendre les gains.
         ev.priority_score = round(
             (compte / max(1, len(confirmations))) * instrument.priority
-            * (1.0 + min(ev.rr, 4.0) * 0.05), 4)
+            * (1.0 + min(ev.rr, 4.0) * 0.05)
+            * self.poids.poids(instrument.correlation_group), 4)
         return ev
 
     # ---------------------------------------------------------------
