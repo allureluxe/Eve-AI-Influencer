@@ -27,7 +27,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker, Broker,
+from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker,
+                      BitvavoBroker, BitvavoConfig, Broker,
                       BrokerError, MoonXBroker, MoonXConfig, PaperBroker,
                       PaperConfig, SpotConfig)
 from .core import ClosedTrade, Position, Side, Tick
@@ -98,7 +99,13 @@ class TradingEngine:
         if cfg.engine.symbols:
             self.universe.enable_only([s.upper() for s in cfg.engine.symbols])
 
-        self.registry: DataRegistry = build_registry(offline=cfg.engine.offline)
+        # Les prix doivent etre lus dans la devise ou les ordres partiront :
+        # sur Bitvavo c'est l'euro, et une bascule silencieuse vers une
+        # source en dollars fausserait tous les niveaux de 8 %.
+        self.registry: DataRegistry = build_registry(
+            offline=cfg.engine.offline,
+            devise_crypto=BitvavoConfig.from_env().quote_asset
+            if cfg.engine.broker == "bitvavo" else "")
         self.macro = MacroEngine(self.registry)
         self.news = NewsFilter()
         self.trade_manager = TradeManager(cfg.trade)
@@ -136,6 +143,11 @@ class TradingEngine:
             if cfg.dry_run:
                 sp.dry_run = True
             broker = BinanceSpotBroker(sp)
+        elif cfg.broker == "bitvavo":
+            bv = BitvavoConfig.from_env()
+            if cfg.dry_run:
+                bv.dry_run = True
+            broker = BitvavoBroker(bv)
         else:
             broker = PaperBroker(PaperConfig(start_balance=cfg.start_balance,
                                              currency=cfg.currency))
@@ -191,6 +203,12 @@ class TradingEngine:
                     "Binance en mode REEL",
                     "Les ordres engagent de l'argent veritable. "
                     "BINANCE_TESTNET=1 bascule sur de l'argent fictif.")
+
+        if cfg.broker == "bitvavo" and not cfg.dry_run:
+            self.notifier.warning(
+                "Bitvavo en mode REEL",
+                "Les ordres engagent de l'argent veritable. "
+                "BITVAVO_DRY_RUN=1 revient a la simulation.")
 
         if cfg.broker == "moonx" and cfg.offline:
             self.notifier.critical("Demarrage refuse",

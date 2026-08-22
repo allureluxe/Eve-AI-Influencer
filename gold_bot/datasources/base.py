@@ -109,6 +109,12 @@ class PriceProvider(ABC):
     name: str = "abstract"
     capabilities: ProviderCapabilities = ProviderCapabilities()
 
+    # Devise dans laquelle la source cote les CRYPTOS. Elle compte : lire le
+    # BTC en dollars puis envoyer l'ordre sur un marche en euros ferait
+    # calculer des stops 8 % a cote de la realite. Le registre refuse donc de
+    # melanger deux devises pour une meme classe d'actif.
+    devise_crypto: str = "USD"
+
     def __init__(self) -> None:
         self._last_call = 0.0
         self.failures = 0

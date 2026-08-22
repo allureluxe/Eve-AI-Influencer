@@ -12,6 +12,7 @@ from .base import (PriceProvider, ProviderError, SymbolNotSupported,
 from .providers import (
     AlphaVantageProvider,
     BinanceProvider,
+    BitvavoProvider,
     FinnhubProvider,
     MetalPriceProvider,
     MoonXProvider,
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 # puis les sources gratuites fiables, puis les sources a cle.
 PROVIDER_CLASSES = [
     MoonXProvider,
+    BitvavoProvider,
     BinanceProvider,
     YahooProvider,
     TwelveDataProvider,
@@ -55,6 +57,7 @@ class DataRegistry:
         providers: Optional[list[PriceProvider]] = None,
         allow_synthetic: bool = False,
         quarantine_seconds: float = 300.0,
+        devise_crypto: str = "",
     ) -> None:
         if providers is None:
             providers = [cls() for cls in PROVIDER_CLASSES]
@@ -62,6 +65,8 @@ class DataRegistry:
                 providers.append(SyntheticProvider())
         self.providers = providers
         self.quarantine_seconds = quarantine_seconds
+        # Devise imposee pour les cryptos, vide = aucune contrainte.
+        self.devise_crypto = (devise_crypto or "").upper()
         self._blocked: dict[str, float] = {}
         # Sources dont l'authentification a ete refusee : inutile de reessayer.
         self._auth_failed: set[str] = set()
@@ -80,11 +85,34 @@ class DataRegistry:
                 continue
             if asset_class not in p.capabilities.asset_classes:
                 continue
+            if asset_class == "crypto" and not self._devise_compatible(p):
+                continue
             if self._blocked.get(p.name, 0.0) > now:
                 continue
             out.append(p)
         # On privilegie les sources historiquement fiables.
         return sorted(out, key=lambda p: -p.health)
+
+    # Toutes ces devises valent un dollar a moins d'un pour cent pres : les
+    # confondre est sans consequence sur un stop. L'euro, non.
+    EQUIVALENTS_DOLLAR = frozenset({"USD", "USDT", "USDC", "BUSD", "FDUSD", "DAI", "TUSD"})
+
+    def _devise_compatible(self, provider: PriceProvider) -> bool:
+        """La source cote-t-elle les cryptos dans la devise du compte ?
+
+        Sans ce garde-fou, une bascule silencieuse de Bitvavo (euros) vers
+        Yahoo ou Binance (dollars) ferait calculer les niveaux sur une
+        echelle de prix differente de celle ou les ordres partent. L'ecart
+        euro/dollar depasse largement la taille d'un stop : ce serait un
+        trade faux, pas une approximation.
+        """
+        if not self.devise_crypto:
+            return True
+        voulue = self.devise_crypto
+        offerte = getattr(provider, "devise_crypto", "USD").upper()
+        if voulue in self.EQUIVALENTS_DOLLAR:
+            return offerte in self.EQUIVALENTS_DOLLAR
+        return offerte == voulue
 
     def _quarantine(self, provider: PriceProvider, exc: Exception) -> None:
         provider.failures += 1
@@ -219,15 +247,19 @@ class DataRegistry:
         ]
 
 
-def build_registry(offline: bool = False) -> DataRegistry:
+def build_registry(offline: bool = False, devise_crypto: str = "") -> DataRegistry:
     """Construit le registre par defaut.
 
     `offline=True` n'active QUE la source synthetique : utile pour le
     backtest, les tests et la validation sans reseau.
+
+    `devise_crypto` impose la devise de cotation des cryptos : les sources
+    qui cotent dans une autre sont ecartees plutot que de servir de
+    secours trompeur. Voir `DataRegistry._devise_compatible`.
     """
     if offline:
         return DataRegistry(providers=[SyntheticProvider()])
-    return DataRegistry(allow_synthetic=False)
+    return DataRegistry(allow_synthetic=False, devise_crypto=devise_crypto)
 
 
 __all__ = [

@@ -176,6 +176,98 @@ class BinanceProvider(PriceProvider):
         return Tick(time.time(), float(data["bidPrice"]), float(data["askPrice"]))
 
 
+
+# ==========================================================================
+# Bitvavo - lieu d'execution europeen, cotation en EUR, sans cle
+# ==========================================================================
+class BitvavoProvider(PriceProvider):
+    """Bitvavo : la source qui cote dans la meme devise que les ordres.
+
+    Elle est prioritaire sur les autres sources crypto quand le robot
+    execute sur Bitvavo : les niveaux calcules et les ordres envoyes
+    doivent vivre sur la meme echelle de prix. Les endpoints publics ne
+    demandent aucune cle.
+    """
+
+    name = "bitvavo"
+    capabilities = ProviderCapabilities(asset_classes=("crypto",), rate_limit_per_min=120)
+    devise_crypto = os.getenv("BITVAVO_QUOTE_ASSET", "EUR").upper()
+
+    # Meme catalogue que l'univers et que l'execution : une liste tenue a la
+    # main ici divergerait des le premier actif ajoute.
+    ACTIFS = {f"{actif}USD": actif for actif in CATALOGUE_CRYPTO}
+    # Bitvavo n'expose pas M3 : il est reconstruit a partir de la minute.
+    INTERVALS = {"M1": "1m", "M5": "5m", "M15": "15m", "M30": "30m",
+                 "H1": "1h", "H4": "4h", "D1": "1d"}
+
+    @property
+    def devise(self) -> str:
+        return os.getenv("BITVAVO_QUOTE_ASSET", "EUR").upper()
+
+    def symbol_for(self, symbol: str, asset_class: str) -> Optional[str]:
+        actif = self.ACTIFS.get(symbol.upper())
+        return f"{actif}-{self.devise}" if actif else None
+
+    def fetch_candles(self, symbol: str, asset_class: str, timeframe: str,
+                      limit: int) -> list[Candle]:
+        code = self.symbol_for(symbol, asset_class)
+        if not code:
+            raise SymbolNotSupported(f"{self.name}: {symbol} non cote ici")
+
+        interval = self.INTERVALS.get(timeframe)
+        source_tf = timeframe
+        if not interval:
+            # M3 se deduit de trois bougies M1 ; toute autre unite absente du
+            # tableau est un vrai defaut de configuration.
+            if timeframe != "M3":
+                raise ProviderError(f"{self.name}: unite de temps non supportee {timeframe}")
+            interval, source_tf = "1m", "M1"
+
+        besoin = limit * 3 if source_tf != timeframe else limit
+        self.throttle()
+        try:
+            rows = http_get(f"https://api.bitvavo.com/v2/{code}/candles",
+                            params={"interval": interval, "limit": min(besoin, 1440)})
+        except ProviderError as exc:
+            # Bitvavo repond 400 pour un marche qu'il ne liste pas. Ce n'est
+            # pas une panne : la source reste saine pour tous les autres.
+            if getattr(exc, "status", None) == 400:
+                raise SymbolNotSupported(
+                    f"{self.name}: {symbol} non cote en {self.devise}") from exc
+            raise
+        if not isinstance(rows, list):
+            raise ProviderError(f"{self.name}: reponse inattendue")
+
+        # Bitvavo renvoie la bougie la plus RECENTE en premier ; tout le
+        # robot raisonne dans l'ordre chronologique.
+        bougies = [
+            Candle(float(r[0]) / 1000.0, float(r[1]), float(r[2]),
+                   float(r[3]), float(r[4]), float(r[5]))
+            for r in reversed(rows)
+        ]
+        if source_tf != timeframe:
+            bougies = resample(bougies, source_tf, timeframe)
+        return bougies
+
+    def fetch_tick(self, symbol: str, asset_class: str) -> Optional[Tick]:
+        code = self.symbol_for(symbol, asset_class)
+        if not code:
+            return None
+        self.throttle()
+        try:
+            data = http_get("https://api.bitvavo.com/v2/ticker/book",
+                            params={"market": code})
+        except ProviderError as exc:
+            if getattr(exc, "status", None) == 400:
+                raise SymbolNotSupported(
+                    f"{self.name}: {symbol} non cote en {self.devise}") from exc
+            raise
+        try:
+            return Tick(time.time(), float(data["bid"]), float(data["ask"]))
+        except (KeyError, TypeError, ValueError):
+            return None
+
+
 # ==========================================================================
 # Sources a cle API (activation automatique si la variable existe)
 # ==========================================================================

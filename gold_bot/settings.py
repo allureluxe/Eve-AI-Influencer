@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class EngineConfig:
     """Parametres de la boucle principale."""
 
-    broker: str = "paper"       # "paper" | "moonx" | "binance" | "binance_spot"
+    broker: str = "paper"       # "paper" | "moonx" | "binance" | "binance_spot" | "bitvavo"
     poll_seconds: float = 5.0             # cadence quand une position est ouverte
     idle_poll_seconds: float = 20.0       # cadence en recherche d'opportunite
     closed_market_seconds: float = 300.0  # cadence quand tout est ferme
@@ -156,8 +156,8 @@ class BotConfig:
             problems.append("seuil de score quasi inatteignable : le robot ne tradera jamais")
         if e.poll_seconds < 1.0:
             problems.append("cadence trop agressive : risque de saturation des sources de donnees")
-        if e.broker in ("moonx", "binance", "binance_spot") and e.offline:
+        if e.broker in ("moonx", "binance", "binance_spot", "bitvavo") and e.offline:
             problems.append("mode hors ligne incompatible avec une execution reelle")
-        if e.broker not in ("paper", "moonx", "binance", "binance_spot"):
+        if e.broker not in ("paper", "moonx", "binance", "binance_spot", "bitvavo"):
             problems.append(f"lieu d'execution inconnu : {e.broker}")
         return problems
