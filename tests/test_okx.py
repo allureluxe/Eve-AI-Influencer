@@ -361,3 +361,18 @@ class TestDeuxRobotsEnParallele:
         from gold_bot.state import chemin_par_instance
         monkeypatch.delenv("GB_STATE_FILE", raising=False)
         assert chemin_par_instance("data/state.json", "GB_STATE_FILE", "") == "data/state.json"
+
+
+class TestBacktestCoherent:
+    def test_le_rejeu_utilise_la_meme_devise_que_le_moteur(self):
+        """Un backtest en dollars pour une config en euros ne mesure rien.
+
+        Les resultats seraient coherents entre eux mais sans rapport avec
+        le marche ou les ordres partiront : le backtest doit rejouer ce que
+        le robot vivra, pas une variante.
+        """
+        from gold_bot.backtest import Backtester
+        from gold_bot.settings import BotConfig
+        bt = Backtester(BotConfig.load("robot.okx.json"))
+        assert bt.registry.devise_crypto == "EUR"
+        assert [p.name for p in bt.registry.usable("crypto")] == ["okx", "bitvavo"]

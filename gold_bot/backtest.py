@@ -22,6 +22,7 @@ from .brokers.paper import PaperBroker, PaperConfig
 from .chart import read_chart
 from .core import Candle, ClosedTrade, Side, Tick
 from .datasources import DataRegistry, build_registry
+from .engine import _devise_du_lieu_d_execution
 from .datasources.base import resample, tf_seconds
 from .indicators import IndicatorSet
 from .risk import RiskManager
@@ -88,7 +89,13 @@ class Backtester:
     def __init__(self, config: Optional[BotConfig] = None,
                  registry: Optional[DataRegistry] = None) -> None:
         self.config = config or BotConfig.load()
-        self.registry = registry or build_registry(offline=self.config.engine.offline)
+        # Meme verrou de devise que le moteur : un rejeu sur des prix en
+        # dollars pour une configuration en euros donnerait des resultats
+        # coherents entre eux mais sans rapport avec le marche ou les ordres
+        # partiront. Le backtest doit mesurer ce que le robot vivra.
+        self.registry = registry or build_registry(
+            offline=self.config.engine.offline,
+            devise_crypto=_devise_du_lieu_d_execution(self.config.engine.broker))
         self.universe = Universe()
 
     def run(self, symbol: str, bars: int = 1500, start_balance: float = 1000.0) -> BacktestResult:
