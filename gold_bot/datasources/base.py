@@ -56,6 +56,7 @@ def http_get(
         hdrs.update(headers)
 
     last_err: Optional[Exception] = None
+    statut: Optional[int] = None
     for attempt in range(retries + 1):
         try:
             req = urllib.request.Request(url, headers=hdrs)
@@ -69,11 +70,27 @@ def http_get(
             with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
                 raw = resp.read().decode("utf-8", errors="replace")
             return json.loads(raw) if as_json else raw
+        except urllib.error.HTTPError as exc:
+            last_err = exc
+            statut = exc.code
+            # Une erreur 4xx vient de la requete elle-meme : la reessayer
+            # donnera exactement la meme reponse. Seul 429 (trop de requetes)
+            # merite d'attendre. Sortir tout de suite evite trois tentatives
+            # inutiles sur un symbole qui n'existe pas.
+            if 400 <= exc.code < 500 and exc.code != 429:
+                break
+            if attempt < retries:
+                time.sleep(min(2 ** attempt, 4))
         except Exception as exc:  # noqa: BLE001 - on veut vraiment tout attraper
             last_err = exc
             if attempt < retries:
                 time.sleep(min(2 ** attempt, 4))
-    raise ProviderError(f"GET {url} a echoue: {last_err}")
+
+    erreur = ProviderError(f"GET {url} a echoue: {last_err}")
+    # Le code HTTP permet a l'appelant de distinguer une panne d'un symbole
+    # inconnu, distinction qui decide de la mise en quarantaine de la source.
+    erreur.status = statut
+    raise erreur
 
 
 @dataclass(slots=True)

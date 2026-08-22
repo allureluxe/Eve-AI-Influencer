@@ -304,3 +304,102 @@ class TestSourceEtBrokerAlignes:
         manquants = [i.symbol for i in Universe()
                      if i.asset_class == "crypto" and i.symbol not in source]
         assert not manquants, f"sans source de prix : {manquants}"
+
+
+class TestErreurHttpEtSymboleInconnu:
+    """Une paire absente de la devise de cotation n'est pas une panne.
+
+    Binance repond « 400 Invalid symbol » pour CROUSDC si la paire n'existe
+    qu'en USDT. Sans distinction, cette reponse mettait toute la source en
+    quarantaine et aveuglait le robot sur les 84 autres instruments.
+    """
+
+    def test_le_code_http_est_propage(self, monkeypatch):
+        import urllib.error
+        from gold_bot.datasources import base
+
+        def faux_urlopen(*_a, **_k):
+            raise urllib.error.HTTPError("url", 400, "Bad Request", {}, None)
+
+        monkeypatch.setattr(base.urllib.request, "urlopen", faux_urlopen)
+        try:
+            base.http_get("https://exemple.test/api")
+            assert False, "aurait du lever"
+        except base.ProviderError as exc:
+            assert getattr(exc, "status", None) == 400
+
+    def test_une_400_ne_declenche_pas_de_reessai(self, monkeypatch):
+        """Reessayer une requete invalide donne la meme reponse : autant sortir."""
+        import urllib.error
+        from gold_bot.datasources import base
+
+        appels = []
+
+        def faux_urlopen(*_a, **_k):
+            appels.append(1)
+            raise urllib.error.HTTPError("url", 400, "Bad Request", {}, None)
+
+        monkeypatch.setattr(base.urllib.request, "urlopen", faux_urlopen)
+        monkeypatch.setattr(base.time, "sleep", lambda *_: None)
+        try:
+            base.http_get("https://exemple.test/api", retries=2)
+        except base.ProviderError:
+            pass
+        assert len(appels) == 1, f"{len(appels)} tentatives au lieu d'une"
+
+    def test_une_500_reessaie_bien(self, monkeypatch):
+        """La protection contre les pannes passageres reste active."""
+        import urllib.error
+        from gold_bot.datasources import base
+
+        appels = []
+
+        def faux_urlopen(*_a, **_k):
+            appels.append(1)
+            raise urllib.error.HTTPError("url", 503, "Service Unavailable", {}, None)
+
+        monkeypatch.setattr(base.urllib.request, "urlopen", faux_urlopen)
+        monkeypatch.setattr(base.time, "sleep", lambda *_: None)
+        try:
+            base.http_get("https://exemple.test/api", retries=2)
+        except base.ProviderError:
+            pass
+        assert len(appels) == 3
+
+    def test_400_devient_symbole_non_cote(self, monkeypatch):
+        from gold_bot.datasources import providers
+        from gold_bot.datasources.base import ProviderError, SymbolNotSupported
+
+        def faux_get(*_a, **_k):
+            err = ProviderError("400")
+            err.status = 400
+            raise err
+
+        monkeypatch.setattr(providers, "http_get", faux_get)
+        source = providers.BinanceProvider()
+        source.throttle = lambda: None
+        try:
+            source.fetch_candles("CROUSD", "crypto", "H1", 100)
+            assert False, "aurait du lever"
+        except SymbolNotSupported:
+            pass          # attendu : la source reste saine
+
+    def test_une_vraie_panne_reste_une_panne(self, monkeypatch):
+        from gold_bot.datasources import providers
+        from gold_bot.datasources.base import ProviderError, SymbolNotSupported
+
+        def faux_get(*_a, **_k):
+            err = ProviderError("503")
+            err.status = 503
+            raise err
+
+        monkeypatch.setattr(providers, "http_get", faux_get)
+        source = providers.BinanceProvider()
+        source.throttle = lambda: None
+        try:
+            source.fetch_candles("BTCUSD", "crypto", "H1", 100)
+            assert False, "aurait du lever"
+        except SymbolNotSupported:
+            assert False, "une panne ne doit pas passer pour un symbole inconnu"
+        except ProviderError:
+            pass          # attendu : la source sera mise en quarantaine

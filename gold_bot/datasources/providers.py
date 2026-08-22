@@ -140,10 +140,19 @@ class BinanceProvider(PriceProvider):
         if not interval:
             raise ProviderError(f"{self.name}: unite de temps non supportee {timeframe}")
         self.throttle()
-        rows = http_get(
-            "https://api.binance.com/api/v3/klines",
-            params={"symbol": code, "interval": interval, "limit": min(limit, 1000)},
-        )
+        try:
+            rows = http_get(
+                "https://api.binance.com/api/v3/klines",
+                params={"symbol": code, "interval": interval, "limit": min(limit, 1000)},
+            )
+        except ProviderError as exc:
+            # Binance repond 400 « Invalid symbol » pour une paire absente
+            # dans cette devise de cotation. Ce n'est pas une panne : la
+            # source reste saine pour les 80 autres instruments.
+            if getattr(exc, "status", None) == 400:
+                raise SymbolNotSupported(
+                    f"{self.name}: {symbol} non cote en {self.devise}") from exc
+            raise
         if not isinstance(rows, list):
             raise ProviderError(f"{self.name}: reponse inattendue")
         return [
@@ -156,7 +165,14 @@ class BinanceProvider(PriceProvider):
         if not code:
             return None
         self.throttle()
-        data = http_get("https://api.binance.com/api/v3/ticker/bookTicker", params={"symbol": code})
+        try:
+            data = http_get("https://api.binance.com/api/v3/ticker/bookTicker",
+                            params={"symbol": code})
+        except ProviderError as exc:
+            if getattr(exc, "status", None) == 400:
+                raise SymbolNotSupported(
+                    f"{self.name}: {symbol} non cote en {self.devise}") from exc
+            raise
         return Tick(time.time(), float(data["bidPrice"]), float(data["askPrice"]))
 
 
