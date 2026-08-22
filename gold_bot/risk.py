@@ -268,7 +268,11 @@ class RiskManager:
             return False, f"limite de perte hebdomadaire atteinte ({acc.weekly_pnl_pct():.2f}%)"
         if cfg.daily_profit_target_pct > 0 and acc.daily_pnl_pct() >= cfg.daily_profit_target_pct:
             return False, f"objectif journalier atteint ({acc.daily_pnl_pct():+.2f}%) : journee protegee"
-        if acc.trades_today >= cfg.max_daily_trades:
+        # 0 ou moins = aucun plafond. Sans ce test, `trades_today >= 0` est vrai
+        # des le premier cycle et un plafond mis a zero pour « liberer » le
+        # robot le bloquerait au contraire entierement — c'est l'inverse de
+        # l'intention. Meme convention que daily_profit_target_pct ci-dessus.
+        if cfg.max_daily_trades > 0 and acc.trades_today >= cfg.max_daily_trades:
             return False, f"quota de trades du jour atteint ({acc.trades_today})"
         if len(positions) >= cfg.max_positions:
             return False, f"nombre maximal de positions atteint ({len(positions)})"

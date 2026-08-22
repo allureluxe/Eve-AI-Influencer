@@ -403,3 +403,49 @@ class TestErreurHttpEtSymboleInconnu:
             assert False, "une panne ne doit pas passer pour un symbole inconnu"
         except ProviderError:
             pass          # attendu : la source sera mise en quarantaine
+
+
+class TestPlafondJournalierIllimite:
+    """Mettre le plafond a zero doit liberer le robot, pas le bloquer.
+
+    Regression : le test etait `trades_today >= max_daily_trades`. A zero,
+    `0 >= 0` est vrai des le premier cycle — un reglage cense retirer toute
+    limite interdisait en realite le moindre trade.
+    """
+
+    def _gestionnaire(self, plafond):
+        from gold_bot.risk import RiskConfig, RiskManager
+        config = RiskConfig()
+        config.max_daily_trades = plafond
+        config.min_seconds_between_trades = 0.0
+        config.max_positions = 6
+        gestionnaire = RiskManager(config)
+        gestionnaire.sync_account(1000.0, 1000.0, "USDC")
+        return gestionnaire
+
+    def test_zero_signifie_illimite(self):
+        g = self._gestionnaire(0)
+        g.account.trades_today = 5000
+        autorise, motif = g.can_trade([])
+        assert autorise, f"bloque a tort : {motif}"
+
+    def test_valeur_negative_aussi(self):
+        g = self._gestionnaire(-1)
+        g.account.trades_today = 999
+        assert g.can_trade([])[0]
+
+    def test_un_plafond_reel_reste_applique(self):
+        g = self._gestionnaire(10)
+        g.account.trades_today = 10
+        autorise, motif = g.can_trade([])
+        assert not autorise
+        assert "quota" in motif
+
+    def test_sous_le_plafond_ca_passe(self):
+        g = self._gestionnaire(10)
+        g.account.trades_today = 9
+        assert g.can_trade([])[0]
+
+    def test_la_config_du_robot_est_bien_sans_plafond(self):
+        from gold_bot.settings import BotConfig
+        assert BotConfig.load("robot.spot.json").risk.max_daily_trades == 0
