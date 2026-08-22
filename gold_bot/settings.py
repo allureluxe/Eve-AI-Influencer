@@ -42,6 +42,10 @@ class EngineConfig:
     dry_run: bool = False                 # analyse sans envoyer d'ordre
     offline: bool = False                 # source synthetique (tests uniquement)
     verbose_scan: bool = False
+    # Nombre d'instruments evalues en parallele. Un cycle attend surtout le
+    # reseau : sur un univers large, c'est ce reglage qui decide si un tour
+    # dure quelques secondes ou plusieurs minutes.
+    scan_workers: int = 8
 
 
 @dataclass(slots=True)

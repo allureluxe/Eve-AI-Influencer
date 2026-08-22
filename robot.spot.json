@@ -23,9 +23,26 @@
     "   l'arithmetique : en dessous, le trade est perdant avant d'avoir",
     "   commence.",
     "",
-    "CE QU'IL FAUT EN ATTENDRE : 1 a 4 trades par jour, tenus 2 a 8 heures,",
-    "visant 1,5 a 2 % de mouvement. Pas 20 a 30 trades. C'est moins",
-    "spectaculaire, mais c'est ce qui survit aux frais.",
+    "COMMENT ON OBTIENT PLUS DE TRADES SANS DEGRADER LA QUALITE.",
+    "",
+    "On ne baisse pas l'echelle de temps — le tableau ci-dessus l'interdit. On",
+    "elargit le terrain : l'univers passe de 4 paires a plus de 80 cryptos,",
+    "et le nombre de positions simultanees de 1 a 6. A exigence d'entree",
+    "identique, environ vingt fois plus de marches surveilles produisent",
+    "mecaniquement bien plus d'occasions valides.",
+    "",
+    "Trois verrous ont ete leves pour cela :",
+    "  - l'univers ne contenait que BTC, ETH, SOL et XRP ;",
+    "  - les quatre partageaient un unique groupe de correlation, ce qui",
+    "    interdisait d'en tenir deux a la fois ;",
+    "  - sous 100 de capital, le code forcait une seule position, quelle que",
+    "    soit la configuration. Le nombre de lignes se deduit desormais du",
+    "    ticket d'entree reel de la plateforme.",
+    "",
+    "CE QU'IL FAUT EN ATTENDRE : plusieurs trades par jour au lieu d'un,",
+    "tenus 2 a 8 heures, visant 1,5 a 2 % de mouvement. Toujours pas 1000",
+    "trades par jour : a 0,2 % de frais par aller-retour, la frequence est un",
+    "cout, jamais un avantage.",
     "",
     "Le stop et l'objectif sont poses en OCO sur la plateforme : si le robot",
     "s'arrete, la position reste bornee des deux cotes.",
@@ -40,69 +57,63 @@
     "niveaux calcules correspondent exactement a ceux envoyes. Les paires",
     "inexistantes dans cette devise sont ecartees automatiquement."
   ],
-
   "engine": {
     "broker": "binance_spot",
     "dry_run": false,
     "offline": false,
     "poll_seconds": 20.0,
-    "idle_poll_seconds": 60.0,
+    "idle_poll_seconds": 30.0,
     "closed_market_seconds": 120.0,
     "heartbeat_minutes": 240.0,
     "daily_report_hour": 21,
-    "symbols": ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD"],
+    "symbols": [],
     "currency": "USDC",
-    "verbose_scan": false
+    "verbose_scan": false,
+    "scan_workers": 8
   },
-
   "strategy": {
     "mode": "quorum",
     "min_confirmations": 3,
     "require_candle_confirmation": true,
     "confirmation_margin": 1,
-
     "trigger_tf": "M15",
     "entry_tf": "H1",
     "context_tf": "H4",
     "bias_tf": "D1",
-
     "adaptive_timeframe": true,
-    "timeframe_ladder": ["H1", "H4"],
+    "timeframe_ladder": [
+      "H1",
+      "H4"
+    ],
     "max_cost_ratio_pct": 15.0,
-
-    "max_spread_atr_ratio": 0.10,
+    "max_spread_atr_ratio": 0.1,
     "min_atr_percentile": 0.15,
     "max_atr_percentile": 0.95,
-    "min_atr_price_ratio": 0.00300,
+    "min_atr_price_ratio": 0.0022,
     "min_rr": 1.5,
     "history": 300
   },
-
   "risk": {
-    "base_risk_pct": 1.0,
-    "min_risk_pct": 0.3,
-    "max_risk_pct": 2.0,
-
+    "base_risk_pct": 0.22,
+    "min_risk_pct": 0.15,
+    "max_risk_pct": 0.5,
     "max_cost_ratio_pct": 15.0,
     "commission_pct": 0.001,
-
     "daily_loss_limit_pct": 5.0,
     "weekly_loss_limit_pct": 10.0,
     "max_drawdown_pct": 25.0,
     "daily_profit_target_pct": 10.0,
-
-    "max_positions": 1,
-    "max_per_correlation_group": 1,
-    "max_total_risk_pct": 2.0,
-    "max_daily_trades": 6,
-    "min_seconds_between_trades": 600.0,
+    "max_positions": 6,
+    "max_per_correlation_group": 2,
+    "max_total_risk_pct": 3.0,
+    "max_daily_trades": 40,
+    "min_seconds_between_trades": 120.0,
     "max_leverage": 1.0,
-
     "max_consecutive_losses": 4,
     "pause_after_losses_minutes": 240.0,
-    "min_rr": 1.5
+    "min_rr": 1.5,
+    "max_capital_engaged_pct": 80.0
   },
-
   "trade": {
     "atr_stop_mult": 1.4,
     "min_stop_atr": 1.0,
@@ -111,15 +122,12 @@
     "max_stop_atr_for_cost": 4.0,
     "tp_r_multiple": 2.0,
     "spread_buffer_mult": 2.0,
-
     "breakeven_at_r": 0.8,
     "breakeven_offset_r": 0.15,
     "partial_enabled": false,
-
     "trail_start_r": 1.0,
     "trail_atr_mult": 1.8,
     "trail_tighten_atr_mult": 1.0,
-
     "extend_enabled": true,
     "extend_at_progress": 0.85,
     "extend_by_atr": 1.2,
@@ -127,12 +135,10 @@
     "max_extensions": 3,
     "extend_min_momentum": 0.35,
     "lock_r_on_extend": 0.4,
-
     "time_stop_minutes": 480.0,
     "time_stop_min_r": 0.2,
     "reversal_exit_r": 0.5
   },
-
   "objectives": {
     "base_target": 10.0,
     "escalation": 1.5,

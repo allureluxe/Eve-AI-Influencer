@@ -49,6 +49,10 @@ class RiskConfig:
     max_total_risk_pct: float = 3.0    # somme des risques ouverts
     max_daily_trades: int = 12
     min_seconds_between_trades: float = 45.0
+    # Part du capital pouvant etre engagee simultanement. Le reste sert de
+    # coussin : sans lui, une position minimale supplementaire est refusee
+    # par la plateforme au pire moment, faute de liquidites disponibles.
+    max_capital_engaged_pct: float = 80.0
     max_leverage: float = 30.0         # plafond de levier effectif
 
     # --- Serie ---

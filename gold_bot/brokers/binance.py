@@ -49,11 +49,13 @@ TESTNET = "https://testnet.binancefuture.com"
 # choisie separement : depuis l'entree en vigueur de MiCA, Binance restreint
 # l'USDT aux particuliers de l'Union europeenne et propose l'USDC a la
 # place. Les deux valent un dollar, seule la paire change.
-ACTIFS = {
-    "BTCUSD": "BTC", "ETHUSD": "ETH", "SOLUSD": "SOL", "XRPUSD": "XRP",
-    "DOGEUSD": "DOGE", "ADAUSD": "ADA", "BNBUSD": "BNB", "AVAXUSD": "AVAX",
-    "LINKUSD": "LINK", "LTCUSD": "LTC", "PAXGUSD": "PAXG",
-}
+# Le catalogue des actifs et leurs groupes de correlation vivent dans
+# `universe` : c'est l'univers qui decide de ce qui existe, le broker se
+# contente de le traduire en codes Binance.
+from ..universe import CATALOGUE_CRYPTO
+
+# Symbole interne du robot (<ACTIF>USD) -> actif Binance.
+ACTIFS = {f"{actif}USD": actif for actif in CATALOGUE_CRYPTO}
 
 # Devise de cotation par defaut, surchargeable par BINANCE_QUOTE_ASSET.
 DEVISE_DEFAUT = os.getenv("BINANCE_QUOTE_ASSET", "USDT").upper()

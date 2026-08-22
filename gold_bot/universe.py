@@ -87,6 +87,106 @@ LONDON_NY = ((7, 21),)
 LONDON_NY_OVERLAP = ((12, 17),)
 
 
+# ---------------------------------------------------------------------------
+# Catalogue crypto : actif Binance -> groupe de correlation.
+#
+# Les groupes evitent d'empiler trois fois le meme pari : dix jetons de layer 1
+# montent et descendent ensemble, les tenir simultanement revient a tripler une
+# position unique sans le savoir.
+#
+# Toutes ces paires n'existent pas dans toutes les devises de cotation. Celles
+# qui manquent en USDC sont ecartees au demarrage par
+# `BinanceSpotBroker.supports()` : il n'y a rien a maintenir a la main ici, une
+# entree inconnue de Binance est simplement ignoree.
+# ---------------------------------------------------------------------------
+CATALOGUE_CRYPTO: dict[str, str] = {
+    # --- References ---
+    "BTC": "crypto_major", "ETH": "crypto_major",
+
+    # --- Layer 1 ---
+    "SOL": "crypto_l1", "ADA": "crypto_l1", "AVAX": "crypto_l1",
+    "DOT": "crypto_l1", "NEAR": "crypto_l1", "ATOM": "crypto_l1",
+    "APT": "crypto_l1", "SUI": "crypto_l1", "SEI": "crypto_l1",
+    "INJ": "crypto_l1", "TIA": "crypto_l1", "ALGO": "crypto_l1",
+    "EGLD": "crypto_l1", "HBAR": "crypto_l1", "ICP": "crypto_l1",
+    "FTM": "crypto_l1", "FLOW": "crypto_l1", "XTZ": "crypto_l1",
+    "EOS": "crypto_l1", "NEO": "crypto_l1", "IOTA": "crypto_l1",
+    "VET": "crypto_l1", "KAVA": "crypto_l1", "MINA": "crypto_l1",
+    "ROSE": "crypto_l1", "CELO": "crypto_l1", "QTUM": "crypto_l1",
+    "TRX": "crypto_l1", "TON": "crypto_l1", "ZIL": "crypto_l1",
+
+    # --- Layer 2 et mise a l'echelle ---
+    "ARB": "crypto_l2", "OP": "crypto_l2", "POL": "crypto_l2",
+    "MATIC": "crypto_l2", "IMX": "crypto_l2", "STRK": "crypto_l2",
+    "METIS": "crypto_l2", "LRC": "crypto_l2",
+
+    # --- Finance decentralisee ---
+    "UNI": "crypto_defi", "AAVE": "crypto_defi", "LINK": "crypto_defi",
+    "MKR": "crypto_defi", "CRV": "crypto_defi", "COMP": "crypto_defi",
+    "SNX": "crypto_defi", "SUSHI": "crypto_defi", "1INCH": "crypto_defi",
+    "LDO": "crypto_defi", "RUNE": "crypto_defi", "DYDX": "crypto_defi",
+    "GMX": "crypto_defi", "PENDLE": "crypto_defi",
+
+    # --- Jetons memes : tres volatils, donc utiles, mais fortement correles ---
+    "DOGE": "crypto_meme", "SHIB": "crypto_meme", "PEPE": "crypto_meme",
+    "FLOKI": "crypto_meme", "BONK": "crypto_meme", "WIF": "crypto_meme",
+
+    # --- Intelligence artificielle, donnees et stockage ---
+    "FET": "crypto_ai", "RENDER": "crypto_ai", "GRT": "crypto_ai",
+    "AR": "crypto_ai", "FIL": "crypto_ai", "THETA": "crypto_ai",
+    "OCEAN": "crypto_ai",
+
+    # --- Jeu video et univers virtuels ---
+    "SAND": "crypto_gaming", "MANA": "crypto_gaming", "AXS": "crypto_gaming",
+    "GALA": "crypto_gaming", "ENJ": "crypto_gaming", "APE": "crypto_gaming",
+    "CHZ": "crypto_gaming",
+
+    # --- Paiement et reserve de valeur ---
+    "XRP": "crypto_paiement", "LTC": "crypto_paiement", "BCH": "crypto_paiement",
+    "ETC": "crypto_paiement", "XLM": "crypto_paiement", "ZEC": "crypto_paiement",
+    "DASH": "crypto_paiement",
+
+    # --- Plateformes d'echange ---
+    "BNB": "crypto_echange", "CAKE": "crypto_echange", "CRO": "crypto_echange",
+
+    # --- Or tokenise : suit le metal, pas le marche crypto ---
+    "PAXG": "metaux",
+}
+
+
+def instrument_crypto(actif: str, groupe: str, priorite: float = 0.75) -> Instrument:
+    """Construit un instrument crypto generique pour Binance Spot.
+
+    Les valeurs de lot sont volontairement permissives : le broker les
+    remplace au demarrage par les vraies contraintes de Binance
+    (`apply_market_rules`). Il ne sert a rien de les deviner ici.
+
+    `max_spread` est laisse a l'infini car un plafond absolu n'a aucun sens
+    sur un catalogue allant du BTC a 77 000 au PEPE a 0,00001 : le controle
+    qui compte est relatif, `max_spread_atr_ratio` compare l'ecart a l'ATR de
+    l'instrument, et reste donc valable a toutes les echelles de prix.
+
+    `round_step = 0` desactive les niveaux psychologiques (chiffres ronds),
+    qui n'ont de sens que sur des marches ou une echelle de prix fait
+    reference, comme les paliers de 10 $ sur l'or.
+    """
+    return Instrument(
+        symbol=f"{actif}USD",
+        asset_class="crypto",
+        digits=8,
+        contract_size=1.0,
+        min_lot=1e-8,
+        lot_step=1e-8,
+        max_lot=1e9,
+        round_step=0.0,
+        typical_spread=0.0,
+        max_spread=math.inf,
+        weekend=True,
+        priority=priorite,
+        correlation_group=groupe,
+    )
+
+
 DEFAULT_UNIVERSE: list[Instrument] = [
     # --- Metaux : coeur du systeme ---
     Instrument("XAUUSD", "metal", 2, 100.0, 0.01, 0.01, 50.0, 10.0, 0.30, 0.60,
@@ -108,14 +208,24 @@ DEFAULT_UNIVERSE: list[Instrument] = [
 
     # --- Crypto : prend le relais la nuit et le week-end (24/7) ---
     Instrument("BTCUSD", "crypto", 2, 1.0, 0.001, 0.001, 20.0, 1000.0, 8.0, 30.0,
-               weekend=True, priority=1.05, correlation_group="crypto"),
+               weekend=True, priority=1.05, correlation_group="crypto_major"),
     Instrument("ETHUSD", "crypto", 2, 1.0, 0.01, 0.01, 200.0, 50.0, 0.60, 2.50,
-               weekend=True, priority=1.0, correlation_group="crypto"),
+               weekend=True, priority=1.0, correlation_group="crypto_major"),
     Instrument("SOLUSD", "crypto", 3, 1.0, 0.1, 0.1, 2000.0, 5.0, 0.05, 0.25,
-               weekend=True, priority=0.9, correlation_group="crypto"),
+               weekend=True, priority=0.9, correlation_group="crypto_l1"),
     Instrument("XRPUSD", "crypto", 4, 1.0, 1.0, 1.0, 100000.0, 0.10, 0.0008, 0.0035,
-               weekend=True, priority=0.8, correlation_group="crypto"),
+               weekend=True, priority=0.8, correlation_group="crypto_paiement"),
 ]
+
+# Le reste du catalogue crypto, genere automatiquement. Les quatre paires
+# ci-dessus gardent leurs valeurs reglees a la main ; toutes les autres
+# recoivent des valeurs generiques que Binance corrigera au demarrage.
+_deja_definis = {i.symbol for i in DEFAULT_UNIVERSE}
+DEFAULT_UNIVERSE.extend(
+    instrument_crypto(actif, groupe)
+    for actif, groupe in CATALOGUE_CRYPTO.items()
+    if f"{actif}USD" not in _deja_definis
+)
 
 
 class Universe:

@@ -47,6 +47,38 @@ from .universe import Instrument, Universe
 logger = logging.getLogger(__name__)
 
 
+def positions_tenables(equity: float, notionnel_minimum: float,
+                       part_engageable_pct: float, plafond: int) -> tuple[int, str]:
+    """Combien de positions simultanees le capital permet reellement.
+
+    La contrainte n'est pas un palier arbitraire mais le ticket d'entree de la
+    plateforme : un compte de 60 avec un minimum de 5 par ordre peut tenir
+    plusieurs lignes. L'ancienne table fixe (« sous 100 = une seule position »)
+    ramenait un tel compte a une position unique, ce qui bridait le nombre de
+    trades bien plus surement que n'importe quel filtre de strategie.
+
+    Retourne le nombre de positions et le nom du palier correspondant.
+    """
+    if equity <= 0 or notionnel_minimum <= 0 or plafond <= 0:
+        return max(0, min(1, plafond)), "insuffisant"
+
+    engageable = equity * max(0.0, part_engageable_pct) / 100.0
+    capacite = int(engageable // notionnel_minimum)
+
+    if capacite <= 0:
+        palier = "insuffisant"
+    elif capacite < 3:
+        palier = "micro"
+    elif capacite < 8:
+        palier = "petit"
+    elif capacite < 20:
+        palier = "moyen"
+    else:
+        palier = "confortable"
+
+    return max(1, min(capacite, plafond)), palier
+
+
 class TradingEngine:
     """Orchestrateur : assemble tous les modules et fait tourner la boucle."""
 
@@ -72,7 +104,8 @@ class TradingEngine:
         self.trade_manager = TradeManager(cfg.trade)
         self.strategy = Strategy(cfg.strategy, self.trade_manager, self.macro)
         self.scanner = Scanner(self.registry, self.universe, self.strategy,
-                               self.news, cfg.strategy.history)
+                               self.news, cfg.strategy.history,
+                               max_workers=cfg.engine.scan_workers)
         self.risk = RiskManager(cfg.risk)
         self.objectives = ObjectiveTracker(cfg.objectives)
         self.store = StateStore()
@@ -111,17 +144,38 @@ class TradingEngine:
         # un instrument qu'on ne pourra pas trader gaspille des appels reseau
         # et produit des signaux inexploitables.
         if hasattr(broker, "supports"):
-            traitables = [i.symbol for i in self.universe if broker.supports(i.symbol)]
-            ecartes = [i.symbol for i in self.universe if not broker.supports(i.symbol)]
-            if ecartes:
-                logger.info("%s ne propose pas %s : ecarte(s) de l'univers",
-                            broker.name, ", ".join(ecartes))
-            self.universe.enable_only(traitables)
+            self._filtrer_univers_sur_le_broker(broker)
 
         for inst in self.universe:
             if hasattr(broker, "register_instrument"):
                 broker.register_instrument(inst)
         return broker
+
+    # ---------------------------------------------------------------
+    def _filtrer_univers_sur_le_broker(self, broker=None) -> list[str]:
+        """N'active que les instruments reellement cotables sur ce lieu.
+
+        Appele deux fois : a la construction, sur la seule liste des actifs
+        connus du broker, puis apres le chargement des regles de marche, quand
+        on sait quelles paires existent dans la devise de cotation retenue.
+        """
+        broker = broker or self.broker
+        if not hasattr(broker, "supports"):
+            return []
+
+        traitables, ecartes = [], []
+        for inst in self.universe:
+            (traitables if broker.supports(inst.symbol) else ecartes).append(inst.symbol)
+
+        if ecartes:
+            apercu = ", ".join(ecartes[:12])
+            if len(ecartes) > 12:
+                apercu += f", … (+{len(ecartes) - 12})"
+            logger.info("%s ne propose pas %d instrument(s) : %s",
+                        broker.name, len(ecartes), apercu)
+        logger.info("univers retenu : %d instrument(s) cotables", len(traitables))
+        self.universe.enable_only(traitables)
+        return ecartes
 
     # ---------------------------------------------------------------
     # Demarrage
@@ -152,6 +206,13 @@ class TradingEngine:
         # defaut : tailles de lot, pas de prix, notionnel minimum.
         if hasattr(self.broker, "apply_market_rules"):
             self.broker.apply_market_rules(self.universe)
+
+        # Les regles de marche viennent d'arriver : c'est seulement maintenant
+        # qu'on sait quelles paires existent vraiment dans la devise choisie.
+        # Sans ce second tri, une paire cotee en USDT mais absente en USDC
+        # resterait dans l'univers et consommerait du quota d'API a chaque
+        # cycle pour une erreur previsible.
+        self._filtrer_univers_sur_le_broker()
 
         acc = self.broker.account()
         self.risk.sync_account(acc.equity, acc.balance, acc.currency)
@@ -624,18 +685,28 @@ class TradingEngine:
         equity = self.risk.account.equity
         cfg = self.config.risk
 
-        if equity < 100:
-            palier, positions = "micro", 1
-        elif equity < 500:
-            palier, positions = "petit", 1
-        elif equity < 2000:
-            palier, positions = "moyen", 2
-        else:
-            palier, positions = "confortable", cfg.max_positions
+        # Le nombre de positions tenables ne depend pas de paliers arbitraires
+        # mais du ticket d'entree impose par la plateforme : un compte de 60
+        # avec un minimum de 5 peut reellement tenir plusieurs lignes, la ou
+        # un palier fixe « sous 100 = une seule position » l'en empechait.
+        minimum = 5.0
+        lire_minimum = getattr(self.broker, "notionnel_minimum", None)
+        if callable(lire_minimum):
+            try:
+                valeur = float(lire_minimum())
+                if valeur > 0:
+                    minimum = valeur
+            except Exception:  # pragma: no cover - la valeur de repli suffit
+                logger.debug("notionnel minimum illisible, repli sur %.2f", minimum)
 
-        positions = min(positions, cfg.max_positions)
-        if cfg.max_positions != positions:
-            logger.info("capital %.2f (%s) : %d position(s) simultanee(s)", equity, palier, positions)
+        positions, palier = positions_tenables(
+            equity, minimum, cfg.max_capital_engaged_pct, cfg.max_positions)
+
+        if positions != cfg.max_positions:
+            logger.info(
+                "capital %.2f (%s) : %d position(s) simultanee(s) — ticket minimum %.2f, "
+                "%.0f%% engageable",
+                equity, palier, positions, minimum, cfg.max_capital_engaged_pct)
 
         endormis = {sym: motif for sym, (fin, motif) in self.scanner.dormant.items()
                     if fin > time.time()}

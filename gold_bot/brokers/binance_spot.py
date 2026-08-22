@@ -183,6 +183,20 @@ class BinanceSpotBroker(Broker):
             self._regles[code] = regle
         logger.info("regles spot chargees pour %d symbole(s)", len(self._regles))
 
+    def notionnel_minimum(self) -> float:
+        """Ticket d'entree median impose par la plateforme, en devise de cotation.
+
+        Sert a estimer combien de positions le capital permet de tenir. La
+        mediane suffit : chaque ordre est de toute facon verifie
+        individuellement contre le minimum de son propre symbole au moment de
+        l'execution, un symbole plus exigeant que la mediane est donc refuse
+        la, pas ici.
+        """
+        valeurs = sorted(r.min_notional for r in self._regles.values() if r.min_notional > 0)
+        if not valeurs:
+            return 5.0
+        return valeurs[len(valeurs) // 2]
+
     def apply_market_rules(self, universe) -> list[str]:
         modifies: list[str] = []
         for inst in universe:

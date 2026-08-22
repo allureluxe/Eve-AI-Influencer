@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -114,12 +115,18 @@ class Scanner:
         strategy: Strategy,
         news: Optional[NewsFilter] = None,
         history: int = 300,
+        max_workers: int = 8,
     ) -> None:
         self.registry = registry
         self.universe = universe
         self.strategy = strategy
         self.news = news
         self.history = history
+        # Un cycle est domine par l'attente reseau, pas par le calcul : evaluer
+        # les instruments en parallele fait passer un univers de 85 paires de
+        # plusieurs minutes a quelques secondes. Au-dela d'une dizaine de fils,
+        # c'est le quota d'API de la plateforme qui devient la limite.
+        self.max_workers = max(1, int(max_workers))
         self.contexts: dict[str, SymbolContext] = {}
         # Instruments mis en sommeil : symbole -> (fin de la mise en sommeil, motif).
         # Quand un instrument est structurellement inexploitable pour le capital
@@ -228,6 +235,8 @@ class Scanner:
         result = ScanResult(ts=now or time.time())
         exclude = exclude or set()
 
+        # --- Selection : rapide, sans reseau, donc sequentielle ---
+        candidats: list[Instrument] = []
         for instrument in self.universe.tradable(now):
             if instrument.symbol in exclude:
                 continue
@@ -240,16 +249,43 @@ class Scanner:
                 if not ok:
                     result.errors[instrument.symbol] = why
                     continue
-            result.scanned += 1
+            candidats.append(instrument)
+
+        result.scanned = len(candidats)
+
+        # Les contextes sont crees ici, avant la phase parallele : deux fils
+        # demandant simultanement le meme symbole creeraient sinon deux
+        # contextes concurrents, et l'un des deux perdrait son historique.
+        for instrument in candidats:
+            self.context(instrument.symbol)
+
+        def evaluer(instrument: Instrument):
+            """Evalue un instrument sans jamais laisser remonter d'exception."""
             try:
-                ev = self.evaluate_symbol(instrument, score_bonus, now)
-                result.evaluations.append(ev)
+                return instrument, self.evaluate_symbol(instrument, score_bonus, now), None
             except ProviderError as exc:
-                result.errors[instrument.symbol] = f"donnees indisponibles : {str(exc)[:120]}"
-                self.context(instrument.symbol).last_error = str(exc)
-            except Exception as exc:  # noqa: BLE001 - un instrument ne doit jamais casser le cycle
+                return instrument, None, f"donnees indisponibles : {str(exc)[:120]}"
+            except Exception as exc:  # noqa: BLE001 - un instrument ne casse jamais le cycle
                 logger.exception("erreur d'evaluation sur %s", instrument.symbol)
-                result.errors[instrument.symbol] = f"erreur interne : {str(exc)[:120]}"
+                return instrument, None, f"erreur interne : {str(exc)[:120]}"
+
+        # --- Evaluation : dominee par l'attente reseau, donc parallele ---
+        if len(candidats) <= 1 or self.max_workers <= 1:
+            resultats = [evaluer(inst) for inst in candidats]
+        else:
+            fils = min(self.max_workers, len(candidats))
+            with ThreadPoolExecutor(max_workers=fils,
+                                    thread_name_prefix="scan") as pool:
+                taches = [pool.submit(evaluer, inst) for inst in candidats]
+                resultats = [t.result() for t in as_completed(taches)]
+
+        for instrument, ev, erreur in resultats:
+            if erreur is not None:
+                result.errors[instrument.symbol] = erreur
+                if erreur.startswith("donnees indisponibles"):
+                    self.context(instrument.symbol).last_error = erreur
+                continue
+            result.evaluations.append(ev)
 
         valid = sorted(result.valid_ones(), key=lambda e: -e.priority_score)
         if allowed_sides is not None:
