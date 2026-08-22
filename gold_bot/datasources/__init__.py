@@ -16,6 +16,7 @@ from .providers import (
     FinnhubProvider,
     MetalPriceProvider,
     MoonXProvider,
+    OkxProvider,
     PolygonProvider,
     StooqProvider,
     SyntheticProvider,
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 # puis les sources gratuites fiables, puis les sources a cle.
 PROVIDER_CLASSES = [
     MoonXProvider,
+    OkxProvider,
     BitvavoProvider,
     BinanceProvider,
     YahooProvider,

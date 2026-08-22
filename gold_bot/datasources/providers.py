@@ -268,6 +268,103 @@ class BitvavoProvider(PriceProvider):
             return None
 
 
+
+# ==========================================================================
+# OKX - lieu d'execution europeen (MiCA/MFSA), cotation en EUR, sans cle
+# ==========================================================================
+class OkxProvider(PriceProvider):
+    """OKX : source alignee sur le lieu d'execution, endpoints publics.
+
+    Deux particularites de l'API v5, toutes deux traitees ici :
+      - une reponse HTTP 200 peut porter un echec, c'est `code` qui fait foi ;
+      - la derniere bougie renvoyee n'est pas cloturee (`confirm` = 0). La
+        garder ferait decider le robot sur une bougie encore en train de
+        bouger, ce qui invente des signaux qui disparaissent ensuite.
+    """
+
+    name = "okx"
+    capabilities = ProviderCapabilities(asset_classes=("crypto",), rate_limit_per_min=120)
+    devise_crypto = os.getenv("OKX_QUOTE_ASSET", "EUR").upper()
+
+    ACTIFS = {f"{actif}USD": actif for actif in CATALOGUE_CRYPTO}
+    # Attention aux majuscules : OKX ecrit les minutes en minuscule et les
+    # heures et jours en MAJUSCULE. « 4h » est refuse, « 4H » accepte.
+    INTERVALS = {"M1": "1m", "M3": "3m", "M5": "5m", "M15": "15m",
+                 "M30": "30m", "H1": "1H", "H4": "4H", "D1": "1D"}
+
+    BASE = os.getenv("OKX_API_URL", "https://www.okx.com").rstrip("/")
+
+    @property
+    def devise(self) -> str:
+        return os.getenv("OKX_QUOTE_ASSET", "EUR").upper()
+
+    def symbol_for(self, symbol: str, asset_class: str) -> Optional[str]:
+        actif = self.ACTIFS.get(symbol.upper())
+        return f"{actif}-{self.devise}" if actif else None
+
+    def _lire(self, chemin: str, params: dict) -> list:
+        """Appel public v5, avec validation de l'enveloppe."""
+        reponse = http_get(f"{self.BASE}{chemin}", params=params)
+        if not isinstance(reponse, dict):
+            raise ProviderError(f"{self.name}: reponse inattendue")
+        code = str(reponse.get("code", ""))
+        if code != "0":
+            message = str(reponse.get("msg", ""))[:120]
+            # 51001 : instrument inconnu. Ce n'est pas une panne, la source
+            # reste saine pour tous les autres marches.
+            if code in ("51001", "51000"):
+                raise SymbolNotSupported(f"{self.name}: {message or code}")
+            raise ProviderError(f"{self.name}: [{code}] {message}")
+        return reponse.get("data") or []
+
+    def fetch_candles(self, symbol: str, asset_class: str, timeframe: str,
+                      limit: int) -> list[Candle]:
+        code = self.symbol_for(symbol, asset_class)
+        if not code:
+            raise SymbolNotSupported(f"{self.name}: {symbol} non cote ici")
+        interval = self.INTERVALS.get(timeframe)
+        if not interval:
+            raise ProviderError(f"{self.name}: unite de temps non supportee {timeframe}")
+
+        self.throttle()
+        try:
+            # On demande une bougie de plus : la derniere sera ecartee si
+            # elle n'est pas encore cloturee.
+            rows = self._lire("/api/v5/market/candles",
+                              {"instId": code, "bar": interval,
+                               "limit": min(limit + 1, 300)})
+        except ProviderError as exc:
+            if getattr(exc, "status", None) == 400:
+                raise SymbolNotSupported(
+                    f"{self.name}: {symbol} non cote en {self.devise}") from exc
+            raise
+
+        bougies = []
+        # OKX renvoie la plus recente en premier ; le robot raisonne dans
+        # l'ordre chronologique.
+        for r in reversed(rows):
+            # `confirm` vaut « 1 » quand la bougie est cloturee. Le champ
+            # peut manquer sur d'anciennes reponses : on ne l'exige pas.
+            if len(r) > 8 and str(r[8]) == "0":
+                continue
+            bougies.append(Candle(float(r[0]) / 1000.0, float(r[1]), float(r[2]),
+                                  float(r[3]), float(r[4]), float(r[5])))
+        return bougies
+
+    def fetch_tick(self, symbol: str, asset_class: str) -> Optional[Tick]:
+        code = self.symbol_for(symbol, asset_class)
+        if not code:
+            return None
+        self.throttle()
+        data = self._lire("/api/v5/market/ticker", {"instId": code})
+        if not data:
+            return None
+        try:
+            return Tick(time.time(), float(data[0]["bidPx"]), float(data[0]["askPx"]))
+        except (KeyError, TypeError, ValueError):
+            return None
+
+
 # ==========================================================================
 # Sources a cle API (activation automatique si la variable existe)
 # ==========================================================================

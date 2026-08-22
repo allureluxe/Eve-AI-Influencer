@@ -39,11 +39,42 @@ class BotState:
     halt_reason: str = ""
 
 
+def chemin_par_instance(defaut: str, variable: str, instance: str = "") -> str:
+    """Chemin de fichier propre a une instance du robot.
+
+    Faire tourner deux robots en parallele — un par lieu d'execution — est
+    un usage legitime. Mais avec un chemin fixe, les deux ecrivent dans le
+    meme fichier et s'ecrasent mutuellement : compteurs de pertes fausses,
+    journal de trades melange, plafonds de risque inoperants. Le defaut est
+    donc suffixe par l'instance.
+
+    La variable d'environnement, si elle est definie, reste prioritaire.
+
+    Compatibilite : si le fichier suffixe n'existe pas encore mais que
+    l'ancien fichier commun est la, on continue de lire celui-ci. Un robot
+    deja en production ne perd donc pas son historique lors de la mise a
+    jour.
+    """
+    force = os.getenv(variable, "").strip()
+    if force:
+        return force
+    if not instance:
+        return defaut
+    base, _, extension = defaut.rpartition(".")
+    suffixe = f"{base}-{instance}.{extension}" if base else f"{defaut}-{instance}"
+    if not os.path.exists(suffixe) and os.path.exists(defaut):
+        logger.info("reprise de l'historique commun %s pour l'instance %s",
+                    defaut, instance)
+        return defaut
+    return suffixe
+
+
 class StateStore:
     """Lecture/ecriture atomique de l'etat sur disque."""
 
-    def __init__(self, path: str = "") -> None:
-        self.path = path or os.getenv("GB_STATE_FILE", "data/state.json")
+    def __init__(self, path: str = "", instance: str = "") -> None:
+        self.path = path or chemin_par_instance(
+            "data/state.json", "GB_STATE_FILE", instance)
         self.state = BotState()
         self.load()
 
@@ -109,8 +140,9 @@ class StateStore:
 class TradeJournal:
     """Historique des trades et statistiques de performance."""
 
-    def __init__(self, path: str = "") -> None:
-        self.path = path or os.getenv("GB_TRADES_FILE", "data/trades.jsonl")
+    def __init__(self, path: str = "", instance: str = "") -> None:
+        self.path = path or chemin_par_instance(
+            "data/trades.jsonl", "GB_TRADES_FILE", instance)
         self.trades: list[ClosedTrade] = []
         self.load()
 

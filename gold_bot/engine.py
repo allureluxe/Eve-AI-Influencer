@@ -29,7 +29,8 @@ from typing import Optional
 
 from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker,
                       BitvavoBroker, BitvavoConfig, Broker,
-                      BrokerError, MoonXBroker, MoonXConfig, PaperBroker,
+                      BrokerError, MoonXBroker, MoonXConfig, OkxBroker,
+                      OkxConfig, PaperBroker,
                       PaperConfig, SpotConfig)
 from .core import ClosedTrade, Position, Side, Tick
 from .datasources import DataRegistry, build_registry
@@ -46,6 +47,24 @@ from .trade_manager import ActionType, TradeAction, TradeManager
 from .universe import Instrument, Universe
 
 logger = logging.getLogger(__name__)
+
+
+def _devise_du_lieu_d_execution(broker: str) -> str:
+    """Devise de cotation imposee aux sources de prix, selon le broker.
+
+    Les plateformes europeennes cotent en euros, les autres en dollars.
+    Melanger les deux pour un meme instrument ferait calculer les niveaux
+    sur une echelle de prix differente de celle ou les ordres partent :
+    l'ecart euro/dollar depasse largement la taille d'un stop.
+
+    Une chaine vide signifie « aucune contrainte » : les lieux d'execution
+    en dollars gardent le jeu complet des sources de secours.
+    """
+    if broker == "bitvavo":
+        return BitvavoConfig.from_env().quote_asset
+    if broker == "okx":
+        return OkxConfig.from_env().quote_asset
+    return ""
 
 
 def positions_tenables(equity: float, notionnel_minimum: float,
@@ -104,8 +123,7 @@ class TradingEngine:
         # source en dollars fausserait tous les niveaux de 8 %.
         self.registry: DataRegistry = build_registry(
             offline=cfg.engine.offline,
-            devise_crypto=BitvavoConfig.from_env().quote_asset
-            if cfg.engine.broker == "bitvavo" else "")
+            devise_crypto=_devise_du_lieu_d_execution(cfg.engine.broker))
         self.macro = MacroEngine(self.registry)
         self.news = NewsFilter()
         self.trade_manager = TradeManager(cfg.trade)
@@ -115,8 +133,12 @@ class TradingEngine:
                                max_workers=cfg.engine.scan_workers)
         self.risk = RiskManager(cfg.risk)
         self.objectives = ObjectiveTracker(cfg.objectives)
-        self.store = StateStore()
-        self.journal = TradeJournal()
+        # Le lieu d'execution nomme l'instance : deux robots sur deux
+        # plateformes tiennent ainsi des comptes separes, sans quoi leurs
+        # plafonds de pertes et leurs journaux se melangeraient.
+        instance = cfg.engine.broker
+        self.store = StateStore(instance=instance)
+        self.journal = TradeJournal(instance=instance)
         self.broker: Broker = self._build_broker()
 
         self._running = False
@@ -148,6 +170,11 @@ class TradingEngine:
             if cfg.dry_run:
                 bv.dry_run = True
             broker = BitvavoBroker(bv)
+        elif cfg.broker == "okx":
+            ok = OkxConfig.from_env()
+            if cfg.dry_run:
+                ok.dry_run = True
+            broker = OkxBroker(ok)
         else:
             broker = PaperBroker(PaperConfig(start_balance=cfg.start_balance,
                                              currency=cfg.currency))
@@ -203,6 +230,14 @@ class TradingEngine:
                     "Binance en mode REEL",
                     "Les ordres engagent de l'argent veritable. "
                     "BINANCE_TESTNET=1 bascule sur de l'argent fictif.")
+
+        if cfg.broker == "okx" and not cfg.dry_run and not cfg.offline:
+            ok = getattr(self.broker, "config", None)
+            if ok is not None and not ok.demo:
+                self.notifier.warning(
+                    "OKX en mode REEL",
+                    "Les ordres engagent de l'argent veritable. "
+                    "OKX_DRY_RUN=1 revient a la simulation.")
 
         if cfg.broker == "bitvavo" and not cfg.dry_run:
             self.notifier.warning(
