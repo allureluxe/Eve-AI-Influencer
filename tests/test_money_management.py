@@ -155,3 +155,74 @@ class TestCoupeCircuits:
         rm = self.gestionnaire()
         autorise, raison = rm.can_trade()
         assert autorise, raison
+
+
+class TestSpreadRelatifCrypto:
+    """Un spread absolu n'a aucun sens sur 85 cryptos.
+
+    Du BTC a 60 000 EUR au PEPE a 0,00001, la meme valeur absolue serait
+    negligeable d'un cote et interdirait tout trade de l'autre.
+    """
+
+    def test_le_spread_suit_le_prix(self):
+        from gold_bot.universe import Universe, spread_estime
+        u = Universe()
+        btc = u.get("BTCUSD")
+        assert spread_estime(btc, 60000.0) > spread_estime(btc, 0.5)
+
+    def test_meme_ratio_a_toutes_les_echelles(self):
+        from gold_bot.universe import SPREAD_CRYPTO_RATIO, Universe, spread_estime
+        u = Universe()
+        btc = u.get("BTCUSD")
+        for prix in (60000.0, 0.5, 0.00001):
+            assert spread_estime(btc, prix) / prix == pytest.approx(SPREAD_CRYPTO_RATIO)
+
+    def test_les_metaux_gardent_leur_spread_absolu(self):
+        """L'or se cote en dollars, son spread aussi : rien a changer."""
+        from gold_bot.universe import Universe, spread_estime
+        or_ = Universe().get("XAUUSD")
+        assert spread_estime(or_, 2500.0) == or_.typical_spread
+
+    def test_les_cryptos_reglees_a_la_main_ne_sont_plus_penalisees(self):
+        """Regression : XRP portait 0,0008 pour un prix de 0,5 EUR.
+
+        Soit 16 points de base la ou le reel en vaut 1 ou 2 — ce qui
+        provoquait 1090 rejets « spread » sur 1439 bougies.
+        """
+        from gold_bot.universe import Universe, spread_estime
+        xrp = Universe().get("XRPUSD")
+        assert spread_estime(xrp, 0.5) < xrp.typical_spread
+
+
+class TestPausePurgee:
+    """La pause est une sanction, pas une condamnation a perpetuite."""
+
+    def gestionnaire(self):
+        rm = RiskManager(RiskConfig(max_consecutive_losses=4,
+                                    pause_after_losses_minutes=240.0))
+        rm.sync_account(equity=1000.0, balance=1000.0, currency="EUR")
+        return rm
+
+    def test_la_pause_purgee_remet_le_compteur_a_zero(self):
+        """Sans cela, chaque perte suivante redeclenche la pause.
+
+        Mesure sur ADA : 1044 bougies bloquees sur 1439, soit 73 % de la
+        periode passee en regime punitif dont le robot ne sortait plus.
+        """
+        import time
+        rm = self.gestionnaire()
+        rm.account.consecutive_losses = 6
+        rm.account.paused_until = time.time() - 1      # pause deja terminee
+        autorise, raison = rm.can_trade()
+        assert rm.account.consecutive_losses == 0, raison
+        assert autorise, raison
+
+    def test_la_pause_en_cours_bloque_toujours(self):
+        import time
+        rm = self.gestionnaire()
+        rm.account.consecutive_losses = 5
+        rm.account.paused_until = time.time() + 3600
+        autorise, raison = rm.can_trade()
+        assert not autorise
+        assert "pause" in raison
+        assert rm.account.consecutive_losses == 5, "le compteur ne bouge pas pendant la pause"

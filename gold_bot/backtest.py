@@ -179,7 +179,7 @@ class Backtester:
             if i < warmup:
                 continue
 
-            spread = instrument.typical_spread
+            spread = spread_estime(instrument, candle.close)
             tick = Tick(candle.ts, candle.close - spread / 2, candle.close + spread / 2)
             atr = indicators[entry_tf].atr.value or 0.0
             broker.set_price(instrument.symbol, tick, atr)

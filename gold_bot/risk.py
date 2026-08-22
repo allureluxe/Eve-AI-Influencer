@@ -276,6 +276,15 @@ class RiskManager:
             return False, acc.halt_reason
         if now < acc.paused_until:
             return False, f"pause apres pertes ({(acc.paused_until - now) / 60:.0f} min restantes)"
+        if acc.paused_until and acc.consecutive_losses >= cfg.max_consecutive_losses:
+            # La pause a ete purgee : elle etait la sanction, elle est
+            # payee. Sans cette remise a zero, chaque perte suivante
+            # redeclenche la pause et le robot ne sort plus jamais du
+            # regime punitif — mesure sur ADA, 1044 bougies bloquees sur
+            # 1439, soit 73 % de la periode.
+            logger.info("pause purgee : compteur de pertes consecutives remis a zero")
+            acc.consecutive_losses = 0
+            acc.paused_until = 0.0
         if acc.daily_pnl_pct() <= -cfg.daily_loss_limit_pct:
             return False, f"limite de perte journaliere atteinte ({acc.daily_pnl_pct():.2f}%)"
         if acc.weekly_pnl_pct() <= -cfg.weekly_loss_limit_pct:

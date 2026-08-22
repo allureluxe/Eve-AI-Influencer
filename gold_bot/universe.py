@@ -154,6 +154,32 @@ CATALOGUE_CRYPTO: dict[str, str] = {
 }
 
 
+# Spread typique d'une crypto liquide sur une plateforme correcte, en
+# fraction du prix. Un spread ABSOLU n'a aucun sens sur un catalogue
+# allant du BTC a 60 000 EUR au PEPE a 0,00001 : la meme valeur y serait
+# negligeable d'un cote et interdirait tout trade de l'autre.
+SPREAD_CRYPTO_RATIO = 0.0005      # 5 points de base
+
+
+def spread_estime(instrument: "Instrument", prix: float) -> float:
+    """Spread a supposer pour cet instrument a ce prix.
+
+    Les cryptos suivent un modele RELATIF au prix. Les metaux et devises
+    gardent leur spread absolu, qui a un sens a leur echelle de cotation
+    (l'or se cote en dollars, son spread aussi).
+
+    Sans cela, le backtest melangeait deux mondes : les quatre cryptos
+    reglees a la main portaient des spreads absolus herites d'une autre
+    epoque — XRP a 0,0008 pour un prix de 0,5 EUR, soit 16 points de base
+    la ou le reel en vaut 1 ou 2 — pendant que les quatre-vingt-une autres,
+    generees, avaient un spread de zero. Les premieres etaient penalisees,
+    les secondes flattees, et aucune n'etait mesuree.
+    """
+    if instrument.asset_class != "crypto":
+        return instrument.typical_spread
+    return max(0.0, prix) * SPREAD_CRYPTO_RATIO
+
+
 def instrument_crypto(actif: str, groupe: str, priorite: float = 0.75) -> Instrument:
     """Construit un instrument crypto generique pour Binance Spot.
 
