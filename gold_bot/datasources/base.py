@@ -29,6 +29,17 @@ class ProviderError(RuntimeError):
     """Erreur recuperable : le registre bascule sur la source suivante."""
 
 
+class SymbolNotSupported(ProviderError):
+    """La source ne cote pas cet instrument — ce n'est pas une panne.
+
+    Distinction essentielle : une source injoignable doit etre mise en
+    quarantaine pour laisser la main aux suivantes, mais une source qui ne
+    connait simplement pas ce symbole reste parfaitement saine pour tous les
+    autres. Les confondre revient a couper Binance pour le BTC parce qu'on lui
+    a demande une paire exotique qu'elle ne liste pas.
+    """
+
+
 def http_get(
     url: str,
     params: Optional[dict[str, Any]] = None,

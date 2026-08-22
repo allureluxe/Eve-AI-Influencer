@@ -18,7 +18,9 @@ import time
 from typing import Optional
 
 from ..core import Candle, Tick
+from ..universe import CATALOGUE_CRYPTO
 from .base import (
+    SymbolNotSupported,
     PriceProvider,
     ProviderCapabilities,
     ProviderError,
@@ -58,7 +60,7 @@ class YahooProvider(PriceProvider):
     def fetch_candles(self, symbol: str, asset_class: str, timeframe: str, limit: int) -> list[Candle]:
         code = self.symbol_for(symbol, asset_class)
         if not code:
-            raise ProviderError(f"{self.name}: symbole non supporte {symbol}")
+            raise SymbolNotSupported(f"{self.name}: {symbol} non cote ici")
         interval = self.INTERVALS.get(timeframe)
         if interval is None:
             raise ProviderError(f"{self.name}: unite de temps non supportee {timeframe}")
@@ -110,15 +112,15 @@ class BinanceProvider(PriceProvider):
     name = "binance"
     capabilities = ProviderCapabilities(asset_classes=("crypto",), rate_limit_per_min=120)
 
-    # Actifs de base. La devise de cotation suit celle de l'execution
-    # (BINANCE_QUOTE_ASSET) : lire les prix sur BTC/USDT tout en achetant sur
-    # BTC/USDC introduirait un ecart entre les niveaux calcules et ceux
-    # reellement envoyes a la plateforme.
-    ACTIFS = {
-        "BTCUSD": "BTC", "ETHUSD": "ETH", "SOLUSD": "SOL", "XRPUSD": "XRP",
-        "DOGEUSD": "DOGE", "ADAUSD": "ADA", "BNBUSD": "BNB", "AVAXUSD": "AVAX",
-        "LINKUSD": "LINK", "PAXGUSD": "PAXG",   # PAXG : or tokenise, 24/7
-    }
+    # Le catalogue est celui de l'univers, pas une seconde liste tenue a la
+    # main : une source de prix plus etroite que les instruments reellement
+    # negociables produit des trous silencieux, et une liste divergente se
+    # remarque des qu'on ajoute un actif.
+    #
+    # La devise de cotation suit celle de l'execution (BINANCE_QUOTE_ASSET) :
+    # lire les prix sur BTC/USDT tout en achetant sur BTC/USDC introduirait un
+    # ecart entre les niveaux calcules et ceux envoyes a la plateforme.
+    ACTIFS = {f"{actif}USD": actif for actif in CATALOGUE_CRYPTO}
     INTERVALS = {"M1": "1m", "M3": "3m", "M5": "5m", "M15": "15m",
                  "M30": "30m", "H1": "1h", "H4": "4h", "D1": "1d"}
 
@@ -133,7 +135,7 @@ class BinanceProvider(PriceProvider):
     def fetch_candles(self, symbol: str, asset_class: str, timeframe: str, limit: int) -> list[Candle]:
         code = self.symbol_for(symbol, asset_class)
         if not code:
-            raise ProviderError(f"{self.name}: symbole non supporte {symbol}")
+            raise SymbolNotSupported(f"{self.name}: {symbol} non cote ici")
         interval = self.INTERVALS.get(timeframe)
         if not interval:
             raise ProviderError(f"{self.name}: unite de temps non supportee {timeframe}")

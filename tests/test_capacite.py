@@ -198,3 +198,109 @@ class TestScanParallele:
         scanner, appels = self._scanner(1, max_workers=8, latence=0.0)
         scanner.scan()
         assert len(appels) == 1
+
+
+class TestQuarantaineDesSources:
+    """Un symbole inconnu d'une source ne doit pas couper cette source.
+
+    Regression : le scan demandait une paire exotique a Binance, qui repondait
+    « symbole non supporte ». Cette erreur mettait la source en quarantaine
+    cinq minutes — et le BTC, parfaitement cote, se retrouvait alors sans
+    aucune source active. Un seul instrument inconnu suffisait a aveugler le
+    robot sur tout le marche.
+    """
+
+    def _registre(self, comportement):
+        from gold_bot.core import Candle
+        from gold_bot.datasources import DataRegistry
+        from gold_bot.datasources.base import (PriceProvider, ProviderCapabilities,
+                                               ProviderError, SymbolNotSupported)
+
+        class SourceFactice(PriceProvider):
+            name = "factice"
+            capabilities = ProviderCapabilities(asset_classes=("crypto",))
+
+            def available(self) -> bool:
+                return True
+
+            def symbol_for(self, symbol, asset_class):
+                return symbol
+
+            def fetch_candles(self, symbol, asset_class, timeframe, limit):
+                return comportement(symbol, timeframe, limit)
+
+        return DataRegistry(providers=[SourceFactice()]), SourceFactice
+
+    def _bougies(self, n=60):
+        from gold_bot.core import Candle
+        return [Candle(i * 60.0, 100.0, 101.0, 99.0, 100.5, 10.0) for i in range(n)]
+
+    def test_symbole_inconnu_ne_coupe_pas_la_source(self):
+        from gold_bot.datasources.base import SymbolNotSupported
+
+        def comportement(symbol, timeframe, limit):
+            if symbol == "EXOTIQUEUSD":
+                raise SymbolNotSupported("non cote ici")
+            return self._bougies()
+
+        registre, _ = self._registre(comportement)
+
+        # Le symbole exotique echoue...
+        try:
+            registre.candles("EXOTIQUEUSD", "crypto", "H1")
+            assert False, "aurait du echouer"
+        except Exception:
+            pass
+
+        # ... mais le BTC reste servi juste apres.
+        data = registre.candles("BTCUSD", "crypto", "H1")
+        assert len(data) == 60, "la source a ete mise en quarantaine a tort"
+
+    def test_vraie_panne_met_bien_en_quarantaine(self):
+        """La distinction ne doit pas desactiver la protection existante."""
+        from gold_bot.datasources.base import ProviderError
+
+        def comportement(symbol, timeframe, limit):
+            raise ProviderError("reseau injoignable")
+
+        registre, _ = self._registre(comportement)
+        try:
+            registre.candles("BTCUSD", "crypto", "H1")
+        except Exception:
+            pass
+        assert registre.usable("crypto") == [], "la source en panne aurait du etre ecartee"
+
+    def test_source_saine_reste_utilisable(self):
+        from gold_bot.datasources.base import SymbolNotSupported
+
+        def comportement(symbol, timeframe, limit):
+            raise SymbolNotSupported("non cote ici")
+
+        registre, _ = self._registre(comportement)
+        try:
+            registre.candles("EXOTIQUEUSD", "crypto", "H1")
+        except Exception:
+            pass
+        assert len(registre.usable("crypto")) == 1
+
+
+class TestSourceEtBrokerAlignes:
+    def test_meme_catalogue_des_deux_cotes(self):
+        """Regression : la source de prix avait sa propre liste de 10 actifs.
+
+        Un instrument negociable mais absent de la source de prix est un trou
+        silencieux : le robot le scanne et n'obtient jamais de donnees.
+        """
+        from gold_bot.brokers.binance import ACTIFS as ACTIFS_BROKER
+        from gold_bot.datasources.providers import BinanceProvider
+
+        assert set(BinanceProvider.ACTIFS) == set(ACTIFS_BROKER)
+
+    def test_toutes_les_cryptos_de_l_univers_ont_une_source(self):
+        from gold_bot.datasources.providers import BinanceProvider
+        from gold_bot.universe import Universe
+
+        source = BinanceProvider.ACTIFS
+        manquants = [i.symbol for i in Universe()
+                     if i.asset_class == "crypto" and i.symbol not in source]
+        assert not manquants, f"sans source de prix : {manquants}"

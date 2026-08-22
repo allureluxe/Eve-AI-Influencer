@@ -7,7 +7,8 @@ import time
 from typing import Optional
 
 from ..core import Candle, Tick
-from .base import PriceProvider, ProviderError, resample, tf_seconds
+from .base import (PriceProvider, ProviderError, SymbolNotSupported,
+                   resample, tf_seconds)
 from .providers import (
     AlphaVantageProvider,
     BinanceProvider,
@@ -112,6 +113,10 @@ class DataRegistry:
                 provider.successes += 1
                 self._cache[key] = (time.time(), data)
                 return data
+            except SymbolNotSupported as exc:
+                # La source ne cote pas cet instrument : on passe a la
+                # suivante sans la penaliser, elle reste valable ailleurs.
+                errors.append(f"{provider.name}: {str(exc)[:80]}")
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"{provider.name}: {str(exc)[:80]}")
                 self._quarantine(provider, exc)
@@ -211,6 +216,7 @@ __all__ = [
     "build_registry",
     "PriceProvider",
     "ProviderError",
+    "SymbolNotSupported",
     "SyntheticProvider",
     "resample",
     "tf_seconds",
