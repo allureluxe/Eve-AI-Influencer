@@ -29,7 +29,7 @@ from .risk import RiskManager
 from .settings import BotConfig
 from .strategy import Strategy
 from .trade_manager import ActionType, TradeManager
-from .universe import Instrument, Universe
+from .universe import Instrument, Universe, spread_estime
 
 logger = logging.getLogger(__name__)
 

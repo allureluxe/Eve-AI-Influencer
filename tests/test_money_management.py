@@ -226,3 +226,44 @@ class TestPausePurgee:
         assert not autorise
         assert "pause" in raison
         assert rm.account.consecutive_losses == 5, "le compteur ne bouge pas pendant la pause"
+
+
+class TestConstructionDuMoteur:
+    """Regressions d'ordre d'initialisation.
+
+    Deux fois de suite, du code a ete insere avant ce dont il dependait.
+    Les tests ne le voyaient pas parce qu'aucun ne construisait le moteur
+    complet — exactement le trou qui avait laissé passer les defauts du
+    robot tiers.
+    """
+
+    def test_le_moteur_se_construit_entierement(self, tmp_path, monkeypatch):
+        import logging
+        logging.disable(logging.CRITICAL)
+        for cle in ("BITVAVO_API_KEY", "BITVAVO_API_SECRET",
+                    "OKX_API_KEY", "GB_STATE_FILE", "GB_TRADES_FILE"):
+            monkeypatch.delenv(cle, raising=False)
+        monkeypatch.chdir(tmp_path)
+
+        from gold_bot.engine import TradingEngine
+        from gold_bot.settings import BotConfig
+        cfg = BotConfig.load()
+        cfg.engine.broker = "paper"
+        cfg.engine.offline = True
+        moteur = TradingEngine(cfg)
+
+        # La ponderation lisait le journal AVANT que celui-ci existe.
+        assert moteur.journal is not None
+        assert moteur.poids is not None
+        assert moteur.strategy.poids is moteur.poids
+
+    def test_le_backtest_s_importe_avec_ses_dependances(self):
+        """`spread_estime` manquait a l'import : cinq symboles en echec."""
+        import inspect
+
+        from gold_bot.backtest import Backtester
+        source = inspect.getsource(Backtester.run)
+        if "spread_estime" in source:
+            import gold_bot.backtest as mod
+            assert hasattr(mod, "spread_estime"), \
+                "spread_estime est utilise mais pas importe"

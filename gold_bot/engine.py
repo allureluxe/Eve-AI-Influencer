@@ -133,7 +133,6 @@ class TradingEngine:
         # C'est la seule source de verite disponible pour apprendre : les
         # trades fermes. Sans journal, la ponderation reste neutre.
         self.poids = PoidsAdaptatifs()
-        alimenter_depuis_journal(self.poids, self.journal.path)
         self.strategy = Strategy(cfg.strategy, self.trade_manager, self.macro,
                                  poids=self.poids)
         self.scanner = Scanner(self.registry, self.universe, self.strategy,
@@ -147,6 +146,9 @@ class TradingEngine:
         instance = cfg.engine.broker
         self.store = StateStore(instance=instance)
         self.journal = TradeJournal(instance=instance)
+        # Le journal existe enfin : c'est seulement ici qu'on peut nourrir
+        # la ponderation avec les trades reellement fermes.
+        alimenter_depuis_journal(self.poids, self.journal.path)
         self.broker: Broker = self._build_broker()
 
         self._running = False
