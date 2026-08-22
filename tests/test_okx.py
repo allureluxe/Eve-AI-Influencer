@@ -376,3 +376,70 @@ class TestBacktestCoherent:
         bt = Backtester(BotConfig.load("robot.okx.json"))
         assert bt.registry.devise_crypto == "EUR"
         assert [p.name for p in bt.registry.usable("crypto")] == ["okx", "bitvavo"]
+
+
+class TestPaginationDesBougies:
+    """OKX plafonne chaque reponse a 300 bougies.
+
+    Sans pagination, un backtest demandant 1500 bougies en recevait 300 et
+    mesurait douze jours en croyant en mesurer deux : un echantillon trop
+    court pour distinguer une strategie du hasard.
+    """
+
+    @staticmethod
+    def _pages(monkeypatch, total_dispo):
+        """Simule OKX : au plus 300 lignes, `after` remonte dans le temps."""
+        appels = []
+
+        def faux(url, params=None, **k):
+            appels.append(dict(params or {}))
+            limite = int(params.get("limit", 300))
+            depart = 1_700_000_000_000
+            pas = 3_600_000
+            avant = params.get("after")
+            debut = total_dispo - 1 if avant is None else None
+            if avant is not None:
+                debut = (int(avant) - depart) // pas - 1
+            lignes = []
+            for i in range(debut, max(-1, debut - limite), -1):
+                if i < 0 or i >= total_dispo:
+                    continue
+                ts = depart + i * pas
+                lignes.append([str(ts), "1", "2", "0.5", "1.5", "1", "1", "1", "1"])
+            return {"code": "0", "data": lignes}
+
+        monkeypatch.setattr("gold_bot.datasources.providers.http_get", faux)
+        return appels
+
+    def test_plusieurs_pages_assemblees(self, monkeypatch):
+        appels = self._pages(monkeypatch, 2000)
+        p = OkxProvider()
+        monkeypatch.setattr(p, "throttle", lambda: None)
+        bougies = p.fetch_candles("BTCUSD", "crypto", "H1", 1500)
+        assert len(bougies) >= 1500, f"seulement {len(bougies)} bougies"
+        assert len(appels) > 1, "une seule requete = pas de pagination"
+        assert any("after" in a for a in appels), "le curseur `after` doit etre utilise"
+
+    def test_ordre_chronologique_apres_pagination(self, monkeypatch):
+        self._pages(monkeypatch, 900)
+        p = OkxProvider()
+        monkeypatch.setattr(p, "throttle", lambda: None)
+        bougies = p.fetch_candles("BTCUSD", "crypto", "H1", 800)
+        horodatages = [c.ts for c in bougies]
+        assert horodatages == sorted(horodatages), "les pages doivent rester ordonnees"
+
+    def test_historique_epuise_arrete_la_boucle(self, monkeypatch):
+        """Moins de bougies disponibles que demande : on s'arrete, on ne boucle pas."""
+        self._pages(monkeypatch, 120)
+        p = OkxProvider()
+        monkeypatch.setattr(p, "throttle", lambda: None)
+        bougies = p.fetch_candles("BTCUSD", "crypto", "H1", 1500)
+        assert 0 < len(bougies) <= 120
+
+    def test_plafond_de_pages(self, monkeypatch):
+        """Un historique infini ne doit pas tirer des requetes sans fin."""
+        appels = self._pages(monkeypatch, 10_000_000)
+        p = OkxProvider()
+        monkeypatch.setattr(p, "throttle", lambda: None)
+        p.fetch_candles("BTCUSD", "crypto", "H1", 10_000_000)
+        assert len(appels) <= OkxProvider.PAGES_MAX

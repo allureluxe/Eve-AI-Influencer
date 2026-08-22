@@ -336,6 +336,56 @@ class OkxProvider(PriceProvider):
             raise ProviderError(f"{self.name}: [{code}] {message}")
         return reponse.get("data") or []
 
+    # Plafond impose par OKX sur une reponse de bougies.
+    PAR_PAGE = 300
+    # Garde-fou : au-dela, on tirerait des centaines de requetes par
+    # instrument et on se ferait limiter avant la fin du scan.
+    PAGES_MAX = 12
+
+    def _paginer(self, code: str, interval: str, voulu: int) -> list:
+        """Remonte l'historique page par page, du plus recent au plus ancien.
+
+        `after` demande a OKX les enregistrements ANTERIEURS a un horodatage.
+        On repart donc du plus ancien recu a chaque tour. La boucle s'arrete
+        des qu'une page revient vide, plus courte que le plafond, ou ne
+        recule plus — trois facons pour l'historique de s'epuiser, et sans
+        elles on tournerait indefiniment.
+        """
+        collecte: list = []
+        curseur = ""
+        vus: set[str] = set()
+        for _ in range(self.PAGES_MAX):
+            if len(collecte) >= voulu:
+                break
+            params = {"instId": code, "bar": interval,
+                      "limit": min(self.PAR_PAGE, max(1, voulu - len(collecte)))}
+            if curseur:
+                params["after"] = curseur
+            self.throttle()
+            try:
+                page = self._lire("/api/v5/market/candles", params)
+            except ProviderError as exc:
+                if getattr(exc, "status", None) == 400:
+                    raise SymbolNotSupported(
+                        f"{self.name}: {code} non cote") from exc
+                if collecte:
+                    break          # on garde ce qu'on a plutot que tout perdre
+                raise
+            if not page:
+                break
+            nouveaux = [r for r in page if r and str(r[0]) not in vus]
+            if not nouveaux:
+                break
+            vus.update(str(r[0]) for r in nouveaux)
+            collecte.extend(nouveaux)
+            plus_ancien = min(int(r[0]) for r in nouveaux)
+            if curseur and int(curseur) <= plus_ancien:
+                break
+            curseur = str(plus_ancien)
+            if len(page) < params["limit"]:
+                break
+        return collecte
+
     def fetch_candles(self, symbol: str, asset_class: str, timeframe: str,
                       limit: int) -> list[Candle]:
         code = self.symbol_for(symbol, asset_class)
@@ -345,18 +395,11 @@ class OkxProvider(PriceProvider):
         if not interval:
             raise ProviderError(f"{self.name}: unite de temps non supportee {timeframe}")
 
-        self.throttle()
-        try:
-            # On demande une bougie de plus : la derniere sera ecartee si
-            # elle n'est pas encore cloturee.
-            rows = self._lire("/api/v5/market/candles",
-                              {"instId": code, "bar": interval,
-                               "limit": min(limit + 1, 300)})
-        except ProviderError as exc:
-            if getattr(exc, "status", None) == 400:
-                raise SymbolNotSupported(
-                    f"{self.name}: {symbol} non cote en {self.devise}") from exc
-            raise
+        # OKX plafonne chaque reponse a 300 bougies. Sans pagination, un
+        # backtest demandant 1500 bougies en recevrait 300 et mesurerait
+        # douze jours en croyant en mesurer deux mois — un echantillon trop
+        # court pour distinguer une strategie du hasard.
+        rows = self._paginer(code, interval, limit + 1)
 
         bougies = []
         # OKX renvoie la plus recente en premier ; le robot raisonne dans
