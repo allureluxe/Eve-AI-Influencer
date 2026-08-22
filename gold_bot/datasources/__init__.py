@@ -63,6 +63,8 @@ class DataRegistry:
         self.providers = providers
         self.quarantine_seconds = quarantine_seconds
         self._blocked: dict[str, float] = {}
+        # Sources dont l'authentification a ete refusee : inutile de reessayer.
+        self._auth_failed: set[str] = set()
         self._cache: dict[tuple, tuple[float, list[Candle]]] = {}
         self._tick_cache: dict[str, tuple[float, Tick]] = {}
 
@@ -72,6 +74,8 @@ class DataRegistry:
         now = time.time()
         out = []
         for p in self.providers:
+            if p.name in self._auth_failed:
+                continue
             if not p.available():
                 continue
             if asset_class not in p.capabilities.asset_classes:
@@ -84,6 +88,21 @@ class DataRegistry:
 
     def _quarantine(self, provider: PriceProvider, exc: Exception) -> None:
         provider.failures += 1
+
+        # Une authentification refusee ne se repare pas toute seule : la cle est
+        # absente, expiree ou revoquee. La mettre en quarantaine cinq minutes
+        # revient a reessayer indefiniment toutes les cinq minutes, sur chaque
+        # instrument, en inondant le journal pour un echec certain. On l'ecarte
+        # donc jusqu'au prochain demarrage, en le disant une seule fois.
+        if getattr(exc, "status", None) in (401, 403):
+            if provider.name not in self._auth_failed:
+                self._auth_failed.add(provider.name)
+                logger.warning(
+                    "source %s ecartee definitivement : authentification refusee "
+                    "(%s). Corrigez sa cle ou retirez-la de la configuration.",
+                    provider.name, str(exc)[:120])
+            return
+
         self._blocked[provider.name] = time.time() + self.quarantine_seconds
         logger.warning("source %s ecartee %.0fs : %s", provider.name,
                        self.quarantine_seconds, str(exc)[:180])

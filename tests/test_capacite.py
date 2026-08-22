@@ -449,3 +449,75 @@ class TestPlafondJournalierIllimite:
     def test_la_config_du_robot_est_bien_sans_plafond(self):
         from gold_bot.settings import BotConfig
         assert BotConfig.load("robot.spot.json").risk.max_daily_trades == 0
+
+
+class TestSourceRefuseeALAuthentification:
+    """Une cle morte ne se repare pas en attendant cinq minutes.
+
+    Observe en production : MoonX repondait 401 sur chaque instrument. La
+    quarantaine de 300 s expirait, le robot reessayait les 68 paires, se
+    reprenait 68 refus, et recommencait indefiniment. Le journal devenait
+    illisible et chaque cycle perdait des dizaines d'appels reseau.
+    """
+
+    def _registre(self, statut):
+        from gold_bot.datasources import DataRegistry
+        from gold_bot.datasources.base import (PriceProvider, ProviderCapabilities,
+                                               ProviderError)
+
+        class SourceFactice(PriceProvider):
+            name = "factice"
+            capabilities = ProviderCapabilities(asset_classes=("crypto",))
+
+            def available(self) -> bool:
+                return True
+
+            def symbol_for(self, symbol, asset_class):
+                return symbol
+
+            def fetch_candles(self, symbol, asset_class, timeframe, limit):
+                err = ProviderError(f"HTTP {statut}")
+                err.status = statut
+                raise err
+
+        return DataRegistry(providers=[SourceFactice()])
+
+    def test_401_ecarte_definitivement(self):
+        registre = self._registre(401)
+        try:
+            registre.candles("BTCUSD", "crypto", "H1")
+        except Exception:
+            pass
+        assert registre.usable("crypto") == []
+        # La quarantaine temporaire n'est meme pas armee : c'est definitif.
+        assert "factice" not in registre._blocked
+
+    def test_403_aussi(self):
+        registre = self._registre(403)
+        try:
+            registre.candles("BTCUSD", "crypto", "H1")
+        except Exception:
+            pass
+        assert registre.usable("crypto") == []
+
+    def test_une_panne_reste_temporaire(self):
+        """Une 503 doit garder la quarantaine, pas une exclusion definitive."""
+        registre = self._registre(503)
+        try:
+            registre.candles("BTCUSD", "crypto", "H1")
+        except Exception:
+            pass
+        assert "factice" in registre._blocked
+        assert "factice" not in registre._auth_failed
+
+    def test_un_seul_avertissement(self, caplog):
+        import logging
+        registre = self._registre(401)
+        with caplog.at_level(logging.WARNING, logger="gold_bot.datasources"):
+            for symbole in ("BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD"):
+                try:
+                    registre.candles(symbole, "crypto", "H1")
+                except Exception:
+                    pass
+        avertissements = [r for r in caplog.records if "authentification refusee" in r.message]
+        assert len(avertissements) == 1, f"{len(avertissements)} avertissements au lieu d'un"
