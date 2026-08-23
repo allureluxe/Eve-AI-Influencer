@@ -73,18 +73,30 @@ def main() -> int:
     print(f"  devise de cotation : {config.quote_asset}")
     print(f"  dry-run            : {config.dry_run}")
 
-    if config.dry_run:
-        echec("Le robot est en simulation (BITVAVO_DRY_RUN=1) : aucun ordre "
-              "reel ne peut etre passe. Ce test n'aurait rien prouve.")
+    # En simulation on fait TOUT le diagnostic — connexion, solde, tarif
+    # reel, choix de la paire, calcul de l'ordre — et on s'arrete juste
+    # avant d'envoyer. Refuser de tourner obligerait a desarmer la
+    # securite pour verifier que la cle fonctionne : exactement le
+    # contraire de ce qu'on veut.
+    if config.dry_run and args.confirmer:
+        echec("BITVAVO_DRY_RUN=1 : impossible d'envoyer des ordres reels.")
+        print("\n  Le diagnostic complet reste disponible sans --confirmer :")
+        print("      python3 verifier_bitvavo.py")
         return 2
     if not (config.api_key and config.api_secret):
         echec("Cles Bitvavo absentes de .env "
               "(BITVAVO_API_KEY et BITVAVO_API_SECRET).")
         return 2
-    ok("mode reel, cles presentes")
+    if config.dry_run:
+        ok("cles presentes — diagnostic en LECTURE SEULE, aucun ordre ne partira")
+    else:
+        ok("mode reel, cles presentes")
 
-    config.dry_run = False
-    broker = BitvavoBroker(config)
+    # Le broker est toujours construit en lecture seule ici : les ordres
+    # ne partent qu'au moment explicite, plus bas, et seulement avec
+    # --confirmer sur un .env desarme.
+    diagnostic = BitvavoConfig(**{**config.__dict__, "dry_run": True})
+    broker = BitvavoBroker(diagnostic)
 
     titre("2. Connexion et lecture du compte")
     if not broker.connect():
@@ -151,10 +163,25 @@ def main() -> int:
         echec("l'ordre representerait plus de la moitie du solde disponible. Abandon.")
         return 2
 
+    if config.dry_run:
+        titre("Resultat du diagnostic")
+        ok("la cle fonctionne, le compte est lisible, la paire est cotable")
+        print("\n  Rien n'a ete envoye — et rien ne peut l'etre tant que")
+        print("  BITVAVO_DRY_RUN=1 dans .env.")
+        print("\n  Pour la preuve d'execution reelle, plus tard et seulement")
+        print("  quand tu l'auras decide :")
+        print("      1. nano .env   ->   BITVAVO_DRY_RUN=0")
+        print("      2. python3 verifier_bitvavo.py --confirmer")
+        return 0
+
     if not args.confirmer:
         print("\n  Rien n'a ete envoye. Pour executer reellement :")
         print("      python3 verifier_bitvavo.py --confirmer")
         return 0
+
+    # A partir d'ici seulement, un broker capable d'envoyer des ordres.
+    config.dry_run = False
+    broker.config = config
 
     titre("6. ACHAT au marche")
     try:
