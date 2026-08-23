@@ -46,6 +46,25 @@ def charger_env(chemin: str = ".env") -> None:
             os.environ.setdefault(cle.strip(), valeur.strip())
 
 
+def adresse_publique() -> str:
+    """Adresse IP publique de ce serveur, vue depuis l'exterieur.
+
+    C'est celle que la plateforme voit, et donc celle qu'il faut
+    autoriser — pas celle de l'interface reseau locale, qui peut differer
+    derriere une passerelle.
+    """
+    import urllib.request
+    for service in ("https://api.ipify.org", "https://ifconfig.me/ip"):
+        try:
+            with urllib.request.urlopen(service, timeout=6) as r:
+                adresse = r.read().decode().strip()
+            if adresse and len(adresse) <= 45:
+                return adresse
+        except Exception:  # noqa: BLE001
+            continue
+    return ""
+
+
 def titre(texte: str) -> None:
     print(f"\n\033[1;36m{texte}\033[0m")
 
@@ -103,6 +122,20 @@ def main() -> int:
     titre("2. Connexion et lecture du compte")
     if not broker.connect():
         echec(f"connexion refusee : {broker._last_error}")
+        if "IP" in broker._last_error:
+            # Le cas est si frequent — et la reponse si simple — qu'il vaut
+            # mieux donner l'adresse que de demander a l'utilisateur d'aller
+            # la chercher.
+            adresse = adresse_publique()
+            print()
+            print("  \033[1;33mLa cle est VALIDE : Bitvavo la reconnait et l'authentifie.\033[0m")
+            print("  Elle est simplement restreinte a des adresses IP qui n'incluent")
+            print("  pas celle de ce serveur.")
+            if adresse:
+                print(f"\n  Adresse de CE serveur, a autoriser :  \033[1m{adresse}\033[0m")
+            print("\n  Bitvavo > Parametres > API > modifier la cle >")
+            print("  adresses IP autorisees. Ajoute-la, enregistre, puis relance.")
+            return 5
         print("\n  Causes possibles, dans l'ordre de frequence :")
         print("    1. la cle ou le secret sont mal recopies (espace en trop) ;")
         print("    2. la cle est restreinte a une adresse IP qui n'est pas")
