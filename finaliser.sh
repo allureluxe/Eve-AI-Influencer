@@ -22,8 +22,6 @@ souci()  { echo -e "  ${ROUGE}STOP${FIN}  $1"; }
 info()   { echo -e "  ${JAUNE}i${FIN}     $1"; }
 fatal()  { souci "$1"; echo -e "\n  ${GRAS}Corrige ce point puis relance : bash finaliser.sh${FIN}\n"; exit 1; }
 
-CONFIG="${GB_CONFIG:-robot.bitvavo.json}"
-CONFIG="$(basename "$CONFIG")"
 
 # ---------------------------------------------------------------------------
 etape "1/6  Code a jour"
@@ -73,6 +71,13 @@ for v in BITVAVO_API_KEY BITVAVO_API_SECRET; do
     fi
 done
 [ -z "$manquantes" ] || fatal "manquant dans .env :$manquantes  (edite avec : nano .env)"
+
+# La configuration se lit dans le FICHIER, pas dans l'environnement.
+# Un `. ./.env` fait plus tot dans le meme terminal laisse une variable
+# exportee qui survit a la modification du fichier : le script lisait
+# alors l'ancienne plateforme en croyant lire la nouvelle.
+CONFIG=$(grep -E "^GB_CONFIG=" .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d " \"'")
+CONFIG="$(basename "${CONFIG:-robot.bitvavo.json}")"
 
 DRY="${BITVAVO_DRY_RUN:-1}"
 if [ "$DRY" = "0" ]; then
