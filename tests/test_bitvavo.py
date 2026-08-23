@@ -961,3 +961,103 @@ class TestLeStopSuitReellementLaPosition:
         assert len(stops) == 3
         envoyes_tries = [float(c["triggerAmount"]) for c in stops]
         assert envoyes_tries == sorted(envoyes_tries)
+
+
+class TestStopRefusePourExcesDePrecision:
+    """Un arrondi trop fin ne doit pas couter la position.
+
+    Le 23 aout, LRC-EUR : « [429] Field 'price' has too many decimal
+    digits ». Le robot a fait ce qu'on lui demandait — une position sans
+    stop est inacceptable — et a revendu dans la seconde. Bilan : -0,10 EUR
+    de frais et de spread, soit -0,30R, sur un trade qui n'avait meme pas
+    commence. Bitvavo publie `pricePrecision` en chiffres significatifs
+    mais ne publie pas sa limite de decimales : elle se decouvre a l'usage.
+    """
+
+    @staticmethod
+    def broker(monkeypatch, decimales_max: int):
+        from gold_bot.core import Position
+        b = broker_de_test(dry_run=False)
+        b._regles["LRC-EUR"] = RegleMarche("LRC-EUR", price_precision=8,
+                                           amount_decimals=8, min_notional=5.0)
+        position = Position(id="LRCUSD", symbol="LRCUSD", side=Side.BUY,
+                            volume=1288.82, entry_price=0.007427,
+                            stop_loss=0.0072899, take_profit=0.00763,
+                            opened_at=0.0)
+        b._positions["LRCUSD"] = position
+        essais = []
+
+        def appel(methode, chemin, params=None, corps=None, signe=True):
+            if methode == "POST" and chemin == "/order":
+                essais.append(corps)
+                prix = str(corps.get("price", ""))
+                if len(prix.partition(".")[2]) > decimales_max:
+                    raise BrokerError(
+                        "Bitvavo 400 sur POST /order [429] Field 'price' has "
+                        "too many decimal digits.")
+                return {"orderId": "stop-1"}
+            return {}
+
+        monkeypatch.setattr(b, "_appel", appel)
+        return b, position, essais
+
+    def test_le_stop_finit_par_passer(self, monkeypatch):
+        b, position, essais = self.broker(monkeypatch, decimales_max=6)
+        b._poser_stop(position)
+        assert b._stops["LRCUSD"] == "stop-1"
+        assert len(essais) > 1, "aucun nouvel essai apres le refus"
+        accepte = essais[-1]["price"]
+        assert len(accepte.partition(".")[2]) <= 6
+
+    def test_la_position_n_est_pas_jetee(self, monkeypatch):
+        b, position, _ = self.broker(monkeypatch, decimales_max=6)
+        b._poser_stop(position)
+        assert "LRCUSD" in b._positions
+
+    def test_la_precision_qui_passe_est_retenue(self, monkeypatch):
+        """Le tatonnement ne doit se payer qu'une fois."""
+        b, position, essais = self.broker(monkeypatch, decimales_max=6)
+        b._poser_stop(position)
+        retenue = b._regles["LRC-EUR"].price_precision
+        assert retenue < 8
+        b._annuler_stop("LRCUSD")
+        avant = len(essais)
+        b._poser_stop(position)
+        assert len(essais) - avant == 1, "le refus a ete rejoue"
+
+    def test_le_niveau_reste_proche_du_stop_demande(self, monkeypatch):
+        b, position, essais = self.broker(monkeypatch, decimales_max=6)
+        b._poser_stop(position)
+        pose = float(essais[-1]["triggerAmount"])
+        assert pose == pytest.approx(0.0072899, rel=1e-3)
+
+    def test_une_autre_erreur_ne_declenche_pas_de_tatonnement(self, monkeypatch):
+        from gold_bot.core import Position
+        b = broker_de_test(dry_run=False)
+        b._regles["LRC-EUR"] = RegleMarche("LRC-EUR", price_precision=8)
+        position = Position(id="LRCUSD", symbol="LRCUSD", side=Side.BUY,
+                            volume=1288.82, entry_price=0.007427,
+                            stop_loss=0.0072899, take_profit=0.00763,
+                            opened_at=0.0)
+        b._positions["LRCUSD"] = position
+        essais = []
+
+        def appel(methode, chemin, params=None, corps=None, signe=True):
+            if methode == "POST" and chemin == "/order":
+                essais.append(corps)
+                raise BrokerError("Bitvavo 400 sur POST /order [203] "
+                                  "operatorId parameter is required")
+            return {}
+
+        monkeypatch.setattr(b, "_appel", appel)
+        with pytest.raises(BrokerError):
+            b._poser_stop(position)
+        stops = [c for c in essais if c.get("orderType") == "stopLossLimit"]
+        assert len(stops) == 1, "une erreur sans rapport a ete rejouee"
+
+    def test_position_fermee_si_aucune_precision_ne_passe(self, monkeypatch):
+        """Le principe ne change pas : jamais de position sans stop."""
+        b, position, _ = self.broker(monkeypatch, decimales_max=0)
+        with pytest.raises(BrokerError):
+            b._poser_stop(position)
+        assert "LRCUSD" not in b._positions

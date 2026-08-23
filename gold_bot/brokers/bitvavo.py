@@ -61,7 +61,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Optional
 
 from ..core import ClosedTrade, Position, Side, Tick
@@ -90,6 +90,13 @@ FENETRE_DEFAUT = 10000
 # Vendre un actif qu'on ne detient plus : la position a ete liquidee sur la
 # plateforme sans que le robot le sache.
 CODE_SOLDE_INSUFFISANT = 216
+
+# « Field 'price' has too many decimal digits. »
+# Bitvavo publie `pricePrecision` en CHIFFRES SIGNIFICATIFS mais refuse
+# au-dela d'un certain nombre de DECIMALES, qu'il ne publie pas. Les deux
+# notions ne coincident que pour les actifs cotes autour de 1 : sur un actif
+# a 0,0074 EUR, cinq chiffres significatifs font sept decimales.
+CODE_TROP_DE_DECIMALES = 429
 
 
 def code_erreur(exc: BaseException) -> int:
@@ -821,26 +828,59 @@ class BitvavoBroker(Broker):
             return
         code = self.symbol_for(position.symbol)
         regle = self.regle(position.symbol)
-        declenchement = regle.arrondir_prix(position.stop_loss)
-        limite = regle.arrondir_prix(position.stop_loss * 0.998)
-        try:
-            reponse = self._appel("POST", "/order", corps={
-                "market": code, "side": "sell", "orderType": "stopLossLimit",
-                "operatorId": self.config.operator_id,
-                "amount": formater(regle.arrondir_quantite(position.volume),
-                                   regle.amount_decimals),
-                "price": formater(limite),
-                "triggerType": "price",
-                "triggerReference": "lastTrade",
-                "triggerAmount": formater(declenchement),
-            })
+
+        # UN PRIX TROP PRECIS NE JUSTIFIE PAS DE JETER LA POSITION.
+        #
+        # Le 23 aout, LRC-EUR a ete refuse pour « too many decimal digits ».
+        # Le robot a fait ce qu'on lui demandait — une position sans stop
+        # est inacceptable — et a revendu dans la seconde : 0,10 EUR de
+        # frais et de spread perdus pour un simple arrondi, soit -0,30R sur
+        # un trade qui n'avait meme pas commence.
+        #
+        # Bitvavo ne publie pas sa limite de decimales. On la decouvre donc
+        # a l'usage : on reessaie avec un chiffre significatif de moins,
+        # jusqu'a ce que la plateforme accepte. Le stop bouge alors de
+        # quelques millioniemes — sans commune mesure avec le fait de ne pas
+        # en avoir. La precision qui passe est retenue pour ce marche : le
+        # tatonnement ne se paie qu'une fois.
+        derniere: Optional[BrokerError] = None
+        for precision in range(regle.price_precision, 1, -1):
+            essai = replace(regle, price_precision=precision)
+            declenchement = essai.arrondir_prix(position.stop_loss)
+            limite = essai.arrondir_prix(position.stop_loss * 0.998)
+            if limite <= 0 or declenchement <= 0:
+                break
+            try:
+                reponse = self._appel("POST", "/order", corps={
+                    "market": code, "side": "sell", "orderType": "stopLossLimit",
+                    "operatorId": self.config.operator_id,
+                    "amount": formater(regle.arrondir_quantite(position.volume),
+                                       regle.amount_decimals),
+                    "price": formater(limite),
+                    "triggerType": "price",
+                    "triggerReference": "lastTrade",
+                    "triggerAmount": formater(declenchement),
+                })
+            except BrokerError as exc:
+                derniere = exc
+                if code_erreur(exc) != CODE_TROP_DE_DECIMALES:
+                    break
+                logger.warning("stop refuse sur %s a %d chiffres significatifs, "
+                               "nouvel essai a %d", code, precision, precision - 1)
+                continue
             self._stops[position.symbol] = str(reponse.get("orderId", ""))
             self._stop_pose[position.symbol] = declenchement
-        except BrokerError as exc:
-            logger.error("stop non pose sur %s : %s", code, str(exc)[:200])
-            logger.error("fermeture immediate : une position sans stop est inacceptable")
-            self.close_position(position.id, reason="stop impossible a poser")
-            raise
+            if precision != regle.price_precision:
+                logger.warning("%s : precision de prix ramenee a %d chiffres "
+                               "(Bitvavo refusait %d)", code, precision,
+                               regle.price_precision)
+                self._regles[code] = essai
+            return
+
+        logger.error("stop non pose sur %s : %s", code, str(derniere)[:200])
+        logger.error("fermeture immediate : une position sans stop est inacceptable")
+        self.close_position(position.id, reason="stop impossible a poser")
+        raise derniere or BrokerError(f"stop impossible a poser sur {code}")
 
     def _annuler_stop(self, symbol: str) -> None:
         """Retire les ordres en attente sur ce marche.
