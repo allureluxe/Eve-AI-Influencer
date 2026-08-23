@@ -49,6 +49,10 @@ installer)
 
     cat > "$UNITE" <<EOF
 [Unit]
+# Ces deux cles appartiennent a [Unit] : placees dans [Service],
+# systemd les ignore et le signale a chaque rechargement.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 Description=Robot de trading autonome
 After=network-online.target
 Wants=network-online.target
@@ -62,8 +66,6 @@ ExecStart=${PYTHON} ${DOSSIER}/run_bot.py run --config ${DOSSIER}/${CONFIG}
 
 Restart=always
 RestartSec=30
-StartLimitIntervalSec=600
-StartLimitBurst=10
 
 KillSignal=SIGTERM
 TimeoutStopSec=60
@@ -114,6 +116,17 @@ demarrer)
     fi
     [ -n "$INSTALLEE" ] && ok "configuration du service : $INSTALLEE"
 
+    # `systemctl start` sur un service DEJA actif ne fait rien : l'ancien
+    # processus survit, avec son ancienne configuration. Observe en
+    # production — un robot fige depuis trois heures sur la plateforme
+    # precedente, que `installer` puis `demarrer` n'avaient pas remplace.
+    if systemctl is-active --quiet "$NOM"; then
+        info "un processus tourne deja : il est remplace"
+        systemctl stop "$NOM" 2>/dev/null
+        sleep 2
+        systemctl is-active --quiet "$NOM" && systemctl kill -s KILL "$NOM" 2>/dev/null
+        sleep 1
+    fi
     systemctl start "$NOM"
     sleep 3
     if systemctl is-active --quiet "$NOM"; then
