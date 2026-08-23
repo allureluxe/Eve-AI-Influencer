@@ -48,6 +48,21 @@ class Broker(ABC):
     def account(self) -> AccountInfo:
         """Etat du compte."""
 
+    def reprendre(self, position: Position) -> bool:
+        """Remet en gestion une position ouverte avant un redemarrage.
+
+        Les lieux d'execution au comptant n'ont pas de notion de position :
+        ils ne voient que des avoirs. Apres un redemarrage, une position
+        ouverte leur est donc invisible. Son stop reste depose chez la
+        plateforme — la protection survit — mais l'objectif, le break-even
+        et le suivi ne sont plus assures par personne, et la place qu'elle
+        occupe ne compte plus dans les plafonds.
+
+        Les brokers concernes redeclarent ici la position memorisee ; les
+        autres n'ont rien a faire, la plateforme sait ce qu'elle detient.
+        """
+        return False
+
     @abstractmethod
     def positions(self) -> list[Position]:
         """Positions actuellement ouvertes."""

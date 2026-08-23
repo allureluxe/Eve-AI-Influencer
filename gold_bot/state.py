@@ -124,6 +124,17 @@ class StateStore:
     def remember_position(self, pos: Position) -> None:
         """Memorise l'etat de gestion d'une position."""
         self.state.position_meta[pos.id] = {
+            # Identite complete de la position, et pas seulement son etat de
+            # gestion : au comptant, la plateforme ne connait pas la notion
+            # de position. Sans ces champs, un redemarrage la rendrait
+            # irrecuperable (cf. StateStore.position_memorisee).
+            "symbol": pos.symbol,
+            "side": pos.side.value,
+            "volume": pos.volume,
+            "entry_price": pos.entry_price,
+            "stop_loss": pos.stop_loss,
+            "take_profit": pos.take_profit,
+            "broker_ref": pos.broker_ref,
             "initial_stop": pos.initial_stop,
             "initial_tp": pos.initial_tp,
             "initial_risk": pos.initial_risk,
@@ -150,6 +161,33 @@ class StateStore:
         pos.partial_done = meta.get("partial_done", False)
         pos.opened_at = meta.get("opened_at", pos.opened_at)
         return True
+
+    def position_memorisee(self, position_id: str) -> Optional[Position]:
+        """Reconstruit une position a partir de ce qui a ete memorise.
+
+        Renvoie None pour un enregistrement anterieur a la memorisation de
+        l'identite complete : mieux vaut ne rien reprendre qu'une position
+        aux niveaux inventes.
+        """
+        meta = self.state.position_meta.get(position_id) or {}
+        if not meta.get("symbol") or not meta.get("entry_price"):
+            return None
+        try:
+            pos = Position(
+                id=position_id, symbol=meta["symbol"],
+                side=Side(meta.get("side", Side.BUY.value)),
+                volume=float(meta.get("volume", 0.0)),
+                entry_price=float(meta["entry_price"]),
+                stop_loss=float(meta.get("stop_loss", 0.0)),
+                take_profit=float(meta.get("take_profit", 0.0)),
+                opened_at=float(meta.get("opened_at", time.time())),
+                broker_ref=meta.get("broker_ref"))
+        except (KeyError, TypeError, ValueError):
+            return None
+        if pos.volume <= 0:
+            return None
+        self.restore_position(pos)
+        return pos
 
     def forget_position(self, position_id: str) -> None:
         self.state.position_meta.pop(position_id, None)

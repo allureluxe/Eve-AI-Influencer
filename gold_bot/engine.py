@@ -437,6 +437,21 @@ class TradingEngine:
 
     def _restore_positions(self) -> None:
         """Reprend la gestion des positions deja ouvertes apres un redemarrage."""
+        # Au comptant, le lieu d'execution ne voit que des avoirs : il repart
+        # sans aucune position. On lui redonne d'abord celles qu'on avait
+        # memorisees, sinon la boucle ci-dessous ne trouverait rien a
+        # reprendre et les positions ouvertes seraient abandonnees en vol.
+        connues = {p.id for p in self.broker.positions()}
+        for identifiant in list(self.store.state.position_meta):
+            if identifiant in connues:
+                continue
+            memorisee = self.store.position_memorisee(identifiant)
+            if memorisee is None:
+                continue
+            if not self.broker.reprendre(memorisee):
+                logger.info("position memorisee %s non reprise par %s",
+                            identifiant, self.broker.name)
+
         for pos in self.broker.positions():
             if self.store.restore_position(pos):
                 logger.info("gestion reprise sur %s %s (%d extension(s), stop a %.5f)",

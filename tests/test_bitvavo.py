@@ -779,3 +779,89 @@ class TestLectureDuCodeErreur:
     def test_message_sans_code(self):
         from gold_bot.brokers.bitvavo import code_erreur
         assert code_erreur(BrokerError("Bitvavo injoignable")) == 0
+
+
+class TestRepriseApresRedemarrage:
+    """Un redemarrage ne doit pas abandonner les positions ouvertes.
+
+    Bitvavo ne connait que des avoirs : au demarrage le robot repartait
+    avec zero position, alors que l'actif etait toujours la et son stop
+    depose chez la plateforme. Tout ce que le robot est SEUL a assurer
+    s'arretait donc au premier redemarrage, sans le moindre message :
+    l'objectif (il n'y a pas d'OCO chez Bitvavo), le break-even, le
+    trailing, et le decompte des places occupees.
+    """
+
+    @staticmethod
+    def position():
+        from gold_bot.core import Position
+        return Position(id="ETHUSD", symbol="ETHUSD", side=Side.BUY,
+                        volume=0.0045, entry_price=2077.5, stop_loss=2050.3,
+                        take_profit=2132.9, opened_at=1000.0)
+
+    def test_la_position_redevient_geree(self):
+        b = broker_de_test(dry_run=False)
+        b._regles["ETH-EUR"] = RegleMarche("ETH-EUR")
+        assert b.reprendre(self.position()) is True
+        assert [p.id for p in b.positions()] == ["ETHUSD"]
+
+    def test_reprise_idempotente(self):
+        b = broker_de_test(dry_run=False)
+        b._regles["ETH-EUR"] = RegleMarche("ETH-EUR")
+        b.reprendre(self.position())
+        b.reprendre(self.position())
+        assert len(b.positions()) == 1
+
+    def test_un_marche_inconnu_n_est_pas_repris(self):
+        from gold_bot.core import Position
+        b = broker_de_test(dry_run=False)
+        b._regles["ETH-EUR"] = RegleMarche("ETH-EUR")   # XAU n'y est pas
+        orpheline = Position(id="XAUUSD", symbol="XAUUSD", side=Side.BUY,
+                             volume=1.0, entry_price=2000.0, stop_loss=1990.0,
+                             take_profit=2020.0, opened_at=0.0)
+        assert b.reprendre(orpheline) is False
+        assert b.positions() == []
+
+    def test_l_etat_memorise_suffit_a_reconstruire(self, tmp_path, monkeypatch):
+        """Sans identite complete en memoire, rien n'est reprenable."""
+        from gold_bot.state import StateStore
+        monkeypatch.setenv("GB_STATE_FILE", str(tmp_path / "etat.json"))
+        store = StateStore()
+        origine = self.position()
+        origine.breakeven_done = True
+        origine.max_favorable = 2100.0
+        store.remember_position(origine)
+        store.save()
+
+        relue = StateStore().position_memorisee("ETHUSD")
+        assert relue is not None
+        assert relue.entry_price == pytest.approx(2077.5)
+        assert relue.volume == pytest.approx(0.0045)
+        assert relue.stop_loss == pytest.approx(2050.3)
+        assert relue.take_profit == pytest.approx(2132.9)
+        # L'etat de gestion voyage avec : sinon le stop pourrait reculer.
+        assert relue.breakeven_done is True
+        assert relue.max_favorable == pytest.approx(2100.0)
+        assert relue.initial_risk == pytest.approx(27.2, rel=1e-3)
+
+    def test_enregistrement_ancien_sans_identite_est_ignore(self, tmp_path, monkeypatch):
+        """Mieux vaut ne rien reprendre qu'une position aux niveaux inventes."""
+        from gold_bot.state import StateStore
+        monkeypatch.setenv("GB_STATE_FILE", str(tmp_path / "etat.json"))
+        store = StateStore()
+        store.state.position_meta["ETHUSD"] = {"initial_risk": 27.2,
+                                               "breakeven_done": True}
+        assert store.position_memorisee("ETHUSD") is None
+
+    def test_position_disparue_pendant_l_arret_est_comptabilisee(self):
+        """Reprise puis rapprochee : la sortie est enregistree, pas perdue."""
+        b = broker_de_test(dry_run=False)
+        b._regles["ETH-EUR"] = RegleMarche("ETH-EUR", min_amount=0.001,
+                                           min_notional=5.0)
+        b._annuler_stop = lambda s: None
+        b._ventes_depuis = lambda code, depuis: (2050.0, 0.0045, 0.02)
+        b.reprendre(self.position())
+        b._soldes = {"EUR": 40.0}          # le stop est parti pendant l'arret
+        b._reconcilier({"ETH-EUR": 2050.0})
+        assert b.positions() == []
+        assert len(b.closed_trades()) == 1

@@ -693,6 +693,31 @@ class BitvavoBroker(Broker):
     def positions(self) -> list[Position]:
         return list(self._positions.values())
 
+    def reprendre(self, position: Position) -> bool:
+        """Redeclare une position memorisee apres un redemarrage.
+
+        Bitvavo ne connait que des avoirs : au demarrage le robot repart
+        avec zero position, alors que l'actif est toujours la et que son
+        stop dort chez la plateforme. Tout ce que le robot est seul a
+        assurer — l'objectif, le break-even, le trailing, le compte des
+        places occupees — s'arretait donc au premier redemarrage, sans le
+        moindre message. Les redemarrages du 23 aout tombent en plein
+        milieu des trades de la journee.
+
+        La position est reprise meme si l'actif a disparu entre-temps : le
+        rapprochement du cycle suivant comptabilisera la sortie sur les
+        executions reelles, plutot que de perdre le trade en silence.
+        """
+        if not self.supports(position.symbol):
+            return False
+        if position.id in self._positions:
+            return True
+        self._positions[position.id] = position
+        logger.info("gestion reprise sur %s : %s a %s, stop %s",
+                    self.symbol_for(position.symbol), formater(position.volume),
+                    formater(position.entry_price), formater(position.stop_loss))
+        return True
+
     # ------------------------------------------------------------------
     def open_position(self, instrument: Instrument, side: Side, lots: float,
                       stop_loss: float, take_profit: float, comment: str = "") -> Position:
