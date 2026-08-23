@@ -35,9 +35,10 @@ installer)
 
     [ -f "$DOSSIER/.env" ] || { souci "Fichier .env absent. Lancez d'abord : bash installer.sh"; exit 1; }
     # La configuration retenue est celle choisie a l'installation.
-    CONFIG=$(grep -E "^GB_CONFIG=" "$DOSSIER/.env" 2>/dev/null | cut -d= -f2-)
-    CONFIG=${CONFIG:-robot.micro.json}
+    CONFIG=$(grep -E "^GB_CONFIG=" "$DOSSIER/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d " \"'")
+    CONFIG="$(basename "${CONFIG:-robot.micro.json}")"
     [ -f "$DOSSIER/$CONFIG" ] || { souci "$CONFIG absent."; exit 1; }
+    ok "configuration installee : $CONFIG"
 
     # Le service tourne sous le compte proprietaire du dossier, jamais root :
     # un robot qui gere de l'argent n'a aucun besoin des droits administrateur.
@@ -97,6 +98,22 @@ EOF
 
 demarrer)
     exiger_root demarrer
+    # L'unite systemd fige la configuration au moment de l'installation.
+    # Changer GB_CONFIG dans .env ne la met PAS a jour : sans ce controle,
+    # le robot repart sur l'ancienne plateforme en silence — c'est ainsi
+    # qu'un service Bitvavo s'est retrouve a envoyer des ordres a Binance.
+    VOULUE=$(grep -E "^GB_CONFIG=" "$DOSSIER/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d " \"'")
+    VOULUE="$(basename "${VOULUE:-}")"
+    INSTALLEE=$(grep -oE "run_bot\.py run --config [^ ]+" "$UNITE" 2>/dev/null | awk '{print $NF}')
+    INSTALLEE="$(basename "${INSTALLEE:-}")"
+    if [ -n "$VOULUE" ] && [ -n "$INSTALLEE" ] && [ "$VOULUE" != "$INSTALLEE" ]; then
+        souci "Le service installe utilise ${INSTALLEE}, mais .env demande ${VOULUE}."
+        info "Reinstalle-le pour prendre le changement en compte :"
+        echo "      sudo bash service.sh installer"
+        exit 1
+    fi
+    [ -n "$INSTALLEE" ] && ok "configuration du service : $INSTALLEE"
+
     systemctl start "$NOM"
     sleep 3
     if systemctl is-active --quiet "$NOM"; then
