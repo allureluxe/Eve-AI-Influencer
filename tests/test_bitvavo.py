@@ -573,3 +573,31 @@ class TestCommissionDuRisqueAligneeSurLaPromotion:
             TradingEngine._verifier_promotion), (
             "l'expiration doit repasser par le calibrage, qui remet la "
             "commission reelle")
+
+
+class TestDeuxInterrupteurs:
+    """`.env` et le fichier de configuration portent chacun un dry_run.
+
+    Le fichier l'emporte — c'est voulu, une configuration livree ne doit
+    jamais s'armer toute seule. Mais la contradiction doit etre ANNONCEE :
+    en production, un robot cense etre en argent reel ouvrait ses
+    positions en simulation, la mention « (dry-run) » noyee dans le
+    journal, et rien n'expliquait pourquoi.
+    """
+
+    def test_la_contradiction_est_signalee(self):
+        import inspect
+        from gold_bot.engine import TradingEngine
+        source = inspect.getsource(TradingEngine._build_broker)
+        assert "SIMULATION IMPOSEE PAR LA CONFIGURATION" in source
+        assert "BITVAVO_DRY_RUN" in source, \
+            "le message doit nommer les DEUX reglages, pas seulement un"
+
+    def test_le_fichier_reste_prioritaire(self):
+        """Une configuration livree ne s'arme jamais toute seule."""
+        import inspect
+        from gold_bot.engine import TradingEngine
+        source = inspect.getsource(TradingEngine._build_broker)
+        i = source.index("SIMULATION IMPOSEE")
+        assert "bv.dry_run = True" in source[i:], \
+            "apres l'avertissement, la simulation doit rester imposee"

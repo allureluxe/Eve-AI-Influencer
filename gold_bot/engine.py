@@ -190,6 +190,25 @@ class TradingEngine:
             broker = BinanceSpotBroker(sp)
         elif cfg.broker == "bitvavo":
             bv = BitvavoConfig.from_env()
+            # DEUX INTERRUPTEURS, ET LE FICHIER L'EMPORTE.
+            #
+            # `BITVAVO_DRY_RUN=0` dans .env ne suffit pas si la
+            # configuration porte `"dry_run": true` — et rien ne le disait.
+            # Observe en production : un robot en argent reel cote .env
+            # ouvrait ses positions en simulation, avec la mention
+            # « (dry-run) » noyee au milieu du journal.
+            #
+            # Le fichier reste prioritaire, c'est le comportement voulu :
+            # une configuration livree ne doit jamais s'armer toute seule.
+            # Mais la contradiction est desormais annoncee, et elle nomme
+            # les deux reglages.
+            if cfg.dry_run and not bv.dry_run:
+                logger.warning(
+                    "SIMULATION IMPOSEE PAR LA CONFIGURATION. "
+                    "BITVAVO_DRY_RUN=0 demande le mode reel, mais %s porte "
+                    "\"dry_run\": true — c'est le fichier qui l'emporte. "
+                    "Pour engager de l'argent, passez-le a false.",
+                    getattr(self.config, "source", "la configuration"))
             if cfg.dry_run:
                 bv.dry_run = True
             broker = BitvavoBroker(bv)
