@@ -23,6 +23,7 @@ info()   { echo -e "  ${JAUNE}i${FIN}     $1"; }
 fatal()  { souci "$1"; echo -e "\n  ${GRAS}Corrige ce point puis relance : bash finaliser.sh${FIN}\n"; exit 1; }
 
 CONFIG="${GB_CONFIG:-robot.bitvavo.json}"
+CONFIG="$(basename "$CONFIG")"
 
 # ---------------------------------------------------------------------------
 etape "1/6  Code a jour"
@@ -82,6 +83,14 @@ fi
 
 # ---------------------------------------------------------------------------
 etape "4/6  Connexion a Bitvavo"
+if [ -f "$CONFIG" ]; then
+    ok "configuration lue : $CONFIG"
+else
+    souci "configuration introuvable : $CONFIG"
+    info "corrige GB_CONFIG dans .env, ou supprime la ligne"
+    exit 1
+fi
+export GB_CONFIG="$CONFIG"
 python3 - <<'PYEOF'
 import logging, sys
 logging.disable(logging.CRITICAL)
