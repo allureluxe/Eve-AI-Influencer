@@ -267,6 +267,23 @@ class TradingEngine:
             logger.warning("tarif : %s", self.promotion.resume())
         frais = self.promotion.frais_effectifs(self.frais_reels)
 
+        # La commission du gestionnaire de RISQUE doit suivre le meme
+        # regime que le calibrage. Sans cela, le robot refuse des trades
+        # pour des frais que la plateforme ne preleve pas : mesure en
+        # production, un cout annonce a 46 % du risque sur ETH et 100 %
+        # sur AVAX, alors que la promotion les ramenait a 13 %.
+        #
+        # Un seuil calcule sur un cout imaginaire est un seuil faux, et
+        # il bloque en silence — le robot trouvait ses signaux, les
+        # validait, puis les jetait tous au dimensionnement.
+        if self.config.risk.commission_pct != frais:
+            logger.warning("commission du risque alignee sur le tarif : "
+                           "%.4f %% -> %.4f %%",
+                           self.config.risk.commission_pct * 100, frais * 100)
+            self.config.risk.commission_pct = frais
+            if getattr(self, "risk", None) is not None:
+                self.risk.config.commission_pct = frais
+
         cal = calibrer(
             equity=self.broker.account().equity,
             ticket_minimum=ticket,

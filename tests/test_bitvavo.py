@@ -525,3 +525,51 @@ class TestPromotionSansFrais:
         avec = calibrer(51.0, 5.0, 0.0025, 0.22, 0.6)
         assert "M15" in sans.unites, "sans commission, le M15 doit passer"
         assert "M15" not in avec.unites, "avec commission, il ne doit plus passer"
+
+
+class TestCommissionDuRisqueAligneeSurLaPromotion:
+    """Le calibrage et le gestionnaire de risque doivent voir le meme tarif.
+
+    Defaut mesure en production : la promotion annulait la commission dans
+    le calibrage mais pas dans `execution_cost`. Le robot trouvait ses
+    signaux — 4, 5, 3 valides par cycle — les validait, puis les rejetait
+    TOUS au dimensionnement pour des frais que Bitvavo ne prelevait pas :
+    46 % du risque annonce sur ETH, 100 % sur AVAX.
+
+    Un seuil calcule sur un cout imaginaire est un seuil faux, et il
+    bloque en silence.
+    """
+
+    def test_le_cout_chute_sans_commission(self):
+        from gold_bot.risk import RiskConfig, RiskManager
+        from gold_bot.universe import Universe, spread_estime
+        eth = Universe().get("ETHUSD")
+        prix, risque, stop_pct = 2500.0, 0.12, 0.0077
+        lots = risque / (prix * stop_pct)
+
+        def ratio(commission):
+            rm = RiskManager(RiskConfig(commission_pct=commission,
+                                        max_cost_ratio_pct=15.0))
+            rm.sync_account(equity=51.0, balance=51.0, currency="EUR")
+            return rm.execution_cost(eth, lots, prix,
+                                     spread=spread_estime(eth, prix)) / risque
+
+        assert ratio(0.0025) > 0.15, "avec commission, le trade doit etre refuse"
+        assert ratio(0.0) <= 0.15, "sans commission, il doit passer"
+
+    def test_le_moteur_aligne_les_deux(self):
+        import inspect
+        from gold_bot.engine import TradingEngine
+        source = inspect.getsource(TradingEngine._calibrer_sur_le_capital)
+        assert "commission_pct = frais" in source, (
+            "la commission du gestionnaire de risque doit suivre le meme "
+            "regime tarifaire que le calibrage")
+
+    def test_le_realignement_survit_a_l_expiration(self):
+        """A la fin de la promotion, la commission doit REVENIR."""
+        import inspect
+        from gold_bot.engine import TradingEngine
+        assert "_calibrer_sur_le_capital" in inspect.getsource(
+            TradingEngine._verifier_promotion), (
+            "l'expiration doit repasser par le calibrage, qui remet la "
+            "commission reelle")
