@@ -56,6 +56,7 @@ class BotConfig:
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
     trade: TradeManagerConfig = field(default_factory=TradeManagerConfig)
+    promotion: dict = field(default_factory=dict)
     objectives: ObjectiveConfig = field(default_factory=ObjectiveConfig)
 
     # ---------------------------------------------------------------
@@ -80,6 +81,12 @@ class BotConfig:
             # Les cles prefixees par "_" sont des commentaires du fichier de
             # configuration (JSON n'en accepte pas nativement).
             if section_name.startswith("_"):
+                continue
+            # `promotion` est un dictionnaire libre, pas un dataclass : il
+            # decrit une fenetre tarifaire temporaire, pas des reglages de
+            # strategie. On le conserve tel quel.
+            if section_name == "promotion" and isinstance(values, dict):
+                self.promotion = dict(values)
                 continue
             section = getattr(self, section_name, None)
             if section is None or not is_dataclass(section) or not isinstance(values, dict):
@@ -118,8 +125,11 @@ class BotConfig:
                     logger.warning("valeur invalide pour %s : %r", env_key, raw)
 
     def to_dict(self) -> dict[str, Any]:
-        return {name: asdict(getattr(self, name))
-                for name in ("engine", "strategy", "risk", "trade", "objectives")}
+        sortie = {name: asdict(getattr(self, name))
+                  for name in ("engine", "strategy", "risk", "trade", "objectives")}
+        if self.promotion:
+            sortie["promotion"] = dict(self.promotion)
+        return sortie
 
     def save(self, path: str) -> None:
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)

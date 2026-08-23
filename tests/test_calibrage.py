@@ -15,12 +15,31 @@ from gold_bot.calibrage import STOP_TYPIQUE, Calibrage, calibrer
 
 
 class TestFenetreDesStops:
-    def test_frais_bas_ouvrent_les_unites_rapides(self):
-        """OKX a 0,10 % : le H1 redevient praticable."""
-        c = calibrer(220, 1.0, 0.0010, 0.22, 0.5)
-        assert c.viable
-        assert "H1" in c.unites
-        assert c.unite_conseillee == "H1"
+    def test_frais_bas_ouvrent_des_unites_plus_rapides(self):
+        """Des frais bas descendent l'echelle, sans la supprimer.
+
+        A 0,10 % de commission, le cout total reste 0,30 % une fois le
+        spread et le glissement comptes — le H1 (1,54 %) y laisserait
+        19 % du risque. C'est le H4 qui tient. Ne compter que la
+        commission donnait 13 % et une conclusion trop flatteuse.
+        """
+        bas = calibrer(220, 1.0, 0.0010, 0.22, 0.5)
+        haut = calibrer(220, 1.0, 0.0025, 0.22, 0.5)
+        assert bas.viable
+        assert bas.stop_min_pct < haut.stop_min_pct
+        assert len(bas.unites) >= len(haut.unites)
+
+    def test_sans_commission_le_m15_s_ouvre_mais_pas_le_m1(self):
+        """« Sans frais » ne veut pas dire « sans cout ».
+
+        C'est pendant une promotion que la distinction devient
+        dangereuse : le spread et le glissement coutent encore 77 % du
+        risque en M1.
+        """
+        c = calibrer(220, 1.0, 0.0, 0.22, 0.5)
+        assert "M15" in c.unites
+        assert "M1" not in c.unites
+        assert "M5" not in c.unites
 
     def test_frais_eleves_repoussent_vers_les_unites_lentes(self):
         """Bitvavo a 0,25 % : le H1 sort, seul le D1 tient."""
@@ -29,9 +48,16 @@ class TestFenetreDesStops:
         assert "H1" not in c.unites
         assert c.unite_conseillee == "D1"
 
-    def test_le_mur_du_bas_vient_des_frais(self):
+    def test_le_mur_du_bas_compte_TOUS_les_couts(self):
+        """Commission des deux cotes, plus spread et glissement."""
+        from gold_bot.calibrage import COUT_INCOMPRESSIBLE
         c = calibrer(1000, 1.0, 0.0025, 0.22, 0.5, plafond_cout_pct=15.0)
-        assert c.stop_min_pct == pytest.approx(2 * 0.0025 / 0.15)
+        attendu = (2 * 0.0025 + COUT_INCOMPRESSIBLE) / 0.15
+        assert c.stop_min_pct == pytest.approx(attendu)
+
+    def test_le_cout_incompressible_survit_a_une_commission_nulle(self):
+        c = calibrer(1000, 1.0, 0.0, 0.22, 0.5, plafond_cout_pct=15.0)
+        assert c.stop_min_pct > 0, "sans commission, le spread reste du"
 
     def test_le_mur_du_haut_vient_du_ticket_minimum(self):
         """Plus le stop s'elargit, plus la position retrecit."""

@@ -50,6 +50,11 @@ STOP_TYPIQUE = {
     "M30": 0.0110, "H1": 0.0154, "H4": 0.0308, "D1": 0.0600,
 }
 
+# Ce qu'un aller-retour coute MEME sans commission : le spread, franchi
+# une fois, et le glissement, subi des deux cotes. Aucune promotion ne
+# l'annule — il est paye au marche, pas a la plateforme.
+COUT_INCOMPRESSIBLE = 0.0010      # 10 points de base
+
 ORDRE_UNITES = ["M1", "M3", "M5", "M15", "M30", "H1", "H4", "D1"]
 
 
@@ -83,7 +88,9 @@ class Calibrage:
     def resume(self) -> list[str]:
         lignes = [
             f"capital {self.equity:.2f} | ticket minimum {self.ticket_minimum:.2f} "
-            f"| frais {self.frais_par_cote * 100:.3f} % par cote",
+            f"| frais {self.frais_par_cote * 100:.3f} % par cote"
+            + (" (SANS COMMISSION — spread et glissement restent dus)"
+               if self.frais_par_cote <= 0 else ""),
             f"stop praticable entre {self.stop_min_pct * 100:.2f} % "
             f"et {self.stop_max_pct * 100:.2f} % du prix",
         ]
@@ -110,6 +117,7 @@ def calibrer(
     plafond_cout_pct: float = 15.0,
     plafond_positions: int = 6,
     part_engageable_pct: float = 80.0,
+    cout_incompressible: float = COUT_INCOMPRESSIBLE,
 ) -> Calibrage:
     """Deduit du capital ce que la strategie peut viser.
 
@@ -121,8 +129,15 @@ def calibrer(
     demande = max(0.0, risk_pct_demande) / 100.0
     maximum = max(demande, max(0.0, risk_pct_max) / 100.0)
 
-    # Mur du bas : en dessous, les frais mangent le trade.
-    stop_min = (2.0 * max(0.0, frais_par_cote)) / plafond_cout
+    # Mur du bas : en dessous, le COUT TOTAL mange le trade.
+    #
+    # Ne compter que la commission serait une erreur grave quand elle vaut
+    # zero : le calibrage declarerait le M1 praticable alors que le spread
+    # et le glissement lui coutent encore 77 % du risque. « Sans frais »
+    # ne veut pas dire « sans cout » — c'est precisement pendant une
+    # promotion que la distinction devient dangereuse.
+    cout_total = 2.0 * max(0.0, frais_par_cote) + max(0.0, cout_incompressible)
+    stop_min = cout_total / plafond_cout
 
     def stop_max_pour(risque: float) -> float:
         # Un capital nul n'ouvre aucune fenetre : sans argent, aucune

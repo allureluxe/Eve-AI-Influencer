@@ -387,7 +387,10 @@ class TestFraisEtEchelleDeTemps:
         assert cfg.engine.broker == "bitvavo"
         assert cfg.engine.currency == "EUR"
         assert cfg.risk.commission_pct == pytest.approx(0.0025)
-        assert cfg.strategy.entry_tf == "H4"
+        # L'unite d'entree suit le regime tarifaire en vigueur : M15
+        # pendant la fenetre sans commission, D1 apres. Le calibrage
+        # rebascule tout seul a l'expiration.
+        assert cfg.strategy.entry_tf in ("M15", "H1", "H4", "D1")
         assert cfg.validate() == []
 
     def test_configuration_livree_en_simulation(self):
@@ -452,3 +455,73 @@ class TestOperatorId:
     def test_valeur_par_defaut(self, monkeypatch):
         monkeypatch.delenv("BITVAVO_OPERATOR_ID", raising=False)
         assert BitvavoConfig.from_env().operator_id == 1
+
+
+class TestPromotionSansFrais:
+    """Une fenetre sans commission doit porter sa propre fin.
+
+    Le lendemain de l'expiration, un trade M15 coute 78 % du risque. Un
+    robot qui resterait sur la configuration promotionnelle viderait le
+    compte sans erreur ni alerte : chaque trade serait perdant d'avance.
+    """
+
+    @staticmethod
+    def promo():
+        from gold_bot.promotion import Promotion
+        return Promotion.depuis_config({
+            "active": True, "sans_frais_jusqu_au": "2026-08-29",
+            "volume_plafond": 9980.0})
+
+    def test_frais_annules_pendant_la_fenetre(self):
+        import datetime as d
+        p = self.promo()
+        assert p.frais_effectifs(0.0025, d.date(2026, 8, 23)) == 0.0
+
+    def test_le_dernier_jour_compte_encore(self):
+        import datetime as d
+        assert self.promo().en_cours(d.date(2026, 8, 29))
+
+    def test_le_lendemain_le_tarif_normal_revient(self):
+        """Le point critique : l'expiration doit etre automatique."""
+        import datetime as d
+        p = self.promo()
+        assert not p.en_cours(d.date(2026, 8, 30))
+        assert p.frais_effectifs(0.0025, d.date(2026, 8, 30)) == pytest.approx(0.0025)
+
+    def test_le_volume_epuise_ferme_aussi_la_fenetre(self):
+        """Une promotion se termine par la date OU par le volume."""
+        import datetime as d
+        p = self.promo()
+        p.consommer(9980.0)
+        assert not p.en_cours(d.date(2026, 8, 23))
+        assert p.frais_effectifs(0.0025, d.date(2026, 8, 23)) == pytest.approx(0.0025)
+
+    def test_promotion_inactive_ne_change_rien(self):
+        from gold_bot.promotion import Promotion
+        p = Promotion.depuis_config({"active": False})
+        assert p.frais_effectifs(0.0025) == pytest.approx(0.0025)
+
+    def test_date_illisible_ne_fait_pas_trader_gratuitement(self):
+        """Dans le doute, on paie : l'inverse ferait trader a perte."""
+        from gold_bot.promotion import Promotion
+        p = Promotion.depuis_config({"active": True, "sans_frais_jusqu_au": "n'importe quoi"})
+        assert not p.en_cours()
+        assert p.frais_effectifs(0.0025) == pytest.approx(0.0025)
+
+    def test_le_moteur_reverifie_a_chaque_cycle(self):
+        """Sans cette verification, l'expiration ne serait jamais vue."""
+        import inspect
+        from gold_bot.engine import TradingEngine
+        source = inspect.getsource(TradingEngine)
+        assert "self._verifier_promotion()" in source, \
+            "la fenetre doit etre reverifiee dans la boucle, pas seulement au demarrage"
+        # Et la verification doit recalibrer, pas seulement journaliser.
+        methode = inspect.getsource(TradingEngine._verifier_promotion)
+        assert "_calibrer_sur_le_capital" in methode
+
+    def test_le_m15_devient_praticable_sans_commission(self):
+        from gold_bot.calibrage import calibrer
+        sans = calibrer(51.0, 5.0, 0.0000, 0.22, 0.6)
+        avec = calibrer(51.0, 5.0, 0.0025, 0.22, 0.6)
+        assert "M15" in sans.unites, "sans commission, le M15 doit passer"
+        assert "M15" not in avec.unites, "avec commission, il ne doit plus passer"

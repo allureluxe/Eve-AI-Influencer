@@ -29,6 +29,7 @@ from typing import Optional
 
 from .apprentissage import PoidsAdaptatifs, alimenter_depuis_journal
 from .calibrage import calibrer
+from .promotion import Promotion
 from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker,
                       BitvavoBroker, BitvavoConfig, Broker,
                       BrokerError, MoonXBroker, MoonXConfig, OkxBroker,
@@ -255,13 +256,21 @@ class TradingEngine:
                 ticket = float(self.broker.notionnel_minimum())
             except Exception as exc:  # noqa: BLE001
                 logger.warning("ticket minimum illisible : %s", str(exc)[:120])
-        frais = float(getattr(getattr(self.broker, "config", None), "fee_rate", 0.0)
-                      or cfg.risk.commission_pct or 0.0)
+        self.frais_reels = float(
+            getattr(getattr(self.broker, "config", None), "fee_rate", 0.0)
+            or cfg.risk.commission_pct or 0.0)
+
+        # Une fenetre sans commission change ce que la strategie peut viser.
+        # Elle porte sa propre fin : voir gold_bot/promotion.py.
+        self.promotion = Promotion.depuis_config(self.config.promotion)
+        if self.promotion.active:
+            logger.warning("tarif : %s", self.promotion.resume())
+        frais = self.promotion.frais_effectifs(self.frais_reels)
 
         cal = calibrer(
             equity=self.broker.account().equity,
             ticket_minimum=ticket,
-            frais_par_cote=frais,
+            frais_par_cote=self.promotion.frais_effectifs(self.frais_reels),
             risk_pct_demande=cfg.risk.base_risk_pct,
             risk_pct_max=cfg.risk.max_risk_pct,
             plafond_cout_pct=cfg.risk.max_cost_ratio_pct,
@@ -269,6 +278,8 @@ class TradingEngine:
             part_engageable_pct=cfg.risk.max_capital_engaged_pct,
         )
         self.calibrage = cal
+        self._ticket_minimum = ticket
+        self._promo_en_cours = self.promotion.en_cours()
         for ligne in cal.resume():
             logger.info("calibrage : %s", ligne)
 
@@ -467,6 +478,7 @@ class TradingEngine:
         self._look_for_entry()
 
         # 5. Suivi periodique
+        self._verifier_promotion()
         self._heartbeat()
         self._daily_report()
         self.store.save()
@@ -720,6 +732,24 @@ class TradingEngine:
         else:
             self.notifier.warning("Cycle en echec", str(exc)[:300],
                                   throttle_key="cycle_error", throttle_seconds=600)
+
+    def _verifier_promotion(self) -> None:
+        """Recalibre si la fenetre sans commission s'est ouverte ou fermee.
+
+        C'est le point qui rend l'expiration automatique. Sans lui, un
+        robot demarre pendant la promotion garderait le M15 apres sa fin —
+        et chaque trade coutrait alors 78 % du risque, sans erreur ni
+        alerte. Compter sur quelqu'un pour changer un reglage a une date
+        donnee n'est pas une strategie.
+        """
+        if not getattr(self, "promotion", None) or not self.promotion.active:
+            return
+        maintenant = self.promotion.en_cours()
+        if maintenant == getattr(self, "_promo_en_cours", maintenant):
+            return
+        logger.warning("changement de regime tarifaire : %s", self.promotion.resume())
+        self.notifier.warning("Regime tarifaire modifie", self.promotion.resume())
+        self._calibrer_sur_le_capital()
 
     def _heartbeat(self) -> None:
         """Signe de vie periodique : prouve que le robot tourne vraiment."""
