@@ -1061,3 +1061,127 @@ class TestStopRefusePourExcesDePrecision:
         with pytest.raises(BrokerError):
             b._poser_stop(position)
         assert "LRCUSD" not in b._positions
+
+
+class TestComptabiliteDesFrais:
+    """Le journal doit enregistrer les frais PRELEVES, pas des frais theoriques.
+
+    Le robot calculait ses frais en appliquant le taux du compte aux deux
+    cotes. Pendant la fenetre sans commission, cela inventait des frais que
+    Bitvavo n'a pas pris : le journal du 23 aout enregistre « frais 0.0260 »
+    sur FET alors que la promotion les remboursait. Or c'est ce meme journal
+    qui nourrit la ponderation adaptative — lui mentir revient a apprendre
+    de trades qui n'ont pas existe.
+    """
+
+    @staticmethod
+    def broker_ouvert(monkeypatch, frais_achat, frais_vente):
+        b = broker_de_test(dry_run=False)
+        b._regles["BTC-EUR"] = RegleMarche("BTC-EUR", min_notional=5.0)
+        b._prix = lambda code: 60000.0
+        b._poser_stop = lambda pos: None
+        b._annuler_stop = lambda s: None
+        b._account.margin_free = 10000.0
+
+        reponses = iter([
+            {"orderId": "achat", "filledAmount": "0.001",
+             "filledAmountQuote": "60", "feePaid": frais_achat},
+            {"orderId": "vente", "filledAmount": "0.001",
+             "filledAmountQuote": "60", "feePaid": frais_vente},
+        ])
+        monkeypatch.setattr(b, "_appel",
+                            lambda m, c, params=None, corps=None, signe=True: next(reponses))
+        b.open_position(instrument_crypto("BTC", "crypto_major"),
+                        Side.BUY, 0.001, 58000.0, 64000.0)
+        return b
+
+    def test_promotion_sans_frais_n_invente_aucune_perte(self, monkeypatch):
+        b = self.broker_ouvert(monkeypatch, "0", "0")
+        trade = b.close_position("BTCUSD", reason="test")
+        assert trade.profit == pytest.approx(0.0, abs=1e-9)
+
+    def test_les_frais_reels_sont_comptes_des_deux_cotes(self, monkeypatch):
+        b = self.broker_ouvert(monkeypatch, "0.15", "0.15")
+        trade = b.close_position("BTCUSD", reason="test")
+        assert trade.profit == pytest.approx(-0.30, abs=1e-6)
+
+    def test_a_defaut_de_montant_on_retombe_sur_le_taux(self, monkeypatch):
+        """Une reponse muette ne doit pas faire disparaitre les frais."""
+        b = broker_de_test(dry_run=False)
+        b._regles["BTC-EUR"] = RegleMarche("BTC-EUR", min_notional=5.0)
+        b._prix = lambda code: 60000.0
+        b._poser_stop = lambda pos: None
+        b._annuler_stop = lambda s: None
+        b._account.margin_free = 10000.0
+        monkeypatch.setattr(b, "_appel",
+                            lambda m, c, params=None, corps=None, signe=True:
+                            {"orderId": "x", "filledAmount": "0.001",
+                             "filledAmountQuote": "60"})
+        b.open_position(instrument_crypto("BTC", "crypto_major"),
+                        Side.BUY, 0.001, 58000.0, 64000.0)
+        trade = b.close_position("BTCUSD", reason="test")
+        assert trade.profit == pytest.approx(-0.30, rel=0.02)
+
+    def test_une_sortie_partielle_ne_porte_pas_tous_les_frais_d_entree(self, monkeypatch):
+        """Sinon la premiere prise est perdante et la derniere gratuite."""
+        b = broker_de_test(dry_run=False)
+        b._regles["BTC-EUR"] = RegleMarche("BTC-EUR", min_notional=1.0)
+        b._prix = lambda code: 60000.0
+        b._poser_stop = lambda pos: None
+        b._annuler_stop = lambda s: None
+        b._account.margin_free = 10000.0
+        reponses = iter([
+            {"orderId": "achat", "filledAmount": "0.001",
+             "filledAmountQuote": "60", "feePaid": "0.20"},
+            {"orderId": "v1", "filledAmount": "0.0004",
+             "filledAmountQuote": "24", "feePaid": "0"},
+            {"orderId": "v2", "filledAmount": "0.0006",
+             "filledAmountQuote": "36", "feePaid": "0"},
+        ])
+        monkeypatch.setattr(b, "_appel",
+                            lambda m, c, params=None, corps=None, signe=True: next(reponses))
+        b.open_position(instrument_crypto("BTC", "crypto_major"),
+                        Side.BUY, 0.001, 58000.0, 64000.0)
+        premier = b.close_position("BTCUSD", volume=0.0004, reason="partielle")
+        second = b.close_position("BTCUSD", reason="solde")
+        # 40 % puis 60 % des 0,20 EUR d'entree, et rien de plus.
+        assert -premier.profit == pytest.approx(0.08, abs=1e-6)
+        assert -second.profit == pytest.approx(0.12, abs=1e-6)
+
+
+class TestArrondiDeQuantiteEtBinaire:
+    """Une sortie totale doit tout vendre, sans poussiere derriere elle.
+
+    0,0006 x 1e8 vaut 59999,999999999993 en binaire : un plancher brut
+    renvoyait 0,00059999. La position ne se soldait jamais completement,
+    se croyait partielle, et le robot reposait un stop sur un residu que
+    la plateforme refuse.
+    """
+
+    def test_une_valeur_exacte_reste_exacte(self):
+        r = RegleMarche("X-EUR", amount_decimals=8)
+        for valeur in (0.0006, 0.29, 0.1, 0.07, 1288.82, 306.50075136):
+            assert r.arrondir_quantite(valeur) == pytest.approx(valeur, rel=1e-12)
+
+    def test_le_plancher_reste_un_plancher(self):
+        """On ne doit jamais arrondir vers le haut : le risque deborderait."""
+        r = RegleMarche("X-EUR", amount_decimals=4)
+        assert r.arrondir_quantite(0.12349) == pytest.approx(0.1234)
+        assert r.arrondir_quantite(0.99999) == pytest.approx(0.9999)
+
+    def test_la_sortie_totale_ne_laisse_rien(self, monkeypatch):
+        b = broker_de_test(dry_run=False)
+        b._regles["BTC-EUR"] = RegleMarche("BTC-EUR", amount_decimals=8,
+                                           min_notional=1.0)
+        b._annuler_stop = lambda s: None
+        from gold_bot.core import Position
+        b._positions["BTCUSD"] = Position(
+            id="BTCUSD", symbol="BTCUSD", side=Side.BUY, volume=0.0006,
+            entry_price=60000.0, stop_loss=58000.0, take_profit=64000.0,
+            opened_at=0.0)
+        monkeypatch.setattr(b, "_appel",
+                            lambda m, c, params=None, corps=None, signe=True:
+                            {"filledAmount": "0.0006", "filledAmountQuote": "36"})
+        trade = b.close_position("BTCUSD", reason="sortie totale")
+        assert trade.partial is False
+        assert "BTCUSD" not in b._positions

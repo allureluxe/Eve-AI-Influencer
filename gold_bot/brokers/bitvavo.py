@@ -183,7 +183,20 @@ class RegleMarche:
         if quantite <= 0:
             return 0.0
         facteur = 10 ** max(0, self.amount_decimals)
-        return math.floor(quantite * facteur) / facteur
+        echelle = quantite * facteur
+
+        # LE BINAIRE NE REPRESENTE PAS 0,0006 EXACTEMENT.
+        #
+        # 0,0006 x 1e8 vaut 59999,999999999993, et un plancher brut renvoie
+        # donc 0,00059999 : une poussiere invendable restait derriere CHAQUE
+        # sortie totale. La position ne se soldait jamais completement, elle
+        # se croyait partielle, et le robot reposait un stop sur un residu
+        # que la plateforme refuse. On recolle a l'entier quand on n'en est
+        # separe que par l'erreur de representation — le plancher garde tout
+        # son sens pour les vrais arrondis.
+        if abs(echelle - round(echelle)) < 1e-6:
+            echelle = float(round(echelle))
+        return math.floor(echelle) / facteur
 
     def arrondir_prix(self, prix: float) -> float:
         """Arrondi au nombre de chiffres SIGNIFICATIFS impose par Bitvavo.
@@ -223,6 +236,10 @@ class BitvavoBroker(Broker):
         # de position ecrit son nouveau niveau dans cet objet avant que le
         # broker soit appele (cf. modify_position).
         self._stop_pose: dict[str, float] = {}
+        # Frais REELLEMENT preleves a l'ouverture, par position. Pendant la
+        # fenetre sans commission, un taux theorique inventerait des frais
+        # que la plateforme n'a pas pris.
+        self._frais_entree: dict[str, float] = {}
         self._last_error = ""
         self._quota_restant = 1000
         self._quota_reset = 0.0
@@ -602,18 +619,24 @@ class BitvavoBroker(Broker):
         if quantite <= 0:
             return None
 
-        sortie, servi, frais = self._ventes_depuis(code, position.opened_at)
+        sortie, servi, frais_sortie = self._ventes_depuis(code, position.opened_at)
+        estime = ""
         if not sortie:
             # Sans historique lisible, le stop est l'explication la plus
             # probable : on retient son niveau plutot que d'inventer un prix
             # flatteur. L'estimation est signalee dans le journal.
             sortie = position.stop_loss or prix_marche
-            frais = (position.entry_price + sortie) * quantite * self.config.fee_rate
             estime = " (prix estime au stop)"
-        else:
-            estime = ""
         if servi and 0 < servi < quantite:
             quantite = servi
+
+        # Frais calcules sur la quantite finalement retenue, et non sur
+        # celle qu'on croyait sortir avant de lire les executions.
+        part_entree = self._part_des_frais_d_entree(position, quantite)
+        if estime:
+            frais = part_entree + sortie * quantite * self.config.fee_rate
+        else:
+            frais = part_entree + frais_sortie
 
         brut = (sortie - position.entry_price) * quantite
         trade = ClosedTrade(
@@ -631,6 +654,7 @@ class BitvavoBroker(Broker):
 
         if invendable:
             self._positions.pop(position.id, None)
+            self._frais_entree.pop(position.id, None)
             # Un reliquat d'ordre peut survivre a un stop partiellement
             # servi : il vendrait plus tard des actifs d'une autre position.
             self._annuler_stop(position.symbol)
@@ -643,6 +667,21 @@ class BitvavoBroker(Broker):
             code, formater(quantite), trade.profit, self.config.quote_asset,
             estime, "fermee" if invendable else f"reduite a {formater(reste)}")
         return trade
+
+    def _part_des_frais_d_entree(self, position: Position, quantite: float) -> float:
+        """Part des frais d'ouverture imputable a la quantite qui sort.
+
+        Une sortie partielle ne porte pas tous les frais d'entree : les
+        imputer entierement rendrait la premiere prise perdante et la
+        derniere gratuite. A defaut de montant memorise — position reprise
+        apres un redemarrage — on retombe sur le taux du compte.
+        """
+        connus = self._frais_entree.get(position.id)
+        if connus is None:
+            return position.entry_price * quantite * self.config.fee_rate
+        if position.volume <= 0:
+            return connus
+        return connus * min(1.0, quantite / position.volume)
 
     def _ventes_depuis(self, code: str, depuis: float) -> tuple[float, float, float]:
         """Prix moyen, quantite et frais des ventes reelles sur ce marche.
@@ -788,12 +827,49 @@ class BitvavoBroker(Broker):
             opened_at=time.time(), broker_ref=str(reponse.get("orderId", "")), comment=comment)
         self._positions[instrument.symbol] = position
         self._instruments[instrument.symbol] = instrument
+        frais_entree = self._frais_reels(reponse)
+        self._frais_entree[position.id] = (
+            frais_entree if frais_entree is not None
+            else position.entry_price * obtenu * self.config.fee_rate)
 
         self._poser_stop(position)
         logger.info("ACHAT [%s] %s %s @ %s | SL %s TP %s (objectif suivi par le robot)",
                     self.mode, code, formater(obtenu), formater(position.entry_price),
                     formater(position.stop_loss), formater(position.take_profit))
         return position
+
+    @staticmethod
+    def _frais_reels(reponse: dict) -> Optional[float]:
+        """Frais reellement preleves par Bitvavo sur cet ordre.
+
+        Preferes a un calcul par taux, et pas seulement par exactitude :
+        pendant la fenetre sans commission, un taux theorique inventerait
+        des frais que la plateforme n'a pas pris, et le journal
+        enregistrerait des pertes qui n'ont pas eu lieu. C'est ce meme
+        journal qui nourrit la ponderation adaptative — lui mentir revient
+        a apprendre de trades qui n'ont pas existe.
+
+        None quand la reponse ne dit rien : l'appelant retombe alors sur le
+        taux du compte.
+        """
+        remplis = reponse.get("fills") or []
+        if remplis:
+            total = 0.0
+            vu = False
+            for f in remplis:
+                try:
+                    total += abs(float(f.get("fee", 0) or 0))
+                    vu = vu or "fee" in f
+                except (TypeError, ValueError):
+                    continue
+            if vu:
+                return total
+        if "feePaid" in reponse:
+            try:
+                return abs(float(reponse.get("feePaid") or 0))
+            except (TypeError, ValueError):
+                return None
+        return None
 
     @staticmethod
     def _prix_moyen(reponse: dict) -> Optional[float]:
@@ -1001,7 +1077,12 @@ class BitvavoBroker(Broker):
 
         sortie = self._prix_moyen(reponse) or position.entry_price
         brut = (sortie - position.entry_price) * quantite
-        frais = (position.entry_price + sortie) * quantite * self.config.fee_rate
+        # Frais reellement preleves, jamais un taux theorique : pendant la
+        # fenetre sans commission, le taux inventerait des pertes.
+        frais_sortie = self._frais_reels(reponse)
+        if frais_sortie is None:
+            frais_sortie = sortie * quantite * self.config.fee_rate
+        frais = self._part_des_frais_d_entree(position, quantite) + frais_sortie
         profit = brut - frais
 
         trade = ClosedTrade(
@@ -1015,9 +1096,14 @@ class BitvavoBroker(Broker):
             partial=partielle)
         self._closed.append(trade)
 
+        reste_frais = self._frais_entree.get(position.id)
+        if reste_frais is not None:
+            self._frais_entree[position.id] = max(
+                0.0, reste_frais - self._part_des_frais_d_entree(position, quantite))
         position.volume = round(position.volume - quantite, 12)
         if position.volume <= 1e-12:
             self._positions.pop(position_id, None)
+            self._frais_entree.pop(position.id, None)
         else:
             self._poser_stop(position)
 
