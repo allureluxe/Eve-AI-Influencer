@@ -231,6 +231,7 @@ def main() -> int:
     try:
         achat = broker._appel("POST", "/order", corps={
             "market": code, "side": "buy", "orderType": "market",
+            "operatorId": config.operator_id,
             "amount": formater(quantite, regle.amount_decimals),
         })
     except Exception as exc:  # noqa: BLE001
@@ -264,6 +265,7 @@ def main() -> int:
     try:
         vente = broker._appel("POST", "/order", corps={
             "market": code, "side": "sell", "orderType": "market",
+            "operatorId": config.operator_id,
             "amount": formater(revendable, regle.amount_decimals),
         })
     except Exception as exc:  # noqa: BLE001

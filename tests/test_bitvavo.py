@@ -401,3 +401,54 @@ class TestFraisEtEchelleDeTemps:
         from gold_bot.settings import BotConfig
         cfg = BotConfig.load("robot.bitvavo.json")
         assert cfg.risk.max_daily_trades == 0
+
+
+class TestOperatorId:
+    """Bitvavo exige un operatorId sur chaque ordre depuis MiCA.
+
+    Au titre de la tracabilite : chaque ordre doit pouvoir etre rattache a
+    l'operateur — humain ou automate — qui l'a emis. Sans lui, la
+    plateforme repond « 400 [203] operatorId parameter is required » et
+    aucun ordre ne part.
+    """
+
+    def test_present_a_l_achat(self, monkeypatch):
+        b = broker_de_test(dry_run=False)
+        b._regles["BTC-EUR"] = RegleMarche("BTC-EUR", min_notional=5.0)
+        b._prix = lambda code: 60000.0
+        b._prix_execute = lambda *a: 60000.0
+        b._poser_stop = lambda pos: None
+        b._account.margin_free = 10000.0
+        envoye = {}
+        monkeypatch.setattr(b, "_appel",
+                            lambda m, c, params=None, corps=None, signe=True:
+                            (envoye.update(corps or {}), {"orderId": "1"})[1])
+        b.open_position(instrument_crypto("BTC", "crypto_major"),
+                        Side.BUY, 0.001, 58000.0, 64000.0)
+        assert envoye.get("operatorId") == 1
+
+    def test_present_a_la_vente(self, monkeypatch):
+        b = broker_de_test(dry_run=False)
+        b._regles["BTC-EUR"] = RegleMarche("BTC-EUR", min_notional=5.0)
+        b._prix = lambda code: 60000.0
+        b._annuler_stop = lambda s: None
+        from gold_bot.core import Position
+        b._positions["BTCUSD"] = Position(
+            id="BTCUSD", symbol="BTCUSD", side=Side.BUY, volume=0.001,
+            entry_price=60000.0, stop_loss=58000.0, take_profit=64000.0,
+            opened_at=0.0)
+        envoye = {}
+        monkeypatch.setattr(b, "_appel",
+                            lambda m, c, params=None, corps=None, signe=True:
+                            (envoye.update(corps or {}), {"filledAmount": "0.001",
+                                                          "filledAmountQuote": "60"})[1])
+        b.close_position("BTCUSD", reason="test")
+        assert envoye.get("operatorId") == 1
+
+    def test_configurable(self, monkeypatch):
+        monkeypatch.setenv("BITVAVO_OPERATOR_ID", "42")
+        assert BitvavoConfig.from_env().operator_id == 42
+
+    def test_valeur_par_defaut(self, monkeypatch):
+        monkeypatch.delenv("BITVAVO_OPERATOR_ID", raising=False)
+        assert BitvavoConfig.from_env().operator_id == 1

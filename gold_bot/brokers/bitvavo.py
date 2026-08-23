@@ -119,6 +119,11 @@ class BitvavoConfig:
     dry_run: bool = True
     fee_rate: float = FRAIS_TAKER
     stop_move_threshold_r: float = 0.15
+    # Identifiant numerique du robot qui passe l'ordre. Bitvavo l'exige
+    # depuis MiCA, au titre de la tracabilite : chaque ordre doit pouvoir
+    # etre rattache a l'operateur — humain ou automate — qui l'a emis.
+    # Sans lui : « 400 [203] operatorId parameter is required ».
+    operator_id: int = 1
 
     @classmethod
     def from_env(cls) -> "BitvavoConfig":
@@ -132,6 +137,7 @@ class BitvavoConfig:
             fee_rate=float(os.getenv("BITVAVO_FEE_RATE", str(FRAIS_TAKER)) or FRAIS_TAKER),
             stop_move_threshold_r=float(
                 os.getenv("BITVAVO_STOP_MOVE_THRESHOLD_R", "0.15") or 0.15),
+            operator_id=int(os.getenv("BITVAVO_OPERATOR_ID", "1") or 1),
         )
 
 
@@ -583,6 +589,7 @@ class BitvavoBroker(Broker):
             reponse = self._appel("POST", "/order", corps={
                 "market": code, "side": "buy", "orderType": "market",
                 "amount": formater(quantite, regle.amount_decimals),
+                "operatorId": self.config.operator_id,
             })
 
         rempli = self._prix_moyen(reponse) or reference
@@ -640,6 +647,7 @@ class BitvavoBroker(Broker):
         try:
             reponse = self._appel("POST", "/order", corps={
                 "market": code, "side": "sell", "orderType": "stopLossLimit",
+                "operatorId": self.config.operator_id,
                 "amount": formater(regle.arrondir_quantite(position.volume),
                                    regle.amount_decimals),
                 "price": formater(limite),
@@ -665,7 +673,9 @@ class BitvavoBroker(Broker):
             self._stops.pop(symbol, None)
             return
         try:
-            self._appel("DELETE", "/orders", params={"market": self.symbol_for(symbol)})
+            self._appel("DELETE", "/orders",
+                        params={"market": self.symbol_for(symbol),
+                                "operatorId": self.config.operator_id})
         except BrokerError as exc:
             logger.warning("annulation des ordres sur %s : %s", symbol, str(exc)[:120])
         self._stops.pop(symbol, None)
@@ -723,6 +733,7 @@ class BitvavoBroker(Broker):
             reponse = self._appel("POST", "/order", corps={
                 "market": code, "side": "sell", "orderType": "market",
                 "amount": formater(quantite, regle.amount_decimals),
+                "operatorId": self.config.operator_id,
             })
 
         sortie = self._prix_moyen(reponse) or position.entry_price
