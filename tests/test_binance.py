@@ -6,6 +6,7 @@ va pas. Aucun appel reseau : tout passe par le mode simulation.
 """
 from __future__ import annotations
 
+import os
 import unittest
 
 from helpers import *  # noqa: F401,F403 - insere le chemin du projet
@@ -17,7 +18,36 @@ from gold_bot.core import Side
 from gold_bot.universe import Universe
 
 
+def setUpModule() -> None:
+    """Fige la devise de cotation le temps des tests.
+
+    Ces tests enregistrent des regles sur « BTCUSDT ». Si l'environnement
+    exporte BINANCE_QUOTE_ASSET=USDC — ce que fait un .env de production
+    charge dans le meme shell — le broker cherche « BTCUSDC », ne trouve
+    pas la regle, et trois tests echouent pour une raison qui n'a rien a
+    voir avec le code teste.
+
+    Un test qui depend de variables d'environnement ambiantes ne teste
+    plus ce qu'il croit tester : il passe ou echoue selon le terminal
+    depuis lequel on le lance.
+    """
+    global _DEVISE_INITIALE
+    _DEVISE_INITIALE = os.environ.get("BINANCE_QUOTE_ASSET")
+    os.environ["BINANCE_QUOTE_ASSET"] = "USDT"
+
+
+def tearDownModule() -> None:
+    if _DEVISE_INITIALE is None:
+        os.environ.pop("BINANCE_QUOTE_ASSET", None)
+    else:
+        os.environ["BINANCE_QUOTE_ASSET"] = _DEVISE_INITIALE
+
+
+_DEVISE_INITIALE = None
+
+
 def broker(**kw) -> BinanceBroker:
+    kw.setdefault("quote_asset", "USDT")
     cfg = BinanceConfig(dry_run=True, **kw)
     b = BinanceBroker(cfg)
     b.connect()

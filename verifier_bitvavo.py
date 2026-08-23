@@ -22,6 +22,7 @@ Cout : les frais de l'aller-retour, soit environ 0,05 EUR sur un ordre de 10.
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 import os
 import sys
 import time
@@ -95,8 +96,9 @@ def main() -> int:
     # Le broker est toujours construit en lecture seule ici : les ordres
     # ne partent qu'au moment explicite, plus bas, et seulement avec
     # --confirmer sur un .env desarme.
-    diagnostic = BitvavoConfig(**{**config.__dict__, "dry_run": True})
-    broker = BitvavoBroker(diagnostic)
+    # `dataclasses.replace` et non `__dict__` : BitvavoConfig utilise
+    # slots=True et n'a donc pas de __dict__.
+    broker = BitvavoBroker(replace(config, dry_run=True))
 
     titre("2. Connexion et lecture du compte")
     if not broker.connect():

@@ -44,7 +44,10 @@ etape "2/6  Tests"
 if python3 -c "import pytest" 2>/dev/null; then
     SORTIE=$(python3 run_tests.py 2>&1 | tail -3)
     echo "$SORTIE" | sed 's/^/       /'
-    echo "$SORTIE" | grep -q "passed" || fatal "des tests echouent — ne pas aller plus loin"
+    # « 3 failed, 439 passed » contient « passed » : chercher ce mot seul
+    # laissait passer une suite en echec.
+    echo "$SORTIE" | grep -qE "(failed|error)" && fatal "des tests echouent — ne pas aller plus loin"
+    echo "$SORTIE" | grep -q "passed" || fatal "aucun test execute"
     ok "suite complete au vert"
 else
     info "pytest absent : sudo apt-get install -y python3-pytest"
