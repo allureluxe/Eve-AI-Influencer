@@ -132,7 +132,16 @@ def main() -> int:
             print("  Elle est simplement restreinte a des adresses IP qui n'incluent")
             print("  pas celle de ce serveur.")
             if adresse:
-                print(f"\n  Adresse de CE serveur, a autoriser :  \033[1m{adresse}\033[0m")
+                print(f"\n  Adresse vue par l'exterieur :  \033[1m{adresse}\033[0m")
+                if ":" in adresse:
+                    print("\n  \033[1;31mC'est une adresse IPv6.\033[0m Si tu as autorise une IPv4")
+                    print("  dans Bitvavo, elle ne sert a rien : la plateforme ne voit")
+                    print("  jamais cette adresse-la.")
+                    print("\n  Deux solutions :")
+                    print("    a) ajouter CETTE adresse IPv6 dans Bitvavo ;")
+                    print("    b) forcer la sortie en IPv4 — ajouter dans .env :")
+                    print("       \033[1mGB_FORCE_IPV4=1\033[0m")
+                    print("       puis relancer. L'IPv4 autorisee redevient la bonne.")
             print("\n  Bitvavo > Parametres > API > modifier la cle >")
             print("  adresses IP autorisees. Ajoute-la, enregistre, puis relance.")
             return 5

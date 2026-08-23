@@ -22,6 +22,37 @@ from ..core import Candle, Tick
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = float(os.getenv("GB_HTTP_TIMEOUT", "12"))
+
+
+def forcer_ipv4() -> None:
+    """Contraint toutes les sorties reseau a passer en IPv4.
+
+    Un serveur qui dispose des deux piles prefere souvent l'IPv6. La
+    plateforme voit alors une adresse IPv6, alors que la liste blanche de
+    la cle API ne contient que l'IPv4 — et le refus qui en decoule dit
+    « adresse non autorisee » sans jamais preciser LAQUELLE elle a vue.
+
+    On filtre au niveau de la resolution de noms, donc pour toute la
+    pile : urllib, les brokers, les sources de prix.
+
+    Active par GB_FORCE_IPV4=1.
+    """
+    import socket
+    if getattr(socket, "_gb_ipv4_force", False):
+        return
+    original = socket.getaddrinfo
+
+    def ipv4_seulement(host, port, family=0, type=0, proto=0, flags=0):
+        resultats = original(host, port, socket.AF_INET, type, proto, flags)
+        return resultats or original(host, port, family, type, proto, flags)
+
+    socket.getaddrinfo = ipv4_seulement
+    socket._gb_ipv4_force = True
+    logger.info("sorties reseau forcees en IPv4 (GB_FORCE_IPV4=1)")
+
+
+if os.getenv("GB_FORCE_IPV4", "").strip() in ("1", "true", "True"):
+    forcer_ipv4()
 USER_AGENT = "gold-bot/1.0 (+trading-research)"
 
 
