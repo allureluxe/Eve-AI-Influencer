@@ -447,6 +447,15 @@ class TradeManager:
                                 f"stop resserre, objectif inchange")))
 
         # ---------------- 5. Emission du stop final ----------------
+        #
+        # ATTENTION : la ligne `position.stop_loss = new_stop` ci-dessous
+        # ecrit dans l'objet que le broker detient — c'est le meme. Un
+        # broker qui comparerait le niveau demande a Position.stop_loss
+        # pour decider s'il doit reposer son ordre comparerait donc une
+        # valeur a elle-meme, ne trouverait jamais d'ecart, et laisserait
+        # l'ordre reel a son niveau d'origine en signalant un succes.
+        # Ce piege a coute des trades entiers en aout 2026 : la reference
+        # d'un broker est ce que SA plateforme detient, jamais ceci.
         new_stop = round(new_stop, digits)
         if sign * (new_stop - position.stop_loss) > 0:
             already = any(a.type is ActionType.MODIFY_STOP and a.price == new_stop for a in actions)

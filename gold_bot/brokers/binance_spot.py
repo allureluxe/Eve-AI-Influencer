@@ -82,6 +82,10 @@ class BinanceSpotBroker(Broker):
         self._account = AccountInfo(0.0, 0.0, "USDT")
         self._soldes: dict[str, float] = {}
         self._oco: dict[str, int] = {}
+        # Niveaux (stop, objectif) REELLEMENT deposes chez la plateforme.
+        # Ils ne peuvent pas etre lus sur l'objet Position : le gestionnaire
+        # de position y ecrit les siens avant d'appeler le broker.
+        self._protection_posee: dict[str, tuple[float, float]] = {}
         self._last_error = ""
 
     # ------------------------------------------------------------------
@@ -345,6 +349,8 @@ class BinanceSpotBroker(Broker):
                 "stopLimitTimeInForce": "GTC",
             })
             self._oco[position.symbol] = int(reponse.get("orderListId", 0))
+            self._protection_posee[position.symbol] = (position.stop_loss,
+                                                       position.take_profit)
         except BrokerError as exc:
             logger.error("OCO non pose sur %s : %s", code, str(exc)[:200])
             logger.error("fermeture immediate : une position sans stop est inacceptable")
@@ -360,6 +366,7 @@ class BinanceSpotBroker(Broker):
         except BrokerError as exc:
             logger.warning("annulation des ordres sur %s : %s", symbol, str(exc)[:120])
         self._oco.pop(symbol, None)
+        self._protection_posee.pop(symbol, None)
 
     def modify_position(self, position_id: str, stop_loss: Optional[float] = None,
                         take_profit: Optional[float] = None) -> bool:
@@ -369,17 +376,20 @@ class BinanceSpotBroker(Broker):
         regle = self.regle(position.symbol)
         seuil = position.initial_risk * self.config.stop_move_threshold_r if position.initial_risk else 0.0
 
-        bouge = False
-        if stop_loss is not None and abs(stop_loss - position.stop_loss) > seuil:
+        # Reference : ce que la plateforme detient, jamais l'objet Position.
+        # Le gestionnaire y a deja ecrit le niveau demande, si bien que la
+        # comparaison portait sur une valeur et elle-meme : l'ordre n'etait
+        # jamais repose et la methode renvoyait quand meme True.
+        posee = self._protection_posee.get(position.symbol)
+        bouge = posee is None
+        if stop_loss is not None:
             position.stop_loss = regle.arrondir_prix(stop_loss)
-            bouge = True
-        elif stop_loss is not None:
-            position.stop_loss = regle.arrondir_prix(stop_loss)
-        if take_profit is not None and abs(take_profit - position.take_profit) > seuil:
+            if posee is not None and abs(position.stop_loss - posee[0]) > seuil:
+                bouge = True
+        if take_profit is not None:
             position.take_profit = regle.arrondir_prix(take_profit)
-            bouge = True
-        elif take_profit is not None:
-            position.take_profit = regle.arrondir_prix(take_profit)
+            if posee is not None and abs(position.take_profit - posee[1]) > seuil:
+                bouge = True
 
         if not bouge:
             return True

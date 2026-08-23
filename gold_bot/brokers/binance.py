@@ -156,6 +156,8 @@ class BinanceBroker(Broker):
         self._regles: dict[str, RegleSymbole] = {}
         self._account = AccountInfo(0.0, 0.0, "USDT")
         self._ordres_protection: dict[str, dict[str, int]] = {}
+        # Niveaux (stop, objectif) REELLEMENT deposes chez la plateforme.
+        self._protection_posee: dict[str, tuple[float, float]] = {}
         self._last_error = ""
         self._leverage_pret: set[str] = set()
 
@@ -506,6 +508,8 @@ class BinanceBroker(Broker):
                     self.close_position(position.id, reason="stop impossible a poser")
                     raise
         self._ordres_protection[position.symbol] = ids
+        self._protection_posee[position.symbol] = (position.stop_loss,
+                                                   position.take_profit)
 
     def _annuler_protection(self, symbol: str) -> None:
         if self.config.dry_run:
@@ -516,6 +520,7 @@ class BinanceBroker(Broker):
         except BrokerError as exc:
             logger.warning("annulation des ordres sur %s : %s", code, str(exc)[:120])
         self._ordres_protection.pop(symbol, None)
+        self._protection_posee.pop(symbol, None)
 
     # ------------------------------------------------------------------
     def modify_position(self, position_id: str, stop_loss: Optional[float] = None,
@@ -533,13 +538,22 @@ class BinanceBroker(Broker):
         regle = self.regle(position.symbol)
 
         seuil = position.initial_risk * self.config.stop_move_threshold_r if position.initial_risk else 0.0
-        bouge = False
-        if stop_loss is not None and abs(stop_loss - position.stop_loss) > seuil:
+
+        # Reference : ce que la plateforme detient, jamais l'objet Position.
+        # Le gestionnaire de position y a deja ecrit le niveau demande, si
+        # bien que la comparaison portait sur une valeur et elle-meme :
+        # l'ecart valait toujours zero, l'ordre n'etait jamais repose, et la
+        # methode renvoyait quand meme True.
+        posee = self._protection_posee.get(position.symbol)
+        bouge = posee is None
+        if stop_loss is not None:
             position.stop_loss = regle.arrondir_prix(stop_loss)
-            bouge = True
-        if take_profit is not None and abs(take_profit - position.take_profit) > seuil:
+            if posee is not None and abs(position.stop_loss - posee[0]) > seuil:
+                bouge = True
+        if take_profit is not None:
             position.take_profit = regle.arrondir_prix(take_profit)
-            bouge = True
+            if posee is not None and abs(position.take_profit - posee[1]) > seuil:
+                bouge = True
 
         if not bouge:
             # Le niveau local est quand meme mis a jour : c'est lui qui sert

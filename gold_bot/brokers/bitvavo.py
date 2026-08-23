@@ -211,6 +211,11 @@ class BitvavoBroker(Broker):
         self._account = AccountInfo(0.0, 0.0, self.config.quote_asset)
         self._soldes: dict[str, float] = {}
         self._stops: dict[str, str] = {}
+        # Niveau de declenchement REELLEMENT depose chez Bitvavo, par marche.
+        # Il ne peut pas etre deduit de Position.stop_loss : le gestionnaire
+        # de position ecrit son nouveau niveau dans cet objet avant que le
+        # broker soit appele (cf. modify_position).
+        self._stop_pose: dict[str, float] = {}
         self._last_error = ""
         self._quota_restant = 1000
         self._quota_reset = 0.0
@@ -816,6 +821,7 @@ class BitvavoBroker(Broker):
             return
         code = self.symbol_for(position.symbol)
         regle = self.regle(position.symbol)
+        declenchement = regle.arrondir_prix(position.stop_loss)
         limite = regle.arrondir_prix(position.stop_loss * 0.998)
         try:
             reponse = self._appel("POST", "/order", corps={
@@ -826,9 +832,10 @@ class BitvavoBroker(Broker):
                 "price": formater(limite),
                 "triggerType": "price",
                 "triggerReference": "lastTrade",
-                "triggerAmount": formater(regle.arrondir_prix(position.stop_loss)),
+                "triggerAmount": formater(declenchement),
             })
             self._stops[position.symbol] = str(reponse.get("orderId", ""))
+            self._stop_pose[position.symbol] = declenchement
         except BrokerError as exc:
             logger.error("stop non pose sur %s : %s", code, str(exc)[:200])
             logger.error("fermeture immediate : une position sans stop est inacceptable")
@@ -844,6 +851,7 @@ class BitvavoBroker(Broker):
         """
         if self.config.dry_run:
             self._stops.pop(symbol, None)
+            self._stop_pose.pop(symbol, None)
             return
         try:
             self._appel("DELETE", "/orders",
@@ -852,6 +860,7 @@ class BitvavoBroker(Broker):
         except BrokerError as exc:
             logger.warning("annulation des ordres sur %s : %s", symbol, str(exc)[:120])
         self._stops.pop(symbol, None)
+        self._stop_pose.pop(symbol, None)
 
     def modify_position(self, position_id: str, stop_loss: Optional[float] = None,
                         take_profit: Optional[float] = None) -> bool:
@@ -869,8 +878,28 @@ class BitvavoBroker(Broker):
 
         if stop_loss is None:
             return True
-        bouge = abs(stop_loss - position.stop_loss) > seuil
-        position.stop_loss = regle.arrondir_prix(stop_loss)
+
+        # LE NIVEAU DE REFERENCE EST CELUI DE LA PLATEFORME, PAS CELUI DE
+        # L'OBJET POSITION.
+        #
+        # Le gestionnaire de position ecrit son nouveau stop dans
+        # Position.stop_loss avant d'emettre l'action, et cet objet est
+        # celui-la meme que le broker detient. Comparer l'un a l'autre
+        # revenait donc a comparer une valeur a elle-meme : l'ecart valait
+        # toujours zero, « bouge » toujours faux, et l'ordre n'etait JAMAIS
+        # repose. La methode renvoyait True — succes — sans avoir rien
+        # envoye.
+        #
+        # Consequence observee le 23 aout : le robot croyait son stop
+        # remonte a +3,6R sur HBAR (passe par +4,9R) pendant que Bitvavo
+        # tenait toujours l'ordre initial a -1R. Le break-even, le stop
+        # suiveur et le verrouillage sur extension etaient tous inoperants
+        # en reel — et invisibles, puisque le simulateur, lui, applique le
+        # deplacement sans condition.
+        pose = self._stop_pose.get(position.symbol)
+        nouveau = regle.arrondir_prix(stop_loss)
+        bouge = pose is None or abs(nouveau - pose) > seuil
+        position.stop_loss = nouveau
         if not bouge:
             return True
 

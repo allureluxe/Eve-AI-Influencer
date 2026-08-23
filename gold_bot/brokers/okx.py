@@ -195,6 +195,11 @@ class OkxBroker(Broker):
         self.config = config or OkxConfig.from_env()
         self.base = BASE
         self._positions: dict[str, Position] = {}
+        # Niveaux (stop, objectif) REELLEMENT deposes chez la plateforme.
+        # Ils ne peuvent pas etre lus sur l'objet Position : le
+        # gestionnaire de position y ecrit les siens avant d'appeler
+        # le broker.
+        self._protection_posee: dict[str, tuple[float, float]] = {}
         self._instruments: dict[str, Instrument] = {}
         self._closed: list[ClosedTrade] = []
         self._regles: dict[str, RegleInstrument] = {}
@@ -597,6 +602,10 @@ class OkxBroker(Broker):
             stop_loss=stop, take_profit=objectif,
             opened_at=time.time(), broker_ref=identifiant, comment=comment)
         self._positions[instrument.symbol] = position
+        # La protection part attachee a l'entree : on retient les niveaux
+        # reellement deposes pour savoir plus tard s'il faut les deplacer.
+        self._protection_posee[instrument.symbol] = (position.stop_loss,
+                                                     position.take_profit)
         self._instruments[instrument.symbol] = instrument
 
         logger.info("ACHAT [%s] %s %s @ %s | SL %s TP %s (attaches a l'ordre)",
@@ -627,6 +636,7 @@ class OkxBroker(Broker):
         annules : un ordre orphelin vendrait plus tard des actifs
         appartenant a une autre position.
         """
+        self._protection_posee.pop(symbol, None)
         if self.config.dry_run:
             return
         code = self.symbol_for(symbol)
@@ -655,13 +665,21 @@ class OkxBroker(Broker):
         seuil = (position.initial_risk * self.config.stop_move_threshold_r
                  if position.initial_risk else 0.0)
 
-        bouge = False
+        # Reference : ce que la plateforme detient, jamais l'objet Position.
+        # Le gestionnaire de position y a deja ecrit le niveau demande, si
+        # bien que la comparaison portait sur une valeur et elle-meme :
+        # l'ecart valait toujours zero, la protection n'etait jamais
+        # deplacee, et la methode renvoyait quand meme True.
+        posee = self._protection_posee.get(position.symbol)
+        bouge = posee is None
         if stop_loss is not None:
-            bouge = bouge or abs(stop_loss - position.stop_loss) > seuil
             position.stop_loss = regle.arrondir_prix(stop_loss)
+            if posee is not None and abs(position.stop_loss - posee[0]) > seuil:
+                bouge = True
         if take_profit is not None:
-            bouge = bouge or abs(take_profit - position.take_profit) > seuil
             position.take_profit = regle.arrondir_prix(take_profit)
+            if posee is not None and abs(position.take_profit - posee[1]) > seuil:
+                bouge = True
         if not bouge or self.config.dry_run:
             return True
 
@@ -681,6 +699,8 @@ class OkxBroker(Broker):
         except BrokerError as exc:
             logger.warning("protection non deplacee sur %s : %s", code, str(exc)[:150])
             return False
+        self._protection_posee[position.symbol] = (position.stop_loss,
+                                                   position.take_profit)
         return True
 
     # ------------------------------------------------------------------

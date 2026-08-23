@@ -865,3 +865,99 @@ class TestRepriseApresRedemarrage:
         b._reconcilier({"ETH-EUR": 2050.0})
         assert b.positions() == []
         assert len(b.closed_trades()) == 1
+
+
+class TestLeStopSuitReellementLaPosition:
+    """Le stop doit bouger CHEZ BITVAVO, pas seulement dans la memoire du robot.
+
+    Le defaut le plus couteux trouve dans ce robot, et le plus discret.
+
+    Le gestionnaire de position ecrit son nouveau stop dans
+    Position.stop_loss avant d'emettre l'action, et cet objet est celui-la
+    meme que le broker detient. modify_position comparait donc le niveau
+    demande a Position.stop_loss — c'est-a-dire une valeur a elle-meme.
+    L'ecart valait toujours zero, l'ordre n'etait jamais repose, et la
+    methode renvoyait True.
+
+    Le 23 aout : HBAR monte a +4,9R, le robot croit son stop suiveur a
+    +3,6R, Bitvavo tient toujours l'ordre initial a -1R. Sortie a -1,03R.
+    Meme histoire sur BTC (+1,20R -> -0,09R) et FET (+1,27R -> -0,07R) :
+    le break-even a 0,8R n'a jamais ete depose.
+
+    Invisible parce que le simulateur, lui, deplace le stop sans condition :
+    aucun backtest ne pouvait reveler le probleme.
+    """
+
+    @staticmethod
+    def broker(monkeypatch):
+        from gold_bot.core import Position
+        b = broker_de_test(dry_run=False)
+        b._regles["HBAR-EUR"] = RegleMarche("HBAR-EUR", price_precision=5,
+                                            amount_decimals=8, min_notional=5.0)
+        position = Position(
+            id="HBARUSD", symbol="HBARUSD", side=Side.BUY, volume=306.5,
+            entry_price=0.067153, stop_loss=0.066746, take_profit=0.068,
+            opened_at=0.0)
+        b._positions["HBARUSD"] = position
+        b._stop_pose["HBARUSD"] = 0.066746      # ordre initial chez Bitvavo
+        envoyes = []
+
+        def appel(methode, chemin, params=None, corps=None, signe=True):
+            if methode == "POST" and chemin == "/order":
+                envoyes.append(corps)
+                return {"orderId": "stop-1"}
+            return {}
+
+        monkeypatch.setattr(b, "_appel", appel)
+        return b, position, envoyes
+
+    def test_le_break_even_part_vers_la_plateforme(self, monkeypatch):
+        b, position, envoyes = self.broker(monkeypatch)
+        # Ce que fait le gestionnaire de position : il ecrit AVANT d'appeler.
+        nouveau = 0.067214
+        position.stop_loss = nouveau
+
+        assert b.modify_position("HBARUSD", stop_loss=nouveau) is True
+        stops = [c for c in envoyes if c.get("orderType") == "stopLossLimit"]
+        assert len(stops) == 1, "l'ordre stop n'a pas ete repose chez Bitvavo"
+        assert float(stops[0]["triggerAmount"]) == pytest.approx(nouveau, rel=1e-4)
+
+    def test_le_niveau_retenu_est_celui_envoye(self, monkeypatch):
+        b, position, _ = self.broker(monkeypatch)
+        position.stop_loss = 0.067214
+        b.modify_position("HBARUSD", stop_loss=0.067214)
+        assert b._stop_pose["HBARUSD"] == pytest.approx(0.067214, rel=1e-4)
+
+    def test_un_deplacement_negligeable_ne_coute_pas_d_appel(self, monkeypatch):
+        """Le garde-fou d'origine reste utile : il ne doit pas disparaitre."""
+        b, position, envoyes = self.broker(monkeypatch)
+        position.initial_risk = 0.000407
+        infime = 0.066748      # 0,005R plus haut, sous le seuil de 0,15R
+        position.stop_loss = infime
+        b.modify_position("HBARUSD", stop_loss=infime)
+        assert [c for c in envoyes if c.get("orderType") == "stopLossLimit"] == []
+
+    def test_stop_jamais_depose_est_toujours_pose(self, monkeypatch):
+        """Apres un redemarrage, le robot ignore ce que tient la plateforme."""
+        b, position, envoyes = self.broker(monkeypatch)
+        b._stop_pose.pop("HBARUSD")
+        position.stop_loss = 0.066750
+        b.modify_position("HBARUSD", stop_loss=0.066750)
+        assert len([c for c in envoyes if c.get("orderType") == "stopLossLimit"]) == 1
+
+    def test_l_annulation_oublie_le_niveau(self, monkeypatch):
+        b, _, _ = self.broker(monkeypatch)
+        b._annuler_stop("HBARUSD")
+        assert "HBARUSD" not in b._stop_pose
+
+    def test_toute_la_montee_du_stop_arrive_chez_bitvavo(self, monkeypatch):
+        """Le scenario HBAR complet : trois remontees, trois ordres reels."""
+        b, position, envoyes = self.broker(monkeypatch)
+        position.initial_risk = 0.000407
+        for niveau in (0.067214, 0.067800, 0.068500):
+            position.stop_loss = niveau
+            assert b.modify_position("HBARUSD", stop_loss=niveau) is True
+        stops = [c for c in envoyes if c.get("orderType") == "stopLossLimit"]
+        assert len(stops) == 3
+        envoyes_tries = [float(c["triggerAmount"]) for c in stops]
+        assert envoyes_tries == sorted(envoyes_tries)
