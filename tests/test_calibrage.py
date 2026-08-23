@@ -178,3 +178,32 @@ class TestPrechauffageDuBacktest:
         source = inspect.getsource(Backtester.run)
         bloc = source[source.index("PRECHAUFFAGE"):source.index("warmup = 150")]
         assert "except" in bloc, "le prechauffage doit survivre a une source indisponible"
+
+
+class TestCompteReel51Euros:
+    """Le cas mesure sur le compte Bitvavo reel de l'utilisateur.
+
+    Frais 0,250 % lus chez Bitvavo, ticket minimum 5,00 EUR, capital 51 EUR.
+    """
+
+    def test_51_euros_ne_passait_pas_a_0_5_pct(self):
+        c = calibrer(51.0, 5.0, 0.0025, 0.22, 0.5)
+        assert not c.viable, "a 0,5 % de risque maximum, 51 EUR est sous le seuil"
+        assert c.capital_minimum == pytest.approx(60.0)
+
+    def test_51_euros_passe_a_0_6_pct(self):
+        c = calibrer(51.0, 5.0, 0.0025, 0.22, 0.6)
+        assert c.viable
+        assert c.unites == ["D1"], "seul le D1 tient a 0,25 % de frais"
+        assert c.risk_pct == pytest.approx(0.588, abs=1e-3)
+
+    def test_le_risque_reste_modeste_en_valeur_absolue(self):
+        """0,588 % de 51 EUR : trente centimes par trade."""
+        c = calibrer(51.0, 5.0, 0.0025, 0.22, 0.6)
+        assert 51.0 * c.risk_pct / 100 < 0.35
+
+    def test_la_configuration_livree_correspond(self):
+        from gold_bot.settings import BotConfig
+        cfg = BotConfig.load("robot.bitvavo.json")
+        assert cfg.risk.max_risk_pct == pytest.approx(0.6)
+        assert cfg.validate() == []
