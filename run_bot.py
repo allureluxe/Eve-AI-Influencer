@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from gold_bot.backtest import Backtester
 from gold_bot.datasources import build_registry
-from gold_bot.engine import TradingEngine
+from gold_bot.engine import TradingEngine, registre_pour
 from gold_bot.macro import MacroEngine
 from gold_bot.news import NewsFilter
 from gold_bot.notifiers import Notifier
@@ -91,7 +91,7 @@ def cmd_check(args) -> int:
     print(f"   ouverts maintenant : {', '.join(i.symbol for i in ouverts) or 'aucun'}")
 
     print("\n[Sources de prix]")
-    registry = build_registry(offline=cfg.engine.offline)
+    registry = registre_pour(cfg)
     for src in registry.status():
         mark = "actif " if src["configuree"] else "inactif"
         key = " (cle requise)" if src["cle_requise"] and not src["configuree"] else ""
@@ -171,7 +171,7 @@ def cmd_check(args) -> int:
 def cmd_scan(args) -> int:
     """Un balayage complet, sans execution."""
     cfg = build_config(args)
-    registry = build_registry(offline=cfg.engine.offline)
+    registry = registre_pour(cfg)
     universe = Universe()
     if cfg.engine.symbols:
         universe.enable_only(cfg.engine.symbols)
@@ -187,7 +187,7 @@ def cmd_scan(args) -> int:
 def cmd_analyse(args) -> int:
     """Analyse detaillee d'un seul instrument : tous les facteurs, un par un."""
     cfg = build_config(args)
-    registry = build_registry(offline=cfg.engine.offline)
+    registry = registre_pour(cfg)
     universe = Universe()
     instrument = universe.get(args.symbol.upper())
     if instrument is None:

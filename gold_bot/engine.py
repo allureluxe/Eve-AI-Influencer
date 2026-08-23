@@ -69,6 +69,20 @@ def _devise_du_lieu_d_execution(broker: str) -> str:
     return ""
 
 
+def registre_pour(config) -> DataRegistry:
+    """Construit le registre de donnees pour une configuration.
+
+    Point d'entree UNIQUE. Le verrou de devise avait deja ete oublie deux
+    fois — dans le backtest, puis dans les commandes du terminal — parce
+    que chaque appelant reconstruisait le registre a sa facon. Un
+    quatrieme oubli couterait des prix en dollars pour des ordres en
+    euros, sans message d'erreur.
+    """
+    return build_registry(
+        offline=config.engine.offline,
+        devise_crypto=_devise_du_lieu_d_execution(config.engine.broker))
+
+
 def positions_tenables(equity: float, notionnel_minimum: float,
                        part_engageable_pct: float, plafond: int) -> tuple[int, str]:
     """Combien de positions simultanees le capital permet reellement.
@@ -123,9 +137,7 @@ class TradingEngine:
         # Les prix doivent etre lus dans la devise ou les ordres partiront :
         # sur Bitvavo c'est l'euro, et une bascule silencieuse vers une
         # source en dollars fausserait tous les niveaux de 8 %.
-        self.registry: DataRegistry = build_registry(
-            offline=cfg.engine.offline,
-            devise_crypto=_devise_du_lieu_d_execution(cfg.engine.broker))
+        self.registry: DataRegistry = registre_pour(self.config)
         self.macro = MacroEngine(self.registry)
         self.news = NewsFilter()
         self.trade_manager = TradeManager(cfg.trade)

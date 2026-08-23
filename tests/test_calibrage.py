@@ -207,3 +207,40 @@ class TestCompteReel51Euros:
         cfg = BotConfig.load("robot.bitvavo.json")
         assert cfg.risk.max_risk_pct == pytest.approx(0.6)
         assert cfg.validate() == []
+
+
+class TestRegistreCentralise:
+    """Le verrou de devise a ete oublie deux fois avant d'etre centralise.
+
+    D'abord dans le backtest, puis dans les trois commandes du terminal.
+    Chaque appelant reconstruisait le registre a sa facon, et un oubli ne
+    produisait aucune erreur — juste des prix en dollars pour des ordres
+    en euros.
+    """
+
+    def test_un_seul_point_de_construction(self):
+        import pathlib
+        racine = pathlib.Path(__file__).resolve().parent.parent
+        fautifs = []
+        for chemin in list(racine.glob("*.py")) + list(racine.glob("gold_bot/**/*.py")):
+            if chemin.name in ("__init__.py", "engine.py"):
+                continue
+            texte = chemin.read_text(encoding="utf-8", errors="replace")
+            if "build_registry(" in texte and "def build_registry" not in texte:
+                fautifs.append(chemin.name)
+        assert not fautifs, (
+            f"ces fichiers construisent le registre directement au lieu de "
+            f"passer par registre_pour() : {fautifs}")
+
+    def test_le_registre_herite_de_la_devise_du_broker(self):
+        from gold_bot.engine import registre_pour
+        from gold_bot.settings import BotConfig
+        cfg = BotConfig.load("robot.bitvavo.json")
+        assert registre_pour(cfg).devise_crypto == "EUR"
+
+    def test_un_broker_en_dollars_garde_ses_sources(self):
+        from gold_bot.engine import registre_pour
+        from gold_bot.settings import BotConfig
+        cfg = BotConfig.load("robot.bitvavo.json")
+        cfg.engine.broker = "binance_spot"
+        assert registre_pour(cfg).devise_crypto == ""
