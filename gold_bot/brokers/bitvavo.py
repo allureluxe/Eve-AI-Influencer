@@ -55,6 +55,7 @@ import json
 import logging
 import math
 import os
+import re
 import ssl
 import time
 import urllib.error
@@ -84,6 +85,21 @@ FRAIS_MAKER = 0.0015
 
 # Fenetre d'acceptation de l'horodatage, en millisecondes.
 FENETRE_DEFAUT = 10000
+
+# « You do not have sufficient balance to complete this operation. »
+# Vendre un actif qu'on ne detient plus : la position a ete liquidee sur la
+# plateforme sans que le robot le sache.
+CODE_SOLDE_INSUFFISANT = 216
+
+
+def code_erreur(exc: BaseException) -> int:
+    """Code d'erreur Bitvavo porte par le message (« ... [216] ... »).
+
+    Le code voyage dans le texte de l'exception plutot que dans un attribut :
+    l'extraire ici evite de comparer des phrases, que Bitvavo peut reformuler.
+    """
+    trouve = re.search(r"\[(\d+)\]", str(exc))
+    return int(trouve.group(1)) if trouve else 0
 
 
 def marche(symbole: str, devise: str = "") -> Optional[str]:
@@ -517,6 +533,138 @@ class BitvavoBroker(Broker):
                                     margin_used=max(0.0, total - disponible),
                                     margin_free=disponible, leverage=1.0)
         self._last_error = ""
+        self._reconcilier(prix_tous)
+
+    # ------------------------------------------------------------------
+    # Rapprochement des positions avec les avoirs reels
+    # ------------------------------------------------------------------
+    def _reconcilier(self, prix_tous: dict[str, float]) -> None:
+        """Detecte les positions liquidees sur la plateforme sans le robot.
+
+        Le stop est un ordre reel depose chez Bitvavo (cf. l'en-tete du
+        module) : quand il se declenche, l'actif part sans que le robot en
+        soit averti. Rien, jusqu'ici, ne le lui apprenait.
+
+        Observe en production le 23 aout : ETH vendu par son stop a 15h20,
+        puis « [216] insufficient balance » toutes les vingt secondes
+        jusqu'au soir. Trois degats, du moins grave au plus grave : un
+        journal illisible, une place de position occupee pour rien, et
+        surtout une perte jamais comptabilisee — donc invisible pour le
+        plafond de pertes journalieres et pour la ponderation adaptative.
+        Un coupe-circuit aveugle sur ses propres pertes ne protege personne.
+
+        Le solde fait donc foi, a chaque cycle : ce que le compte ne detient
+        plus n'est plus une position ouverte.
+        """
+        if self.config.dry_run:
+            return
+        for position in list(self._positions.values()):
+            actif = ACTIFS.get(position.symbol.upper(), "")
+            if not actif:
+                continue
+            detenu = self._soldes.get(actif, 0.0)
+            # Marge de tolerance : les frais preleves en actif et les
+            # arrondis de la plateforme grignotent quelques fractions de
+            # pourcent. En dessous, on n'invente pas une liquidation.
+            if detenu >= position.volume * 0.98:
+                continue
+            code = self.symbol_for(position.symbol)
+            prix = prix_tous.get(code) or position.stop_loss
+            self._liquidation_externe(position, detenu, prix)
+
+    def _liquidation_externe(self, position: Position, detenu: float,
+                             prix_marche: float) -> Optional[ClosedTrade]:
+        """Comptabilise ce que la plateforme a vendu sans passer par le robot.
+
+        Renvoie le trade ferme, ou None si la position n'a pas assez bouge
+        pour conclure. Le reliquat invendable — trop petit pour repasser le
+        minimum du marche — compte comme ferme : le garder ouvert
+        reproduirait exactement la boucle qu'on corrige.
+        """
+        regle = self.regle(position.symbol)
+        code = regle.market
+        reste = max(0.0, regle.arrondir_quantite(detenu))
+        invendable = (reste < regle.min_amount
+                      or reste * max(prix_marche, 0.0) < regle.min_notional)
+        quantite = position.volume if invendable else round(position.volume - reste, 12)
+        if quantite <= 0:
+            return None
+
+        sortie, servi, frais = self._ventes_depuis(code, position.opened_at)
+        if not sortie:
+            # Sans historique lisible, le stop est l'explication la plus
+            # probable : on retient son niveau plutot que d'inventer un prix
+            # flatteur. L'estimation est signalee dans le journal.
+            sortie = position.stop_loss or prix_marche
+            frais = (position.entry_price + sortie) * quantite * self.config.fee_rate
+            estime = " (prix estime au stop)"
+        else:
+            estime = ""
+        if servi and 0 < servi < quantite:
+            quantite = servi
+
+        brut = (sortie - position.entry_price) * quantite
+        trade = ClosedTrade(
+            position_id=position.id, symbol=position.symbol, side=Side.BUY,
+            volume=quantite, entry_price=position.entry_price,
+            exit_price=regle.arrondir_prix(sortie),
+            opened_at=position.opened_at, closed_at=time.time(),
+            profit=round(brut - frais, 6),
+            r_multiple=round(position.r_multiple(sortie), 3),
+            reason="stop declenche sur la plateforme",
+            tp_extensions=position.tp_extensions,
+            max_favorable_r=round(position.r_multiple(position.max_favorable), 3),
+            partial=not invendable)
+        self._closed.append(trade)
+
+        if invendable:
+            self._positions.pop(position.id, None)
+            # Un reliquat d'ordre peut survivre a un stop partiellement
+            # servi : il vendrait plus tard des actifs d'une autre position.
+            self._annuler_stop(position.symbol)
+        else:
+            position.volume = reste
+
+        logger.warning(
+            "RAPPROCHEMENT %s : vendu %s hors du robot -> %+.4f %s%s | "
+            "position %s",
+            code, formater(quantite), trade.profit, self.config.quote_asset,
+            estime, "fermee" if invendable else f"reduite a {formater(reste)}")
+        return trade
+
+    def _ventes_depuis(self, code: str, depuis: float) -> tuple[float, float, float]:
+        """Prix moyen, quantite et frais des ventes reelles sur ce marche.
+
+        Le vrai prix d'execution du stop plutot qu'une approximation : c'est
+        lui qui decide si le trade est comptabilise en perte juste ou en
+        perte inventee. `depuis` est en secondes, Bitvavo compte en
+        millisecondes.
+        """
+        try:
+            lignes = self._appel("GET", "/trades",
+                                 params={"market": code, "limit": 100})
+        except BrokerError as exc:
+            logger.warning("executions %s illisibles : %s", code, str(exc)[:120])
+            return 0.0, 0.0, 0.0
+        quantite = valeur = frais = 0.0
+        for ligne in lignes if isinstance(lignes, list) else []:
+            if str(ligne.get("side", "")).lower() != "sell":
+                continue
+            try:
+                instant = float(ligne.get("timestamp", 0) or 0) / 1000.0
+                q = float(ligne.get("amount", 0) or 0)
+                prix = float(ligne.get("price", 0) or 0)
+            except (TypeError, ValueError):
+                continue
+            if q <= 0 or prix <= 0 or instant < depuis:
+                continue
+            quantite += q
+            valeur += q * prix
+            try:
+                frais += abs(float(ligne.get("fee", 0) or 0))
+            except (TypeError, ValueError):
+                pass
+        return (valeur / quantite if quantite else 0.0), quantite, frais
 
     def _prix_du_marche(self) -> dict[str, float]:
         """Tous les derniers prix en un appel plutot qu'un par actif detenu."""
@@ -730,11 +878,32 @@ class BitvavoBroker(Broker):
                        "filledAmountQuote": formater(
                            quantite * (self._prix(code) or position.entry_price))}
         else:
-            reponse = self._appel("POST", "/order", corps={
-                "market": code, "side": "sell", "orderType": "market",
-                "amount": formater(quantite, regle.amount_decimals),
-                "operatorId": self.config.operator_id,
-            })
+            try:
+                reponse = self._appel("POST", "/order", corps={
+                    "market": code, "side": "sell", "orderType": "market",
+                    "amount": formater(quantite, regle.amount_decimals),
+                    "operatorId": self.config.operator_id,
+                })
+            except BrokerError as exc:
+                if code_erreur(exc) != CODE_SOLDE_INSUFFISANT:
+                    raise
+                # On vend un actif qu'on ne detient plus : le stop est parti
+                # de son cote. Relancer l'ordre au cycle suivant echouerait
+                # a l'identique, indefiniment. On solde la position sur ce
+                # que le compte detient reellement, et l'affaire est close.
+                logger.warning("%s : solde insuffisant, la position a ete "
+                               "liquidee sur la plateforme", code)
+                deja = len(self._closed)
+                self.sync()   # le rapprochement s'y fait, sur les soldes reels
+                if position.id in self._positions:
+                    detenu = self._soldes.get(
+                        ACTIFS.get(position.symbol.upper(), ""), 0.0)
+                    return self._liquidation_externe(
+                        position, detenu, self._prix(code) or position.stop_loss)
+                for ferme in self._closed[deja:]:
+                    if ferme.position_id == position.id:
+                        return ferme
+                return None
 
         sortie = self._prix_moyen(reponse) or position.entry_price
         brut = (sortie - position.entry_price) * quantite

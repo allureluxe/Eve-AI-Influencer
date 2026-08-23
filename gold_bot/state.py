@@ -39,6 +39,23 @@ class BotState:
     halt_reason: str = ""
 
 
+# Racine du projet : le dossier qui contient le paquet gold_bot.
+RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def ancrer(chemin: str) -> str:
+    """Rend un chemin relatif absolu par rapport au projet, pas au terminal.
+
+    Le service tourne avec le projet pour dossier courant, mais une commande
+    lancee a la main depuis ailleurs (« python3 ~/projet/run_bot.py stats »)
+    cherchait « data/trades.jsonl » sous le dossier de l'utilisateur, ne le
+    trouvait pas, et annoncait un historique vide alors que les trades
+    etaient bien enregistres. L'historique appartient au projet : il se
+    trouve au meme endroit d'ou qu'on appelle.
+    """
+    return chemin if os.path.isabs(chemin) else os.path.join(RACINE, chemin)
+
+
 def chemin_par_instance(defaut: str, variable: str, instance: str = "") -> str:
     """Chemin de fichier propre a une instance du robot.
 
@@ -57,7 +74,8 @@ def chemin_par_instance(defaut: str, variable: str, instance: str = "") -> str:
     """
     force = os.getenv(variable, "").strip()
     if force:
-        return force
+        return ancrer(force)
+    defaut = ancrer(defaut)
     if not instance:
         return defaut
     base, _, extension = defaut.rpartition(".")
@@ -135,6 +153,35 @@ class StateStore:
 
     def forget_position(self, position_id: str) -> None:
         self.state.position_meta.pop(position_id, None)
+
+
+def _mediane(valeurs: list[float]) -> float:
+    ordonnees = sorted(valeurs)
+    milieu = len(ordonnees) // 2
+    if not ordonnees:
+        return 0.0
+    if len(ordonnees) % 2:
+        return ordonnees[milieu]
+    return (ordonnees[milieu - 1] + ordonnees[milieu]) / 2.0
+
+
+def _portee_favorable(trades: list[ClosedTrade], losses: list[ClosedTrade]) -> dict:
+    """Jusqu'ou les trades sont alles avant de tourner, en R.
+
+    `objectif_median_atteint_R` est le chiffre a comparer au `tp_r_multiple`
+    de la configuration : un objectif place au-dessus de cette mediane n'est
+    servi que par moins de la moitie des trades, les autres rendant le
+    chemin parcouru. C'est la mesure qui tranche entre « objectif trop
+    ambitieux » et « entrees trop faibles ».
+    """
+    portees = [t.max_favorable_r for t in trades]
+    perdants = [t.max_favorable_r for t in losses]
+    return {
+        "R_favorable_moyen": round(sum(portees) / len(portees), 3) if portees else 0.0,
+        "objectif_median_atteint_R": round(_mediane(portees), 3),
+        "R_favorable_moyen_perdants": round(sum(perdants) / len(perdants), 3) if perdants else 0.0,
+        "perdants_passes_par_1R": sum(1 for r in perdants if r >= 1.0),
+    }
 
 
 class TradeJournal:
@@ -220,6 +267,18 @@ class TradeJournal:
             "drawdown_max": round(max_dd, 2),
             "extensions_tp_totales": sum(t.tp_extensions for t in trades),
             "trades_avec_extension": sum(1 for t in trades if t.tp_extensions > 0),
+            # DE COMBIEN L'OBJECTIF ETAIT-IL HORS DE PORTEE ?
+            #
+            # « Le robot va dans la bonne direction mais l'objectif est trop
+            # haut, du coup il redescend toucher le stop. » C'est une
+            # hypothese verifiable, pas une impression : chaque trade retient
+            # le meilleur point atteint en sa faveur. Si les perdants
+            # montaient regulierement a 1R avant de retomber, l'objectif a 2R
+            # n'etait pas ambitieux, il etait hors d'atteinte — et le
+            # descendre change tout. S'ils ne depassaient jamais 0,2R, le
+            # probleme est a l'entree et baisser l'objectif ne ferait que
+            # transformer des pertes pleines en petites pertes.
+            **_portee_favorable(trades, losses),
         }
 
     def by_symbol(self, since: float = 0.0) -> dict[str, dict]:

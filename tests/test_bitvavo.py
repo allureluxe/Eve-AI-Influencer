@@ -601,3 +601,181 @@ class TestDeuxInterrupteurs:
         i = source.index("SIMULATION IMPOSEE")
         assert "bv.dry_run = True" in source[i:], \
             "apres l'avertissement, la simulation doit rester imposee"
+
+
+# ==========================================================================
+class TestRapprochementDesPositions:
+    """Une position vendue par son stop n'existe plus, meme si le robot l'ignore.
+
+    Le stop est un ordre reel depose chez Bitvavo : quand il part, l'actif
+    est vendu sans que le robot en soit averti. Observe en production le
+    23 aout 2026 : ETH vendu par son stop a 15h20, puis « [216] insufficient
+    balance » toutes les vingt secondes jusqu'au soir. Le plus grave n'est
+    pas la boucle mais ce qu'elle cache : une perte jamais comptabilisee,
+    donc invisible pour le plafond de pertes journalieres.
+    """
+
+    @staticmethod
+    def broker_avec_position(volume=0.0045, entree=2077.5, stop=2050.3):
+        from gold_bot.core import Position
+        b = broker_de_test(dry_run=False)
+        b._regles["ETH-EUR"] = RegleMarche("ETH-EUR", min_amount=0.001,
+                                           min_notional=5.0)
+        b._positions["ETHUSD"] = Position(
+            id="ETHUSD", symbol="ETHUSD", side=Side.BUY, volume=volume,
+            entry_price=entree, stop_loss=stop, take_profit=2132.9,
+            opened_at=1000.0)
+        b._annuler_stop = lambda s: None
+        return b
+
+    def test_position_disparue_du_solde_est_fermee(self):
+        b = self.broker_avec_position()
+        b._ventes_depuis = lambda code, depuis: (2050.0, 0.0045, 0.02)
+        b._soldes = {"EUR": 40.0}          # plus une seule unite d'ETH
+        b._reconcilier({"ETH-EUR": 2050.0})
+        assert "ETHUSD" not in b._positions
+
+    def test_la_perte_est_comptabilisee(self):
+        b = self.broker_avec_position()
+        b._ventes_depuis = lambda code, depuis: (2050.0, 0.0045, 0.02)
+        b._soldes = {"EUR": 40.0}
+        b._reconcilier({"ETH-EUR": 2050.0})
+        assert len(b.closed_trades()) == 1
+        trade = b.closed_trades()[0]
+        assert trade.symbol == "ETHUSD"
+        assert trade.profit < 0            # vendu sous le prix d'entree
+        assert "plateforme" in trade.reason
+
+    def test_prix_de_sortie_lu_sur_les_executions_reelles(self):
+        b = self.broker_avec_position()
+        b._ventes_depuis = lambda code, depuis: (2049.0, 0.0045, 0.0)
+        b._soldes = {"EUR": 40.0}
+        b._reconcilier({"ETH-EUR": 2100.0})   # le marche est remonte depuis
+        # C'est le prix reellement obtenu qui compte, pas le dernier cours.
+        assert b.closed_trades()[0].exit_price == pytest.approx(2049.0, rel=1e-6)
+
+    def test_sans_historique_le_stop_sert_d_estimation(self):
+        b = self.broker_avec_position()
+        b._ventes_depuis = lambda code, depuis: (0.0, 0.0, 0.0)
+        b._soldes = {"EUR": 40.0}
+        b._reconcilier({"ETH-EUR": 2100.0})
+        assert b.closed_trades()[0].exit_price == pytest.approx(2050.3, rel=1e-3)
+
+    def test_position_intacte_n_est_pas_touchee(self):
+        b = self.broker_avec_position()
+        b._soldes = {"ETH": 0.0045, "EUR": 10.0}
+        b._reconcilier({"ETH-EUR": 2100.0})
+        assert "ETHUSD" in b._positions
+        assert b.closed_trades() == []
+
+    def test_les_frais_en_actif_ne_declenchent_pas_de_liquidation(self):
+        """0,25 % preleves en ETH ne sont pas une vente."""
+        b = self.broker_avec_position()
+        b._soldes = {"ETH": 0.0045 * 0.9975, "EUR": 10.0}
+        b._reconcilier({"ETH-EUR": 2100.0})
+        assert "ETHUSD" in b._positions
+
+    def test_reliquat_invendable_ferme_quand_meme(self):
+        """Garder ouverte une poussiere invendable rejouerait la meme boucle."""
+        b = self.broker_avec_position()
+        b._ventes_depuis = lambda code, depuis: (2050.0, 0.0044, 0.02)
+        b._soldes = {"ETH": 0.0001, "EUR": 40.0}   # 0.20 EUR, sous le minimum
+        b._reconcilier({"ETH-EUR": 2050.0})
+        assert "ETHUSD" not in b._positions
+
+    def test_vente_partielle_reduit_la_position(self):
+        b = self.broker_avec_position(volume=0.02)
+        b._ventes_depuis = lambda code, depuis: (2050.0, 0.01, 0.05)
+        b._soldes = {"ETH": 0.01, "EUR": 40.0}     # 20 EUR : encore vendable
+        b._reconcilier({"ETH-EUR": 2050.0})
+        assert b._positions["ETHUSD"].volume == pytest.approx(0.01, rel=1e-6)
+        assert b.closed_trades()[0].partial is True
+
+    def test_le_mode_simulation_ne_rapproche_rien(self):
+        """En simulation les positions n'ont aucun solde en face."""
+        b = self.broker_avec_position()
+        b.config = BitvavoConfig(api_key="c", api_secret="s", quote_asset="EUR",
+                                 dry_run=True)
+        b._soldes = {"EUR": 40.0}
+        b._reconcilier({"ETH-EUR": 2050.0})
+        assert "ETHUSD" in b._positions
+
+
+class TestVenteRefuseeFauteDeSolde:
+    """L'erreur 216 doit solder la position, jamais relancer le meme ordre."""
+
+    @staticmethod
+    def broker(monkeypatch, reponse_solde):
+        from gold_bot.core import Position
+        b = broker_de_test(dry_run=False)
+        b._regles["ETH-EUR"] = RegleMarche("ETH-EUR", min_amount=0.001,
+                                           min_notional=5.0)
+        b._positions["ETHUSD"] = Position(
+            id="ETHUSD", symbol="ETHUSD", side=Side.BUY, volume=0.0045,
+            entry_price=2077.5, stop_loss=2050.3, take_profit=2132.9,
+            opened_at=1000.0)
+        b._annuler_stop = lambda s: None
+        b._prix = lambda code: 2050.0
+        b._prix_du_marche = lambda: {"ETH-EUR": 2050.0}
+        b._ventes_depuis = lambda code, depuis: (2050.0, 0.0045, 0.02)
+        tentatives = []
+
+        def appel(methode, chemin, params=None, corps=None, signe=True):
+            if chemin == "/order" and methode == "POST":
+                tentatives.append(corps)
+                raise BrokerError("Bitvavo 400 sur POST /order [216] You do "
+                                  "not have sufficient balance to complete "
+                                  "this operation.")
+            if chemin == "/balance":
+                return reponse_solde
+            return {}
+
+        monkeypatch.setattr(b, "_appel", appel)
+        return b, tentatives
+
+    def test_la_position_est_soldee(self, monkeypatch):
+        b, _ = self.broker(monkeypatch, [{"symbol": "EUR", "available": "40",
+                                          "inOrder": "0"}])
+        b.close_position("ETHUSD", reason="objectif atteint")
+        assert "ETHUSD" not in b._positions
+
+    def test_le_trade_est_rendu_a_l_appelant(self, monkeypatch):
+        """Sans trade rendu, le moteur ne journaliserait rien de la sortie."""
+        b, _ = self.broker(monkeypatch, [{"symbol": "EUR", "available": "40",
+                                          "inOrder": "0"}])
+        trade = b.close_position("ETHUSD", reason="objectif atteint")
+        assert trade is not None and trade.position_id == "ETHUSD"
+
+    def test_l_ordre_n_est_pas_rejoue(self, monkeypatch):
+        b, tentatives = self.broker(monkeypatch, [{"symbol": "EUR",
+                                                   "available": "40",
+                                                   "inOrder": "0"}])
+        b.close_position("ETHUSD", reason="objectif atteint")
+        b.close_position("ETHUSD", reason="objectif atteint")
+        assert len(tentatives) == 1     # la seconde n'a plus de position
+
+    def test_une_autre_erreur_remonte_toujours(self, monkeypatch):
+        b = broker_de_test(dry_run=False)
+        b._regles["ETH-EUR"] = RegleMarche("ETH-EUR")
+        from gold_bot.core import Position
+        b._positions["ETHUSD"] = Position(
+            id="ETHUSD", symbol="ETHUSD", side=Side.BUY, volume=0.0045,
+            entry_price=2077.5, stop_loss=2050.3, take_profit=2132.9,
+            opened_at=1000.0)
+        b._annuler_stop = lambda s: None
+        monkeypatch.setattr(b, "_appel", lambda *a, **k: (_ for _ in ()).throw(
+            BrokerError("Bitvavo 400 sur POST /order [203] operatorId parameter "
+                        "is required")))
+        with pytest.raises(BrokerError):
+            b.close_position("ETHUSD", reason="test")
+
+
+class TestLectureDuCodeErreur:
+    def test_code_extrait_du_message(self):
+        from gold_bot.brokers.bitvavo import code_erreur
+        assert code_erreur(BrokerError("Bitvavo 400 sur POST /order [216] "
+                                       "You do not have sufficient balance")) == 216
+
+    def test_message_sans_code(self):
+        from gold_bot.brokers.bitvavo import code_erreur
+        assert code_erreur(BrokerError("Bitvavo injoignable")) == 0

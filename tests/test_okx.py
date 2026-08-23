@@ -12,6 +12,8 @@ casser silencieusement :
 """
 from __future__ import annotations
 
+import os
+
 import base64
 import hashlib
 import hmac
@@ -349,18 +351,40 @@ class TestDeuxRobotsEnParallele:
 
     def test_historique_commun_repris(self, tmp_path, monkeypatch):
         """Un robot deja en production ne doit pas perdre son historique."""
-        from gold_bot.state import chemin_par_instance
+        from gold_bot.state import ancrer, chemin_par_instance
         monkeypatch.delenv("GB_STATE_FILE", raising=False)
-        monkeypatch.chdir(tmp_path)
-        (tmp_path / "data").mkdir()
-        (tmp_path / "data" / "state.json").write_text("{}")
-        assert chemin_par_instance("data/state.json", "GB_STATE_FILE",
-                                   "binance_spot") == "data/state.json"
+        commun = ancrer("data/state.json")
+        existait = os.path.exists(commun)
+        if not existait:
+            os.makedirs(os.path.dirname(commun), exist_ok=True)
+            open(commun, "w").close()
+        try:
+            assert chemin_par_instance("data/state.json", "GB_STATE_FILE",
+                                       "binance_spot") == commun
+        finally:
+            if not existait:
+                os.remove(commun)
 
     def test_sans_instance_le_chemin_reste_celui_d_avant(self, monkeypatch):
-        from gold_bot.state import chemin_par_instance
+        from gold_bot.state import ancrer, chemin_par_instance
         monkeypatch.delenv("GB_STATE_FILE", raising=False)
-        assert chemin_par_instance("data/state.json", "GB_STATE_FILE", "") == "data/state.json"
+        assert (chemin_par_instance("data/state.json", "GB_STATE_FILE", "")
+                == ancrer("data/state.json"))
+
+    def test_le_journal_ne_depend_pas_du_dossier_courant(self, tmp_path, monkeypatch):
+        """Observe le 23 aout : « stats » lance depuis le dossier personnel.
+
+        Le robot ecrivait bien ses trades, mais la commande cherchait
+        « data/trades.jsonl » sous ~ et repondait « aucun trade enregistre ».
+        Un historique qui change de place selon le terminal n'est pas un
+        historique.
+        """
+        from gold_bot.state import TradeJournal
+        monkeypatch.delenv("GB_TRADES_FILE", raising=False)
+        depuis_le_projet = TradeJournal(instance="bitvavo").path
+        monkeypatch.chdir(tmp_path)
+        assert TradeJournal(instance="bitvavo").path == depuis_le_projet
+        assert os.path.isabs(depuis_le_projet)
 
 
 class TestBacktestCoherent:

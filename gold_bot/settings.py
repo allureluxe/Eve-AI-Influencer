@@ -23,6 +23,9 @@ from .trade_manager import TradeManagerConfig
 
 logger = logging.getLogger(__name__)
 
+# Racine du projet : le dossier qui contient le paquet gold_bot.
+RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 @dataclass(slots=True)
 class EngineConfig:
@@ -64,6 +67,11 @@ class BotConfig:
     def load(cls, path: str = "") -> "BotConfig":
         cfg = cls()
         path = path or os.getenv("GB_CONFIG_FILE", "")
+        # Un chemin relatif se lit depuis le projet, pas depuis le terminal :
+        # une commande lancee depuis le dossier personnel doit charger la
+        # meme configuration que le service.
+        if path and not os.path.isabs(path):
+            path = os.path.join(RACINE, path)
         if path and os.path.exists(path):
             try:
                 with open(path, "r", encoding="utf-8") as fh:

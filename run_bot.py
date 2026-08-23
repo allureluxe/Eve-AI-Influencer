@@ -302,17 +302,37 @@ def cmd_objectifs(args) -> int:
 
 
 def cmd_stats(args) -> int:
-    journal = TradeJournal()
+    # Chaque lieu d'execution tient son propre journal (data/trades-<lieu>.jsonl).
+    # Sans lire la configuration, la commande ouvrait le journal commun, vide,
+    # et annoncait « aucun trade » alors que le robot en avait enregistre.
+    cfg = build_config(args)
+    journal = TradeJournal(instance=cfg.engine.broker)
     since = time.time() - args.days * 86400 if args.days else 0.0
     stats = journal.stats(since)
     print("=" * 74)
     print(f"  STATISTIQUES" + (f" — {args.days} derniers jours" if args.days else " — historique complet"))
     print("=" * 74)
+    print(f"  journal : {journal.path}")
     if not stats.get("trades"):
         print("\n   Aucun trade enregistre.")
         return 0
     for k, v in stats.items():
-        print(f"   {k:<26} {v}")
+        print(f"   {k:<30} {v}")
+
+    # Lecture directe de la question « mon objectif est-il trop haut ? »
+    portee = stats.get("objectif_median_atteint_R") or 0.0
+    vise = cfg.trade.tp_r_multiple
+    if stats.get("trades", 0) >= 5 and portee:
+        print(f"\n   Objectif vise : {vise:.2f}R | median reellement atteint : {portee:.2f}R")
+        if portee < vise * 0.75:
+            print(f"   -> l'objectif est au-dela de ce que la moitie des trades "
+                  f"atteint : {vise:.2f}R n'est servi que rarement.")
+        elif stats.get("R_favorable_moyen_perdants", 0.0) < 0.3:
+            print("   -> les perdants ne progressent presque jamais : le probleme "
+                  "est a l'entree, pas a l'objectif.")
+        else:
+            print("   -> objectif coherent avec ce que le marche donne.")
+
     per_symbol = journal.by_symbol(since)
     if per_symbol:
         print("\n   Par instrument :")
@@ -375,7 +395,10 @@ def options_communes() -> argparse.ArgumentParser:
     """Options acceptees a n'importe quelle position de la ligne de commande."""
     commun = argparse.ArgumentParser(add_help=False, argument_default=argparse.SUPPRESS)
     commun.add_argument("--config", help="fichier de configuration JSON")
-    commun.add_argument("--broker", choices=["paper", "moonx", "binance", "binance_spot"], help="lieu d'execution")
+    commun.add_argument("--broker",
+                        choices=["paper", "moonx", "binance", "binance_spot",
+                                 "bitvavo", "okx"],
+                        help="lieu d'execution")
     commun.add_argument("--dry-run", action="store_true", help="analyser sans envoyer d'ordre")
     commun.add_argument("--offline", action="store_true", help="donnees synthetiques (tests)")
     commun.add_argument("--symbols", help="liste d'instruments, separes par des virgules")
