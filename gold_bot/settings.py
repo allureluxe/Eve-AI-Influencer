@@ -14,7 +14,7 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass, field, fields, is_dataclass
-from typing import Any, Optional
+from typing import Any
 
 from .objectives import ObjectiveConfig
 from .risk import RiskConfig
@@ -23,7 +23,6 @@ from .trade_manager import TradeManagerConfig
 
 logger = logging.getLogger(__name__)
 
-# Racine du projet : le dossier qui contient le paquet gold_bot.
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -31,23 +30,20 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 class EngineConfig:
     """Parametres de la boucle principale."""
 
-    broker: str = "paper"       # "paper" | "moonx" | "binance" | "binance_spot" | "bitvavo" | "okx"
-    poll_seconds: float = 5.0             # cadence quand une position est ouverte
-    idle_poll_seconds: float = 20.0       # cadence en recherche d'opportunite
-    closed_market_seconds: float = 300.0  # cadence quand tout est ferme
+    broker: str = "paper"
+    poll_seconds: float = 5.0
+    idle_poll_seconds: float = 20.0
+    closed_market_seconds: float = 300.0
     max_consecutive_errors: int = 12
     error_backoff_seconds: float = 15.0
     heartbeat_minutes: float = 60.0
-    daily_report_hour: int = 21           # heure UTC du rapport quotidien
-    symbols: list[str] = field(default_factory=list)   # vide = tout l'univers
-    start_balance: float = 1000.0         # capital initial en simulation
+    daily_report_hour: int = 21
+    symbols: list[str] = field(default_factory=list)
+    start_balance: float = 1000.0
     currency: str = "EUR"
-    dry_run: bool = False                 # analyse sans envoyer d'ordre
-    offline: bool = False                 # source synthetique (tests uniquement)
+    dry_run: bool = False
+    offline: bool = False
     verbose_scan: bool = False
-    # Nombre d'instruments evalues en parallele. Un cycle attend surtout le
-    # reseau : sur un univers large, c'est ce reglage qui decide si un tour
-    # dure quelques secondes ou plusieurs minutes.
     scan_workers: int = 8
 
 
@@ -62,14 +58,13 @@ class BotConfig:
     promotion: dict = field(default_factory=dict)
     objectives: ObjectiveConfig = field(default_factory=ObjectiveConfig)
 
-    # ---------------------------------------------------------------
     @classmethod
     def load(cls, path: str = "") -> "BotConfig":
         cfg = cls()
-        path = path or os.getenv("GB_CONFIG_FILE", "")
-        # Un chemin relatif se lit depuis le projet, pas depuis le terminal :
-        # une commande lancee depuis le dossier personnel doit charger la
-        # meme configuration que le service.
+        # L'installateur ecrit GB_CONFIG, tandis que l'ancienne implementation
+        # ne lisait que GB_CONFIG_FILE. Accepter les deux evite de demarrer
+        # silencieusement avec la mauvaise configuration.
+        path = path or os.getenv("GB_CONFIG_FILE") or os.getenv("GB_CONFIG", "")
         if path and not os.path.isabs(path):
             path = os.path.join(RACINE, path)
         if path and os.path.exists(path):
@@ -80,19 +75,16 @@ class BotConfig:
                 logger.info("configuration chargee depuis %s", path)
             except (OSError, ValueError) as exc:
                 logger.error("configuration illisible (%s), valeurs par defaut : %s", path, exc)
+        elif path:
+            logger.error("configuration introuvable : %s", path)
         cfg.apply_env()
         return cfg
 
     def apply(self, data: dict[str, Any]) -> None:
         """Applique un dictionnaire de configuration (imbrique par section)."""
         for section_name, values in (data or {}).items():
-            # Les cles prefixees par "_" sont des commentaires du fichier de
-            # configuration (JSON n'en accepte pas nativement).
             if section_name.startswith("_"):
                 continue
-            # `promotion` est un dictionnaire libre, pas un dataclass : il
-            # decrit une fenetre tarifaire temporaire, pas des reglages de
-            # strategie. On le conserve tel quel.
             if section_name == "promotion" and isinstance(values, dict):
                 self.promotion = dict(values)
                 continue
@@ -144,15 +136,16 @@ class BotConfig:
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(self.to_dict(), fh, indent=2, ensure_ascii=False)
 
-    # ---------------------------------------------------------------
     def validate(self) -> list[str]:
         """Verifie la coherence de la configuration. Retourne les problemes."""
         problems: list[str] = []
         r, t, s, e = self.risk, self.trade, self.strategy, self.engine
 
-        if r.max_risk_pct > 3.0:
-            problems.append(f"risque maximal par trade tres eleve ({r.max_risk_pct}%) : "
-                            f"au-dela de 2 %, une serie normale de pertes devient dangereuse")
+        # Le plafond de 1,5 % est une propriete de securite du code, pas un
+        # simple conseil. Une configuration qui le depasse doit etre refusee.
+        if r.max_risk_pct > 1.5:
+            problems.append(f"risque maximal au-dessus du plafond de securite (" 
+                            f"{r.max_risk_pct}% > 1.5%)")
         if r.base_risk_pct > r.max_risk_pct:
             problems.append("risque de base superieur au plafond")
         if r.min_risk_pct > r.base_risk_pct:
