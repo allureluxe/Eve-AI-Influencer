@@ -111,6 +111,13 @@ def harden_bitvavo(BitvavoBroker: Any, RegleMarche: Any) -> None:
                         _TICKS[str(market)] = Decimal(str(tick))
                     except Exception:  # noqa: BLE001
                         continue
+                if market in self._regles:
+                    quantity_decimals = row.get("quantityDecimals")
+                    if quantity_decimals is not None:
+                        try:
+                            self._regles[str(market)].amount_decimals = int(quantity_decimals)
+                        except (TypeError, ValueError):
+                            pass
         return response
 
     def reprendre(self, position):
