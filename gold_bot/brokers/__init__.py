@@ -1,10 +1,7 @@
 """Lieux d'execution du robot.
 
 Bitvavo est le seul broker de production supporte par le projet.
-Les anciens connecteurs Binance, MoonX et OKX ont ete retires. Les noms de
-compatibilite ci-dessous evitent qu'une ancienne configuration chargee par
-un processus ne provoque un ImportError ; ils refusent toute tentative
-d'utilisation.
+Les anciens connecteurs Binance, MoonX et OKX ont ete retires.
 """
 from .base import AccountInfo, Broker, BrokerError
 from .bitvavo import BitvavoBroker, BitvavoConfig, RegleMarche
@@ -15,6 +12,7 @@ harden_bitvavo(BitvavoBroker, RegleMarche)
 
 
 class _ObsoleteBroker(Broker):
+    """Bouchon de compatibilite pour d'anciennes configs; jamais executable."""
     name = "obsolete"
     is_live = False
 
@@ -29,6 +27,15 @@ class _ObsoleteBroker(Broker):
 
     def positions(self):
         return []
+
+    def open_position(self, *args, **kwargs):
+        raise BrokerError("Broker obsolete.")
+
+    def modify_position(self, *args, **kwargs):
+        raise BrokerError("Broker obsolete.")
+
+    def close_position(self, *args, **kwargs):
+        raise BrokerError("Broker obsolete.")
 
 
 class _ObsoleteConfig:
