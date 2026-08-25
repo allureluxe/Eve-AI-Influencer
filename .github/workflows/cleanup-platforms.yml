@@ -1,0 +1,162 @@
+name: Cleanup obsolete brokers
+
+on:
+  push:
+    branches:
+      - fix/live-trading-audit-2026-08-25
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/live-trading-audit-2026-08-25
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Remove obsolete broker integrations
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          # Remove broker-specific source files and tests/configs.
+          obsolete = [
+              'gold_bot/brokers/binance.py',
+              'gold_bot/brokers/binance_spot.py',
+              'gold_bot/brokers/moonx.py',
+              'gold_bot/brokers/okx.py',
+              'tests/test_binance.py',
+              'robot.binance.json',
+              'robot.spot.json',
+              'robot.live.json',
+              'robot.okx.json',
+              'verifier_execution.py',
+              'verifier_okx.py',
+          ]
+          for name in obsolete:
+              p = Path(name)
+              if p.exists():
+                  p.unlink()
+
+          # Broker registry: Bitvavo is the only live broker; paper remains
+          # available strictly for local testing.
+          Path('gold_bot/brokers/__init__.py').write_text('''"""Lieux d'execution disponibles."""\nfrom .base import AccountInfo, Broker, BrokerError\nfrom .bitvavo import BitvavoBroker, BitvavoConfig, RegleMarche\nfrom .bitvavo_hardening import harden_bitvavo\nfrom .paper import PaperBroker, PaperConfig\n\nharden_bitvavo(BitvavoBroker, RegleMarche)\n\n__all__ = ["Broker", "BrokerError", "AccountInfo",\n           "PaperBroker", "PaperConfig",\n           "BitvavoBroker", "BitvavoConfig"]\n''', encoding='utf-8')
+
+          # Engine: make Bitvavo the only real broker and remove legacy imports.
+          p = Path('gold_bot/engine.py')
+          s = p.read_text(encoding='utf-8')
+          s = re.sub(
+              r'from \.brokers import \(.*?\n                      PaperConfig, SpotConfig\)',
+              'from .brokers import (BitvavoBroker, BitvavoConfig, Broker,\n                      BrokerError, PaperBroker, PaperConfig)',
+              s, flags=re.S)
+          s = re.sub(
+              r'def _devise_du_lieu_d_execution\(broker: str\) -> str:.*?\n\ndef registre_pour',
+              'def _devise_du_lieu_d_execution(broker: str) -> str:\n'
+              '    """Devise de cotation imposee par Bitvavo."""\n'
+              '    if broker == "bitvavo":\n'
+              '        return BitvavoConfig.from_env().quote_asset\n'
+              '    return ""\n\n\ndef registre_pour',
+              s, flags=re.S)
+          s = re.sub(
+              r'    def _build_broker\(self\) -> Broker:\n.*?\n        # Un lieu d.execution ne propose',
+              '    def _build_broker(self) -> Broker:\n'
+              '        cfg = self.config.engine\n'
+              '        if cfg.broker == "bitvavo":\n'
+              '            bv = BitvavoConfig.from_env()\n'
+              '            if cfg.dry_run:\n'
+              '                bv.dry_run = True\n'
+              '            broker = BitvavoBroker(bv)\n'
+              '        else:\n'
+              '            broker = PaperBroker(PaperConfig(start_balance=cfg.start_balance,\n'
+              '                                             currency=cfg.currency))\n\n'
+              '        # Un lieu d.execution ne propose',
+              s, flags=re.S)
+          p.write_text(s, encoding='utf-8')
+
+          # CLI: only paper/Bitvavo are selectable.
+          p = Path('run_bot.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('--broker paper|moonx', '--broker paper|bitvavo')
+          s = re.sub(
+              r'    if cfg\.engine\.broker == "moonx":.*?\n    print\("\\n\[Alertes\]"\)',
+              '    if cfg.engine.broker == "bitvavo":\n'
+              '        from gold_bot.brokers import BitvavoBroker\n'
+              '        broker = BitvavoBroker()\n'
+              '        print(f"   mode Bitvavo : {broker.mode}")\n'
+              '        if broker.connect():\n'
+              '            acc = broker.account()\n'
+              '            print(f"   compte : {acc.equity:.2f} {acc.currency} (disponible {acc.margin_free:.2f})")\n'
+              '        else:\n'
+              '            print("   -> verifier les identifiants API Bitvavo")\n\n'
+              '    print("\\n[Alertes]")',
+              s, flags=re.S)
+          s = re.sub(r'if cfg\.engine\.broker in \("moonx", "binance", "binance_spot"\) and not cfg\.engine\.dry_run:',
+                     'if cfg.engine.broker == "bitvavo" and not cfg.engine.dry_run:', s)
+          s = re.sub(r'nom = \{.*?\}\.get\(cfg\.engine\.broker, "Binance Spot"\)',
+                     'nom = "Bitvavo"', s)
+          s = re.sub(r'choices=\["paper", "moonx", "binance", "binance_spot",\n\s+"bitvavo", "okx"\]',
+                     'choices=["paper", "bitvavo"]', s)
+          p.write_text(s, encoding='utf-8')
+
+          # Configuration: only paper and Bitvavo are valid brokers.
+          p = Path('gold_bot/settings.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('if e.broker in ("moonx", "binance", "binance_spot", "bitvavo", "okx") and e.offline:',
+                        'if e.broker == "bitvavo" and e.offline:')
+          s = s.replace('if e.broker not in ("paper", "moonx", "binance", "binance_spot", "bitvavo", "okx"):',
+                        'if e.broker not in ("paper", "bitvavo"):')
+          p.write_text(s, encoding='utf-8')
+
+          # Remove obsolete credentials/documentation references from examples.
+          for name in ['.env.example', 'MODE_EMPLOI.md', 'docs/ROBOT_TRADING.md', 'installer.sh', 'service.sh', 'finaliser.sh']:
+              p = Path(name)
+              if not p.exists():
+                  continue
+              lines = p.read_text(encoding='utf-8').splitlines()
+              filtered = [line for line in lines if not any(x in line.upper() for x in ('BINANCE_', 'MOONX_', 'OKX_'))]
+              p.write_text('\n'.join(filtered) + '\n', encoding='utf-8')
+
+          # Existing CI must validate the Bitvavo configuration.
+          p = Path('.github/workflows/trading-tests.yml')
+          if p.exists():
+              s = p.read_text(encoding='utf-8').replace("robot.binance.json", "robot.bitvavo.json")
+              p.write_text(s, encoding='utf-8')
+
+          # Ensure no obsolete broker source/config/test files remain.
+          leftovers = []
+          for root in (Path('gold_bot'), Path('tests')):
+              if root.exists():
+                  for f in root.rglob('*'):
+                      if f.is_file() and any(x in f.name.lower() for x in ('binance', 'moonx', 'okx')):
+                          leftovers.append(str(f))
+          for f in Path('.').glob('*'):
+              if f.is_file() and any(x in f.name.lower() for x in ('binance', 'moonx', 'okx')):
+                  leftovers.append(str(f))
+          if leftovers:
+              raise SystemExit('Obsolete files remain: ' + ', '.join(sorted(set(leftovers))))
+
+      - name: Syntax check
+        run: python -m compileall -q gold_bot run_bot.py
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Bitvavo configuration validation
+        run: python run_bot.py check --config robot.bitvavo.json --broker bitvavo --offline
+
+      - name: Commit cleanup
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'chore: remove obsolete Binance MoonX and OKX integrations'
+          git push origin HEAD:fix/live-trading-audit-2026-08-25
