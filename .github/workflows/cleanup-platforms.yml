@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - fix/live-trading-audit-2026-08-25
+  pull_request:
+    types: [synchronize]
+    branches:
+      - claude/gold-trading-system-auto-6boe8m
   workflow_dispatch:
 
 permissions:
