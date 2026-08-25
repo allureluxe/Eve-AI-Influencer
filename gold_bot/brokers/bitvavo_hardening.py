@@ -9,14 +9,13 @@ logger = logging.getLogger(__name__)
 _TICKS: dict[str, Decimal] = {}
 
 
-def _tick_floor(self, prix: float) -> float:
-    """Arrondit un prix vers le bas sur le tickSize reel du marche."""
+def _tick_floor(self, prix: float, original):
+    """Arrondit au tickSize reel, sinon conserve l'ancien arrondi."""
     if prix <= 0:
         return prix
     tick = _TICKS.get(self.market)
     if tick is None or tick <= 0:
-        precision = max(0, int(self.price_precision or 5))
-        return round(prix, min(precision, 12))
+        return original(self, prix)
     value = Decimal(str(prix))
     units = (value / tick).to_integral_value(rounding=ROUND_DOWN)
     return float(units * tick)
@@ -27,10 +26,8 @@ def _open_stop_orders(broker: Any, symbol: str) -> list[dict]:
     if broker.config.dry_run:
         return []
     try:
-        rows = broker._appel(
-            "GET", "/ordersOpen",
-            params={"market": broker.symbol_for(symbol)},
-        )
+        rows = broker._appel("GET", "/ordersOpen",
+                             params={"market": broker.symbol_for(symbol)})
     except Exception as exc:  # noqa: BLE001
         logger.warning("stops ouverts illisibles sur %s : %s", symbol, str(exc)[:120])
         return []
@@ -49,14 +46,11 @@ def _open_stop_orders(broker: Any, symbol: str) -> list[dict]:
 
 def _cancel_exact_stop(broker: Any, symbol: str, order_id: str) -> None:
     """Annule un seul ordre, identifie par son orderId."""
-    broker._appel(
-        "DELETE", "/order",
-        params={
-            "market": broker.symbol_for(symbol),
-            "orderId": order_id,
-            "operatorId": broker.config.operator_id,
-        },
-    )
+    broker._appel("DELETE", "/order", params={
+        "market": broker.symbol_for(symbol),
+        "orderId": order_id,
+        "operatorId": broker.config.operator_id,
+    })
 
 
 def _annuler_stop(self: Any, symbol: str) -> None:
@@ -70,10 +64,6 @@ def _annuler_stop(self: Any, symbol: str) -> None:
     known = self._stops.get(symbol)
     if known:
         ids.append(known)
-
-    # Apres un redemarrage, le dictionnaire local est vide : on retrouve les
-    # stops ouverts appartenant a cet operatorId avant de reposer quoi que ce
-    # soit. Aucun ordre etranger au bot n'est touche.
     for row in _open_stop_orders(self, symbol):
         oid = str(row.get("orderId", ""))
         if oid and oid not in ids:
@@ -83,7 +73,6 @@ def _annuler_stop(self: Any, symbol: str) -> None:
         try:
             _cancel_exact_stop(self, symbol, oid)
         except Exception as exc:  # noqa: BLE001
-            # Deja rempli/annule : ne bloque pas la fermeture de position.
             logger.warning("stop %s non annule sur %s : %s", oid, symbol, str(exc)[:120])
 
     self._stops.pop(symbol, None)
@@ -109,6 +98,7 @@ def harden_bitvavo(BitvavoBroker: Any, RegleMarche: Any) -> None:
     """Installe les garde-fous sur les classes Bitvavo importees."""
     original_appel = BitvavoBroker._appel
     original_reprendre = BitvavoBroker.reprendre
+    original_arrondir_prix = RegleMarche.arrondir_prix
 
     def appel(self, methode: str, chemin: str, params=None, corps=None, signe=True):
         response = original_appel(self, methode, chemin, params=params, corps=corps, signe=signe)
@@ -129,7 +119,10 @@ def harden_bitvavo(BitvavoBroker: Any, RegleMarche: Any) -> None:
             _recover_stop(self, position.symbol)
         return ok
 
+    def arrondir_prix(self, prix: float) -> float:
+        return _tick_floor(self, prix, original_arrondir_prix)
+
     BitvavoBroker._appel = appel
     BitvavoBroker._annuler_stop = _annuler_stop
     BitvavoBroker.reprendre = reprendre
-    RegleMarche.arrondir_prix = _tick_floor
+    RegleMarche.arrondir_prix = arrondir_prix
