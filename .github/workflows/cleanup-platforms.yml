@@ -24,40 +24,45 @@ jobs:
         run: |
           from pathlib import Path
           import re
-          obsolete = [
-              'gold_bot/brokers/binance.py','gold_bot/brokers/binance_spot.py',
-              'gold_bot/brokers/moonx.py','gold_bot/brokers/okx.py',
-              'tests/test_binance.py','tests/test_okx.py',
-              'robot.binance.json','robot.spot.json','robot.live.json','robot.okx.json',
-              'verifier_execution.py','verifier_okx.py',
-          ]
+          obsolete = ['gold_bot/brokers/binance.py','gold_bot/brokers/binance_spot.py','gold_bot/brokers/moonx.py','gold_bot/brokers/okx.py','tests/test_binance.py','tests/test_okx.py','robot.binance.json','robot.spot.json','robot.live.json','robot.okx.json','verifier_execution.py','verifier_okx.py']
           for name in obsolete:
-              p = Path(name)
+              p=Path(name)
               if p.exists(): p.unlink()
           Path('gold_bot/brokers/__init__.py').write_text('''"""Lieux d'execution disponibles."""\nfrom .base import AccountInfo, Broker, BrokerError\nfrom .bitvavo import BitvavoBroker, BitvavoConfig, RegleMarche\nfrom .bitvavo_hardening import harden_bitvavo\nfrom .paper import PaperBroker, PaperConfig\n\nharden_bitvavo(BitvavoBroker, RegleMarche)\n\n__all__ = ["Broker", "BrokerError", "AccountInfo", "PaperBroker", "PaperConfig", "BitvavoBroker", "BitvavoConfig"]\n''', encoding='utf-8')
-          p = Path('gold_bot/engine.py'); s = p.read_text(encoding='utf-8')
-          s = re.sub(r'from \.brokers import \(.*?\n                      PaperConfig, SpotConfig\)', 'from .brokers import (BitvavoBroker, BitvavoConfig, Broker,\n                      BrokerError, PaperBroker, PaperConfig)', s, flags=re.S)
-          s = re.sub(r'def _devise_du_lieu_d_execution\(broker: str\) -> str:.*?\n\ndef registre_pour', 'def _devise_du_lieu_d_execution(broker: str) -> str:\n    """Devise de cotation imposee par Bitvavo."""\n    if broker == "bitvavo":\n        return BitvavoConfig.from_env().quote_asset\n    return ""\n\n\ndef registre_pour', s, flags=re.S)
-          s = re.sub(r'    def _build_broker\(self\) -> Broker:\n.*?\n        # Un lieu d.execution ne propose', '    def _build_broker(self) -> Broker:\n        cfg = self.config.engine\n        if cfg.broker == "bitvavo":\n            bv = BitvavoConfig.from_env()\n            if cfg.dry_run:\n                bv.dry_run = True\n            broker = BitvavoBroker(bv)\n        else:\n            broker = PaperBroker(PaperConfig(start_balance=cfg.start_balance, currency=cfg.currency))\n\n        # Un lieu d.execution ne propose', s, flags=re.S)
-          p.write_text(s, encoding='utf-8')
-          p = Path('run_bot.py'); s = p.read_text(encoding='utf-8')
-          s = s.replace('--broker paper|moonx', '--broker paper|bitvavo')
-          s = re.sub(r'    if cfg\.engine\.broker == "moonx":.*?\n    print\("\\n\[Alertes\]"\)', '    if cfg.engine.broker == "bitvavo":\n        from gold_bot.brokers import BitvavoBroker\n        broker = BitvavoBroker()\n        print(f"   mode Bitvavo : {broker.mode}")\n        if broker.connect():\n            acc = broker.account()\n            print(f"   compte : {acc.equity:.2f} {acc.currency} (disponible {acc.margin_free:.2f})")\n        else:\n            print("   -> verifier les identifiants API Bitvavo")\n\n    print("\\n[Alertes]")', s, flags=re.S)
-          s = re.sub(r'if cfg\.engine\.broker in \("moonx", "binance", "binance_spot"\) and not cfg\.engine\.dry_run:', 'if cfg.engine.broker == "bitvavo" and not cfg.engine.dry_run:', s)
-          s = re.sub(r'nom = \{.*?\}\.get\(cfg\.engine\.broker, "Binance Spot"\)', 'nom = "Bitvavo"', s)
-          s = re.sub(r'choices=\["paper", "moonx", "binance", "binance_spot",\n\s+"bitvavo", "okx"\]', 'choices=["paper", "bitvavo"]', s)
-          p.write_text(s, encoding='utf-8')
-          p = Path('gold_bot/settings.py'); s = p.read_text(encoding='utf-8')
-          s = s.replace('if e.broker in ("moonx", "binance", "binance_spot", "bitvavo", "okx") and e.offline:', 'if e.broker == "bitvavo" and e.offline:')
-          s = s.replace('if e.broker not in ("paper", "moonx", "binance", "binance_spot", "bitvavo", "okx"):', 'if e.broker not in ("paper", "bitvavo"):')
-          p.write_text(s, encoding='utf-8')
+          p=Path('gold_bot/engine.py'); s=p.read_text(encoding='utf-8')
+          s=re.sub(r'from \.brokers import \(.*?\n                      PaperConfig, SpotConfig\)','from .brokers import (BitvavoBroker, BitvavoConfig, Broker,\n                      BrokerError, PaperBroker, PaperConfig)',s,flags=re.S)
+          s=re.sub(r'def _devise_du_lieu_d_execution\(broker: str\) -> str:.*?\n\ndef registre_pour','def _devise_du_lieu_d_execution(broker: str) -> str:\n    """Devise de cotation imposee par Bitvavo."""\n    if broker == "bitvavo":\n        return BitvavoConfig.from_env().quote_asset\n    return ""\n\n\ndef registre_pour',s,flags=re.S)
+          s=re.sub(r'    def _build_broker\(self\) -> Broker:\n.*?\n        # Un lieu d.execution ne propose','    def _build_broker(self) -> Broker:\n        cfg=self.config.engine\n        if cfg.broker == "bitvavo":\n            bv=BitvavoConfig.from_env()\n            if cfg.dry_run: bv.dry_run=True\n            broker=BitvavoBroker(bv)\n        else:\n            broker=PaperBroker(PaperConfig(start_balance=cfg.start_balance,currency=cfg.currency))\n\n        # Un lieu d.execution ne propose',s,flags=re.S)
+          p.write_text(s,encoding='utf-8')
+          p=Path('run_bot.py'); s=p.read_text(encoding='utf-8')
+          s=s.replace('--broker paper|moonx','--broker paper|bitvavo')
+          s=re.sub(r'    if cfg\.engine\.broker == "moonx":.*?\n    print\("\\n\[Alertes\]"\)', '''    if cfg.engine.broker == "bitvavo":
+        from gold_bot.brokers import BitvavoBroker
+        broker = BitvavoBroker()
+        print(f"   mode Bitvavo : {broker.mode}")
+        if broker.connect():
+            acc = broker.account()
+            print(f"   compte : {acc.equity:.2f} {acc.currency} (disponible {acc.margin_free:.2f})")
+        else:
+            print("   -> verifier les identifiants API Bitvavo")
+
+    print()
+    print("[Alertes]")''',s,flags=re.S)
+          s=re.sub(r'if cfg\.engine\.broker in \("moonx", "binance", "binance_spot"\) and not cfg\.engine\.dry_run:','if cfg.engine.broker == "bitvavo" and not cfg.engine.dry_run:',s)
+          s=re.sub(r'nom = \{.*?\}\.get\(cfg\.engine\.broker, "Binance Spot"\)','nom = "Bitvavo"',s)
+          s=re.sub(r'choices=\["paper", "moonx", "binance", "binance_spot",\n\s+"bitvavo", "okx"\]','choices=["paper", "bitvavo"]',s)
+          p.write_text(s,encoding='utf-8')
+          p=Path('gold_bot/settings.py'); s=p.read_text(encoding='utf-8')
+          s=s.replace('if e.broker in ("moonx", "binance", "binance_spot", "bitvavo", "okx") and e.offline:','if e.broker == "bitvavo" and e.offline:')
+          s=s.replace('if e.broker not in ("paper", "moonx", "binance", "binance_spot", "bitvavo", "okx"):','if e.broker not in ("paper", "bitvavo"):')
+          p.write_text(s,encoding='utf-8')
           for name in ['.env.example','MODE_EMPLOI.md','docs/ROBOT_TRADING.md','installer.sh','service.sh','finaliser.sh']:
               p=Path(name)
               if p.exists():
                   lines=p.read_text(encoding='utf-8').splitlines()
-                  p.write_text('\n'.join(line for line in lines if not any(x in line.upper() for x in ('BINANCE_','MOONX_','OKX_'))) + '\n', encoding='utf-8')
+                  p.write_text('\n'.join(line for line in lines if not any(x in line.upper() for x in ('BINANCE_','MOONX_','OKX_'))) + '\n',encoding='utf-8')
           p=Path('.github/workflows/trading-tests.yml')
-          if p.exists(): p.write_text(p.read_text(encoding='utf-8').replace('robot.binance.json','robot.bitvavo.json'), encoding='utf-8')
+          if p.exists(): p.write_text(p.read_text(encoding='utf-8').replace('robot.binance.json','robot.bitvavo.json'),encoding='utf-8')
           leftovers=[]
           for root in (Path('gold_bot'),Path('tests')):
               if root.exists():
