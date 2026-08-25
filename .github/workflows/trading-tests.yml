@@ -1,0 +1,32 @@
+name: Trading bot tests
+
+on:
+  push:
+    paths:
+      - 'gold_bot/**'
+      - 'run_bot.py'
+      - 'tests/**'
+      - 'robot*.json'
+      - '.github/workflows/trading-tests.yml'
+  pull_request:
+    paths:
+      - 'gold_bot/**'
+      - 'run_bot.py'
+      - 'tests/**'
+      - 'robot*.json'
+      - '.github/workflows/trading-tests.yml'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax check
+        run: python -m compileall -q gold_bot run_bot.py
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Live configuration validation
+        run: python run_bot.py check --config robot.binance.json --broker binance --offline
