@@ -794,6 +794,21 @@ class BitvavoBroker(Broker):
             raise BrokerError(
                 f"notionnel {notionnel:.2f} {self.config.quote_asset} sous le minimum "
                 f"{regle.min_notional} sur {code}")
+
+        # Le stop de vente est place 0,2 % sous son declenchement. Une
+        # position juste au-dessus du minimum d'achat peut donc produire un
+        # stop inferieur au minimum Bitvavo (ex. 4,94 EUR pour un minimum de
+        # 5 EUR). Il vaut mieux refuser l'entree que l'acheter puis la fermer
+        # immediatement avec une perte certaine. On verifie le niveau le plus
+        # defensif, avant meme d'envoyer l'ordre d'achat.
+        prix_stop_limite = max(0.0, stop_loss) * 0.998
+        notionnel_stop = quantite * prix_stop_limite
+        if notionnel_stop < regle.min_notional:
+            raise BrokerError(
+                f"notionnel du stop {notionnel_stop:.2f} "
+                f"{self.config.quote_asset} sous le minimum "
+                f"{regle.min_notional} sur {code} : entree refusee")
+
         # Les frais se prelevent en plus du notionnel : un ordre calibre au
         # centime pres sur le solde disponible serait refuse pour quelques
         # centimes de commission.
