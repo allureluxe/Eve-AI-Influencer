@@ -37,3 +37,5 @@ Génération d'images et publication automatisée sur Instagram et TikTok.
 ```bash
 pip install -r requirements.txt
 ```
+
+<!-- Bitvavo-only trading cleanup validation marker -->
