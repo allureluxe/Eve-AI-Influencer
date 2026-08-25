@@ -1,12 +1,7 @@
 """Configuration globale du robot.
 
-Trois niveaux, du plus faible au plus fort :
-  1. les valeurs par defaut ci-dessous,
-  2. un fichier JSON (`--config robot.json`),
-  3. les variables d'environnement (prefixe GB_).
-
-Les parametres sensibles (cles API) ne passent QUE par l'environnement :
-aucune cle ne doit se retrouver dans un fichier de configuration versionne.
+Les secrets restent uniquement dans l'environnement. Le trading de production
+utilise exclusivement Bitvavo.
 """
 from __future__ import annotations
 
@@ -22,15 +17,12 @@ from .strategy import StrategyConfig
 from .trade_manager import TradeManagerConfig
 
 logger = logging.getLogger(__name__)
-
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 @dataclass(slots=True)
 class EngineConfig:
-    """Parametres de la boucle principale."""
-
-    broker: str = "paper"
+    broker: str = "bitvavo"
     poll_seconds: float = 5.0
     idle_poll_seconds: float = 20.0
     closed_market_seconds: float = 300.0
@@ -49,8 +41,6 @@ class EngineConfig:
 
 @dataclass(slots=True)
 class BotConfig:
-    """Configuration complete du robot."""
-
     engine: EngineConfig = field(default_factory=EngineConfig)
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
@@ -61,27 +51,22 @@ class BotConfig:
     @classmethod
     def load(cls, path: str = "") -> "BotConfig":
         cfg = cls()
-        # L'installateur ecrit GB_CONFIG, tandis que l'ancienne implementation
-        # ne lisait que GB_CONFIG_FILE. Accepter les deux evite de demarrer
-        # silencieusement avec la mauvaise configuration.
         path = path or os.getenv("GB_CONFIG_FILE") or os.getenv("GB_CONFIG", "")
         if path and not os.path.isabs(path):
             path = os.path.join(RACINE, path)
         if path and os.path.exists(path):
             try:
                 with open(path, "r", encoding="utf-8") as fh:
-                    data = json.load(fh)
-                cfg.apply(data)
+                    cfg.apply(json.load(fh))
                 logger.info("configuration chargee depuis %s", path)
             except (OSError, ValueError) as exc:
-                logger.error("configuration illisible (%s), valeurs par defaut : %s", path, exc)
+                logger.error("configuration illisible (%s): %s", path, exc)
         elif path:
             logger.error("configuration introuvable : %s", path)
         cfg.apply_env()
         return cfg
 
     def apply(self, data: dict[str, Any]) -> None:
-        """Applique un dictionnaire de configuration (imbrique par section)."""
         for section_name, values in (data or {}).items():
             if section_name.startswith("_"):
                 continue
@@ -99,12 +84,10 @@ class BotConfig:
                     logger.warning("parametre inconnu ignore : %s.%s", section_name, key)
 
     def apply_env(self) -> None:
-        """Surcharge par variables d'environnement (GB_<SECTION>_<PARAM>)."""
         for section_name in ("engine", "strategy", "risk", "trade", "objectives"):
             section = getattr(self, section_name)
             for f in fields(section):
-                env_key = f"GB_{section_name.upper()}_{f.name.upper()}"
-                raw = os.getenv(env_key)
+                raw = os.getenv(f"GB_{section_name.upper()}_{f.name.upper()}")
                 if raw is None:
                     continue
                 try:
@@ -120,9 +103,8 @@ class BotConfig:
                     else:
                         value = raw
                     setattr(section, f.name, value)
-                    logger.debug("%s.%s surcharge par %s", section_name, f.name, env_key)
                 except ValueError:
-                    logger.warning("valeur invalide pour %s : %r", env_key, raw)
+                    logger.warning("valeur invalide pour %s : %r", f.name, raw)
 
     def to_dict(self) -> dict[str, Any]:
         sortie = {name: asdict(getattr(self, name))
@@ -137,15 +119,14 @@ class BotConfig:
             json.dump(self.to_dict(), fh, indent=2, ensure_ascii=False)
 
     def validate(self) -> list[str]:
-        """Verifie la coherence de la configuration. Retourne les problemes."""
         problems: list[str] = []
         r, t, s, e = self.risk, self.trade, self.strategy, self.engine
-
-        # Le plafond de 1,5 % est une propriete de securite du code, pas un
-        # simple conseil. Une configuration qui le depasse doit etre refusee.
+        if e.broker != "bitvavo":
+            problems.append(f"broker invalide : {e.broker}. Bitvavo est le seul broker supporte")
+        if e.offline and e.broker == "bitvavo":
+            problems.append("mode hors ligne incompatible avec Bitvavo")
         if r.max_risk_pct > 1.5:
-            problems.append(f"risque maximal au-dessus du plafond de securite (" 
-                            f"{r.max_risk_pct}% > 1.5%)")
+            problems.append(f"risque maximal au-dessus du plafond de securite ({r.max_risk_pct}% > 1.5%)")
         if r.base_risk_pct > r.max_risk_pct:
             problems.append("risque de base superieur au plafond")
         if r.min_risk_pct > r.base_risk_pct:
@@ -155,20 +136,15 @@ class BotConfig:
         if r.max_total_risk_pct < r.max_risk_pct:
             problems.append("le risque total autorise est inferieur au risque d'un seul trade")
         if t.tp_r_multiple < r.min_rr:
-            problems.append(f"l'objectif initial ({t.tp_r_multiple}R) est sous le ratio minimal "
-                            f"exige ({r.min_rr}) : aucun trade ne passera le filtre")
+            problems.append(f"l'objectif initial ({t.tp_r_multiple}R) est sous le ratio minimal exige ({r.min_rr})")
         if t.breakeven_at_r >= t.tp_r_multiple:
-            problems.append("le break-even se declenche apres l'objectif : il ne servira jamais")
+            problems.append("le break-even se declenche apres l'objectif")
         if t.extend_at_progress >= 1.0:
-            problems.append("le seuil d'extension doit etre inferieur a 1 (fraction du chemin vers le TP)")
+            problems.append("le seuil d'extension doit etre inferieur a 1")
         if t.min_stop_atr > t.atr_stop_mult:
             problems.append("le stop minimal est plus large que le stop nominal")
         if s.min_score > 0.95:
-            problems.append("seuil de score quasi inatteignable : le robot ne tradera jamais")
+            problems.append("seuil de score quasi inatteignable")
         if e.poll_seconds < 1.0:
-            problems.append("cadence trop agressive : risque de saturation des sources de donnees")
-        if e.broker in ("moonx", "binance", "binance_spot", "bitvavo", "okx") and e.offline:
-            problems.append("mode hors ligne incompatible avec une execution reelle")
-        if e.broker not in ("paper", "moonx", "binance", "binance_spot", "bitvavo", "okx"):
-            problems.append(f"lieu d'execution inconnu : {e.broker}")
+            problems.append("cadence trop agressive")
         return problems
