@@ -1,0 +1,99 @@
+{
+  "_lisez_moi": [
+    "Configuration de rodage pour un compte reel de moins de 300 EUR sur MoonX.",
+    "Elle est volontairement plus serree que robot.example.json : une seule",
+    "position a la fois, coupe-circuits rapproches, seuil de validation releve.",
+    "",
+    "XAUUSD est laisse dans l'univers : le robot le refusera automatiquement",
+    "au dimensionnement tant que le capital est sous ~370 EUR, puis se mettra",
+    "a le trader tout seul des que le compte aura grossi. Rien a modifier.",
+    "",
+    "USDJPY et XAGUSD sont retires : leur lot minimum demande respectivement",
+    "10 700 EUR et 300 EUR, ils ne feraient que consommer du quota d'API.",
+    "",
+    "A relever quand le capital depasse 1000 EUR : max_positions a 2, puis 3,",
+    "et base_risk_pct a 0.75."
+  ],
+
+  "engine": {
+    "broker": "moonx",
+    "dry_run": false,
+    "offline": false,
+    "poll_seconds": 5.0,
+    "idle_poll_seconds": 20.0,
+    "closed_market_seconds": 300.0,
+    "heartbeat_minutes": 120.0,
+    "daily_report_hour": 21,
+    "symbols": ["XAUUSD", "EURUSD", "GBPUSD", "AUDUSD", "USDCAD",
+                "BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD"],
+    "currency": "EUR",
+    "verbose_scan": false
+  },
+
+  "risk": {
+    "base_risk_pct": 0.5,
+    "min_risk_pct": 0.1,
+    "max_risk_pct": 1.0,
+
+    "daily_loss_limit_pct": 3.0,
+    "weekly_loss_limit_pct": 6.0,
+    "max_drawdown_pct": 15.0,
+    "daily_profit_target_pct": 5.0,
+
+    "max_positions": 1,
+    "max_per_correlation_group": 1,
+    "max_total_risk_pct": 1.0,
+    "max_daily_trades": 6,
+    "min_seconds_between_trades": 120.0,
+    "max_leverage": 15.0,
+
+    "max_consecutive_losses": 3,
+    "pause_after_losses_minutes": 180.0,
+    "min_rr": 1.5
+  },
+
+  "strategy": {
+    "entry_tf": "M5",
+    "trigger_tf": "M1",
+    "context_tf": "M15",
+    "bias_tf": "H1",
+    "min_score": 0.60,
+    "min_score_counter_trend": 0.80,
+    "max_spread_atr_ratio": 0.20,
+    "min_atr_percentile": 0.20,
+    "max_atr_percentile": 0.90,
+    "min_adx": 20.0,
+    "min_headroom_atr": 1.2,
+    "min_rr": 1.5,
+    "allow_counter_trend": false
+  },
+
+  "trade": {
+    "atr_stop_mult": 1.6,
+    "tp_r_multiple": 2.0,
+    "spread_buffer_mult": 2.0,
+    "breakeven_at_r": 0.7,
+    "partial_enabled": false,
+    "trail_start_r": 1.0,
+    "trail_atr_mult": 1.8,
+    "extend_enabled": true,
+    "extend_at_progress": 0.85,
+    "extend_by_atr": 1.2,
+    "extend_by_r_min": 0.5,
+    "max_extensions": 3,
+    "extend_min_momentum": 0.40,
+    "lock_r_on_extend": 0.4,
+    "time_stop_minutes": 180.0
+  },
+
+  "objectives": {
+    "base_target": 100.0,
+    "escalation": 1.5,
+    "escalation_mode": "geometric",
+    "max_weekly_target_pct": 8.0,
+    "promote_only_on_success": true,
+    "demote_on_losing_week": true,
+    "protect_after_target": true,
+    "protect_multiplier": 0.4
+  }
+}
