@@ -28,5 +28,20 @@ jobs:
         run: python -m compileall -q gold_bot run_bot.py
       - name: Unit tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
-      - name: Live configuration validation
-        run: python run_bot.py check --config robot.binance.json --broker binance --offline
+      - name: JSON configuration validation
+        run: python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path('.').glob('robot*.json'):
+              json.loads(path.read_text(encoding='utf-8'))
+              print('OK', path)
+          PY
+      - name: Risk configuration validation
+        run: python - <<'PY'
+          from gold_bot.settings import BotConfig
+          cfg = BotConfig.load('robot.binance.json')
+          problems = cfg.validate()
+          if problems:
+              raise SystemExit('\n'.join(problems))
+          print('OK: configuration coherent')
+          PY
