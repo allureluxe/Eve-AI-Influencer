@@ -9,6 +9,37 @@ from .strategy import StrategyConfig
 from .trade_manager import TradeManagerConfig
 logger=logging.getLogger(__name__)
 RACINE=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _charger_env_local() -> None:
+    """Charge les secrets locaux de .env sans dependance python-dotenv.
+
+    Les variables deja definies par systemd/OS restent prioritaires.
+    Aucun secret n'est ecrit dans les fichiers de configuration du bot.
+    """
+    chemin=os.path.join(RACINE, ".env")
+    if not os.path.exists(chemin):
+        return
+    try:
+        with open(chemin, encoding="utf-8") as f:
+            for ligne in f:
+                ligne=ligne.strip()
+                if not ligne or ligne.startswith("#") or "=" not in ligne:
+                    continue
+                cle, _, valeur=ligne.partition("=")
+                cle=cle.strip()
+                valeur=valeur.strip()
+                if not cle:
+                    continue
+                if len(valeur)>=2 and valeur[0]==valeur[-1] and valeur[0] in ("'", '"'):
+                    valeur=valeur[1:-1]
+                os.environ.setdefault(cle, valeur)
+    except OSError as exc:
+        logger.warning("impossible de charger %s: %s", chemin, exc)
+
+
+_charger_env_local()
+
 @dataclass(slots=True)
 class EngineConfig:
     broker:str="bitvavo"
