@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from gold_bot.brokers.bitvavo import BitvavoBroker, BitvavoConfig, RegleMarche
-from gold_bot.brokers.bitvavo_hardening import _TICKS, _tick_floor, _annuler_stop
+from gold_bot.brokers.bitvavo_hardening import _TICKS, _tick_floor, _annuler_stop, _ventes_depuis
 
 
 def test_tick_size_is_authoritative():
@@ -48,3 +48,19 @@ def test_cancel_uses_exact_order_ids(monkeypatch):
     assert calls[0][1] == "/ordersOpen"
     assert any(c[1] == "/order" and c[2]["orderId"] == "known" for c in calls)
     assert not any(c[1] == "/order" and c[2]["orderId"] == "foreign" for c in calls)
+
+
+def test_external_fills_are_not_attributed_to_bot(monkeypatch):
+    broker = BitvavoBroker(BitvavoConfig(api_key="k", api_secret="s", dry_run=False, operator_id=42))
+
+    def fake_call(method, path, params=None, corps=None, signe=True):
+        return [
+            {"side": "sell", "operatorId": 99, "timestamp": 2000, "amount": "1", "price": "100", "fee": "1"},
+            {"side": "sell", "operatorId": 42, "timestamp": 2001, "amount": "2", "price": "110", "fee": "2"},
+        ]
+
+    monkeypatch.setattr(broker, "_appel", fake_call)
+    avg, qty, fees = _ventes_depuis(broker, "BTC-EUR", 1.0)
+    assert qty == 2.0
+    assert avg == 110.0
+    assert fees == 2.0
