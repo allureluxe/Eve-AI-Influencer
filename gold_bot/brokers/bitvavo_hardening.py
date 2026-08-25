@@ -94,6 +94,45 @@ def _recover_stop(self: Any, symbol: str) -> None:
         self._stop_pose[symbol] = trigger
 
 
+def _ventes_depuis(self: Any, code: str, depuis: float):
+    """Executions de vente du BOT uniquement, jamais celles d'un autre trader."""
+    try:
+        lignes = self._appel("GET", "/trades", params={"market": code, "limit": 100})
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("executions %s illisibles : %s", code, str(exc)[:120])
+        return 0.0, 0.0, 0.0
+
+    quantite = valeur = frais = 0.0
+    for ligne in lignes if isinstance(lignes, list) else []:
+        if str(ligne.get("side", "")).lower() != "sell":
+            continue
+        # Depuis 2026, operatorId est renvoye dans l'historique de trades.
+        # Un fallback est garde pour d'anciens enregistrements, mais on ne
+        # melange jamais explicitement un autre operatorId.
+        operator = ligne.get("operatorId")
+        if operator is not None:
+            try:
+                if int(operator) != self.config.operator_id:
+                    continue
+            except (TypeError, ValueError):
+                continue
+        try:
+            instant = float(ligne.get("timestamp", 0) or 0) / 1000.0
+            q = float(ligne.get("amount", 0) or 0)
+            prix = float(ligne.get("price", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        if q <= 0 or prix <= 0 or instant < depuis:
+            continue
+        quantite += q
+        valeur += q * prix
+        try:
+            frais += abs(float(ligne.get("fee", 0) or 0))
+        except (TypeError, ValueError):
+            pass
+    return (valeur / quantite if quantite else 0.0), quantite, frais
+
+
 def harden_bitvavo(BitvavoBroker: Any, RegleMarche: Any) -> None:
     """Installe les garde-fous sur les classes Bitvavo importees."""
     original_appel = BitvavoBroker._appel
@@ -131,5 +170,6 @@ def harden_bitvavo(BitvavoBroker: Any, RegleMarche: Any) -> None:
 
     BitvavoBroker._appel = appel
     BitvavoBroker._annuler_stop = _annuler_stop
+    BitvavoBroker._ventes_depuis = _ventes_depuis
     BitvavoBroker.reprendre = reprendre
     RegleMarche.arrondir_prix = arrondir_prix
