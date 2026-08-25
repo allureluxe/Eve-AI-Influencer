@@ -29,19 +29,22 @@ jobs:
       - name: Unit tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: JSON configuration validation
-        run: python - <<'PY'
+        run: |
+          python - <<'PY'
           import json
           from pathlib import Path
           for path in Path('.').glob('robot*.json'):
               json.loads(path.read_text(encoding='utf-8'))
               print('OK', path)
           PY
-      - name: Risk configuration validation
-        run: python - <<'PY'
+      - name: Bitvavo configuration validation
+        run: |
+          python - <<'PY'
           from gold_bot.settings import BotConfig
-          cfg = BotConfig.load('robot.binance.json')
+          cfg = BotConfig.load('robot.bitvavo.json')
           problems = cfg.validate()
           if problems:
               raise SystemExit('\n'.join(problems))
-          print('OK: configuration coherent')
+          assert cfg.engine.broker == 'bitvavo'
+          print('OK: Bitvavo configuration coherent')
           PY
