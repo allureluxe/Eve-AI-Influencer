@@ -1,17 +1,11 @@
-"""Correctifs de compatibilite Bitvavo appliques au broker.
-
-Ce module garde le gros connecteur Bitvavo intact tout en corrigeant deux
-points critiques introduits par les changements d'API :
-- les prix doivent etre des multiples du tickSize (pricePrecision est
-  deprecie) ;
-- le remplacement d'un stop doit annuler l'ordre exact, jamais tous les
-  ordres du marche.
-"""
+"""Correctifs de compatibilite Bitvavo appliques au broker."""
 from __future__ import annotations
 
+import logging
 from decimal import Decimal, ROUND_DOWN
 from typing import Any
 
+logger = logging.getLogger(__name__)
 _TICKS: dict[str, Decimal] = {}
 
 
@@ -21,7 +15,6 @@ def _tick_floor(self, prix: float) -> float:
         return prix
     tick = _TICKS.get(self.market)
     if tick is None or tick <= 0:
-        # Fallback pour un marche charge par une ancienne reponse API.
         precision = max(0, int(self.price_precision or 5))
         return round(prix, min(precision, 12))
     value = Decimal(str(prix))
@@ -38,7 +31,8 @@ def _open_stop_orders(broker: Any, symbol: str) -> list[dict]:
             "GET", "/ordersOpen",
             params={"market": broker.symbol_for(symbol)},
         )
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("stops ouverts illisibles sur %s : %s", symbol, str(exc)[:120])
         return []
     result = []
     for row in rows if isinstance(rows, list) else []:
@@ -66,11 +60,7 @@ def _cancel_exact_stop(broker: Any, symbol: str, order_id: str) -> None:
 
 
 def _annuler_stop(self: Any, symbol: str) -> None:
-    """Annule uniquement le(s) stop(s) appartenant au bot.
-
-    L'ancienne implementation appelait DELETE /orders?market=..., ce qui
-    annulait aussi d'eventuels ordres utilisateur/stratégie sur la meme paire.
-    """
+    """Annule uniquement les stops appartenant au bot."""
     if self.config.dry_run:
         self._stops.pop(symbol, None)
         self._stop_pose.pop(symbol, None)
@@ -83,8 +73,7 @@ def _annuler_stop(self: Any, symbol: str) -> None:
 
     # Apres un redemarrage, le dictionnaire local est vide : on retrouve les
     # stops ouverts appartenant a cet operatorId avant de reposer quoi que ce
-    # soit. Les doublons eventuels sont tous supprimes, mais aucun ordre
-    # etranger au bot n'est touche.
+    # soit. Aucun ordre etranger au bot n'est touche.
     for row in _open_stop_orders(self, symbol):
         oid = str(row.get("orderId", ""))
         if oid and oid not in ids:
@@ -93,10 +82,9 @@ def _annuler_stop(self: Any, symbol: str) -> None:
     for oid in ids:
         try:
             _cancel_exact_stop(self, symbol, oid)
-        except Exception as exc:
-            # Si l'ordre est deja rempli/annule, il ne faut pas bloquer la
-            # fermeture d'une position. On continue avec les autres ids.
-            self.logger.warning("stop %s non annule sur %s : %s", oid, symbol, str(exc)[:120]) if hasattr(self, "logger") else None
+        except Exception as exc:  # noqa: BLE001
+            # Deja rempli/annule : ne bloque pas la fermeture de position.
+            logger.warning("stop %s non annule sur %s : %s", oid, symbol, str(exc)[:120])
 
     self._stops.pop(symbol, None)
     self._stop_pose.pop(symbol, None)
@@ -107,8 +95,6 @@ def _recover_stop(self: Any, symbol: str) -> None:
     rows = _open_stop_orders(self, symbol)
     if not rows:
         return
-    # Le stop le plus recent est celui qui doit etre suivi si plusieurs ont
-    # survécu a un ancien redemarrage.
     row = max(rows, key=lambda r: int(r.get("created", 0) or 0))
     self._stops[symbol] = str(row["orderId"])
     try:
@@ -120,7 +106,7 @@ def _recover_stop(self: Any, symbol: str) -> None:
 
 
 def harden_bitvavo(BitvavoBroker: Any, RegleMarche: Any) -> None:
-    """Installe les correctifs sur les classes Bitvavo importees."""
+    """Installe les garde-fous sur les classes Bitvavo importees."""
     original_appel = BitvavoBroker._appel
     original_reprendre = BitvavoBroker.reprendre
 
@@ -133,8 +119,8 @@ def harden_bitvavo(BitvavoBroker: Any, RegleMarche: Any) -> None:
                 if market and tick:
                     try:
                         _TICKS[str(market)] = Decimal(str(tick))
-                    except Exception:
-                        pass
+                    except Exception:  # noqa: BLE001
+                        continue
         return response
 
     def reprendre(self, position):
