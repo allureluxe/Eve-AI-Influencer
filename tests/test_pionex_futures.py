@@ -3,6 +3,8 @@ import unittest
 from unittest.mock import patch
 
 from gold_bot.brokers.pionex_futures import PionexFuturesBroker, PionexFuturesConfig, PionexFuturesRule
+from gold_bot.core import Side
+from gold_bot.universe import CATALOGUE_CRYPTO
 
 
 class TestPionexFutures(unittest.TestCase):
@@ -31,7 +33,7 @@ class TestPionexFutures(unittest.TestCase):
             self.assertFalse(cfg.dry_run)
             self.assertEqual(cfg.quote_asset, "USDT")
 
-    def test_dry_run_order_never_calls_private_api(self):
+    def test_dry_run_order_path_never_calls_private_api(self):
         cfg = PionexFuturesConfig(dry_run=True)
         broker = PionexFuturesBroker(cfg)
         broker._rules["BTC_USDT_PERP"] = PionexFuturesRule(
@@ -44,8 +46,10 @@ class TestPionexFutures(unittest.TestCase):
         )
         broker._book = lambda _symbol: (100.0, 101.0)
         broker._private = lambda *a, **k: (_ for _ in ()).throw(AssertionError("private API in dry-run"))
-        oid = broker._place_market("BTC_USDT_PERP", __import__("gold_bot.core", fromlist=["Side"]).Side.BUY, 0.01, "LONG")
-        self.assertTrue(oid.startswith("DRY-"))
+        instrument = next(i for i in CATALOGUE_CRYPTO if i.symbol == "BTCUSD")
+        position = broker.open_position(instrument, Side.BUY, 0.01, 99.0, 102.0)
+        self.assertTrue(position.broker_ref.startswith("DRY-"))
+        self.assertEqual(position.volume, 0.01)
 
 
 if __name__ == "__main__":
