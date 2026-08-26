@@ -1,7 +1,6 @@
 """Configuration globale du robot.
 
-Les secrets restent uniquement dans l'environnement. Le trading de production
-utilise exclusivement Bitvavo.
+Les secrets restent uniquement dans l'environnement.
 """
 from __future__ import annotations
 
@@ -104,7 +103,7 @@ class BotConfig:
                         value = raw
                     setattr(section, f.name, value)
                 except ValueError:
-                    logger.warning("valeur invalide pour %s : %r", f.name, raw)
+                    logger.warning("valeur invalide pour %s.%s: %r", section_name, f.name, raw)
 
     def to_dict(self) -> dict[str, Any]:
         sortie = {name: asdict(getattr(self, name))
@@ -121,10 +120,10 @@ class BotConfig:
     def validate(self) -> list[str]:
         problems: list[str] = []
         r, t, s, e = self.risk, self.trade, self.strategy, self.engine
-        if e.broker != "bitvavo":
-            problems.append(f"broker invalide : {e.broker}. Bitvavo est le seul broker supporte")
-        if e.offline and e.broker == "bitvavo":
-            problems.append("mode hors ligne incompatible avec Bitvavo")
+        if e.broker not in {"bitvavo", "pionex"}:
+            problems.append(f"broker invalide : {e.broker}. Utiliser bitvavo ou pionex")
+        if e.offline and e.broker in {"bitvavo", "pionex"}:
+            problems.append(f"mode hors ligne incompatible avec {e.broker}")
         if r.max_risk_pct > 1.5:
             problems.append(f"risque maximal au-dessus du plafond de securite ({r.max_risk_pct}% > 1.5%)")
         if r.base_risk_pct > r.max_risk_pct:
