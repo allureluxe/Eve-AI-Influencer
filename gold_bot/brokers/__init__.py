@@ -3,6 +3,7 @@ from .base import AccountInfo, Broker, BrokerError
 from .bitvavo import BitvavoBroker, BitvavoConfig, RegleMarche
 from .bitvavo_hardening import harden_bitvavo
 from .pionex import PionexBroker, PionexConfig, PionexMarketRule
+from .pionex_futures import PionexFuturesBroker, PionexFuturesConfig, PionexFuturesRule
 from .paper import PaperBroker, PaperConfig
 
 harden_bitvavo(BitvavoBroker, RegleMarche)
@@ -49,4 +50,5 @@ __all__ = [
     "PaperBroker", "PaperConfig",
     "BitvavoBroker", "BitvavoConfig", "RegleMarche",
     "PionexBroker", "PionexConfig", "PionexMarketRule",
+    "PionexFuturesBroker", "PionexFuturesConfig", "PionexFuturesRule",
 ]
