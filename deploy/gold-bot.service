@@ -1,12 +1,10 @@
-# Service systemd du robot de trading.
+# Service systemd du robot de trading Pionex Futures.
 #
-#   sudo cp deploy/gold-bot.service /etc/systemd/system/
-#   sudo systemctl daemon-reload
-#   sudo systemctl enable --now gold-bot
-#   journalctl -u gold-bot -f
+# Le lanceur run_pionex.py force le mode REEL et refuse toute bascule
+# silencieuse vers la simulation.
 
 [Unit]
-Description=Robot de trading autonome (or, forex, cryptos)
+Description=Robot de trading autonome Pionex Futures
 After=network-online.target
 Wants=network-online.target
 
@@ -15,17 +13,13 @@ Type=simple
 User=trader
 WorkingDirectory=/opt/gold-bot
 EnvironmentFile=/opt/gold-bot/.env
-ExecStart=/usr/bin/python3 /opt/gold-bot/run_bot.py run --broker moonx
+ExecStart=/usr/bin/python3 /opt/gold-bot/run_pionex.py
 
-# Redemarrage automatique : le robot doit survivre a une coupure reseau
-# ou a un reboot. Les positions restent protegees par leur stop cote
-# broker, et l'etat de gestion est repris depuis data/state.json.
 Restart=always
 RestartSec=30
 StartLimitIntervalSec=600
 StartLimitBurst=10
 
-# Arret propre : SIGTERM declenche la sauvegarde de l'etat.
 KillSignal=SIGTERM
 TimeoutStopSec=60
 
@@ -33,7 +27,6 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=gold-bot
 
-# Cloisonnement : le robot n'a besoin d'ecrire que dans son repertoire.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
