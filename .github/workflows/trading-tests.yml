@@ -5,6 +5,7 @@ on:
     paths:
       - 'gold_bot/**'
       - 'run_bot.py'
+      - 'run_pionex.py'
       - 'tests/**'
       - 'robot*.json'
       - '.github/workflows/trading-tests.yml'
@@ -12,6 +13,7 @@ on:
     paths:
       - 'gold_bot/**'
       - 'run_bot.py'
+      - 'run_pionex.py'
       - 'tests/**'
       - 'robot*.json'
       - '.github/workflows/trading-tests.yml'
@@ -27,7 +29,7 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install --upgrade pip pytest
       - name: Syntax check
-        run: python -m compileall -q gold_bot run_bot.py
+        run: python -m compileall -q gold_bot run_bot.py run_pionex.py
       - name: Unit tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: JSON configuration validation
@@ -49,4 +51,14 @@ jobs:
               raise SystemExit('\n'.join(problems))
           assert cfg.engine.broker == 'bitvavo'
           print('OK: Bitvavo configuration coherent')
+      - name: Pionex Futures static validation
+        run: |
+          python - <<'PY'
+          from gold_bot.brokers import PionexFuturesBroker, PionexFuturesConfig
+          cfg = PionexFuturesConfig(dry_run=False)
+          broker = PionexFuturesBroker(cfg)
+          assert broker.is_live is True
+          assert broker.supports_short is True
+          assert broker.pionex_symbol('BTCUSDT') == 'BTC_USDT_PERP'
+          print('OK: Pionex Futures broker wired for live execution')
           PY
