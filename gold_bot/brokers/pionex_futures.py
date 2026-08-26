@@ -108,10 +108,26 @@ class PionexFuturesBroker(Broker):
         self._instruments[instrument.symbol] = instrument
 
     def pionex_symbol(self, symbol: str) -> str:
-        base = symbol.upper()
-        for suffix in ("_USDT_PERP", "USDT_PERP", "_USD", "USD", "USDT"):
+        """Convertit un symbole du moteur vers le contrat Futures Pionex.
+
+        Important : ``ETH_USDT`` doit devenir ``ETH_USDT_PERP`` et non
+        ``ETH__USDT_PERP``. Les variantes BTCUSD, BTC_USD, BTCUSDT,
+        BTC_USDT et deja-normalisees sont toutes acceptees.
+        """
+        base = symbol.upper().strip()
+        suffixes = (
+            f"_{self.config.quote_asset}_PERP",
+            f"{self.config.quote_asset}_PERP",
+            f"_{self.config.quote_asset}",
+            f"{self.config.quote_asset}",
+            "_USD_PERP",
+            "USD_PERP",
+            "_USD",
+            "USD",
+        )
+        for suffix in suffixes:
             if base.endswith(suffix):
-                base = base[: -len(suffix)]
+                base = base[: -len(suffix)].rstrip("_")
                 break
         if base not in ACTIFS:
             raise BrokerError(f"{symbol} n'est pas dans le catalogue crypto du robot")
@@ -132,7 +148,6 @@ class PionexFuturesBroker(Broker):
         vals = [r.min_notional for r in self._rules.values() if r.enabled and r.min_notional > 0]
         return min(vals) if vals else 5.0
 
-    # ----------------------------- REST ---------------------------------
     @staticmethod
     def _canonical_query(params: dict[str, Any]) -> str:
         return "&".join(f"{k}={str(v)}" for k, v in sorted(params.items()) if v is not None)
@@ -188,7 +203,6 @@ class PionexFuturesBroker(Broker):
                  body: Optional[dict[str, Any]] = None) -> dict[str, Any]:
         return self._request(method, path, params=params, body=body, private=True)
 
-    # ----------------------------- market --------------------------------
     def apply_market_rules(self, _universe: Any = None) -> None:
         data = self._public("/api/v1/common/symbols", params={"type": "PERP", "status": "TRADING"})
         rules: dict[str, PionexFuturesRule] = {}
@@ -217,305 +231,3 @@ class PionexFuturesBroker(Broker):
             raise BrokerError(f"Pionex aucun bid/ask pour {symbol}")
         row = rows[0]
         return float(row["bidPrice"]), float(row["askPrice"])
-
-    # ----------------------------- account --------------------------------
-    def _refresh_account(self) -> None:
-        data = self._private("GET", "/uapi/v1/account/balances")
-        rows = data.get("data", {}).get("balances", [])
-        free = frozen = 0.0
-        for row in rows:
-            if str(row.get("coin", "")).upper() == self.config.quote_asset:
-                free = float(row.get("free", 0) or 0)
-                frozen = float(row.get("frozen", 0) or 0)
-                break
-        self._account = AccountInfo(
-            equity=free + frozen,
-            balance=free + frozen,
-            currency=self.config.quote_asset,
-            margin_used=frozen,
-            margin_free=free,
-            leverage=self.config.leverage,
-        )
-
-    def account(self) -> AccountInfo:
-        if not self.config.dry_run:
-            self._refresh_account()
-        return self._account
-
-    def _configure_account(self) -> None:
-        if self.config.dry_run or self._configured_mode:
-            return
-        mode = self._private("GET", "/uapi/v1/account/positionMode").get("data", {}).get("positionMode", "")
-        positions = self._private("GET", "/uapi/v1/account/positions").get("data", {}).get("positions", [])
-        nonzero = [p for p in positions if abs(float(p.get("netSize", 0) or 0)) > 0]
-        if mode != self.config.position_mode:
-            if nonzero:
-                raise BrokerError(
-                    f"mode Futures Pionex={mode}, demande={self.config.position_mode}, "
-                    "mais des positions existent : changement refuse par securite"
-                )
-            self._private("POST", "/uapi/v1/account/positionMode",
-                          body={"positionMode": self.config.position_mode})
-        if self.config.margin_mode not in {"CROSS", "ISOLATED"}:
-            raise BrokerError("PIONEX_MARGIN_MODE doit etre CROSS ou ISOLATED")
-        self._configured_mode = True
-
-    def connect(self) -> bool:
-        try:
-            self.apply_market_rules(None)
-            if not self.config.dry_run:
-                self._configure_account()
-                self._refresh_account()
-            else:
-                self._account = AccountInfo(0.0, 0.0, self.config.quote_asset, leverage=self.config.leverage)
-                logger.warning("Pionex Futures : mode DRY-RUN, aucun ordre reel ne sera envoye")
-            self._healthy = True
-            return True
-        except Exception as exc:
-            self._healthy = False
-            logger.error("Pionex Futures connexion impossible : %s", str(exc)[:400])
-            return False
-
-    def healthy(self) -> bool:
-        return self._healthy
-
-    # ----------------------------- positions ------------------------------
-    def _exchange_positions(self) -> list[dict[str, Any]]:
-        if self.config.dry_run:
-            return []
-        return self._private("GET", "/uapi/v1/account/positions").get("data", {}).get("positions", [])
-
-    def positions(self) -> list[Position]:
-        if self.config.dry_run:
-            return list(self._positions.values())
-        rows = self._exchange_positions()
-        seen: set[str] = set()
-        for row in rows:
-            size = abs(float(row.get("netSize", 0) or 0))
-            if size <= 0:
-                continue
-            symbol = str(row.get("symbol", ""))
-            side = Side.BUY if str(row.get("positionSide", "LONG")).upper() == "LONG" else Side.SELL
-            pid = str(row.get("positionId") or f"{symbol}:{side.value}")
-            seen.add(pid)
-            previous = self._positions.get(pid)
-            entry = float(row.get("avgPrice", 0) or 0)
-            pos = Position(
-                id=pid,
-                symbol=self.symbol_from_pionex(symbol),
-                side=side,
-                volume=size,
-                entry_price=entry,
-                stop_loss=previous.stop_loss if previous else 0.0,
-                take_profit=previous.take_profit if previous else 0.0,
-                opened_at=(previous.opened_at if previous else float(row.get("createTime", time.time() * 1000)) / 1000),
-                broker_ref=pid,
-                comment=previous.comment if previous else "Pionex Futures",
-            )
-            if previous:
-                pos.initial_stop = previous.initial_stop
-                pos.initial_tp = previous.initial_tp
-                pos.initial_risk = previous.initial_risk
-                pos.max_favorable = previous.max_favorable
-                pos.max_adverse = previous.max_adverse
-                pos.tp_extensions = previous.tp_extensions
-                pos.breakeven_done = previous.breakeven_done
-                pos.partial_done = previous.partial_done
-            self._positions[pid] = pos
-        for pid in list(self._positions):
-            if pid not in seen and not self.config.dry_run:
-                self._positions.pop(pid, None)
-        return list(self._positions.values())
-
-    def reprendre(self, position: Position) -> bool:
-        current = self.positions()
-        for p in current:
-            if p.symbol == position.symbol and p.side == position.side:
-                position.id = p.id
-                position.broker_ref = p.broker_ref
-                self._positions[p.id] = position
-                return True
-        return False
-
-    def _set_leverage(self, symbol: str) -> None:
-        if self.config.dry_run:
-            return
-        self._private("POST", "/uapi/v1/account/leverage",
-                      body={"symbol": symbol, "leverage": str(self.config.leverage)})
-        if self.config.margin_mode in {"CROSS", "ISOLATED"}:
-            self._private("POST", "/uapi/v1/trade/isolatedMode",
-                          body={"symbol": symbol, "isolatedMode": self.config.margin_mode})
-
-    def _place_market(self, symbol: str, side: Side, size: float, position_side: str) -> str:
-        client = f"gb-{int(time.time() * 1000)}-{os.getpid()}"
-        body = {
-            "clientOrderId": client,
-            "symbol": symbol,
-            "positionSide": position_side,
-            "side": "BUY" if side is Side.BUY else "SELL",
-            "type": "MARKET_QTY",
-            "size": str(size),
-        }
-        if self.config.dry_run:
-            return f"DRY-{client}"
-        data = self._private("POST", "/uapi/v1/trade/order", body=body)
-        oid = data.get("data", {}).get("orderId")
-        if oid is None:
-            raise BrokerError(f"Pionex ordre sans orderId: {data}")
-        return str(oid)
-
-    def _wait_order(self, symbol: str, order_id: str) -> dict[str, Any]:
-        if self.config.dry_run:
-            return {}
-        deadline = time.time() + self.config.order_timeout_seconds
-        last: dict[str, Any] = {}
-        while time.time() < deadline:
-            last = self._private("GET", "/uapi/v1/trade/order",
-                                 params={"symbol": symbol, "orderId": order_id}).get("data", {})
-            if str(last.get("status", "")).upper() in {"FILLED", "CLOSED", "CANCELED", "CANCELLED", "REJECTED", "FAILED"}:
-                return last
-            time.sleep(self.config.poll_order_seconds)
-        return last
-
-    def _avg_fill(self, symbol: str, order_id: str, fallback: float) -> float:
-        if self.config.dry_run:
-            return fallback
-        data = self._private("GET", "/uapi/v1/trade/fillsByOrderId",
-                             params={"symbol": symbol, "orderId": order_id, "limit": 200})
-        fills = data.get("data", {}).get("fills", [])
-        qty = total = 0.0
-        for fill in fills:
-            q = float(fill.get("size", 0) or 0)
-            p = float(fill.get("price", 0) or 0)
-            qty += q
-            total += q * p
-        return total / qty if qty > 0 else fallback
-
-    def open_position(self, instrument: Instrument, side: Side, lots: float,
-                      stop_loss: float, take_profit: float, comment: str = "") -> Position:
-        if lots <= 0 or not math.isfinite(lots):
-            raise BrokerError("volume Futures invalide")
-        if not stop_loss or not take_profit:
-            raise BrokerError("SL et TP obligatoires")
-        symbol = self.pionex_symbol(instrument.symbol)
-        rule = self._rules.get(symbol)
-        if not rule or not rule.enabled:
-            raise BrokerError(f"contrat Futures indisponible : {symbol}")
-        bid, ask = self._book(symbol)
-        reference = ask if side is Side.BUY else bid
-        size = rule.size_down(lots)
-        if size <= 0:
-            raise BrokerError(f"taille nulle apres arrondi : {lots}")
-        if rule.min_size_market > 0 and size < rule.min_size_market:
-            raise BrokerError(f"taille {size} sous le minimum Futures {rule.min_size_market} sur {symbol}")
-        if rule.max_size_market > 0 and size > rule.max_size_market:
-            raise BrokerError(f"taille {size} au-dessus du maximum Futures {rule.max_size_market} sur {symbol}")
-        if rule.min_notional > 0 and size * reference < rule.min_notional:
-            raise BrokerError(f"notionnel {size * reference:.4f} sous le minimum {rule.min_notional} sur {symbol}")
-        if self.config.dry_run:
-            entry = reference
-            oid = self._place_market(symbol, side, size, "LONG" if side is Side.BUY else "SHORT")
-        else:
-            self._set_leverage(symbol)
-            oid = self._place_market(symbol, side, size, "LONG" if side is Side.BUY else "SHORT")
-            order = self._wait_order(symbol, oid)
-            status = str(order.get("status", "")).upper()
-            if status in {"REJECTED", "FAILED", "CANCELED", "CANCELLED"}:
-                raise BrokerError(f"ordre Futures refuse : {status}")
-            entry = self._avg_fill(symbol, oid, reference)
-        pos_rows = self._exchange_positions() if not self.config.dry_run else []
-        pid = ""
-        if not self.config.dry_run:
-            wanted = "LONG" if side is Side.BUY else "SHORT"
-            for row in pos_rows:
-                if str(row.get("symbol", "")) == symbol and str(row.get("positionSide", "")).upper() == wanted and abs(float(row.get("netSize", 0) or 0)) > 0:
-                    pid = str(row.get("positionId", ""))
-                    break
-        if not pid:
-            pid = f"{symbol}:{wanted if not self.config.dry_run else side.value}:{int(time.time()*1000)}"
-        pos = Position(
-            id=pid,
-            symbol=instrument.symbol,
-            side=side,
-            volume=size,
-            entry_price=entry,
-            stop_loss=stop_loss,
-            take_profit=take_profit,
-            opened_at=time.time(),
-            broker_ref=oid,
-            comment=comment,
-        )
-        self._positions[pid] = pos
-        logger.info("PIONEX FUTURES %s %s %s @ %.8f | SL %.8f TP %.8f | levier %.1fx",
-                    self.mode, side.value, symbol, size, entry, stop_loss, take_profit, self.config.leverage)
-        logger.warning("Pionex Futures TP/SL : suivi par le moteur, pas exchange-side via API publique documentee")
-        return pos
-
-    def modify_position(self, position_id: str, stop_loss: Optional[float] = None,
-                        take_profit: Optional[float] = None) -> bool:
-        pos = self._positions.get(position_id)
-        if not pos:
-            self.positions()
-            pos = self._positions.get(position_id)
-        if not pos:
-            return False
-        if stop_loss is not None:
-            pos.stop_loss = float(stop_loss)
-        if take_profit is not None:
-            pos.take_profit = float(take_profit)
-        return True
-
-    def close_position(self, position_id: str, volume: Optional[float] = None,
-                       reason: str = "") -> Optional[ClosedTrade]:
-        pos = self._positions.get(position_id)
-        if not pos:
-            self.positions()
-            pos = self._positions.get(position_id)
-        if not pos:
-            return None
-        size = min(pos.volume, float(volume)) if volume is not None else pos.volume
-        symbol = self.pionex_symbol(pos.symbol)
-        bid, ask = self._book(symbol)
-        exit_ref = bid if pos.side is Side.BUY else ask
-        if self.config.dry_run:
-            exit_price = exit_ref
-        else:
-            opposite = Side.SELL if pos.side is Side.BUY else Side.BUY
-            oid = self._place_market(symbol, opposite, size, "LONG" if pos.side is Side.BUY else "SHORT")
-            order = self._wait_order(symbol, oid)
-            status = str(order.get("status", "")).upper()
-            if status in {"REJECTED", "FAILED", "CANCELED", "CANCELLED"}:
-                raise BrokerError(f"fermeture Futures refusee : {status}")
-            exit_price = self._avg_fill(symbol, oid, exit_ref)
-        profit = pos.side.sign * (exit_price - pos.entry_price) * size
-        closed = ClosedTrade(
-            position_id=pos.id,
-            symbol=pos.symbol,
-            side=pos.side,
-            volume=size,
-            entry_price=pos.entry_price,
-            exit_price=exit_price,
-            opened_at=pos.opened_at,
-            closed_at=time.time(),
-            profit=profit,
-            r_multiple=pos.r_multiple(exit_price),
-            reason=reason or "fermeture",
-            tp_extensions=pos.tp_extensions,
-            max_favorable_r=pos.r_multiple(pos.max_favorable),
-            partial=size < pos.volume,
-        )
-        if size >= pos.volume - 1e-12:
-            self._positions.pop(pos.id, None)
-        else:
-            pos.volume -= size
-        self._closed.append(closed)
-        return closed
-
-    def closed_trades(self) -> list[ClosedTrade]:
-        out, self._closed = self._closed[:], []
-        return out
-
-    def sync(self) -> None:
-        if not self.config.dry_run:
-            self._refresh_account()
-            self.positions()
