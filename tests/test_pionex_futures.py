@@ -10,6 +10,7 @@ class TestPionexFutures(unittest.TestCase):
         broker = PionexFuturesBroker(PionexFuturesConfig(dry_run=True))
         self.assertEqual(broker.pionex_symbol("BTCUSD"), "BTC_USDT_PERP")
         self.assertEqual(broker.pionex_symbol("ETH_USDT"), "ETH_USDT_PERP")
+        self.assertEqual(broker.pionex_symbol("ETH_USDT_PERP"), "ETH_USDT_PERP")
 
     def test_rule_rounding(self):
         rule = PionexFuturesRule(
@@ -43,7 +44,6 @@ class TestPionexFutures(unittest.TestCase):
         )
         broker._book = lambda _symbol: (100.0, 101.0)
         broker._private = lambda *a, **k: (_ for _ in ()).throw(AssertionError("private API in dry-run"))
-        # The test only verifies the safety boundary of the order primitive.
         oid = broker._place_market("BTC_USDT_PERP", __import__("gold_bot.core", fromlist=["Side"]).Side.BUY, 0.01, "LONG")
         self.assertTrue(oid.startswith("DRY-"))
 
