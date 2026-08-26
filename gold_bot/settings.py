@@ -21,7 +21,7 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @dataclass(slots=True)
 class EngineConfig:
-    broker: str = "bitvavo"
+    broker: str = "pionex"
     poll_seconds: float = 5.0
     idle_poll_seconds: float = 20.0
     closed_market_seconds: float = 300.0
@@ -31,7 +31,7 @@ class EngineConfig:
     daily_report_hour: int = 21
     symbols: list[str] = field(default_factory=list)
     start_balance: float = 1000.0
-    currency: str = "EUR"
+    currency: str = "USDT"
     dry_run: bool = False
     offline: bool = False
     verbose_scan: bool = False
