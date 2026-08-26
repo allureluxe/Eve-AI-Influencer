@@ -1,13 +1,12 @@
 """Execution spot sur Pionex via l'OpenAPI officielle.
 
-Le broker est volontairement independant de Bitvavo : un deuxieme service
-systemd peut lancer le meme robot avec ``GB_ENGINE_BROKER=pionex``. Cela evite
-de melanger les soldes, journaux, risques et devises des deux comptes.
+Le broker est independant de Bitvavo : un deuxieme service peut lancer la
+meme strategie avec GB_ENGINE_BROKER=pionex. Les comptes, journaux et risques
+restent separes.
 
-Pionex spot n'expose pas un ordre stop/TP classique dans l'endpoint spot
-OpenAPI. Les sorties sont donc surveillees par le moteur, comme un stop
-local : le service doit rester actif. En cas de redemarrage, les positions
-memorisees par le StateStore sont reprises et leur solde crypto est verifie.
+Pionex spot permet les ordres MARKET/LIMIT mais pas un stop-loss/take-profit
+lie dans l'endpoint spot utilise ici. Les sorties sont donc gerees par le
+moteur, qui doit rester actif ; l'etat est persiste par le StateStore.
 """
 from __future__ import annotations
 
@@ -30,7 +29,6 @@ from ..universe import CATALOGUE_CRYPTO, Instrument
 from .base import AccountInfo, Broker, BrokerError, new_position_id
 
 logger = logging.getLogger(__name__)
-
 BASE = "https://api.pionex.com"
 ACTIFS = {str(a).upper() for a in CATALOGUE_CRYPTO}
 
@@ -43,7 +41,7 @@ class PionexMarketRule:
     base_precision: int = 8
     quote_precision: int = 8
     amount_precision: int = 8
-    min_amount: float = 0.0
+    min_notional: float = 0.0
     min_trade_size: float = 0.0
     min_trade_dumping: float = 0.0
     enabled: bool = True
@@ -86,8 +84,6 @@ class PionexConfig:
 
 
 class PionexBroker(Broker):
-    """Broker spot Pionex, achat uniquement, avec sorties gerees par le moteur."""
-
     name = "pionex"
     is_live = True
     supports_short = False
@@ -100,7 +96,6 @@ class PionexBroker(Broker):
         self._closed: list[ClosedTrade] = []
         self._account = AccountInfo(0.0, 0.0, self.config.quote_asset)
         self._balances: dict[str, tuple[float, float]] = {}
-        self._last_error = ""
         self._healthy = False
 
     @property
@@ -126,41 +121,42 @@ class PionexBroker(Broker):
         return rule.enabled if rule else symbol.upper() in ACTIFS
 
     def notionnel_minimum(self) -> float:
-        values = [r.min_amount for r in self._rules.values() if r.enabled and r.min_amount > 0]
+        values = [r.min_notional for r in self._rules.values() if r.enabled and r.min_notional > 0]
         return min(values) if values else 5.0
 
     # ------------------------------------------------------------------
     # REST / signature
     # ------------------------------------------------------------------
-    def _encode_query(self, params: dict[str, Any]) -> str:
+    @staticmethod
+    def _canonical_query(params: dict[str, Any]) -> str:
+        # Pionex exige que les valeurs ne soient PAS URL-encodees dans la
+        # chaine signee. L'URL HTTP, elle, peut etre encodee normalement.
         return "&".join(
-            f"{k}={urllib.parse.quote(str(v), safe='') }"
-            for k, v in sorted(params.items())
-            if v is not None
+            f"{k}={str(v)}" for k, v in sorted(params.items()) if v is not None
+        )
+
+    @staticmethod
+    def _http_query(params: dict[str, Any]) -> str:
+        return urllib.parse.urlencode(
+            [(k, v) for k, v in sorted(params.items()) if v is not None]
         )
 
     def _signature(self, method: str, path: str, params: dict[str, Any], body: str = "") -> str:
-        query = self._encode_query(params)
+        query = self._canonical_query(params)
         path_url = path + (f"?{query}" if query else "")
         message = method.upper() + path_url + body
-        return hmac.new(
-            self.config.api_secret.encode("utf-8"),
-            message.encode("utf-8"),
-            hashlib.sha256,
-        ).hexdigest()
+        return hmac.new(self.config.api_secret.encode("utf-8"),
+                        message.encode("utf-8"), hashlib.sha256).hexdigest()
 
     def _request(self, method: str, path: str, *, params: Optional[dict[str, Any]] = None,
                  body: Optional[dict[str, Any]] = None, private: bool = False) -> dict[str, Any]:
         params = dict(params or {})
-        body_text = ""
         if private:
             params["timestamp"] = int(time.time() * 1000)
             if not self.config.api_key or not self.config.api_secret:
                 raise BrokerError("PIONEX_API_KEY et PIONEX_API_SECRET absents")
-        if body is not None:
-            body_text = json.dumps(body, separators=(",", ":"), ensure_ascii=False)
-
-        query = self._encode_query(params)
+        body_text = json.dumps(body, separators=(",", ":"), ensure_ascii=False) if body is not None else ""
+        query = self._http_query(params)
         url = BASE + path + (f"?{query}" if query else "")
         headers = {"Accept": "application/json", "User-Agent": "gold-bot/1.0"}
         if body is not None:
@@ -168,8 +164,8 @@ class PionexBroker(Broker):
         if private:
             headers["PIONEX-KEY"] = self.config.api_key
             headers["PIONEX-SIGNATURE"] = self._signature(method, path, params, body_text)
-
-        request = urllib.request.Request(url, data=body_text.encode("utf-8") if body is not None else None,
+        request = urllib.request.Request(url,
+                                          data=body_text.encode("utf-8") if body is not None else None,
                                           headers=headers, method=method.upper())
         try:
             with urllib.request.urlopen(request, timeout=self.config.timeout) as response:
@@ -179,7 +175,6 @@ class PionexBroker(Broker):
             raise BrokerError(f"Pionex HTTP {exc.code}: {raw[:500]}") from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise BrokerError(f"Pionex reseau indisponible: {exc}") from exc
-
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
@@ -195,7 +190,6 @@ class PionexBroker(Broker):
                  body: Optional[dict[str, Any]] = None) -> dict[str, Any]:
         return self._request(method, path, params=params, body=body, private=True)
 
-    # ------------------------------------------------------------------
     def connect(self) -> bool:
         try:
             self.apply_market_rules(None)
@@ -209,7 +203,6 @@ class PionexBroker(Broker):
             return True
         except Exception as exc:  # noqa: BLE001
             self._healthy = False
-            self._last_error = str(exc)
             logger.error("Pionex connexion impossible : %s", str(exc)[:300])
             return False
 
@@ -225,14 +218,8 @@ class PionexBroker(Broker):
             balances[coin] = (float(row.get("free", 0) or 0), float(row.get("frozen", 0) or 0))
         self._balances = balances
         free, frozen = balances.get(self.config.quote_asset, (0.0, 0.0))
-        self._account = AccountInfo(
-            equity=free + frozen,
-            balance=free + frozen,
-            currency=self.config.quote_asset,
-            margin_used=frozen,
-            margin_free=free,
-            leverage=1.0,
-        )
+        self._account = AccountInfo(free + frozen, free + frozen, self.config.quote_asset,
+                                    margin_used=frozen, margin_free=free, leverage=1.0)
 
     def account(self) -> AccountInfo:
         if not self.config.dry_run:
@@ -240,8 +227,7 @@ class PionexBroker(Broker):
         return self._account
 
     def apply_market_rules(self, _universe: Any = None) -> None:
-        params = {"type": "SPOT"}
-        data = self._public("/api/v1/common/symbols", params=params)
+        data = self._public("/api/v1/common/symbols", params={"type": "SPOT"})
         rows = data.get("data", {}).get("symbols", [])
         rules: dict[str, PionexMarketRule] = {}
         for row in rows:
@@ -257,7 +243,7 @@ class PionexBroker(Broker):
                 base_precision=int(row.get("basePrecision", 8) or 8),
                 quote_precision=int(row.get("quotePrecision", 8) or 8),
                 amount_precision=int(row.get("amountPrecision", 8) or 8),
-                min_amount=float(row.get("minAmount", 0) or 0),
+                min_notional=float(row.get("minNotional", row.get("minAmount", 0)) or 0),
                 min_trade_size=float(row.get("minTradeSize", 0) or 0),
                 min_trade_dumping=float(row.get("minTradeDumping", 0) or 0),
                 enabled=bool(row.get("enable", True)),
@@ -290,8 +276,7 @@ class PionexBroker(Broker):
         return str(order_id)
 
     def _get_order(self, order_id: str) -> dict[str, Any]:
-        data = self._private("GET", "/api/v1/trade/order", params={"orderId": order_id})
-        return data.get("data", {})
+        return self._private("GET", "/api/v1/trade/order", params={"orderId": order_id}).get("data", {})
 
     def _wait_filled(self, order_id: str) -> dict[str, Any]:
         if self.config.dry_run:
@@ -306,19 +291,16 @@ class PionexBroker(Broker):
             time.sleep(self.config.poll_order_seconds)
         return last
 
-    def _entry_price(self, order: dict[str, Any], fallback: float) -> float:
+    @staticmethod
+    def _entry_price(order: dict[str, Any], fallback: float) -> float:
         filled = float(order.get("filledSize", 0) or 0)
         amount = float(order.get("filledAmount", 0) or 0)
-        if filled > 0 and amount > 0:
-            return amount / filled
-        return fallback
+        return amount / filled if filled > 0 and amount > 0 else fallback
 
-    # ------------------------------------------------------------------
     def positions(self) -> list[Position]:
         return list(self._positions.values())
 
     def reprendre(self, position: Position) -> bool:
-        """Reprend une position locale si le solde de l'actif couvre le volume."""
         try:
             if self.config.dry_run:
                 self._positions[position.id] = position
@@ -326,12 +308,10 @@ class PionexBroker(Broker):
             base = self.pionex_symbol(position.symbol).split("_")[0]
             free, frozen = self._balances.get(base, (0.0, 0.0))
             if free + frozen + 1e-12 < position.volume:
-                logger.warning("Pionex : position %s non reprise, solde %s insuffisant", position.symbol, base)
                 return False
             self._positions[position.id] = position
             return True
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Pionex reprise %s impossible: %s", position.symbol, exc)
+        except Exception:
             return False
 
     def open_position(self, instrument: Instrument, side: Side, lots: float,
@@ -344,47 +324,29 @@ class PionexBroker(Broker):
         rule = self._rules.get(symbol)
         if not rule or not rule.enabled:
             raise BrokerError(f"marche Pionex indisponible : {symbol}")
-
         bid, ask = self._book(symbol)
         amount = rule.quote_down(lots * ask)
-        min_amount = rule.min_amount or 0.0
-        if amount < min_amount:
-            raise BrokerError(f"notionnel Pionex trop faible : {amount:.8f} < minimum {min_amount:.8f} {self.config.quote_asset}")
+        if amount < rule.min_notional:
+            raise BrokerError(f"notionnel Pionex trop faible : {amount:.8f} < minimum {rule.min_notional:.8f} {self.config.quote_asset}")
         size = rule.amount_down(amount / ask)
-        if size < (rule.min_trade_size or 0.0):
+        if size < rule.min_trade_size:
             raise BrokerError(f"quantite Pionex trop faible : {size} < minimum {rule.min_trade_size}")
-
-        # Le moteur fournit les niveaux sur le prix d'entree du signal. Pour
-        # rester coherent meme si Bitvavo et Pionex cotent legerement differents,
-        # on conserve les distances relatives au prix et on les applique au ask Pionex.
         sl_pct = abs(stop_loss - ask) / ask if ask > 0 else 0.0
         tp_pct = abs(take_profit - ask) / ask if ask > 0 else 0.0
         if not (0 < sl_pct < 1.0 and 0 < tp_pct < 10.0):
-            raise BrokerError(f"niveaux invalides apres normalisation Pionex: SL={sl_pct:.4%}, TP={tp_pct:.4%}")
-
-        client = f"gb-{int(time.time()*1000)}-{new_position_id()}"
-        order_id = self._order(symbol, "BUY", amount=amount, client_id=client)
+            raise BrokerError(f"niveaux invalides Pionex: SL={sl_pct:.4%}, TP={tp_pct:.4%}")
+        order_id = self._order(symbol, "BUY", amount=amount,
+                               client_id=f"gb-{int(time.time()*1000)}-{new_position_id()}")
         order = self._wait_filled(order_id)
         filled_size = float(order.get("filledSize", 0) or size) if order else size
         entry = self._entry_price(order, ask) if order else ask
         if filled_size <= 0:
-            raise BrokerError(f"achat Pionex non rempli: order={order_id} status={order.get('status', '?')}")
-
-        # Recalcule les niveaux a partir du prix reel de remplissage.
-        actual_sl = entry * (1.0 - sl_pct)
-        actual_tp = entry * (1.0 + tp_pct)
-        pos = Position(
-            id=new_position_id(),
-            symbol=instrument.symbol,
-            side=Side.BUY,
-            volume=filled_size,
-            entry_price=entry,
-            stop_loss=actual_sl,
-            take_profit=actual_tp,
-            opened_at=time.time(),
-            broker_ref=order_id,
-            comment=comment,
-        )
+            raise BrokerError(f"achat Pionex non rempli: order={order_id}")
+        pos = Position(id=new_position_id(), symbol=instrument.symbol, side=Side.BUY,
+                       volume=filled_size, entry_price=entry,
+                       stop_loss=entry * (1.0 - sl_pct),
+                       take_profit=entry * (1.0 + tp_pct), opened_at=time.time(),
+                       broker_ref=order_id, comment=comment)
         self._positions[pos.id] = pos
         return pos
 
@@ -405,8 +367,6 @@ class PionexBroker(Broker):
         if not pos:
             return None
         qty = pos.volume if volume is None else min(float(volume), pos.volume)
-        if qty <= 0:
-            return None
         symbol = self.pionex_symbol(pos.symbol)
         rule = self._rules.get(symbol)
         if not rule:
@@ -414,34 +374,25 @@ class PionexBroker(Broker):
         qty = rule.amount_down(qty)
         if qty <= 0:
             raise BrokerError("quantite de sortie arrondie a zero")
-
         bid, _ = self._book(symbol)
-        order_id = self._order(symbol, "SELL", size=qty, client_id=f"gb-close-{new_position_id()}")
+        order_id = self._order(symbol, "SELL", size=qty,
+                               client_id=f"gb-close-{new_position_id()}")
         order = self._wait_filled(order_id)
         filled = float(order.get("filledSize", 0) or qty) if order else qty
         exit_price = self._entry_price(order, bid) if order else bid
         if filled <= 0:
             raise BrokerError(f"vente Pionex non remplie: order={order_id}")
-
         profit = (exit_price - pos.entry_price) * filled
         fee = float(order.get("fee", 0) or 0) if order else 0.0
         profit -= fee
-        trade = ClosedTrade(
-            position_id=pos.id,
-            symbol=pos.symbol,
-            side=pos.side,
-            volume=filled,
-            entry_price=pos.entry_price,
-            exit_price=exit_price,
-            opened_at=pos.opened_at,
-            closed_at=time.time(),
-            profit=profit,
-            r_multiple=pos.r_multiple(exit_price),
-            reason=reason or "sortie",
-            tp_extensions=pos.tp_extensions,
-            max_favorable_r=pos.r_multiple(pos.max_favorable),
-            partial=filled < pos.volume - 1e-12,
-        )
+        trade = ClosedTrade(position_id=pos.id, symbol=pos.symbol, side=pos.side,
+                            volume=filled, entry_price=pos.entry_price,
+                            exit_price=exit_price, opened_at=pos.opened_at,
+                            closed_at=time.time(), profit=profit,
+                            r_multiple=pos.r_multiple(exit_price),
+                            reason=reason or "sortie", tp_extensions=pos.tp_extensions,
+                            max_favorable_r=pos.r_multiple(pos.max_favorable),
+                            partial=filled < pos.volume - 1e-12)
         if filled >= pos.volume - 1e-12:
             self._positions.pop(position_id, None)
         else:
