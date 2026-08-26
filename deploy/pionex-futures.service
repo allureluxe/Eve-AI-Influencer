@@ -1,0 +1,38 @@
+# Pionex Futures LIVE service for the VPS layout used by this project.
+#
+# Install once on the VPS:
+#   sudo cp deploy/pionex-futures.service /etc/systemd/system/pionex-futures.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now pionex-futures
+#
+# Logs:
+#   journalctl -u pionex-futures -f
+
+[Unit]
+Description=Gold Bot - Pionex USDT-M Futures LIVE
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+ExecStart=/usr/bin/python3 /home/ubuntu/Eve-AI-Influencer/run_pionex.py
+Restart=always
+RestartSec=20
+StartLimitIntervalSec=600
+StartLimitBurst=10
+KillSignal=SIGTERM
+TimeoutStopSec=60
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pionex-futures
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/home/ubuntu/Eve-AI-Influencer/data
+
+[Install]
+WantedBy=multi-user.target
