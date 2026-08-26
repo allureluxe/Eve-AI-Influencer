@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from gold_bot.brokers.pionex_futures import PionexFuturesBroker, PionexFuturesConfig, PionexFuturesRule
 from gold_bot.core import Side
-from gold_bot.universe import CATALOGUE_CRYPTO
+from gold_bot.universe import Instrument
 
 
 class TestPionexFutures(unittest.TestCase):
@@ -46,7 +46,19 @@ class TestPionexFutures(unittest.TestCase):
         )
         broker._book = lambda _symbol: (100.0, 101.0)
         broker._private = lambda *a, **k: (_ for _ in ()).throw(AssertionError("private API in dry-run"))
-        instrument = next(i for i in CATALOGUE_CRYPTO if i.symbol == "BTCUSD")
+        instrument = Instrument(
+            symbol="BTCUSD",
+            asset_class="crypto",
+            digits=2,
+            contract_size=1.0,
+            min_lot=0.001,
+            lot_step=0.001,
+            max_lot=100.0,
+            round_step=0.0,
+            typical_spread=0.0,
+            max_spread=10.0,
+            weekend=True,
+        )
         position = broker.open_position(instrument, Side.BUY, 0.01, 99.0, 102.0)
         self.assertTrue(position.broker_ref.startswith("DRY-"))
         self.assertEqual(position.volume, 0.01)
