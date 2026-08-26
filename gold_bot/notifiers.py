@@ -17,23 +17,59 @@ import json
 import logging
 import os
 import time
+import urllib.error
+import urllib.request
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
-
-from .brokers.moonx import http_json
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 LEVEL_ORDER = {"debug": 10, "info": 20, "trade": 25, "warning": 30, "critical": 40}
 
 
+def http_json(
+    url: str,
+    method: str = "POST",
+    payload: Optional[dict] = None,
+    headers: Optional[dict[str, str]] = None,
+    timeout: float = 10.0,
+) -> Any:
+    """Petit client HTTP interne pour les notifications.
+
+    Il ne depend d'aucun broker : une panne ou l'absence d'un module de broker
+    ne doit jamais empecher le moteur de demarrer.
+    """
+    body = json.dumps(payload or {}, ensure_ascii=False).encode("utf-8")
+    hdrs = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "gold-bot/1.0",
+    }
+    if headers:
+        hdrs.update(headers)
+    req = urllib.request.Request(
+        url, data=body, headers=hdrs, method=method.upper()
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            raw = response.read().decode("utf-8", errors="replace")
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise RuntimeError(f"HTTP notification indisponible: {exc}") from exc
+    if not raw.strip():
+        return {}
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {"raw": raw}
+
+
 @dataclass(slots=True)
 class Notification:
     """Un evenement a diffuser."""
 
-    level: str               # debug | info | trade | warning | critical
+    level: str
     title: str
     body: str = ""
     data: dict = field(default_factory=dict)
@@ -75,8 +111,6 @@ class ConsoleChannel(Channel):
 
 
 class FileChannel(Channel):
-    """Journal JSON Lines : une ligne par evenement, facile a rejouer."""
-
     name = "fichier"
 
     def __init__(self, path: str = "", min_level: str = "debug") -> None:
@@ -96,8 +130,6 @@ class FileChannel(Channel):
 
 
 class TelegramChannel(Channel):
-    """Alertes mobiles. Variables : TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID."""
-
     name = "telegram"
 
     def __init__(self, min_level: str = "trade") -> None:
@@ -113,13 +145,11 @@ class TelegramChannel(Channel):
             http_json(f"https://api.telegram.org/bot{self.token}/sendMessage", "POST",
                       {"chat_id": self.chat_id, "text": note.as_text(),
                        "disable_web_page_preview": True}, timeout=10)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("telegram indisponible : %s", str(exc)[:120])
 
 
 class WebhookChannel(Channel):
-    """Webhook generique (Discord, Slack, n'importe quel endpoint HTTP)."""
-
     name = "webhook"
 
     def __init__(self, url: str = "", min_level: str = "trade") -> None:
@@ -135,18 +165,11 @@ class WebhookChannel(Channel):
                    "titre": note.title, "niveau": note.level, "donnees": note.data}
         try:
             http_json(self.url, "POST", payload, timeout=10)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("webhook indisponible : %s", str(exc)[:120])
 
 
 class OutboxChannel(Channel):
-    """Boite d'envoi fichier, consommee par un connecteur mail externe.
-
-    Le robot n'a pas d'acces direct a une messagerie : il depose ses
-    messages ici, et un connecteur (Gmail via MCP, script cron, etc.) les
-    expedie. Cela evite de stocker des identifiants mail dans le robot.
-    """
-
     name = "boite_envoi"
 
     def __init__(self, path: str = "", recipient: str = "", min_level: str = "warning") -> None:
@@ -178,39 +201,20 @@ class Notifier:
             channels = [ConsoleChannel(), FileChannel(), TelegramChannel(),
                         WebhookChannel(), OutboxChannel()]
         self.channels = [c for c in channels if c.enabled()]
-        self._throttle: dict[str, float] = {}
 
-    def active_channels(self) -> list[str]:
-        return [c.name for c in self.channels]
-
-    def notify(self, level: str, title: str, body: str = "",
-               data: Optional[dict] = None, throttle_key: str = "",
-               throttle_seconds: float = 0.0) -> None:
-        """Diffuse un evenement. `throttle_key` evite les alertes en rafale."""
-        if throttle_key and throttle_seconds > 0:
-            last = self._throttle.get(throttle_key, 0.0)
-            if time.time() - last < throttle_seconds:
-                return
-            self._throttle[throttle_key] = time.time()
-
-        note = Notification(level=level, title=title, body=body, data=data or {})
+    def send(self, note: Notification) -> None:
         for channel in self.channels:
-            if not channel.accepts(level):
-                continue
-            try:
-                channel.send(note)
-            except Exception as exc:  # noqa: BLE001 - une alerte ne doit jamais casser le robot
-                logger.warning("canal %s en echec : %s", channel.name, str(exc)[:120])
+            if channel.accepts(note.level):
+                try:
+                    channel.send(note)
+                except Exception as exc:
+                    logger.warning("notification %s indisponible : %s", channel.name, str(exc)[:120])
 
-    # Raccourcis
-    def info(self, title: str, body: str = "", **kw) -> None:
-        self.notify("info", title, body, **kw)
+    def notify(self, level: str, title: str, body: str = "", data: Optional[dict] = None) -> None:
+        self.send(Notification(level=level, title=title, body=body, data=data or {}))
 
-    def trade(self, title: str, body: str = "", **kw) -> None:
-        self.notify("trade", title, body, **kw)
 
-    def warning(self, title: str, body: str = "", **kw) -> None:
-        self.notify("warning", title, body, **kw)
-
-    def critical(self, title: str, body: str = "", **kw) -> None:
-        self.notify("critical", title, body, **kw)
+__all__ = [
+    "Notification", "Notifier", "Channel", "ConsoleChannel", "FileChannel",
+    "TelegramChannel", "WebhookChannel", "OutboxChannel", "http_json",
+]
