@@ -10,6 +10,7 @@ from gold_bot.brokers.pionex_futures_hardened import HardenedPionexFuturesBroker
 from gold_bot.brokers import PionexFuturesConfig
 from gold_bot.core import Side
 from gold_bot.engine import TradingEngine
+from gold_bot.pionex_runtime import prepare_live_environment, sync_position_mode
 
 _ORIGINAL_DEVise = engine_module._devise_du_lieu_d_execution
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ def _pionex_quote_currency(broker: str) -> str:
 
 
 engine_module._devise_du_lieu_d_execution = _pionex_quote_currency
+prepare_live_environment()
 
 
 class PionexTradingEngine(TradingEngine):
@@ -30,6 +32,10 @@ class PionexTradingEngine(TradingEngine):
         px.dry_run = False
         self.config.engine.dry_run = False
         broker = HardenedPionexFuturesBroker(px)
+        # Read-only: use the real account position mode instead of assuming
+        # OPENCLOSE. Pionex accepts BUYSELL and OPENCLOSE, and the order body
+        # must match the account mode exactly.
+        sync_position_mode(broker)
         self._filtrer_univers_sur_le_broker(broker)
         for inst in self.universe:
             broker.register_instrument(inst)
