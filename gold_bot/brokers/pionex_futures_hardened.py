@@ -8,17 +8,16 @@ confirmation des ordres et validation de la position effectivement ouverte.
 from __future__ import annotations
 
 import time
-from typing import Any, Optional
+from typing import Any
 
 from .base import AccountInfo, BrokerError
-from .pionex_futures import PionexFuturesBroker, PionexFuturesConfig
+from .pionex_futures import PionexFuturesBroker
 
 
 class HardenedPionexFuturesBroker(PionexFuturesBroker):
     """Implementation Pionex Futures utilisee par le service autonome."""
 
     def _book(self, symbol: str) -> tuple[float, float]:
-        # Pionex Futures documente /api/v1/market/bookTicker (singulier).
         data = self._public("/api/v1/market/bookTicker", params={"symbol": symbol})
         rows = data.get("data", {}).get("tickers", [])
         if not rows:
@@ -34,8 +33,6 @@ class HardenedPionexFuturesBroker(PionexFuturesBroker):
         return bid, ask
 
     def _refresh_account(self) -> None:
-        # account/detail fournit les actifs, la marge disponible et le PnL
-        # latent. Le simple free+frozen peut sous-estimer l'equity Futures.
         data = self._private("GET", "/uapi/v1/account/detail")
         detail = data.get("data", {})
         balances = detail.get("balances", []) or []
@@ -80,11 +77,12 @@ class HardenedPionexFuturesBroker(PionexFuturesBroker):
                 params={"symbol": symbol, "orderId": order_id},
             ).get("data", {})
             status = str(last.get("status", "")).upper()
-            # Futures API expose OPEN/CLOSED. Some environments may still
-            # expose the underlying terminal state, so accept both forms.
-            if status in {
-                "FILLED", "CLOSED", "CANCELED", "CANCELLED", "REJECTED", "FAILED"
-            }:
+
+            if status in {"CANCELED", "CANCELLED", "REJECTED", "FAILED"}:
+                raise BrokerError(
+                    f"Pionex ordre {order_id} refuse/annule ({status}): {last}"
+                )
+            if status in {"FILLED", "CLOSED"}:
                 return last
             time.sleep(self.config.poll_order_seconds)
 
@@ -95,10 +93,6 @@ class HardenedPionexFuturesBroker(PionexFuturesBroker):
 
     def open_position(self, instrument, side, lots: float, stop_loss: float,
                       take_profit: float, comment: str = ""):
-        # Le broker de base effectue deja le controle du contrat, du pas,
-        # du minimum et l'ordre Futures. On ajoute une verification apres
-        # execution : jamais de position fantome si Pionex a accepte la
-        # requete mais n'a finalement ouvert aucune position.
         pos = super().open_position(
             instrument, side, lots, stop_loss, take_profit, comment
         )
@@ -116,8 +110,6 @@ class HardenedPionexFuturesBroker(PionexFuturesBroker):
                 f"{instrument.symbol} {side.value} n'est visible"
             )
 
-        # En cas d'execution partielle, le volume de gestion doit suivre la
-        # taille reelle de la position et non la taille demandee.
         exchange_pos = max(actual, key=lambda p: p.volume)
         pos.volume = exchange_pos.volume
         pos.entry_price = exchange_pos.entry_price
