@@ -6,7 +6,8 @@ import logging
 import os
 
 import gold_bot.engine as engine_module
-from gold_bot.brokers import HardenedPionexFuturesBroker, PionexFuturesConfig
+from gold_bot.brokers.pionex_futures_hardened import HardenedPionexFuturesBroker
+from gold_bot.brokers import PionexFuturesConfig
 from gold_bot.core import Side
 from gold_bot.engine import TradingEngine
 
@@ -24,8 +25,6 @@ engine_module._devise_du_lieu_d_execution = _pionex_quote_currency
 
 
 class PionexTradingEngine(TradingEngine):
-    """Moteur autonome avec le broker Pionex Futures durci."""
-
     def _build_broker(self):
         px = PionexFuturesConfig.from_env()
         px.dry_run = False
@@ -45,7 +44,7 @@ class PionexTradingEngine(TradingEngine):
                 continue
             try:
                 tick = self.registry.tick(pos.symbol, instrument.asset_class)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("protection %s : tick indisponible : %s", pos.symbol, str(exc)[:120])
                 continue
             if tick is None:
@@ -63,7 +62,7 @@ class PionexTradingEngine(TradingEngine):
                 if trade:
                     self._on_trade_closed(trade)
                     logger.warning("PROTECTION URGENCE %s %s @ %.8f (%s)", pos.side.value, pos.symbol, exit_price, reason)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.error("PROTECTION URGENCE ECHEC %s %s : %s", pos.side.value, pos.symbol, str(exc)[:300])
 
     def _manage_positions(self, positions) -> None:
