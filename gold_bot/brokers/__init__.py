@@ -2,11 +2,17 @@
 from .base import AccountInfo, Broker, BrokerError
 from .bitvavo import BitvavoBroker, BitvavoConfig, RegleMarche
 from .bitvavo_hardening import harden_bitvavo
-from .pionex import PionexBroker, PionexConfig, PionexMarketRule
+from .pionex import PionexBroker as PionexSpotBroker, PionexConfig as PionexSpotConfig, PionexMarketRule as PionexSpotMarketRule
 from .pionex_futures import PionexFuturesBroker, PionexFuturesConfig, PionexFuturesRule
 from .paper import PaperBroker, PaperConfig
 
 harden_bitvavo(BitvavoBroker, RegleMarche)
+
+# Pionex = Futures for the autonomous trading service. The old spot broker
+# remains importable under its explicit Spot name for backwards compatibility.
+PionexBroker = PionexFuturesBroker
+PionexConfig = PionexFuturesConfig
+PionexMarketRule = PionexFuturesRule
 
 
 class _ObsoleteBroker(Broker):
@@ -51,4 +57,5 @@ __all__ = [
     "BitvavoBroker", "BitvavoConfig", "RegleMarche",
     "PionexBroker", "PionexConfig", "PionexMarketRule",
     "PionexFuturesBroker", "PionexFuturesConfig", "PionexFuturesRule",
+    "PionexSpotBroker", "PionexSpotConfig", "PionexSpotMarketRule",
 ]
