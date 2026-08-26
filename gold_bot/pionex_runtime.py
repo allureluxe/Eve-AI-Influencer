@@ -1,9 +1,4 @@
-"""Runtime guards for live Pionex Futures execution.
-
-Keeps optional/broken notification and market-data integrations from
-interfering with execution, and synchronises the broker configuration with
-the actual Futures account mode using a read-only API call.
-"""
+"""Runtime guards for live Pionex Futures execution."""
 from __future__ import annotations
 
 import logging
@@ -13,22 +8,23 @@ logger = logging.getLogger(__name__)
 
 
 def prepare_live_environment() -> None:
-    """Disable known optional integrations unless explicitly enabled.
+    """Keep optional integrations from interfering with live execution.
 
-    MoonX is not required for Pionex execution.  A stale MoonX credential
-    must never generate repeated 401s or become a source-selection failure.
-    Set MOONX_ENABLED=1 only when its credentials are known-good.
+    MoonX and Telegram are opt-in here. Pionex execution does not depend on
+    either service, so stale credentials cannot spam the trading journal.
+    Set MOONX_ENABLED=1 / TELEGRAM_ENABLED=1 only after the credentials have
+    been verified.
     """
     if os.getenv("MOONX_ENABLED", "0").strip().lower() not in {"1", "true", "yes", "oui"}:
         os.environ.pop("MOONX_API_KEY", None)
         os.environ.pop("MOONX_API_URL", None)
+    if os.getenv("TELEGRAM_ENABLED", "0").strip().lower() not in {"1", "true", "yes", "oui"}:
+        os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+        os.environ.pop("TELEGRAM_CHAT_ID", None)
 
 
 def sync_position_mode(broker) -> str:
-    """Read the real Pionex Futures position mode and align the broker.
-
-    This is strictly read-only.  No position mode change is sent to Pionex.
-    """
+    """Read the actual Pionex Futures position mode; never change it."""
     try:
         data = broker._private("GET", "/uapi/v1/account/positionMode")
         mode = str(data.get("data", {}).get("positionMode", "")).upper()
