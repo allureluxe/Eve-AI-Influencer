@@ -1,20 +1,12 @@
 #!/usr/bin/env python3
-"""Point d'entrée dédié au moteur Bitvavo spot.
-
-Le script verrouille le lieu d'exécution sur Bitvavo, refuse le mode offline,
-laisse le dry-run gouverné par la configuration et effectue un préflight
-lecture seule avant de lancer la boucle.
-"""
+"""Point d'entrée dédié au moteur Bitvavo spot."""
 from __future__ import annotations
 
-import logging
 import os
 
 import gold_bot.engine as engine_module
 from gold_bot.brokers import BitvavoBroker, BitvavoConfig
 from gold_bot.engine import TradingEngine
-
-logger = logging.getLogger(__name__)
 
 
 def _bitvavo_quote_currency(broker: str) -> str:
@@ -27,20 +19,20 @@ engine_module._devise_du_lieu_d_execution = _bitvavo_quote_currency
 
 
 class BitvavoTradingEngine(TradingEngine):
-    """Moteur avec Bitvavo comme unique lieu d'exécution."""
+    """Moteur verrouillé sur Bitvavo spot."""
 
     def _build_broker(self):
         bv = BitvavoConfig.from_env()
-        # La configuration globale reste la source de vérité du mode.
         bv.dry_run = bool(self.config.engine.dry_run)
         broker = BitvavoBroker(bv)
 
-        # Charge les marchés réels avant de filtrer l'univers. Cela évite de
-        # scanner des actifs inexistants ou non cotables en EUR.
-        try:
-            broker.refresh_markets()
-        except Exception as exc:
-            raise RuntimeError(f"préflight Bitvavo impossible : {exc}") from exc
+        # connect() est le préflight officiel du broker : authentification,
+        # compte et chargement des marchés/règles. Aucun ordre n'est envoyé.
+        if not broker.connect():
+            raise RuntimeError(
+                "préflight Bitvavo impossible : " +
+                (getattr(broker, "_last_error", "connexion refusée") or "connexion refusée")
+            )
 
         self._filtrer_univers_sur_le_broker(broker)
         for inst in self.universe:
