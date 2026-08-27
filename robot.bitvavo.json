@@ -1,5 +1,5 @@
 {
-  "_note": "Configuration Bitvavo spot micro-scalping : petits ordres possibles des que le minimum reel du marche est respecte. Les protections de risque et le filtre de cout restent actifs.",
+  "_note": "Configuration Bitvavo spot micro-scalping : petits ordres possibles des que le minimum reel du marche est respecte. Les protections de risque et le filtre de cout restent actifs. Aucun plafond quotidien de trades : le bot peut enchainer tant que les protections de capital l'autorisent.",
   "engine": {
     "broker": "bitvavo",
     "dry_run": true,
@@ -60,11 +60,11 @@
     "weekly_loss_limit_pct": 7.0,
     "max_drawdown_pct": 12.0,
     "daily_profit_target_pct": 4.0,
-    "max_positions": 1,
+    "max_positions": 3,
     "max_per_correlation_group": 1,
-    "max_total_risk_pct": 0.60,
-    "max_daily_trades": 20,
-    "min_seconds_between_trades": 45.0,
+    "max_total_risk_pct": 1.80,
+    "max_daily_trades": 0,
+    "min_seconds_between_trades": 20.0,
     "max_leverage": 1.0,
     "max_consecutive_losses": 3,
     "pause_after_losses_minutes": 90.0,
