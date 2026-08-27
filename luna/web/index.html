@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Luna</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2215%22 fill=%22%23e0709a%22/%3E%3Ctext x=%2216%22 y=%2222%22 font-size=%2218%22 text-anchor=%22middle%22%3E%F0%9F%8C%99%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/web/style.css">
+</head>
+<body>
+
+<div id="porte" class="porte" hidden>
+  <div class="carte-porte">
+    <h1>Luna</h1>
+    <p class="sous">Compagne virtuelle. Personnage de fiction genere par une IA —
+       elle n'est pas une personne reelle.</p>
+    <p class="avertissement">Contenu reserve aux adultes.</p>
+    <label class="case"><input type="checkbox" id="porte-majeur">
+      Je confirme avoir 18 ans ou plus.</label>
+    <label class="case"><input type="checkbox" id="porte-fiction">
+      Je comprends que Luna est une IA et non une personne reelle.</label>
+    <button id="porte-valider" class="principal" disabled>Entrer</button>
+    <button id="porte-refuser" class="discret">Rester en mode tendre</button>
+  </div>
+</div>
+
+<header class="entete">
+  <div class="identite">
+    <div id="pastille-avatar" class="pastille"></div>
+    <div>
+      <div class="nom">Luna <span id="etat-moteur" class="puce"></span></div>
+      <div id="etat-moment" class="ligne-etat">…</div>
+    </div>
+  </div>
+  <nav class="onglets">
+    <button data-vue="messages" class="actif">Messages</button>
+    <button data-vue="appel">Appel</button>
+    <button data-vue="visio">Visio</button>
+    <button data-vue="reglages">Reglages</button>
+  </nav>
+</header>
+
+<main>
+  <!-- MESSAGES -->
+  <section id="vue-messages" class="vue active">
+    <div id="fil" class="fil"></div>
+    <form id="saisie" class="saisie">
+      <button type="button" id="dicter" class="rond" title="Dicter">🎙️</button>
+      <input id="champ" type="text" autocomplete="off" placeholder="Ecris a Luna…">
+      <button type="submit" class="rond principal" title="Envoyer">➤</button>
+    </form>
+  </section>
+
+  <!-- APPEL -->
+  <section id="vue-appel" class="vue">
+    <div class="scene-appel">
+      <div id="halo" class="halo"><div id="avatar-appel" class="avatar-cadre"></div></div>
+      <div id="appel-etat" class="ligne-etat">Appel non demarre</div>
+      <div id="appel-transcription" class="transcription"></div>
+      <div class="commandes">
+        <button id="appel-demarrer" class="principal">📞 Appeler Luna</button>
+        <button id="appel-parler" class="rond gros" hidden title="Maintenir pour parler">🎤</button>
+        <button id="appel-raccrocher" class="danger" hidden>Raccrocher</button>
+      </div>
+      <p class="note">La voix utilise la synthese du navigateur : rien ne sort de
+         ta machine. Chrome ou Edge pour la reconnaissance vocale.</p>
+    </div>
+  </section>
+
+  <!-- VISIO -->
+  <section id="vue-visio" class="vue">
+    <div class="scene-visio">
+      <div id="cadre-visio" class="cadre-visio">
+        <div id="avatar-visio" class="avatar-plein"></div>
+        <div id="bandeau-visio" class="bandeau">IA — personnage fictif</div>
+        <div id="bulle-visio" class="bulle" hidden></div>
+      </div>
+      <div class="panneau-visio">
+        <div class="groupe">
+          <h3>Tenue</h3>
+          <div id="liste-tenues" class="pastilles"></div>
+        </div>
+        <div class="groupe">
+          <h3>Ambiance</h3>
+          <div id="liste-ambiances" class="pastilles"></div>
+        </div>
+        <div class="groupe">
+          <h3>Jeux a deux</h3>
+          <div id="liste-jeux" class="pastilles"></div>
+        </div>
+        <div class="commandes">
+          <button id="visio-demarrer" class="principal">🎥 Lancer la visio</button>
+          <button id="visio-parler" class="rond gros" hidden title="Parler">🎤</button>
+          <button id="visio-arreter" class="danger" hidden>Terminer</button>
+        </div>
+        <div id="visio-transcription" class="transcription"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REGLAGES -->
+  <section id="vue-reglages" class="vue">
+    <div class="colonnes">
+      <div class="carte">
+        <h3>Registre</h3>
+        <p class="note">Le canal peut abaisser ce reglage : rien de sensuel ne
+           part vers Instagram, Snapchat ou par SMS.</p>
+        <div id="liste-registres" class="pastilles"></div>
+        <div id="etat-acces" class="ligne-etat"></div>
+        <button id="ouvrir-porte" class="discret">Verifier 18+</button>
+        <button id="revoquer" class="discret">Revoquer l'acces adulte</button>
+      </div>
+      <div class="carte">
+        <h3>Moment</h3>
+        <p class="note">Par defaut, Luna suit l'heure reelle.</p>
+        <div id="liste-moments" class="pastilles"></div>
+      </div>
+      <div class="carte">
+        <h3>Photos</h3>
+        <div id="liste-scenes" class="pastilles"></div>
+        <div id="photo-resultat" class="photo-resultat"></div>
+      </div>
+      <div class="carte">
+        <h3>Ce qu'elle sait de toi</h3>
+        <pre id="memoire-resume" class="memoire"></pre>
+        <button id="oublier" class="danger">Tout oublier</button>
+      </div>
+      <div class="carte">
+        <h3>Sous le capot</h3>
+        <pre id="capacites" class="memoire"></pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="/web/avatar.js"></script>
+<script src="/web/app.js"></script>
+</body>
+</html>

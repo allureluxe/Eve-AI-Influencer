@@ -1,0 +1,121 @@
+:root {
+  --fond: #120e14;
+  --fond-2: #1b1420;
+  --carte: #241a2b;
+  --trait: #3a2c44;
+  --texte: #f3ecf5;
+  --doux: #b9a8c4;
+  --accent: #e0709a;
+  --accent-2: #8a5fd0;
+  --elle: #33243d;
+  --moi: #7a3f60;
+}
+* { box-sizing: border-box; }
+/* `hidden` doit gagner : une regle de classe avec `display` l'ecrase sinon,
+   et la porte 18+ resterait posee, invisible, par-dessus toute l'interface. */
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: radial-gradient(120% 80% at 50% 0%, var(--fond-2), var(--fond));
+  color: var(--texte); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh; display: flex; flex-direction: column;
+}
+button { font: inherit; cursor: pointer; border: 1px solid var(--trait);
+  background: var(--carte); color: var(--texte); border-radius: 999px;
+  padding: .5rem .9rem; transition: .15s; }
+button:hover { border-color: var(--accent); }
+button.principal { background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  border: none; color: #fff; font-weight: 600; }
+button.danger { border-color: #7a3232; color: #ffb3b3; }
+button.discret { background: transparent; color: var(--doux); }
+button.actif { border-color: var(--accent); color: #fff; background: #33203a; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.rond { width: 2.6rem; height: 2.6rem; padding: 0; display: grid; place-items: center; }
+button.rond.gros { width: 4rem; height: 4rem; font-size: 1.4rem; }
+
+.entete { display: flex; justify-content: space-between; align-items: center;
+  gap: 1rem; padding: .7rem 1rem; border-bottom: 1px solid var(--trait);
+  background: rgba(20,14,24,.85); backdrop-filter: blur(8px); flex-wrap: wrap; }
+.identite { display: flex; gap: .7rem; align-items: center; }
+.pastille { width: 44px; height: 44px; border-radius: 50%; overflow: hidden;
+  border: 2px solid var(--accent); flex: none; background: var(--carte); }
+.nom { font-weight: 650; letter-spacing: .02em; }
+.puce { font-size: .7rem; color: var(--doux); font-weight: 400; }
+.ligne-etat { font-size: .82rem; color: var(--doux); }
+.onglets { display: flex; gap: .35rem; flex-wrap: wrap; }
+
+main { flex: 1; display: flex; }
+.vue { display: none; flex: 1; }
+.vue.active { display: flex; flex-direction: column; }
+
+/* messages */
+.fil { flex: 1; overflow-y: auto; padding: 1rem; display: flex;
+  flex-direction: column; gap: .6rem; max-width: 780px; width: 100%; margin: 0 auto; }
+.bulle-msg { max-width: 78%; padding: .6rem .85rem; border-radius: 1.1rem;
+  white-space: pre-wrap; word-wrap: break-word; animation: monte .2s ease-out; }
+@keyframes monte { from { opacity: 0; transform: translateY(6px); } }
+.elle { background: var(--elle); border-bottom-left-radius: .3rem; align-self: flex-start; }
+.moi { background: var(--moi); border-bottom-right-radius: .3rem; align-self: flex-end; }
+.systeme { align-self: center; font-size: .8rem; color: var(--doux); }
+.points span { animation: clignote 1.2s infinite; }
+.points span:nth-child(2) { animation-delay: .2s; }
+.points span:nth-child(3) { animation-delay: .4s; }
+@keyframes clignote { 50% { opacity: .2; } }
+.saisie { display: flex; gap: .5rem; padding: .8rem 1rem 1.2rem; align-items: center;
+  max-width: 780px; width: 100%; margin: 0 auto; }
+.saisie input { flex: 1; padding: .75rem 1rem; border-radius: 999px;
+  border: 1px solid var(--trait); background: var(--carte); color: var(--texte); }
+.saisie input:focus { outline: none; border-color: var(--accent); }
+
+/* appel */
+.scene-appel { flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 1rem; padding: 1.5rem; text-align: center; }
+.halo { border-radius: 50%; padding: 12px;
+  background: radial-gradient(circle, rgba(224,112,154,.28), transparent 70%); }
+.halo.parle { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.04); } }
+.avatar-cadre { width: min(260px, 60vw); aspect-ratio: 1; border-radius: 50%;
+  overflow: hidden; border: 2px solid var(--trait); background: var(--carte); }
+.transcription { min-height: 1.5rem; color: var(--doux); max-width: 40rem; font-size: .9rem; }
+.commandes { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap;
+  justify-content: center; }
+.note { color: var(--doux); font-size: .8rem; max-width: 34rem; }
+
+/* visio */
+.scene-visio { flex: 1; display: grid; grid-template-columns: 1fr 320px; gap: 1rem;
+  padding: 1rem; }
+@media (max-width: 860px) { .scene-visio { grid-template-columns: 1fr; } }
+.cadre-visio { position: relative; border-radius: 1.2rem; overflow: hidden;
+  border: 1px solid var(--trait); min-height: 60vh; background: #0d0a10; }
+.avatar-plein { position: absolute; inset: 0; }
+.bandeau { position: absolute; top: .7rem; left: .7rem; font-size: .7rem;
+  background: rgba(0,0,0,.55); padding: .25rem .6rem; border-radius: 999px;
+  color: #ffd9e6; letter-spacing: .04em; }
+.bulle { position: absolute; left: 50%; transform: translateX(-50%); bottom: 1rem;
+  max-width: 80%; background: rgba(20,14,24,.85); padding: .6rem .9rem;
+  border-radius: 1rem; border: 1px solid var(--trait); }
+.panneau-visio { display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; }
+.groupe h3, .carte h3 { margin: 0 0 .5rem; font-size: .85rem; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--doux); }
+.pastilles { display: flex; flex-wrap: wrap; gap: .4rem; }
+.pastilles button { font-size: .85rem; padding: .35rem .75rem; }
+
+/* reglages */
+.colonnes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem; padding: 1rem; width: 100%; }
+.carte { background: var(--carte); border: 1px solid var(--trait); border-radius: 1rem;
+  padding: 1rem; display: flex; flex-direction: column; gap: .6rem; }
+.memoire { white-space: pre-wrap; font-size: .82rem; color: var(--doux);
+  background: #1a1220; padding: .6rem; border-radius: .6rem; margin: 0; overflow-x: auto; }
+.photo-resultat img { width: 100%; border-radius: .8rem; margin-top: .5rem; }
+.photo-resultat .prompt { font-size: .72rem; color: var(--doux); word-break: break-word; }
+
+/* porte 18+ */
+.porte { position: fixed; inset: 0; background: rgba(8,5,10,.96); z-index: 50;
+  display: grid; place-items: center; padding: 1rem; }
+.carte-porte { background: var(--carte); border: 1px solid var(--trait);
+  border-radius: 1.2rem; padding: 1.6rem; max-width: 26rem; display: flex;
+  flex-direction: column; gap: .8rem; }
+.carte-porte h1 { margin: 0; font-size: 1.6rem; }
+.sous { color: var(--doux); font-size: .88rem; margin: 0; }
+.avertissement { color: #ffc4d6; font-weight: 600; margin: 0; }
+.case { display: flex; gap: .5rem; align-items: flex-start; font-size: .9rem; }
