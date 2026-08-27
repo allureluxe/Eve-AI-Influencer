@@ -11,7 +11,6 @@ _EXIT_TYPES = {"stopLoss", "stopLossLimit", "takeProfit", "takeProfitLimit"}
 
 
 def _tick_floor(self, prix: float, original):
-    """Arrondit au tickSize reel, sinon conserve l'ancien arrondi."""
     if prix <= 0:
         return prix
     tick = _TICKS.get(self.market)
@@ -23,12 +22,10 @@ def _tick_floor(self, prix: float, original):
 
 
 def _open_exit_orders(broker: Any, symbol: str) -> list[dict]:
-    """Retourne les ordres de sortie du bot encore ouverts sur un marche."""
     if broker.config.dry_run:
         return []
     try:
-        rows = broker._appel("GET", "/ordersOpen",
-                             params={"market": broker.symbol_for(symbol)})
+        rows = broker._appel("GET", "/ordersOpen", params={"market": broker.symbol_for(symbol)})
     except Exception as exc:  # noqa: BLE001
         logger.warning("ordres de sortie illisibles sur %s : %s", symbol, str(exc)[:120])
         return []
@@ -46,19 +43,16 @@ def _open_exit_orders(broker: Any, symbol: str) -> list[dict]:
 
 
 def _open_stop_orders(broker: Any, symbol: str) -> list[dict]:
-    """Compatibilite: retourne uniquement les stops du bot."""
     return [r for r in _open_exit_orders(broker, symbol)
             if str(r.get("orderType", "")) in {"stopLoss", "stopLossLimit"}]
 
 
 def _open_tp_orders(broker: Any, symbol: str) -> list[dict]:
-    """Retourne uniquement les take-profit du bot."""
     return [r for r in _open_exit_orders(broker, symbol)
             if str(r.get("orderType", "")) in {"takeProfit", "takeProfitLimit"}]
 
 
 def _cancel_exact(broker: Any, symbol: str, order_id: str) -> None:
-    """Annule un seul ordre de sortie."""
     broker._appel("DELETE", "/order", params={
         "market": broker.symbol_for(symbol),
         "orderId": order_id,
@@ -67,7 +61,7 @@ def _cancel_exact(broker: Any, symbol: str, order_id: str) -> None:
 
 
 def _annuler_stop(self: Any, symbol: str) -> None:
-    """Annule les sorties TP/SL du bot sur ce marche, jamais celles d'un tiers."""
+    """Annule TP et SL du bot, jamais les ordres d'un autre operatorId."""
     if self.config.dry_run:
         self._stops.pop(symbol, None)
         self._stop_pose.pop(symbol, None)
@@ -76,24 +70,18 @@ def _annuler_stop(self: Any, symbol: str) -> None:
         return
 
     ids: list[str] = []
-    known_stop = self._stops.get(symbol)
-    if known_stop:
-        ids.append(known_stop)
-    known_tp = getattr(self, "_take_profits", {}).get(symbol)
-    if known_tp and known_tp not in ids:
-        ids.append(known_tp)
-
+    for known in (self._stops.get(symbol), getattr(self, "_take_profits", {}).get(symbol)):
+        if known and known not in ids:
+            ids.append(known)
     for row in _open_exit_orders(self, symbol):
         oid = str(row.get("orderId", ""))
         if oid and oid not in ids:
             ids.append(oid)
-
     for oid in ids:
         try:
             _cancel_exact(self, symbol, oid)
         except Exception as exc:  # noqa: BLE001
             logger.warning("ordre de sortie %s non annule sur %s : %s", oid, symbol, str(exc)[:120])
-
     self._stops.pop(symbol, None)
     self._stop_pose.pop(symbol, None)
     getattr(self, "_take_profits", {}).pop(symbol, None)
@@ -101,11 +89,10 @@ def _annuler_stop(self: Any, symbol: str) -> None:
 
 
 def _recover_stop(self: Any, symbol: str) -> None:
-    """Reconnecte TP et SL reels au suivi local apres un redemarrage."""
+    """Reconnecte TP et SL reels au suivi local apres redemarrage."""
     rows = _open_exit_orders(self, symbol)
     stops = [r for r in rows if str(r.get("orderType", "")) in {"stopLoss", "stopLossLimit"}]
     tps = [r for r in rows if str(r.get("orderType", "")) in {"takeProfit", "takeProfitLimit"}]
-
     if stops:
         row = max(stops, key=lambda r: int(r.get("created", 0) or 0))
         self._stops[symbol] = str(row["orderId"])
@@ -115,7 +102,6 @@ def _recover_stop(self: Any, symbol: str) -> None:
             trigger = 0.0
         if trigger > 0:
             self._stop_pose[symbol] = trigger
-
     if tps:
         row = max(tps, key=lambda r: int(r.get("created", 0) or 0))
         if not hasattr(self, "_take_profits"):
@@ -131,26 +117,35 @@ def _recover_stop(self: Any, symbol: str) -> None:
             self._take_profit_pose[symbol] = trigger
 
 
+def _raise_broker(message: str):
+    from .base import BrokerError
+    return BrokerError(message)
+
+
+def formater(valeur: float, decimales: int = 12) -> str:
+    texte = f"{valeur:.{max(0, decimales)}f}"
+    if "." in texte:
+        texte = texte.rstrip("0").rstrip(".")
+    return texte or "0"
+
+
 def _poser_take_profit(self: Any, position: Any) -> None:
-    """Depose un vrai take-profit Bitvavo (market au declenchement)."""
+    """Depose un vrai TP market sur Bitvavo au niveau demande."""
     if self.config.dry_run:
         return
-
     code = self.symbol_for(position.symbol)
     regle = self.regle(position.symbol)
     quantite = regle.arrondir_quantite(position.volume)
     trigger = regle.arrondir_prix(position.take_profit)
     prix_courant = self._prix(code)
-
     if quantite <= 0:
-        raise self._broker_error("take-profit impossible: quantite nulle")
+        raise _raise_broker("take-profit impossible: quantite nulle")
     if regle.min_amount and quantite < regle.min_amount:
-        raise self._broker_error(f"take-profit sous le minimum de quantite sur {code}")
+        raise _raise_broker(f"take-profit sous le minimum de quantite sur {code}")
     if trigger <= 0:
-        raise self._broker_error(f"take-profit invalide sur {code}")
+        raise _raise_broker(f"take-profit invalide sur {code}")
     if prix_courant is not None and prix_courant >= trigger:
-        raise self._broker_error(
-            f"take-profit deja atteint sur {code} (prix {prix_courant}, TP {trigger})")
+        raise _raise_broker(f"take-profit deja atteint sur {code} (prix {prix_courant}, TP {trigger})")
 
     response = self._appel("POST", "/order", corps={
         "market": code,
@@ -164,29 +159,14 @@ def _poser_take_profit(self: Any, position: Any) -> None:
     })
     order_id = str(response.get("orderId", ""))
     if not order_id:
-        raise self._broker_error(f"Bitvavo TP sans orderId sur {code}")
-
+        raise _raise_broker(f"Bitvavo TP sans orderId sur {code}")
     if not hasattr(self, "_take_profits"):
         self._take_profits = {}
     if not hasattr(self, "_take_profit_pose"):
         self._take_profit_pose = {}
     self._take_profits[position.symbol] = order_id
     self._take_profit_pose[position.symbol] = trigger
-    logger.info("TP REEL depose sur Bitvavo : %s @ %s, ordre %s",
-                code, formater(quantite), formater(trigger), order_id)
-
-
-def formater(valeur: float, decimales: int = 12) -> str:
-    texte = f"{valeur:.{max(0, decimales)}f}"
-    if "." in texte:
-        texte = texte.rstrip("0").rstrip(".")
-    return texte or "0"
-
-
-def _raise_broker(message: str):
-    # Utilise l'exception native du broker sans importer sa classe ici.
-    from .base import BrokerError
-    return BrokerError(message)
+    logger.info("TP REEL depose sur Bitvavo : %s @ %s, ordre %s", code, formater(quantite), formater(trigger), order_id)
 
 
 def _ventes_depuis(self: Any, code: str, depuis: float):
@@ -196,7 +176,6 @@ def _ventes_depuis(self: Any, code: str, depuis: float):
     except Exception as exc:  # noqa: BLE001
         logger.warning("executions %s illisibles : %s", code, str(exc)[:120])
         return 0.0, 0.0, 0.0
-
     quantite = valeur = frais = 0.0
     for ligne in lignes if isinstance(lignes, list) else []:
         if str(ligne.get("side", "")).lower() != "sell":
@@ -271,20 +250,24 @@ def harden_bitvavo(BitvavoBroker: Any, RegleMarche: Any) -> None:
         return _tick_floor(self, prix, original_arrondir_prix)
 
     def poser_stop(self, position):
-        """Wrapper: garde le SL natif puis depose le TP reel."""
+        """Garde le SL natif puis depose le TP exchange. Sinon on ferme."""
         original_poser_stop(self, position)
         try:
             _poser_take_profit(self, position)
         except Exception as exc:  # noqa: BLE001
             logger.error("TP NON POSE sur %s: %s", position.symbol, str(exc)[:250])
             _annuler_stop(self, position.symbol)
+            if position.id in self._positions:
+                try:
+                    self.close_position(position.id, reason="TP exchange impossible a poser")
+                except Exception as close_exc:  # noqa: BLE001
+                    logger.critical("SECURITE: fermeture de %s impossible apres echec TP: %s", position.symbol, close_exc)
             raise
 
     def take_profit_ok(self, symbol: str) -> bool:
         if self.config.dry_run:
             return True
-        rows = _open_tp_orders(self, symbol)
-        return bool(rows)
+        return bool(_open_tp_orders(self, symbol))
 
     def protection_ok(self, symbol: str) -> bool:
         if self.config.dry_run:
@@ -302,9 +285,3 @@ def harden_bitvavo(BitvavoBroker: Any, RegleMarche: Any) -> None:
     BitvavoBroker.take_profit_ok = take_profit_ok
     BitvavoBroker.protection_ok = protection_ok
     RegleMarche.arrondir_prix = arrondir_prix
-
-
-# Alias interne pour les helpers qui ont besoin de lever une BrokerError.
-# Il est remplacé dynamiquement par la fermeture native du module.
-def _broker_error(message: str):
-    return _raise_broker(message)
