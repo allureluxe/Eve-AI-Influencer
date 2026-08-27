@@ -1,11 +1,11 @@
 {
-  "_note": "Configuration Bitvavo spot : qualité du signal avant quantité de trades. Le mode reste en simulation tant que BITVAVO_DRY_RUN=1. Le passage en réel se fait uniquement après préflight API réussi et dépôt de capital.",
+  "_note": "Configuration Bitvavo spot micro-scalping : petits ordres possibles des que le minimum reel du marche est respecte. Les protections de risque et le filtre de cout restent actifs.",
   "engine": {
     "broker": "bitvavo",
     "dry_run": true,
     "offline": false,
-    "poll_seconds": 15.0,
-    "idle_poll_seconds": 30.0,
+    "poll_seconds": 5.0,
+    "idle_poll_seconds": 12.0,
     "closed_market_seconds": 180.0,
     "heartbeat_minutes": 60.0,
     "daily_report_hour": 21,
@@ -60,16 +60,16 @@
     "weekly_loss_limit_pct": 7.0,
     "max_drawdown_pct": 12.0,
     "daily_profit_target_pct": 4.0,
-    "max_positions": 2,
+    "max_positions": 1,
     "max_per_correlation_group": 1,
-    "max_total_risk_pct": 1.2,
-    "max_daily_trades": 0,
-    "min_seconds_between_trades": 60.0,
+    "max_total_risk_pct": 0.60,
+    "max_daily_trades": 20,
+    "min_seconds_between_trades": 45.0,
     "max_leverage": 1.0,
     "max_consecutive_losses": 3,
-    "pause_after_losses_minutes": 120.0,
+    "pause_after_losses_minutes": 90.0,
     "min_rr": 1.7,
-    "max_capital_engaged_pct": 50.0
+    "max_capital_engaged_pct": 80.0
   },
   "trade": {
     "atr_stop_mult": 1.8,
@@ -92,7 +92,7 @@
     "max_extensions": 2,
     "extend_min_momentum": 0.30,
     "lock_r_on_extend": 0.5,
-    "time_stop_minutes": 720.0,
+    "time_stop_minutes": 180.0,
     "time_stop_min_r": 0.15,
     "reversal_exit_r": 0.6
   },
