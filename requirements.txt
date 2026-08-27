@@ -16,10 +16,6 @@ pydantic==2.3.0
 # ==========================================================================
 #  Robot de trading
 # ==========================================================================
-# Aucune dependance : le robot n'utilise que la librairie standard de
-# Python 3.11+ (urllib, json, dataclasses, deque...). C'est un choix
-# deliberé — il tourne sur n'importe quel VPS, demarre en une seconde, et
-# rien ne peut casser a cause d'une mise a jour de dependance pendant qu'il
-# gere une position ouverte.
-#
-#   python3 run_bot.py check
+# Coinbase Advanced Trade: JWT generation officielle pour les cles CDP.
+coinbase-advanced-py>=1.8.2,<2
+# Les autres brokers restent sur la librairie standard + requests deja present.
