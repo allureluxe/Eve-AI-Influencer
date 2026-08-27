@@ -52,16 +52,52 @@ class BitvavoTradingEngine(TradingEngine):
         return broker
 
     def run_cycle(self) -> None:
-        """Exécute un cycle et rend son état visible dans journalctl."""
+        """Exécute un cycle avec diagnostic explicite des blocages d'entrée."""
         started = time.monotonic()
         before = self.store.state.cycles
+        account = self.broker.account()
+        positions = self.broker.positions()
         logger.info(
-            "CYCLE START #%d — capital %.2f %s — %d instrument(s) actifs",
+            "CYCLE START #%d — capital %.2f %s — %d instrument(s) actifs — positions %d",
             before + 1,
-            self.broker.account().equity,
-            self.broker.account().currency,
+            account.equity,
+            account.currency,
             len(self.universe),
+            len(positions),
         )
+
+        # Diagnostic AVANT le cycle complet : il expose immédiatement la
+        # barrière qui empêchait jusque-là le scanner d'apparaître dans les
+        # logs (pause, quota, perte, positions, délai, etc.). Il ne contourne
+        # aucune protection et n'envoie aucun ordre.
+        self.broker.sync()
+        account = self.broker.account()
+        self.risk.sync_account(account.equity, account.balance, account.currency)
+        positions = self.broker.positions()
+        allowed, why = self.risk.can_trade(positions)
+        objective_stop, objective_why = self.objectives.should_stop_trading()
+        if not allowed:
+            logger.info(
+                "ENTREE BLOQUEE — raison=%s — capital %.2f %s — positions %d — trades_jour %d — pnl_jour %.2f%% — pnl_semaine %.2f%% — pertes_consecutives %d",
+                why,
+                account.equity,
+                account.currency,
+                len(positions),
+                self.risk.account.trades_today,
+                self.risk.account.daily_pnl_pct(),
+                self.risk.account.weekly_pnl_pct(),
+                self.risk.account.consecutive_losses,
+            )
+        elif objective_stop:
+            logger.info("ENTREE BLOQUEE — objectif : %s", objective_why)
+        else:
+            logger.info(
+                "ENTREE AUTORISEE — scanner %d instrument(s) — objectif %.2f — réalisé %.2f",
+                len(self.universe),
+                self.objectives.target,
+                self.objectives.state.realized_this_week,
+            )
+
         super().run_cycle()
         logger.info(
             "CYCLE END #%d — durée %.1fs — positions %d — trades ouverts %d",
