@@ -53,7 +53,7 @@
   "risk": {
     "base_risk_pct": 0.50,
     "min_risk_pct": 0.30,
-    "max_risk_pct": 0.60,
+    "max_risk_pct": 0.75,
     "max_cost_ratio_pct": 15.0,
     "commission_pct": 0.0025,
     "daily_loss_limit_pct": 3.0,
@@ -62,7 +62,7 @@
     "daily_profit_target_pct": 4.0,
     "max_positions": 2,
     "max_per_correlation_group": 1,
-    "max_total_risk_pct": 1.2,
+    "max_total_risk_pct": 1.5,
     "max_daily_trades": 0,
     "min_seconds_between_trades": 60.0,
     "max_leverage": 1.0,
