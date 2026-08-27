@@ -57,6 +57,46 @@ COUT_INCOMPRESSIBLE = 0.0010      # 10 points de base
 
 ORDRE_UNITES = ["M1", "M3", "M5", "M15", "M30", "H1", "H4", "D1"]
 
+# Duree d'une bougie, en minutes.
+MINUTES_PAR_UNITE = {
+    "M1": 1, "M3": 3, "M5": 5, "M15": 15,
+    "M30": 30, "H1": 60, "H4": 240, "D1": 1440,
+}
+
+
+def duree_stop_temporel(unite_reference: str, minutes_reference: float,
+                        unite_visee: str) -> float:
+    """Transpose un stop temporel d'une unite de temps vers une autre.
+
+    LE SEUL REGLAGE EXPRIME EN TEMPS D'HORLOGE, ET C'EST LE PIEGE.
+
+    Le stop temporel ferme une position qui n'a pas atteint un certain R au
+    bout d'un certain temps. Tous les autres reglages de gestion sont
+    exprimes en R ou en ATR : ils suivent l'unite de temps sans qu'on y
+    touche. Celui-la est en minutes, et il ne suit rien.
+
+    Or 0,2R ne demande pas le meme parcours selon l'unite. En M15, un stop
+    vaut 0,77 % du prix, donc 0,2R = 0,154 % a parcourir. En D1 il vaut
+    6 %, donc 0,2R = 1,20 % — pres de huit fois plus, pour le meme delai.
+
+    Consequence si on ne transpose pas : en passant de M15 a D1, le robot
+    tue presque chaque position a quatre heures, avant qu'elle ait eu la
+    moindre chance, et paie l'aller-retour a chaque fois. Aucune erreur,
+    aucune alerte : il fait exactement ce qu'on lui a dit.
+
+    Le delai est donc converti en NOMBRE DE BOUGIES de l'unite de
+    reference, puis reporte tel quel sur l'unite visee. Un delai de 240
+    minutes sur M15 vaut seize bougies ; seize bougies de D1 font seize
+    jours. Le sens du reglage — « laisse-lui seize bougies pour demarrer »
+    — est preserve, quelle que soit l'unite.
+    """
+    depart = MINUTES_PAR_UNITE.get((unite_reference or "").upper())
+    arrivee = MINUTES_PAR_UNITE.get((unite_visee or "").upper())
+    if not depart or not arrivee or minutes_reference <= 0:
+        return minutes_reference
+    bougies = minutes_reference / depart
+    return round(bougies * arrivee, 2)
+
 
 @dataclass
 class Calibrage:

@@ -270,3 +270,55 @@ class TestRegistreCentralise:
         cfg = BotConfig.load("robot.bitvavo.json")
         cfg.engine.broker = "binance_spot"
         assert registre_pour(cfg).devise_crypto == ""
+
+
+# ==========================================================================
+class TestStopTemporelSuitLUniteDeTemps:
+    """Le seul reglage exprime en temps d'horloge, et c'est le piege.
+
+    Tous les autres reglages de gestion sont en R ou en ATR : ils suivent
+    l'unite de temps sans qu'on y touche. Le stop temporel est en minutes
+    et ne suivait rien.
+
+    Or 0,2R ne demande pas le meme parcours selon l'unite. En M15 un stop
+    vaut 0,77 % du prix, donc 0,2R = 0,154 % a parcourir ; en D1 il vaut
+    6 %, donc 1,20 % — pres de huit fois plus, pour le meme delai de
+    quatre heures. Sans transposition, la bascule automatique du 30 aout
+    tuait presque chaque position D1 avant qu'elle ait eu sa chance, et
+    payait l'aller-retour a chaque fois. Sans erreur ni alerte.
+    """
+
+    def test_l_unite_de_reference_ne_bouge_pas(self):
+        from gold_bot.calibrage import duree_stop_temporel
+        assert duree_stop_temporel("M15", 240.0, "M15") == pytest.approx(240.0)
+
+    def test_le_nombre_de_bougies_est_conserve(self):
+        """240 min sur M15 valent seize bougies : seize bougies partout."""
+        from gold_bot.calibrage import MINUTES_PAR_UNITE, duree_stop_temporel
+        for unite in ("M5", "M15", "H1", "H4", "D1"):
+            minutes = duree_stop_temporel("M15", 240.0, unite)
+            assert minutes / MINUTES_PAR_UNITE[unite] == pytest.approx(16.0)
+
+    def test_la_bascule_du_30_aout(self):
+        """M15 -> D1 : quatre heures deviennent seize jours."""
+        from gold_bot.calibrage import duree_stop_temporel
+        assert duree_stop_temporel("M15", 240.0, "D1") == pytest.approx(23040.0)
+
+    def test_une_unite_inconnue_ne_casse_rien(self):
+        from gold_bot.calibrage import duree_stop_temporel
+        assert duree_stop_temporel("XX", 240.0, "D1") == pytest.approx(240.0)
+        assert duree_stop_temporel("M15", 240.0, "") == pytest.approx(240.0)
+
+    def test_un_delai_absurde_est_rendu_tel_quel(self):
+        from gold_bot.calibrage import duree_stop_temporel
+        assert duree_stop_temporel("M15", 0.0, "D1") == pytest.approx(0.0)
+
+    def test_la_transposition_ne_derive_pas(self):
+        """Le calibrage tourne a chaque cycle : transposer depuis la valeur
+        courante ferait exploser le delai en quelques minutes."""
+        from gold_bot.calibrage import duree_stop_temporel
+        reference = ("M15", 240.0)
+        minutes = 240.0
+        for _ in range(50):
+            minutes = duree_stop_temporel(reference[0], reference[1], "D1")
+        assert minutes == pytest.approx(23040.0)

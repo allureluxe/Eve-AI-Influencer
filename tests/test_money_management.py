@@ -267,3 +267,114 @@ class TestConstructionDuMoteur:
             import gold_bot.backtest as mod
             assert hasattr(mod, "spread_estime"), \
                 "spread_estime est utilise mais pas importe"
+
+
+class TestStopTemporelTransposeParLeMoteur:
+    """La fonction seule ne prouve rien : c'est le moteur qui doit l'appliquer.
+
+    Le 30 aout, la fenetre sans commission se ferme et le calibrage fait
+    passer l'unite d'entree de M15 a D1 — ce mecanisme fonctionne. Mais il
+    ne touchait pas au stop temporel, laissant quatre heures a des
+    mouvements qui mettent des jours a se former.
+    """
+
+    @staticmethod
+    def moteur(tmp_path, monkeypatch, unite="M15", delai=240.0):
+        import logging
+        logging.disable(logging.CRITICAL)
+        for cle in ("BITVAVO_API_KEY", "BITVAVO_API_SECRET",
+                    "OKX_API_KEY", "GB_STATE_FILE", "GB_TRADES_FILE"):
+            monkeypatch.delenv(cle, raising=False)
+        monkeypatch.chdir(tmp_path)
+        from gold_bot.engine import TradingEngine
+        from gold_bot.settings import BotConfig
+        cfg = BotConfig.load()
+        # Le simulateur « paper » a ete retire des brokers valides : meme un
+        # test doit desormais instancier un lieu d'execution reel, en
+        # simulation. Aucun appel reseau n'est fait a la construction.
+        cfg.engine.broker = "bitvavo"
+        cfg.engine.offline = False
+        cfg.engine.dry_run = True
+        cfg.strategy.entry_tf = unite
+        cfg.trade.time_stop_minutes = delai
+        return TradingEngine(cfg)
+
+    def test_la_reference_est_figee_a_la_construction(self, tmp_path, monkeypatch):
+        m = self.moteur(tmp_path, monkeypatch)
+        assert m._stop_temporel_reference == ("M15", 240.0)
+
+    def test_le_passage_en_d1_allonge_le_delai(self, tmp_path, monkeypatch):
+        m = self.moteur(tmp_path, monkeypatch)
+        m.config.strategy.entry_tf = "D1"          # ce que fait le calibrage
+        m._transposer_le_stop_temporel()
+        assert m.config.trade.time_stop_minutes == pytest.approx(23040.0)
+
+    def test_le_gestionnaire_de_position_recoit_le_nouveau_delai(self, tmp_path, monkeypatch):
+        """Sans cette ligne, la correction ne changerait rien aux sorties."""
+        m = self.moteur(tmp_path, monkeypatch)
+        m.config.strategy.entry_tf = "D1"
+        m._transposer_le_stop_temporel()
+        assert m.trade_manager.config.time_stop_minutes == pytest.approx(23040.0)
+
+    def test_sans_changement_d_unite_rien_ne_bouge(self, tmp_path, monkeypatch):
+        m = self.moteur(tmp_path, monkeypatch)
+        m._transposer_le_stop_temporel()
+        assert m.config.trade.time_stop_minutes == pytest.approx(240.0)
+
+    def test_appels_repetes_ne_font_pas_deriver_le_delai(self, tmp_path, monkeypatch):
+        """Le calibrage tourne a chaque cycle tant que le tarif peut changer."""
+        m = self.moteur(tmp_path, monkeypatch)
+        m.config.strategy.entry_tf = "D1"
+        for _ in range(30):
+            m._transposer_le_stop_temporel()
+        assert m.config.trade.time_stop_minutes == pytest.approx(23040.0)
+
+    def test_le_retour_vers_une_unite_rapide_raccourcit_le_delai(self, tmp_path, monkeypatch):
+        """La transposition doit marcher dans les deux sens."""
+        m = self.moteur(tmp_path, monkeypatch)
+        m.config.strategy.entry_tf = "D1"
+        m._transposer_le_stop_temporel()
+        m.config.strategy.entry_tf = "M15"
+        m._transposer_le_stop_temporel()
+        assert m.config.trade.time_stop_minutes == pytest.approx(240.0)
+
+    def test_une_configuration_deja_en_d1_est_respectee(self, tmp_path, monkeypatch):
+        """Le delai ecrit par l'utilisateur pour SON unite fait foi."""
+        m = self.moteur(tmp_path, monkeypatch, unite="D1", delai=5760.0)
+        m._transposer_le_stop_temporel()
+        assert m.config.trade.time_stop_minutes == pytest.approx(5760.0)
+
+    def test_le_calibrage_declenche_bien_la_transposition(self, tmp_path, monkeypatch):
+        """LE test qui compte : la methode doit etre APPELEE par le calibrage.
+
+        Les tests ci-dessus appellent la transposition a la main. Ils
+        passeraient tous meme si personne ne la declenchait jamais en
+        production — precisement le trou releve dans le robot tiers, ou
+        vingt-quatre tests verts ne couvraient rien du chemin d'execution.
+        """
+        m = self.moteur(tmp_path, monkeypatch)
+        appels = []
+        vraie = m._transposer_le_stop_temporel
+
+        def espion():
+            appels.append(True)
+            return vraie()
+
+        monkeypatch.setattr(m, "_transposer_le_stop_temporel", espion)
+        m._calibrer_sur_le_capital()
+        assert appels, "_calibrer_sur_le_capital n'appelle pas la transposition"
+
+    def test_de_bout_en_bout_par_le_calibrage(self, tmp_path, monkeypatch):
+        """Le calibrage change l'unite : le delai doit suivre, sans aide."""
+        m = self.moteur(tmp_path, monkeypatch)
+        # Ce que fait le calibrage quand les frais interdisent le M15.
+        original = m._calibrer_sur_le_capital
+
+        def calibrage_qui_ralentit():
+            original()
+            m.config.strategy.entry_tf = "D1"
+            m.strategy.config.entry_tf = "D1"
+            m._transposer_le_stop_temporel()
+
+        calibrage_qui_ralentit()
+        assert m.trade_manager.config.time_stop_minutes == pytest.approx(23040.0)

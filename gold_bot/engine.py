@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from .apprentissage import PoidsAdaptatifs, alimenter_depuis_journal
-from .calibrage import calibrer
+from .calibrage import calibrer, duree_stop_temporel
 from .promotion import Promotion
 from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker,
                       BitvavoBroker, BitvavoConfig, Broker,
@@ -142,6 +142,13 @@ class TradingEngine:
         self.macro = MacroEngine(self.registry)
         self.news = NewsFilter()
         self.trade_manager = TradeManager(cfg.trade)
+        # Reference du stop temporel, figee ici et jamais recalculee : c'est
+        # le couple (unite d'entree, delai) tel que la configuration l'a
+        # ecrit, avant que le calibrage ne touche a l'unite. Le relire plus
+        # tard reviendrait a transposer depuis une valeur deja transposee,
+        # et le delai deriverait a chaque cycle.
+        self._stop_temporel_reference: Optional[tuple[str, float]] = (
+            cfg.strategy.entry_tf, cfg.trade.time_stop_minutes)
         # Ce que le robot a reellement gagne ou perdu, relu au demarrage.
         # C'est la seule source de verite disponible pour apprendre : les
         # trades fermes. Sans journal, la ponderation reste neutre.
@@ -322,21 +329,58 @@ class TradingEngine:
         if not cal.viable:
             self.notifier.warning(
                 "Capital insuffisant pour cette plateforme", "\n".join(cal.resume()))
+        else:
+            if cal.risk_pct > cfg.risk.base_risk_pct:
+                logger.warning("risque par trade porte a %.3f %% (ticket minimum "
+                               "de %.2f a atteindre)", cal.risk_pct, cal.ticket_minimum)
+                cfg.risk.base_risk_pct = cal.risk_pct
+
+            # L'unite d'entree suit ce que le capital autorise, sauf si la
+            # configuration en demande deja une plus lente — on ne descend
+            # jamais vers une unite que les frais rendent perdante.
+            if cal.unite_conseillee and cfg.strategy.entry_tf not in cal.unites:
+                logger.warning("unite d'entree %s hors de portee a ce capital, "
+                               "bascule sur %s", cfg.strategy.entry_tf,
+                               cal.unite_conseillee)
+                cfg.strategy.entry_tf = cal.unite_conseillee
+                self.strategy.config.entry_tf = cal.unite_conseillee
+
+        # Hors du « si viable » a dessein : le delai doit suivre l'unite
+        # reellement utilisee dans tous les cas. Une sortie anticipee qui
+        # sauterait cette ligne laisserait un delai calibre pour une autre
+        # unite de temps — precisement le defaut qu'on corrige ici.
+        self._transposer_le_stop_temporel()
+
+    def _transposer_le_stop_temporel(self) -> None:
+        """Reporte le stop temporel sur l'unite de temps reellement utilisee.
+
+        Le calibrage change l'unite d'entree quand les frais l'imposent. Tout
+        le reste de la gestion est exprime en R ou en ATR et suit ce
+        changement tout seul ; le stop temporel, lui, est en minutes et ne
+        suivait rien.
+
+        Sans cette transposition, la bascule automatique du 30 aout — M15
+        vers D1 quand la fenetre sans commission se ferme — laissait un delai
+        de quatre heures sur des mouvements qui mettent des jours a se
+        former. Presque chaque position aurait ete fermee avant d'avoir eu sa
+        chance, et l'aller-retour paye a chaque fois. Silencieusement : le
+        robot aurait fait exactement ce qu'on lui avait dit.
+
+        La reference est figee au premier calibrage. Transposer a partir de
+        la valeur courante ferait deriver le delai a chaque recalibrage —
+        et il y en a un par cycle tant que le regime tarifaire peut changer.
+        """
+        trade = self.config.trade
+        unite_ref, minutes_ref = self._stop_temporel_reference
+        unite = self.config.strategy.entry_tf
+        minutes = duree_stop_temporel(unite_ref, minutes_ref, unite)
+        if abs(minutes - trade.time_stop_minutes) < 0.01:
             return
-
-        if cal.risk_pct > cfg.risk.base_risk_pct:
-            logger.warning("risque par trade porte a %.3f %% (ticket minimum "
-                           "de %.2f a atteindre)", cal.risk_pct, cal.ticket_minimum)
-            cfg.risk.base_risk_pct = cal.risk_pct
-
-        # L'unite d'entree suit ce que le capital autorise, sauf si la
-        # configuration en demande deja une plus lente — on ne descend
-        # jamais vers une unite que les frais rendent perdante.
-        if cal.unite_conseillee and cfg.strategy.entry_tf not in cal.unites:
-            logger.warning("unite d'entree %s hors de portee a ce capital, "
-                           "bascule sur %s", cfg.strategy.entry_tf, cal.unite_conseillee)
-            cfg.strategy.entry_tf = cal.unite_conseillee
-            self.strategy.config.entry_tf = cal.unite_conseillee
+        logger.warning("stop temporel transpose de %s sur %s : %.0f min -> "
+                       "%.0f min (%.1f jour(s))", unite_ref, unite,
+                       trade.time_stop_minutes, minutes, minutes / 1440.0)
+        trade.time_stop_minutes = minutes
+        self.trade_manager.config.time_stop_minutes = minutes
 
     # ---------------------------------------------------------------
     # Demarrage
