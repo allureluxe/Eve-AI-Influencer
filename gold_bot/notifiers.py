@@ -100,22 +100,29 @@ class OutboxChannel(Channel):
         except OSError as exc: logger.warning("boite d'envoi non ecrite : %s", exc)
 
 class Notifier:
-    """Diffuse un evenement sur tous les canaux actifs."""
+    """Diffuse un evenement sur tous les canaux actifs avec anti-spam optionnel."""
     def __init__(self, channels: Optional[list[Channel]] = None) -> None:
         if channels is None: channels = [ConsoleChannel(), FileChannel(), TelegramChannel(), WebhookChannel(), OutboxChannel()]
         self.channels = [c for c in channels if c.enabled()]
+        self._throttle: dict[str, float] = {}
     def active_channels(self) -> list[str]: return [channel.name for channel in self.channels]
     def send(self, note: Notification) -> None:
         for channel in self.channels:
             if channel.accepts(note.level):
                 try: channel.send(note)
                 except Exception as exc: logger.warning("notification %s indisponible : %s", channel.name, str(exc)[:120])
-    def notify(self, level: str, title: str, body: str = "", data: Optional[dict] = None) -> None: self.send(Notification(level=level, title=title, body=body, data=data or {}))
+    def notify(self, level: str, title: str, body: str = "", data: Optional[dict] = None, throttle_key: Optional[str] = None, throttle_seconds: float = 0.0) -> None:
+        if throttle_key and throttle_seconds > 0:
+            now = time.time()
+            if now - self._throttle.get(throttle_key, 0.0) < throttle_seconds:
+                return
+            self._throttle[throttle_key] = now
+        self.send(Notification(level=level, title=title, body=body, data=data or {}))
     def debug(self, title: str, body: str = "", data: Optional[dict] = None) -> None: self.notify("debug", title, body, data)
     def info(self, title: str, body: str = "", data: Optional[dict] = None) -> None: self.notify("info", title, body, data)
     def trade(self, title: str, body: str = "", data: Optional[dict] = None) -> None: self.notify("trade", title, body, data)
-    def warning(self, title: str, body: str = "", data: Optional[dict] = None) -> None: self.notify("warning", title, body, data)
-    def critical(self, title: str, body: str = "", data: Optional[dict] = None) -> None: self.notify("critical", title, body, data)
+    def warning(self, title: str, body: str = "", data: Optional[dict] = None, throttle_key: Optional[str] = None, throttle_seconds: float = 0.0) -> None: self.notify("warning", title, body, data, throttle_key, throttle_seconds)
+    def critical(self, title: str, body: str = "", data: Optional[dict] = None, throttle_key: Optional[str] = None, throttle_seconds: float = 0.0) -> None: self.notify("critical", title, body, data, throttle_key, throttle_seconds)
     def error(self, title: str, body: str = "", data: Optional[dict] = None) -> None: self.notify("critical", title, body, data)
 
 __all__ = ["Notification", "Notifier", "Channel", "ConsoleChannel", "FileChannel", "TelegramChannel", "WebhookChannel", "OutboxChannel", "http_json"]
