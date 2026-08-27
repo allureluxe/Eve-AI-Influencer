@@ -34,7 +34,7 @@ class EngineConfig:
     currency: str = "EUR"
     dry_run: bool = True
     offline: bool = False
-    verbose_scan: bool = False
+    verbose_scan: bool = True
     scan_workers: int = 8
 
 
