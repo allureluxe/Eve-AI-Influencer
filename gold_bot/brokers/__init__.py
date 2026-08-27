@@ -1,6 +1,7 @@
 """Lieux d'execution du robot."""
 from .base import AccountInfo, Broker, BrokerError
 from .bitvavo import BitvavoBroker, BitvavoConfig, RegleMarche
+from .bitvavo_margin import BitvavoMarginBroker
 from .bitvavo_hardening import harden_bitvavo
 from .pionex import PionexBroker as PionexSpotBroker, PionexConfig as PionexSpotConfig, PionexMarketRule as PionexSpotMarketRule
 from .pionex_futures import PionexFuturesConfig, PionexFuturesRule
@@ -9,8 +10,6 @@ from .paper import PaperBroker, PaperConfig
 
 harden_bitvavo(BitvavoBroker, RegleMarche)
 
-# Pionex = Futures for the autonomous trading service. The old spot broker
-# remains importable under its explicit Spot name for backwards compatibility.
 PionexFuturesBroker = HardenedPionexFuturesBroker
 PionexBroker = PionexFuturesBroker
 PionexConfig = PionexFuturesConfig
@@ -56,7 +55,7 @@ BinanceConfig = SpotConfig = MoonXConfig = OkxConfig = _ObsoleteConfig
 __all__ = [
     "Broker", "BrokerError", "AccountInfo",
     "PaperBroker", "PaperConfig",
-    "BitvavoBroker", "BitvavoConfig", "RegleMarche",
+    "BitvavoBroker", "BitvavoMarginBroker", "BitvavoConfig", "RegleMarche",
     "PionexBroker", "PionexConfig", "PionexMarketRule",
     "PionexFuturesBroker", "PionexFuturesConfig", "PionexFuturesRule",
     "PionexSpotBroker", "PionexSpotConfig", "PionexSpotMarketRule",
