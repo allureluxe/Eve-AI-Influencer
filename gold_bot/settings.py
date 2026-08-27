@@ -103,9 +103,22 @@ class BotConfig:
         # run_pionex.py. Il doit donc passer la validation AVANT la creation
         # du TradingEngine; l'ancien ensemble de valeurs rejetait "pionex"
         # alors meme que le runtime savait le construire.
-        brokers_valides = {"bitvavo", "pionex", "coinbase", "bitstamp", "multi"}
+        # « paper » est le simulateur : il ne passe aucun ordre. Le retirer
+        # de cette liste a rendu le robot impossible a essayer autrement
+        # qu'en argent reel — plus de dry-run, plus de rejeu historique, et
+        # cent trente-sept tests devenus inexecutables faute de pouvoir
+        # construire un moteur. Un lieu d'execution qui n'engage rien doit
+        # toujours etre disponible.
+        brokers_valides = {"paper", "bitvavo", "pionex", "coinbase",
+                           "bitstamp", "multi"}
         if e.broker not in brokers_valides: problems.append(f"broker invalide : {e.broker}")
-        if e.offline and e.broker in brokers_valides: problems.append(f"mode hors ligne incompatible avec {e.broker}")
+        # Le mode hors ligne fabrique des donnees synthetiques : il n'a de
+        # sens qu'avec le simulateur. La regle visait les lieux d'execution
+        # REELS ; ecrite « broker in brokers_valides » elle etait vraie pour
+        # tous, et rendait donc le mode hors ligne impossible partout.
+        if e.offline and e.broker != "paper":
+            problems.append(f"mode hors ligne incompatible avec une execution "
+                            f"reelle ({e.broker})")
         if e.scan_max_instruments < 1: problems.append("scan_max_instruments doit etre >= 1")
         if e.scan_max_instruments > 50: problems.append("scan_max_instruments trop eleve pour le quota API")
         if r.max_risk_pct > 1.5: problems.append(f"risque maximal au-dessus du plafond de securite ({r.max_risk_pct}% > 1.5%)")
