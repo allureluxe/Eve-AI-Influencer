@@ -86,7 +86,11 @@ main { flex: 1; display: flex; }
 @media (max-width: 860px) { .scene-visio { grid-template-columns: 1fr; } }
 .cadre-visio { position: relative; border-radius: 1.2rem; overflow: hidden;
   border: 1px solid var(--trait); min-height: 60vh; background: #0d0a10; }
-.avatar-plein { position: absolute; inset: 0; }
+.avatar-plein { position: absolute; inset: 0; transition: opacity .4s; }
+.cadre-visio { background-size: cover; background-position: center top; }
+.cadre-visio.en-photo .avatar-plein { opacity: 0; pointer-events: none; }
+.cadre-visio.chargement::after { content: "…"; position: absolute; top: .8rem;
+  right: 1rem; color: var(--doux); font-size: 1.4rem; animation: clignote 1s infinite; }
 .bandeau { position: absolute; top: .7rem; left: .7rem; font-size: .7rem;
   background: rgba(0,0,0,.55); padding: .25rem .6rem; border-radius: 999px;
   color: #ffd9e6; letter-spacing: .04em; }

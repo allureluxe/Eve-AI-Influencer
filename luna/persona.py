@@ -20,15 +20,20 @@ class Apparence:
     dans les personnages IA.
     """
 
-    cheveux: str = "blonde, cheveux longs et soyeux"
-    yeux: str = "yeux bleus clairs"
+    cheveux: str = "blond platine, longs et ondules, brushing soigne"
+    yeux: str = "yeux bleus clairs, regard souligne d'un trait d'eye-liner"
     taille_cm: int = 160
-    silhouette: str = "silhouette feminine, fine et harmonieuse"
-    visage: str = "visage doux et symetrique, pommettes hautes, sourire chaleureux"
+    silhouette: str = ("silhouette feminine fine et tonique, taille marquee, "
+                       "jambes longues")
+    visage: str = ("visage doux et symetrique, pommettes hautes, levres pleines, "
+                   "maquillage glamour, sourire seducteur")
     ancre: str = (
         "the same recurring fictional character: a 30-year-old adult woman, "
-        "long blonde hair, bright blue eyes, soft symmetrical face with high "
-        "cheekbones, warm smile, petite feminine figure, 160 cm, fair skin, "
+        "long wavy platinum blonde hair, bright blue eyes, glamorous makeup "
+        "with defined eyeliner and soft nude-pink lips, high cheekbones, "
+        "symmetrical delicate face, slim toned feminine figure with a narrow "
+        "waist and long legs, 160 cm, sun-kissed fair skin, manicured nails, "
+        "elegant and seductive presence, "
         "consistent facial features across all images"
     )
     graine: int = 776_601  # seed fixe : meme visage d'une image a l'autre

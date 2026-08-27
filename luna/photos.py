@@ -24,6 +24,16 @@ NEGATIF = ("child, teenager, underage, deformed hands, extra fingers, "
 
 SIGNATURE = "fictional AI-generated character, not a real person"
 
+# Le rendu, identique partout : c'est lui qui fait la difference entre une
+# image plate et une photo de studio. Objectif court, lumiere travaillee,
+# peau texturee — les trois choses qui trahissent le plus une image generee
+# quand elles manquent.
+RENDU = ("hyperrealistic glamour photography, professional fashion shoot, "
+         "85mm f/1.4 portrait lens, shallow depth of field, softbox key light "
+         "with warm rim light, detailed natural skin texture with visible "
+         "pores, sharp focus on the eyes, subtle film grain, high dynamic "
+         "range, magazine editorial retouching, 8k")
+
 
 @dataclass(frozen=True)
 class Scene:
@@ -36,49 +46,72 @@ class Scene:
 
 SCENES = (
     Scene("matin", "Selfie avant le bureau", TENDRE,
-          "morning selfie in a bright Parisian apartment, soft daylight, "
-          "business blouse, coffee cup, phone mirror selfie framing",
+          "morning mirror selfie in a bright modern apartment, silk blouse "
+          "and pencil skirt, coffee cup in hand, soft daylight through large "
+          "windows, glossy hair, phone held up, candid lifestyle framing",
           "Prete pour la journee ☕ Tu me souhaites bonne chance ?"),
     Scene("bureau", "Tenue professionnelle", TENDRE,
-          "elegant tailored suit in a modern glass office, city skyline "
-          "behind, confident posture, editorial corporate photography",
+          "elegant fitted trouser suit over a silk camisole, standing in a "
+          "modern glass office at golden hour, city skyline behind, stiletto "
+          "heels, confident posture, corporate editorial photography",
           "Reunion dans dix minutes 💼 Souhaite-moi bon courage."),
     Scene("restaurant", "Sortie au restaurant", TENDRE,
-          "fine dining restaurant, warm candlelight, elegant dress, glass "
-          "of wine, bokeh background, luxury lifestyle photography",
+          "seated at a fine dining table, fitted black cocktail dress, "
+          "candlelight and warm bokeh, glass of red wine, delicate jewellery, "
+          "smoky eye makeup, luxury lifestyle photography",
           "Cette table est trop grande sans toi en face 🍷"),
     Scene("sport", "Seance de sport", TENDRE,
-          "modern gym, sportswear, ponytail, post-workout glow, natural "
-          "light through large windows",
+          "modern gym at blue hour, matching sports bra and high-waisted "
+          "leggings, toned figure, high ponytail, post-workout glow, backlit "
+          "by floor-to-ceiling windows, fitness editorial photography",
           "Seance finie 💪 J'ai pense a toi entre deux series 😅"),
     Scene("voyage", "Voyage de luxe", TENDRE,
-          "luxury resort terrace overlooking the sea, summer dress, sun "
-          "hat, infinity pool, golden hour, travel magazine style",
+          "luxury resort terrace over a turquoise sea, flowing summer dress "
+          "moving in the breeze, wide-brim hat, infinity pool, golden hour "
+          "backlight, travel magazine photography",
           "Ce coucher de soleil serait parfait avec toi ✈️"),
     Scene("cuisine", "Cuisine a la maison", TENDRE,
-          "cozy home kitchen, apron over a shirt, fresh ingredients on the "
-          "counter, warm afternoon light, candid lifestyle photography",
+          "cozy designer kitchen, oversized white shirt over bare legs, "
+          "sleeves rolled up, fresh ingredients on a marble counter, warm "
+          "afternoon light, relaxed candid lifestyle photography",
           "Je teste une nouvelle recette 🍳 Tu gouterais ?"),
     Scene("soiree", "Tenue de soiree", TENDRE,
-          "evening gown, rooftop party at night, city lights, elegant "
-          "jewelry, glamorous fashion photography",
+          "long fitted evening gown with a slit, rooftop terrace at night, "
+          "city lights bokeh, statement earrings, glamorous makeup, stiletto "
+          "heels, high fashion editorial photography",
           "Alors, cette robe ? Sois honnete 👗"),
     Scene("shopping", "Shopping", TENDRE,
-          "high-end fashion boutique, shopping bags, chic casual outfit, "
-          "mirror reflection, lifestyle editorial",
+          "high-end fashion boutique, chic casual outfit with a blazer and "
+          "heels, shopping bags, mirror reflection, polished lifestyle "
+          "editorial photography",
           "J'ai craque 🛍️ ... enfin, presque."),
     Scene("costume", "Costume et deguisement", SENSUEL,
-          "playful costume portrait, theatrical outfit, stage-style "
-          "lighting, tasteful glamour photography, fully covered outfit",
+          "playful character costume portrait, theatrical fully covering "
+          "outfit, stage lighting with coloured gels, confident pose, "
+          "tasteful glamour photography",
           "Devine ce que je porte ce soir 😏"),
     Scene("boudoir", "Lingerie elegante", SENSUEL,
-          "tasteful boudoir portrait, elegant lace lingerie set, silk robe "
-          "over the shoulders, dim warm bedroom light, artistic fashion "
-          "editorial, modest and covered, no nudity",
+          "tasteful boudoir portrait seated on a velvet armchair, elegant "
+          "black lace lingerie set fully covering, sheer stockings and high "
+          "heels, silk robe slipping off one shoulder, dim warm bedroom "
+          "light, artistic glamour editorial, modest framing, no nudity",
           "Juste pour toi 💋 ... et personne d'autre."),
+    Scene("fenetre", "Lumiere de fenetre", SENSUEL,
+          "standing by a tall window with sheer curtains, fitted lace "
+          "bodysuit fully covering, backlit by soft morning light, looking "
+          "over her shoulder, hair catching the light, fine art boudoir "
+          "photography, elegant and modest, no nudity",
+          "La lumiere est belle ce matin... et je pense a toi 😏"),
+    Scene("talons", "Talons et bas", SENSUEL,
+          "full length editorial portrait in a hotel corridor, elegant "
+          "lingerie set fully covering with sheer stockings, long fur coat "
+          "held open, black stiletto heels, moody directional lighting, "
+          "high fashion glamour photography, no nudity",
+          "Je sors... ou je reste ? A toi de choisir 💋"),
     Scene("romantique", "Selfie romantique", TENDRE,
-          "close-up cozy selfie in bed under a blanket, oversized sweater, "
-          "soft morning light, affectionate expression",
+          "close-up cozy selfie in bed under a soft duvet, oversized knit "
+          "sweater, tousled hair, soft morning light, affectionate playful "
+          "expression, natural makeup",
           "Un petit selfie pour te faire sourire 🥰"),
 )
 
@@ -101,8 +134,7 @@ def prompt_photo(cle: str, registre: str = TENDRE,
     prompt = ", ".join((
         persona.apparence.ancre,
         scene.decor,
-        "photorealistic, 85mm portrait lens, shallow depth of field, "
-        "natural skin texture, high detail",
+        RENDU,
         SIGNATURE,
     ))
     return {

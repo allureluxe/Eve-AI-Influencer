@@ -25,27 +25,31 @@ class Tenue:
     # Couleurs utilisees par l'avatar vectoriel : haut, detail, fond.
     couleurs: tuple[str, str, str]
     description: str
+    # Scene de luna.photos correspondante. Des qu'un generateur d'images est
+    # configure, la visio affiche cette photo au lieu du dessin : c'est le
+    # meme personnage, en photorealiste.
+    scene: str = ""
 
 
 TENUES = (
     Tenue("bureau", "tailleur de bureau", TENDRE, ("#2f3a56", "#dfe6f5", "#e8ecf6"),
-          "veste cintree, chemisier clair, cheveux attaches"),
+          "veste cintree, chemisier clair, cheveux attaches", "bureau"),
     Tenue("sport", "tenue de sport", TENDRE, ("#3aa89a", "#e9fbf7", "#e6f7f4"),
-          "brassiere et legging, queue de cheval, joues roses"),
+          "brassiere et legging, queue de cheval, joues roses", "sport"),
     Tenue("decontracte", "pull oversize", TENDRE, ("#c98f7a", "#fceee6", "#f7efe9"),
-          "grand pull confortable, cheveux laches"),
+          "grand pull confortable, cheveux laches", "romantique"),
     Tenue("soiree", "robe de soiree", TENDRE, ("#7b1f3a", "#f3cdd8", "#2a1622"),
-          "robe elegante, boucles d'oreilles, brushing"),
+          "robe elegante, boucles d'oreilles, brushing", "soiree"),
     Tenue("cuisine", "tablier a la maison", TENDRE, ("#d8a13f", "#fff3d8", "#f6efe2"),
-          "chemise nouee et tablier, chignon rapide"),
+          "chemise nouee et tablier, chignon rapide", "cuisine"),
     Tenue("vacances", "tenue d'ete", TENDRE, ("#f0c987", "#fff6e6", "#dff1f7"),
-          "robe legere, lunettes de soleil sur la tete"),
+          "robe legere, lunettes de soleil sur la tete", "voyage"),
     Tenue("nuisette", "nuisette en soie", SENSUEL, ("#b06a86", "#f6d9e4", "#1f1622"),
-          "nuisette soyeuse, epaules nues, lumiere basse"),
+          "nuisette soyeuse, epaules nues, lumiere basse", "fenetre"),
     Tenue("lingerie", "lingerie elegante", SENSUEL, ("#8e2b4d", "#f0c3d3", "#1a1018"),
-          "ensemble de dentelle raffine, elegant et couvrant, style editorial"),
+          "ensemble de dentelle raffine, elegant et couvrant, style editorial", "boudoir"),
     Tenue("costume", "costume de jeu", SENSUEL, ("#43306b", "#e0d3f5", "#1b1526"),
-          "deguisement choisi ensemble : infirmiere, policiere, chat, secretaire"),
+          "deguisement choisi ensemble : infirmiere, policiere, chat, secretaire", "costume"),
 )
 
 TENUES_PAR_CLE = {t.cle: t for t in TENUES}

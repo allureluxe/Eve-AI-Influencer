@@ -270,8 +270,27 @@
         // on se realigne sur ce qu'il a reellement choisi.
         choixVisio.tenue = s.tenue.cle;
         choixVisio.ambiance = s.ambiance.cle;
+        habillerEnPhoto(s.tenue.scene);
         return s;
       });
+  }
+
+  // Quand un generateur d'images est configure, la visio montre Luna en
+  // photo plutot que le dessin vectoriel. Le dessin reste le repli : il
+  // s'affiche pendant la generation, et si aucune cle n'est presente.
+  function habillerEnPhoto(scene) {
+    var cadre = $("#cadre-visio");
+    if (!etat || !etat.capacites.images || !scene) {
+      cadre.classList.remove("en-photo");
+      return;
+    }
+    cadre.classList.add("chargement");
+    api("/api/photo", { scene: scene }).then(function (r) {
+      cadre.classList.remove("chargement");
+      if (!r.image) return;
+      cadre.style.backgroundImage = "url(" + r.image + ")";
+      cadre.classList.add("en-photo");
+    }).catch(function () { cadre.classList.remove("chargement"); });
   }
 
   // ------------------------------------------------------------ demarrage

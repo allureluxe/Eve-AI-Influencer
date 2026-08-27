@@ -139,7 +139,8 @@ class Application:
         return {
             "tenue": {"cle": session.tenue.cle, "nom": session.tenue.nom,
                       "couleurs": list(session.tenue.couleurs),
-                      "description": session.tenue.description},
+                      "description": session.tenue.description,
+                      "scene": session.tenue.scene},
             "ambiance": {"cle": session.ambiance.cle, "nom": session.ambiance.nom,
                          "fond": list(session.ambiance.fond),
                          "lumiere": session.ambiance.lumiere,
@@ -165,6 +166,14 @@ class Application:
             demande["message"] = ("Aucun generateur d'images configure : voici le "
                                   "prompt, pret a coller ailleurs.")
             return demande
+
+        import base64
+        cache = _fichier(os.path.join("photos", demande["scene"] + ".png"))
+        if not corps.get("regenerer") and os.path.exists(cache):
+            with open(cache, "rb") as f:
+                demande["image"] = "data:image/png;base64," + base64.b64encode(f.read()).decode()
+            demande["cache"] = True
+            return demande
         try:
             brut = self.images.generer(demande["prompt"], demande["negatif"],
                                        demande["graine"])
@@ -172,8 +181,11 @@ class Application:
             demande["image"] = ""
             demande["message"] = f"Generation impossible : {e}"
             return demande
-        import base64
+        os.makedirs(os.path.dirname(cache), exist_ok=True)
+        with open(cache, "wb") as f:
+            f.write(brut)
         demande["image"] = "data:image/png;base64," + base64.b64encode(brut).decode()
+        demande["cache"] = False
         return demande
 
     def parler(self, corps: dict) -> dict:

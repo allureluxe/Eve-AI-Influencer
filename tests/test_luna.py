@@ -222,6 +222,77 @@ class TestAvatar(unittest.TestCase):
         self.assertEqual(session.tenue.cle, "lingerie")
 
 
+class TestPhotoDansLaVisio(unittest.TestCase):
+    """La visio doit pouvoir montrer une photo, pas seulement le dessin."""
+
+    def test_chaque_tenue_pointe_vers_une_scene_existante(self):
+        from luna.avatar import TENUES
+        from luna.photos import SCENES_PAR_CLE
+        for tenue in TENUES:
+            self.assertTrue(tenue.scene, tenue.cle)
+            self.assertIn(tenue.scene, SCENES_PAR_CLE, tenue.cle)
+
+    def test_la_scene_d_une_tenue_ne_depasse_pas_son_registre(self):
+        from luna.avatar import TENUES
+        from luna.photos import SCENES_PAR_CLE
+        for tenue in TENUES:
+            scene = SCENES_PAR_CLE[tenue.scene]
+            self.assertLessEqual(limites.rang(scene.registre),
+                                 limites.rang(tenue.registre), tenue.cle)
+
+    def test_la_visio_annonce_la_scene_a_afficher(self):
+        from luna import serveur
+        serveur.DOSSIER_DONNEES = tempfile.mkdtemp()
+        app = serveur.Application()
+        app.luna.moteur = MoteurFactice()
+        self.assertEqual(app.visio({})["tenue"]["scene"],
+                         app.visio({})["tenue"]["scene"])
+        self.assertTrue(app.visio({})["tenue"]["scene"])
+
+    def test_une_photo_generee_est_mise_en_cache(self):
+        from luna import serveur
+        serveur.DOSSIER_DONNEES = tempfile.mkdtemp()
+        app = serveur.Application()
+        app.luna.moteur = MoteurFactice()
+
+        class GenerateurFactice:
+            disponible = True
+
+            def __init__(self):
+                self.appels = 0
+
+            def generer(self, prompt, negatif="", graine=0):
+                self.appels += 1
+                return b"\x89PNG\r\n\x1a\n-fausse-image"
+
+        app.images = GenerateurFactice()
+        premier = app.photo({"scene": "bureau"})
+        second = app.photo({"scene": "bureau"})
+        self.assertTrue(premier["image"].startswith("data:image/png;base64,"))
+        self.assertEqual(premier["image"], second["image"])
+        self.assertEqual(app.images.appels, 1, "la seconde demande doit venir du cache")
+        self.assertTrue(second["cache"])
+
+    def test_regenerer_force_une_nouvelle_image(self):
+        from luna import serveur
+        serveur.DOSSIER_DONNEES = tempfile.mkdtemp()
+        app = serveur.Application()
+        app.luna.moteur = MoteurFactice()
+
+        class GenerateurFactice:
+            disponible = True
+            appels = 0
+
+            def generer(self, prompt, negatif="", graine=0):
+                type(self).appels += 1
+                return b"image"
+
+        app.images = GenerateurFactice()
+        app.photo({"scene": "bureau"})
+        app.photo({"scene": "bureau", "regenerer": True})
+        self.assertEqual(GenerateurFactice.appels, 2)
+
+
 class TestPrompt(unittest.TestCase):
     def test_le_cadre_et_la_memoire_sont_dans_le_prompt(self):
         memoire = Memoire()
