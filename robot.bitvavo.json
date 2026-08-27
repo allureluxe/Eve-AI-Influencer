@@ -1,6 +1,6 @@
 {
-  "_arme_en_reel": "OUI, DELIBEREMENT. Cette configuration engage de l'argent veritable : engine.dry_run vaut false par decision de l'operateur, pas par accident. Cette cle est ce qui distingue les deux cas — un fichier passe en reel par megarde ne la porterait pas, et le test le refuserait. La retirer remet le robot en simulation.",
-  "_note": "Configuration Bitvavo margin micro-scalping : long + short, money management adaptatif au capital, risque et distance du stop, levier logiciel plafonne a 10x. L'acces marge reste soumis a l'eligibilite Bitvavo.",
+  "_arme_en_reel": "OUI, DELIBEREMENT. Cette configuration engage de l'argent veritable.",
+  "_note": "Configuration Bitvavo margin micro-scalping : signaux renforces, confirmation multi-unites et filtrage du cout d'execution.",
   "engine": {
     "broker": "bitvavo",
     "dry_run": false,
@@ -17,43 +17,39 @@
   },
   "strategy": {
     "mode": "quorum",
-    "min_confirmations": 3,
-    "require_candle_confirmation": false,
-    "confirmation_margin": 1,
+    "min_confirmations": 5,
+    "require_candle_confirmation": true,
+    "confirmation_margin": 2,
     "trigger_tf": "M5",
     "entry_tf": "M15",
     "context_tf": "H1",
     "bias_tf": "H4",
     "adaptive_timeframe": true,
-    "timeframe_ladder": [
-      "M15",
-      "H1",
-      "H4"
-    ],
+    "timeframe_ladder": ["M15", "H1", "H4"],
     "max_cost_ratio_pct": 15.0,
     "max_spread_atr_ratio": 0.6,
-    "min_atr_percentile": 0.08,
+    "min_atr_percentile": 0.10,
     "max_atr_percentile": 0.98,
     "min_atr_price_ratio": 0.001,
-    "min_adx": 15.0,
-    "min_headroom_atr": 0.6,
-    "min_rr": 1.7,
-    "require_trigger": false,
-    "require_mtf_alignment": false,
+    "min_adx": 18.0,
+    "min_headroom_atr": 1.0,
+    "min_rr": 1.8,
+    "require_trigger": true,
+    "require_mtf_alignment": true,
     "allow_counter_trend": false,
     "macro_veto_threshold": 0.7,
-    "min_score": 0.48,
-    "min_score_counter_trend": 0.8,
+    "min_score": 0.55,
+    "min_score_counter_trend": 0.85,
     "w_trend": 0.25,
     "w_momentum": 0.18,
     "w_candles": 0.18,
-    "w_chart": 0.1,
+    "w_chart": 0.10,
     "w_divergence": 0.05,
     "w_zones": 0.08,
     "w_volume": 0.06,
     "w_macro": 0.06,
     "w_news": 0.04,
-    "history": 100
+    "history": 150
   },
   "risk": {
     "base_risk_pct": 0.5,
@@ -73,7 +69,7 @@
     "max_leverage": 1.0,
     "max_consecutive_losses": 3,
     "pause_after_losses_minutes": 90.0,
-    "min_rr": 1.7,
+    "min_rr": 1.8,
     "max_capital_engaged_pct": 80.0
   },
   "trade": {
@@ -111,7 +107,6 @@
     "protect_multiplier": 0.5
   },
   "promotion": {
-    "_note": "Fenetre Bitvavo sans commission. Le robot verifie la date a chaque cycle et revient AUTOMATIQUEMENT au tarif normal apres, sans intervention. Sans ce bloc, rien ne ramene le robot a une echelle de temps que les frais rendent tenable.",
     "active": true,
     "sans_frais_jusqu_au": "2026-08-29",
     "volume_plafond": 9980.0
