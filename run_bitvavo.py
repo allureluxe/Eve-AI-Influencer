@@ -33,6 +33,33 @@ engine_module._devise_du_lieu_d_execution = _bitvavo_quote_currency
 class BitvavoTradingEngine(TradingEngine):
     """Moteur verrouillé sur Bitvavo spot."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Un ancien arrêt par drawdown doit rester protecteur, mais ne doit
+        # pas rester bloqué après modification/relèvement contrôlé du seuil.
+        # On ne réinitialise JAMAIS le sommet historique : le drawdown réel
+        # reste donc intact. La reprise n'est autorisée que si le compte est
+        # actuellement sous le seuil configuré.
+        try:
+            self.broker.sync()
+            account = self.broker.account()
+            self.risk.sync_account(account.equity, account.balance, account.currency)
+            if (self.store.state.halted
+                    and "drawdown maximal atteint" in (self.store.state.halt_reason or "")
+                    and self.risk.account.drawdown_pct() < self.config.risk.max_drawdown_pct):
+                self.risk.resume()
+                self.store.state.halted = False
+                self.store.state.halt_reason = ""
+                self.store.save()
+                logger.warning(
+                    "REPRISE CONTROLEE : ancien arret drawdown leve, "
+                    "drawdown actuel %.1f%% < seuil %.1f%% ; sommet historique conserve",
+                    self.risk.account.drawdown_pct(),
+                    self.config.risk.max_drawdown_pct,
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("reprise drawdown non effectuee : %s", str(exc)[:160])
+
     def _build_broker(self):
         bv = BitvavoConfig.from_env()
         bv.dry_run = bool(self.config.engine.dry_run)
