@@ -1,31 +1,22 @@
-# Service systemd du robot de trading.
-#
-#   sudo cp deploy/gold-bot.service /etc/systemd/system/
-#   sudo systemctl daemon-reload
-#   sudo systemctl enable --now gold-bot
-#   journalctl -u gold-bot -f
+# Service systemd du robot de trading Bitvavo spot.
+# La configuration reste en simulation tant que BITVAVO_DRY_RUN=1.
 
 [Unit]
-Description=Robot de trading autonome (or, forex, cryptos)
+Description=Robot de trading autonome Bitvavo
 After=network-online.target
 Wants=network-online.target
-
-[Service]
-Type=simple
-User=trader
-WorkingDirectory=/opt/gold-bot
-EnvironmentFile=/opt/gold-bot/.env
-ExecStart=/usr/bin/python3 /opt/gold-bot/run_bot.py run --broker moonx
-
-# Redemarrage automatique : le robot doit survivre a une coupure reseau
-# ou a un reboot. Les positions restent protegees par leur stop cote
-# broker, et l'etat de gestion est repris depuis data/state.json.
-Restart=always
-RestartSec=30
 StartLimitIntervalSec=600
 StartLimitBurst=10
 
-# Arret propre : SIGTERM declenche la sauvegarde de l'etat.
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+ExecStart=/usr/bin/python3 /home/ubuntu/Eve-AI-Influencer/run_bitvavo.py
+
+Restart=always
+RestartSec=30
 KillSignal=SIGTERM
 TimeoutStopSec=60
 
@@ -33,12 +24,11 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=gold-bot
 
-# Cloisonnement : le robot n'a besoin d'ecrire que dans son repertoire.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/gold-bot/data
+ReadWritePaths=/home/ubuntu/Eve-AI-Influencer/data
 
 [Install]
 WantedBy=multi-user.target

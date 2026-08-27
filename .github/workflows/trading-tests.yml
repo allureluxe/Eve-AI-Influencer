@@ -1,0 +1,64 @@
+name: Trading bot tests
+
+on:
+  push:
+    paths:
+      - 'gold_bot/**'
+      - 'run_bot.py'
+      - 'run_pionex.py'
+      - 'tests/**'
+      - 'robot*.json'
+      - '.github/workflows/trading-tests.yml'
+  pull_request:
+    paths:
+      - 'gold_bot/**'
+      - 'run_bot.py'
+      - 'run_pionex.py'
+      - 'tests/**'
+      - 'robot*.json'
+      - '.github/workflows/trading-tests.yml'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest
+      - name: Syntax check
+        run: python -m compileall -q gold_bot run_bot.py run_pionex.py
+      - name: Unit tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: JSON configuration validation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path('.').glob('robot*.json'):
+              json.loads(path.read_text(encoding='utf-8'))
+              print('OK', path)
+          PY
+      - name: Bitvavo configuration validation
+        run: |
+          python - <<'PY'
+          from gold_bot.settings import BotConfig
+          cfg = BotConfig.load('robot.bitvavo.json')
+          problems = cfg.validate()
+          if problems:
+              raise SystemExit('\n'.join(problems))
+          assert cfg.engine.broker == 'bitvavo'
+          print('OK: Bitvavo configuration coherent')
+      - name: Pionex Futures static validation
+        run: |
+          python - <<'PY'
+          from gold_bot.brokers import PionexFuturesBroker, PionexFuturesConfig
+          cfg = PionexFuturesConfig(dry_run=False)
+          broker = PionexFuturesBroker(cfg)
+          assert broker.is_live is True
+          assert broker.supports_short is True
+          assert broker.pionex_symbol('BTCUSDT') == 'BTC_USDT_PERP'
+          print('OK: Pionex Futures broker wired for live execution')
+          PY

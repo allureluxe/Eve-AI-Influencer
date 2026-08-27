@@ -794,6 +794,21 @@ class BitvavoBroker(Broker):
             raise BrokerError(
                 f"notionnel {notionnel:.2f} {self.config.quote_asset} sous le minimum "
                 f"{regle.min_notional} sur {code}")
+
+        # Le stop de vente est place 0,2 % sous son declenchement. Une
+        # position juste au-dessus du minimum d'achat peut donc produire un
+        # stop inferieur au minimum Bitvavo (ex. 4,94 EUR pour un minimum de
+        # 5 EUR). Il vaut mieux refuser l'entree que l'acheter puis la fermer
+        # immediatement avec une perte certaine. On verifie le niveau le plus
+        # defensif, avant meme d'envoyer l'ordre d'achat.
+        prix_stop_limite = max(0.0, stop_loss) * 0.998
+        notionnel_stop = quantite * prix_stop_limite
+        if notionnel_stop < regle.min_notional:
+            raise BrokerError(
+                f"notionnel du stop {notionnel_stop:.2f} "
+                f"{self.config.quote_asset} sous le minimum "
+                f"{regle.min_notional} sur {code} : entree refusee")
+
         # Les frais se prelevent en plus du notionnel : un ordre calibre au
         # centime pres sur le solde disponible serait refuse pour quelques
         # centimes de commission.
@@ -926,12 +941,44 @@ class BitvavoBroker(Broker):
             limite = essai.arrondir_prix(position.stop_loss * 0.998)
             if limite <= 0 or declenchement <= 0:
                 break
+
+            # Un stop de vente doit encore être plaçable au moment où il est
+            # envoyé. Le trailing peut avoir remonté le niveau pendant que le
+            # marché passait dessous : Bitvavo refuse alors le stop comme
+            # « immédiatement déclenché ». Garder la position ouverte dans ce
+            # cas revient à la laisser sans protection ; on la liquide donc
+            # au marché, qui est précisément la sémantique attendue du stop.
+            prix_courant = self._prix(code)
+            if prix_courant is not None and prix_courant <= declenchement:
+                erreur = BrokerError(
+                    f"stop déjà atteint sur {code} (prix {formater(prix_courant)}, "
+                    f"stop {formater(declenchement)})")
+                logger.warning("%s ; clôture immédiate au marché", erreur)
+                self.close_position(position.id, reason="stop déjà atteint")
+                raise erreur
+
+            quantite = regle.arrondir_quantite(position.volume)
+            notionnel_stop = quantite * limite
+            if (quantite <= 0
+                    or (regle.min_amount and quantite < regle.min_amount)
+                    or notionnel_stop < regle.min_notional):
+                # Bitvavo contrôle le notionnel du stop au prix limite, pas
+                # seulement celui de l'achat initial. Cela arrive notamment
+                # après une prise partielle ou sur une paire à très bas prix.
+                # Un ordre stop impossible à déposer ne doit jamais laisser
+                # une position orpheline : fermeture immédiate et explicite.
+                erreur = BrokerError(
+                    f"stop impossible sur {code} : notionnel {notionnel_stop:.2f} "
+                    f"{self.config.quote_asset} sous le minimum "
+                    f"{regle.min_notional}")
+                logger.warning("%s ; clôture immédiate au marché", erreur)
+                self.close_position(position.id, reason="stop sous le minimum")
+                raise erreur
             try:
                 reponse = self._appel("POST", "/order", corps={
                     "market": code, "side": "sell", "orderType": "stopLossLimit",
                     "operatorId": self.config.operator_id,
-                    "amount": formater(regle.arrondir_quantite(position.volume),
-                                       regle.amount_decimals),
+                    "amount": formater(quantite, regle.amount_decimals),
                     "price": formater(limite),
                     "triggerType": "price",
                     "triggerReference": "lastTrade",
@@ -1038,6 +1085,24 @@ class BitvavoBroker(Broker):
         if quantite <= 0:
             return None
         partielle = quantite < position.volume - 1e-12
+
+        # Une prise partielle ne doit pas créer un reliquat que Bitvavo ne
+        # pourra plus protéger ni revendre. Dans ce cas, on transforme la
+        # demande en clôture totale. C'est le scénario qui produisait ensuite
+        # « amountQuote less than minimum » au moment de reposer le stop.
+        if partielle:
+            prix = self._prix(code) or position.entry_price
+            reste = regle.arrondir_quantite(position.volume - quantite)
+            reste_invendable = (
+                (regle.min_amount and reste < regle.min_amount)
+                or reste * max(prix, 0.0) < regle.min_notional
+            )
+            if reste_invendable:
+                logger.info(
+                    "%s : reliquat %s sous le minimum, clôture totale",
+                    code, formater(reste))
+                quantite = regle.arrondir_quantite(position.volume)
+                partielle = False
 
         # Le stop immobilise la quantite : il doit partir avant la vente.
         self._annuler_stop(position.symbol)
