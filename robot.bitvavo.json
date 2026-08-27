@@ -11,7 +11,7 @@
     "daily_report_hour": 21,
     "symbols": [],
     "currency": "EUR",
-    "verbose_scan": false,
+    "verbose_scan": true,
     "scan_workers": 6
   },
   "strategy": {
