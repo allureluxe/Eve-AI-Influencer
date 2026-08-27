@@ -21,7 +21,7 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @dataclass(slots=True)
 class EngineConfig:
-    broker: str = "pionex"
+    broker: str = "multi"
     poll_seconds: float = 5.0
     idle_poll_seconds: float = 20.0
     closed_market_seconds: float = 300.0
@@ -31,8 +31,8 @@ class EngineConfig:
     daily_report_hour: int = 21
     symbols: list[str] = field(default_factory=list)
     start_balance: float = 1000.0
-    currency: str = "USDT"
-    dry_run: bool = False
+    currency: str = "EUR"
+    dry_run: bool = True
     offline: bool = False
     verbose_scan: bool = False
     scan_workers: int = 8
@@ -120,9 +120,11 @@ class BotConfig:
     def validate(self) -> list[str]:
         problems: list[str] = []
         r, t, s, e = self.risk, self.trade, self.strategy, self.engine
-        if e.broker not in {"bitvavo", "pionex"}:
-            problems.append(f"broker invalide : {e.broker}. Utiliser bitvavo ou pionex")
-        if e.offline and e.broker in {"bitvavo", "pionex"}:
+        if e.broker not in {"bitvavo", "pionex", "coinbase", "bitstamp", "multi"}:
+            problems.append(
+                f"broker invalide : {e.broker}. Utiliser bitvavo, coinbase, bitstamp ou multi"
+            )
+        if e.offline and e.broker in {"bitvavo", "pionex", "coinbase", "bitstamp", "multi"}:
             problems.append(f"mode hors ligne incompatible avec {e.broker}")
         if r.max_risk_pct > 1.5:
             problems.append(f"risque maximal au-dessus du plafond de securite ({r.max_risk_pct}% > 1.5%)")
