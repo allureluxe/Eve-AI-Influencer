@@ -31,7 +31,7 @@
       "H4"
     ],
     "max_cost_ratio_pct": 15.0,
-    "max_spread_atr_ratio": 0.1,
+    "max_spread_atr_ratio": 0.25,
     "min_atr_percentile": 0.1,
     "max_atr_percentile": 0.98,
     "min_atr_price_ratio": 0.0035,

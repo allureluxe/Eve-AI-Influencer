@@ -16,7 +16,7 @@ Le 27 août, après audit chiffré, l'opérateur a tranché :
 | `trade.max_cost_ratio_pct` | **15.0** | idem |
 | `risk.max_leverage` | **1.0** | passer en marge |
 | bloc `promotion` | **présent** | retirer |
-| `strategy.max_spread_atr_ratio` | **0.1** | desserrer pour « prendre plus de trades » |
+| `strategy.max_spread_atr_ratio` | **0.25** | dépasser `max_cost_ratio_pct/100 × atr_stop_mult` |
 | `strategy.min_atr_price_ratio` | **0.0035** | idem |
 | `strategy.min_score` | **0.35** | remettre a zéro « parce que le quorum suffit » |
 
@@ -72,7 +72,14 @@ retomber, c'est la protection qui manque. Quand il ne dépasse jamais
 0,25 R, **c'est l'entrée qui ne vaut rien** — et aucun réglage de stop n'y
 changera quoi que ce soit.
 
-Ces deux réglages doivent rester cohérents avec le plafond de coût : le
+Le 28 août, à 0,1, ce filtre écartait **94 % de l'univers** — trois fois
+plus strict que le plafond de coût ne l'exige — et plus aucune crypto
+n'atteignait les filtres suivants. Porté à 0,25, il reste sous le plafond
+(13,9 % du risque contre 15 % permis) tout en laissant le contrôle de coût
+exact, calculé sur le vrai spread au dimensionnement, faire son travail.
+
+La borne n'est donc pas un chiffre choisi : c'est
+`max_cost_ratio_pct/100 × atr_stop_mult`. Ces deux réglages doivent rester cohérents avec le plafond de coût : le
 stop vaut `atr_stop_mult` ATR, soit 1 R, donc un spread de M ATR pèse
 `M / atr_stop_mult` en R. `BotConfig.validate()` refuse désormais la
 contradiction au démarrage, en donnant la valeur à corriger.

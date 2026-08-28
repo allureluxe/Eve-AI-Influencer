@@ -150,11 +150,27 @@ class TestFiltresDEntree:
     quand il ne depasse jamais 0,25 R, c'est l'entree qui ne vaut rien.
     """
 
-    def test_le_spread_accepte_reste_serre(self):
-        valeur = config().strategy.max_spread_atr_ratio
-        assert valeur <= 0.1 + 1e-9, (
-            f"max_spread_atr_ratio vaut {valeur} — a 0,6 le robot acceptait "
-            "des cryptos ou le spread mangeait un tiers du risque")
+    def test_le_spread_accepte_reste_sous_le_plafond_de_cout(self):
+        """La borne n'est pas un chiffre choisi, c'est le plafond de cout.
+
+        Le stop vaut atr_stop_mult ATR, soit 1 R : un spread de X ATR pese
+        donc X / atr_stop_mult en R, et ce poids doit tenir sous le plafond.
+        A 0,6 le robot acceptait 0,33 R de spread pour 0,15 R permis — c'est
+        ce depassement qui a produit 72 trades a 2,8 % de reussite, pas la
+        valeur elle-meme.
+        """
+        cfg = config()
+        limite = cfg.risk.max_cost_ratio_pct / 100.0 * cfg.trade.atr_stop_mult
+        valeur = cfg.strategy.max_spread_atr_ratio
+        assert valeur <= limite + 1e-9, (
+            f"max_spread_atr_ratio vaut {valeur}, au-dela de {limite:.2f} "
+            "que le plafond de cout autorise — voir CLAUDE.md")
+
+    def test_la_valeur_du_desastre_serait_refusee(self):
+        """0,6 doit rester impossible, quel que soit le reste."""
+        cfg = config()
+        limite = cfg.risk.max_cost_ratio_pct / 100.0 * cfg.trade.atr_stop_mult
+        assert 0.6 > limite, "le plafond de cout n'exclut plus la valeur fautive"
 
     def test_la_volatilite_minimale_reste_exigeante(self):
         valeur = config().strategy.min_atr_price_ratio
