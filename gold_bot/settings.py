@@ -132,4 +132,28 @@ class BotConfig:
         if t.min_stop_atr > t.atr_stop_mult: problems.append("le stop minimal est plus large que le stop nominal")
         if s.min_score > 0.95: problems.append("seuil de score quasi inatteignable")
         if e.poll_seconds < 1.0: problems.append("cadence trop agressive")
+
+        # DEUX REGLAGES QUI POUVAIENT SE CONTREDIRE EN SILENCE.
+        #
+        # Le plafond de cout dit « les frais ne doivent pas depasser N % du
+        # risque ». Le filtre de spread dit « j'accepte un spread jusqu'a
+        # M fois l'ATR ». Comme le stop vaut atr_stop_mult ATR = 1 R, un
+        # spread de M ATR pese M / atr_stop_mult en R — et rien ne verifiait
+        # que ce poids restait sous le plafond.
+        #
+        # Observe en production : plafond a 15 % du risque, filtre de spread
+        # a 0,6 ATR sur un stop de 1,8 ATR, soit 0,33 R de spread autorise
+        # pour 0,15 R de cout permis. Le robot a pris 72 trades sur des
+        # cryptos ou le spread mangeait un tiers du risque : 2,8 % de
+        # reussite, esperance -0,406 R, et une progression mediane de 0,25 R
+        # la ou l'objectif etait a 2,20 R. Aucune erreur, aucune alerte.
+        if t.atr_stop_mult > 0:
+            spread_en_r = s.max_spread_atr_ratio / t.atr_stop_mult
+            plafond_en_r = r.max_cost_ratio_pct / 100.0
+            if spread_en_r > plafond_en_r:
+                problems.append(
+                    f"le filtre de spread autorise {spread_en_r:.2f} R de spread "
+                    f"alors que le plafond de cout n'admet que {plafond_en_r:.2f} R : "
+                    f"baisser strategy.max_spread_atr_ratio sous "
+                    f"{plafond_en_r * t.atr_stop_mult:.2f}")
         return problems

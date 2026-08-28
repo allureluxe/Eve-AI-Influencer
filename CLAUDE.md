@@ -16,6 +16,8 @@ Le 27 août, après audit chiffré, l'opérateur a tranché :
 | `trade.max_cost_ratio_pct` | **15.0** | idem |
 | `risk.max_leverage` | **1.0** | passer en marge |
 | bloc `promotion` | **présent** | retirer |
+| `strategy.max_spread_atr_ratio` | **0.1** | desserrer pour « prendre plus de trades » |
+| `strategy.min_atr_price_ratio` | **0.0035** | idem |
 
 `tests/test_garde_fous.py` verrouille ces valeurs. Si un test y échoue, ce
 n'est pas le test qu'il faut changer.
@@ -55,6 +57,24 @@ C'est lui qui ramène AUTOMATIQUEMENT le robot au D1 quand la fenêtre sans
 commission se ferme. Sans lui, plus rien ne le fait. Le commentaire de
 `gold_bot/promotion.py` dit ce qui arrive alors, mot pour mot :
 « viderait le compte en quelques jours, sans erreur ni alerte ».
+
+### Pourquoi les filtres d'entrée restent serrés
+
+Desserrés — spread à 0,6 ATR, volatilité minimale à 0,001 — ils ont produit
+**72 trades à 2,8 % de réussite**, une espérance de **−0,406 R** et une
+progression médiane de **0,25 R** là où l'objectif était à 2,20 R. Les
+trades n'allaient nulle part : le robot entrait sur des cryptos immobiles
+où le spread mangeait un tiers du risque.
+
+La distinction qui compte : quand un trade monte à 1,20 R avant de
+retomber, c'est la protection qui manque. Quand il ne dépasse jamais
+0,25 R, **c'est l'entrée qui ne vaut rien** — et aucun réglage de stop n'y
+changera quoi que ce soit.
+
+Ces deux réglages doivent rester cohérents avec le plafond de coût : le
+stop vaut `atr_stop_mult` ATR, soit 1 R, donc un spread de M ATR pèse
+`M / atr_stop_mult` en R. `BotConfig.validate()` refuse désormais la
+contradiction au démarrage, en donnant la valeur à corriger.
 
 ## Deux règles de méthode
 

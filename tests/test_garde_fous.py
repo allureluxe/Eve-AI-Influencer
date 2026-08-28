@@ -140,6 +140,50 @@ class TestLeSimulateurResteDisponible:
         assert [p for p in cfg.validate() if "hors ligne" in p]
 
 
+class TestFiltresDEntree:
+    """Ce qui decide si un trade merite d'etre pris.
+
+    Desserres, ces deux reglages ont produit 72 trades a 2,8 % de reussite,
+    une esperance de -0,406 R et une progression mediane de 0,25 R la ou
+    l'objectif etait a 2,20 R : les trades n'allaient nulle part. Quand un
+    trade monte a 1,20 R avant de retomber, c'est la protection qui manque ;
+    quand il ne depasse jamais 0,25 R, c'est l'entree qui ne vaut rien.
+    """
+
+    def test_le_spread_accepte_reste_serre(self):
+        valeur = config().strategy.max_spread_atr_ratio
+        assert valeur <= 0.1 + 1e-9, (
+            f"max_spread_atr_ratio vaut {valeur} — a 0,6 le robot acceptait "
+            "des cryptos ou le spread mangeait un tiers du risque")
+
+    def test_la_volatilite_minimale_reste_exigeante(self):
+        valeur = config().strategy.min_atr_price_ratio
+        assert valeur >= 0.0035 - 1e-9, (
+            f"min_atr_price_ratio vaut {valeur} — plus bas, le robot entre "
+            "sur des instruments qui ne bougent pas assez pour payer le spread")
+
+    def test_le_spread_autorise_tient_sous_le_plafond_de_cout(self):
+        """LA coherence qui manquait : les deux reglages parlent du meme R.
+
+        Le stop vaut atr_stop_mult ATR, soit 1 R. Un spread de M ATR pese
+        donc M / atr_stop_mult en R, et ce poids doit rester sous le
+        plafond de cout — sinon le filtre laisse passer ce que le plafond
+        interdit, et personne ne s'en apercoit.
+        """
+        cfg = config()
+        spread_en_r = cfg.strategy.max_spread_atr_ratio / cfg.trade.atr_stop_mult
+        plafond_en_r = cfg.risk.max_cost_ratio_pct / 100.0
+        assert spread_en_r <= plafond_en_r, (
+            f"{spread_en_r:.2f} R de spread autorise pour {plafond_en_r:.2f} R "
+            "de cout permis")
+
+    def test_la_contradiction_est_refusee_au_demarrage(self):
+        """Un reglage incoherent doit etre annonce, pas subi en silence."""
+        cfg = config()
+        cfg.strategy.max_spread_atr_ratio = 0.6
+        assert [p for p in cfg.validate() if "spread" in p]
+
+
 class TestLeCoutEstBienCeQuOnCroit:
     """L'arithmetique qui fonde tout le reste, verifiee ici meme."""
 
