@@ -1,0 +1,110 @@
+"""Runtime scalping commun pour Bitvavo Spot et IBKR.
+
+Le moteur de base ne prenait que `result.best`. Cette couche conserve tous les
+coupe-circuits du TradingEngine mais peut executer plusieurs opportunites
+independantes dans le meme cycle tant que le budget de risque et le nombre de
+positions le permettent.
+"""
+from __future__ import annotations
+
+import logging
+import math
+import os
+
+from .core import Side
+from .engine import TradingEngine
+from .scalping_engine import ContinuousScalpingMixin
+from .universe import Instrument
+from .brokers import IBKRBroker
+
+logger = logging.getLogger(__name__)
+
+
+class MultiEntryScalpingMixin(ContinuousScalpingMixin):
+    """Execute plusieurs signaux valides, sans depasser le budget de risque."""
+
+    def _look_for_entry(self) -> None:
+        positions = self.broker.positions()
+        allowed, why = self.risk.can_trade(positions)
+        if not allowed:
+            logger.debug("pas de recherche : %s", why)
+            return
+        stop, stop_why = self.objectives.should_stop_trading()
+        if stop:
+            logger.info("recherche suspendue : %s", stop_why)
+            return
+
+        bonus = self.objectives.score_threshold_bonus()
+        held = {p.symbol for p in positions}
+        sens = None if getattr(self.broker, "supports_short", True) else {Side.BUY}
+
+        def exposure_ok(inst):
+            current = self.broker.positions()
+            # Pas de hedging/pyramiding automatique dans cette couche : on
+            # veut multiplier les opportunites, pas multiplier le risque sur
+            # le meme actif.
+            return self.risk.check_exposure(inst, Side.BUY, current, self.universe.get)
+
+        result = self.scanner.scan(score_bonus=bonus, exclude=held,
+                                   allow=exposure_ok, allowed_sides=sens)
+        valid = sorted(result.valid_ones(), key=lambda e: (e.score, e.rr), reverse=True)
+        logger.info("%s", result.summary())
+        if self.config.engine.verbose_scan:
+            for line in self.scanner.report(result, verbose=True)[1:]:
+                logger.info("%s", line)
+
+        max_new = max(1, self.capital_tier()["positions_simultanees"])
+        opened = 0
+        for ev in valid:
+            if opened >= max_new:
+                break
+            current = self.broker.positions()
+            allowed, why = self.risk.can_trade(current)
+            if not allowed:
+                logger.info("recherche multi-entrees arretee : %s", why)
+                break
+            if ev.symbol in {p.symbol for p in current}:
+                continue
+            before = len(current)
+            self._execute(ev)
+            after = len(self.broker.positions())
+            if after > before:
+                opened += 1
+        if opened:
+            logger.info("scalping multi-entrees : %d nouvelle(s) position(s)", opened)
+
+
+class DualScalpingEngine(MultiEntryScalpingMixin, TradingEngine):
+    """Moteur commun, avec selection du broker Bitvavo ou IBKR."""
+
+    def _build_broker(self):
+        if self.config.engine.broker != "ibkr":
+            return super()._build_broker()
+
+        # Les instruments IBKR peuvent etre declares par IBKR_SYMBOLS et
+        # detailles dans IBKR_CONTRACTS. On les ajoute au meme univers afin
+        # que le scanner existant puisse les analyser.
+        symbols = [s.strip().upper() for s in os.getenv("IBKR_SYMBOLS", "").split(",") if s.strip()]
+        for sym in symbols:
+            if self.universe.get(sym):
+                continue
+            spec = IBKRBroker._load_specs().get(sym, {})
+            sec_type = str(spec.get("secType", "STK")).upper()
+            asset_class = "forex" if sec_type == "CASH" else "index"
+            quote = str(spec.get("currency", self.config.engine.currency)).upper()
+            self.universe.add(Instrument(
+                symbol=sym, asset_class=asset_class, digits=int(spec.get("digits", 5 if asset_class == "forex" else 2)),
+                contract_size=float(spec.get("contract_size", 1.0)), min_lot=float(spec.get("min_lot", 0.001)),
+                lot_step=float(spec.get("lot_step", 0.001)), max_lot=float(spec.get("max_lot", 1000000.0)),
+                round_step=0.0, typical_spread=0.0, max_spread=math.inf,
+                sessions=(), weekend=False, priority=float(spec.get("priority", 1.0)),
+                quote_currency=quote, correlation_group=str(spec.get("correlation_group", f"ibkr_{sym}")),
+            ))
+
+        broker = IBKRBroker()
+        if self.config.engine.dry_run:
+            broker.live_enabled = False
+        self._filtrer_univers_sur_le_broker(broker)
+        for inst in self.universe:
+            broker.register_instrument(inst)
+        return broker
