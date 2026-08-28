@@ -93,8 +93,8 @@
     "max_extensions": 0,
     "extend_min_momentum": 0.3,
     "lock_r_on_extend": 0.5,
-    "time_stop_minutes": 30.0,
-    "time_stop_min_r": 0.03,
+    "time_stop_minutes": 20.0,
+    "time_stop_min_r": 0.80,
     "reversal_exit_r": 0.25
   },
   "objectives": {
