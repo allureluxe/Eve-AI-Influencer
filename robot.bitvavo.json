@@ -27,7 +27,7 @@
     "adaptive_timeframe": true,
     "timeframe_ladder": ["M5", "M15", "M30"],
     "max_cost_ratio_pct": 15.0,
-    "max_spread_atr_ratio": 0.30,
+    "max_spread_atr_ratio": 0.19,
     "min_atr_percentile": 0.10,
     "max_atr_percentile": 0.98,
     "min_atr_price_ratio": 0.0010,
