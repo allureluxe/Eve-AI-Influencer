@@ -44,7 +44,7 @@ class TestPlafondDeCout:
             f"{section}.max_cost_ratio_pct vaut {valeur} au lieu de 15.0 — "
             "voir CLAUDE.md avant de modifier")
 
-    def test_ce_plafond_donne_bien_le_d1_au_tarif_normal(self):
+    def test_ce_plafond_laisse_passer_l_unite_retenue(self):
         """La consequence voulue, verifiee et non supposee."""
         cfg = config()
         cal = calibrer(equity=51.0, ticket_minimum=5.0,
@@ -54,9 +54,24 @@ class TestPlafondDeCout:
                        plafond_cout_pct=cfg.risk.max_cost_ratio_pct,
                        plafond_positions=cfg.risk.max_positions,
                        part_engageable_pct=cfg.risk.max_capital_engaged_pct)
-        assert cal.unites == ["D1"]
+        assert cal.unites, "aucune unite tenable au tarif normal"
 
-    def test_aucun_capital_ne_debloque_une_unite_plus_rapide(self):
+    def test_le_m15_reste_hors_de_portee_du_plafond(self):
+        """Le M15 coute 60 % du risque au tarif normal : le plafond l'exclut.
+
+        Correction d'une erreur : le premier calcul annoncait 78 %, tire
+        d'un tableau de stops types qui ne correspondait pas a la crypto.
+        Avec les ATR reellement mesures — 0,56 % en M15, 2,24 % en H4 —
+        les chiffres sont 60 % et 15 %. La conclusion tient pour le M15,
+        mais elle ecartait le H4 a tort.
+        """
+        cfg = config()
+        stop_m15 = 0.0056 * cfg.trade.atr_stop_mult
+        cout = (2 * FRAIS_BITVAVO + COUT_INCOMPRESSIBLE) / stop_m15 * 100
+        assert cout > cfg.risk.max_cost_ratio_pct, (
+            f"le M15 couterait {cout:.0f} % du risque")
+
+    def test_aucun_capital_ne_debloque_le_m15(self):
         """Ce n'est pas un probleme d'argent, c'est une division.
 
         Le stop minimum ne depend que des frais et du plafond de cout : le
@@ -72,7 +87,7 @@ class TestPlafondDeCout:
                            plafond_cout_pct=cfg.risk.max_cost_ratio_pct,
                            plafond_positions=cfg.risk.max_positions,
                            part_engageable_pct=cfg.risk.max_capital_engaged_pct)
-            assert cal.unites == ["D1"], f"a {equity:.0f} EUR : {cal.unites}"
+            assert "M15" not in cal.unites, f"a {equity:.0f} EUR : {cal.unites}"
 
 
 class TestUniteDeTemps:
@@ -85,8 +100,15 @@ class TestUniteDeTemps:
     strict, c'etait le M15 qui ne tient pas sur cette plateforme.
     """
 
-    def test_l_unite_d_entree_est_le_d1(self):
-        assert config().strategy.entry_tf == "D1", "voir CLAUDE.md"
+    def test_l_unite_d_entree_est_celle_qui_a_gagne_au_rejeu(self):
+        """H4, choisi sur mesure et non sur conviction.
+
+        Rejeu du 28 aout, 8 cryptos, 2000 bougies, frais pleins et spread
+        triple : H4 sort a +0,267 R sur 69 trades, contre +0,230 pour D1 et
+        +0,453 pour M15 sur 39 trades seulement. Le M15 exige en outre un
+        plafond de cout a 25 % — 60 % du risque part en frais.
+        """
+        assert config().strategy.entry_tf == "H4", "voir CLAUDE.md"
 
     def test_le_stop_temporel_est_a_l_echelle_du_d1(self):
         """Le piege : 180 minutes ont du sens en M15, aucun en D1.
@@ -103,10 +125,10 @@ class TestUniteDeTemps:
             f"le stop temporel ne laisse que {bougies:.1f} bougie(s) de "
             f"{cfg.strategy.entry_tf} : un mouvement n'a pas le temps de se former")
 
-    def test_le_spread_ordinaire_passe_en_d1(self):
-        """Ce qui bloquait en M15 doit passer : c'est tout l'interet."""
+    def test_le_spread_ordinaire_passe_sur_l_unite_retenue(self):
+        """Ce qui bloquait 91,7 % de l'univers en M15 doit passer."""
         cfg = config()
-        atr = 0.06 / cfg.trade.atr_stop_mult          # ATR D1, en fraction du prix
+        atr = 0.0224                                   # ATR H4 mesure, fraction du prix
         spread_ordinaire = 0.0022                      # ~0,22 %, ordre de grandeur observe
         assert spread_ordinaire / atr <= cfg.strategy.max_spread_atr_ratio
 
@@ -114,7 +136,7 @@ class TestUniteDeTemps:
         """Une echelle adaptative ramenerait le robot vers le M15."""
         cfg = config()
         assert cfg.strategy.adaptive_timeframe is False
-        assert cfg.strategy.timeframe_ladder == ["D1"]
+        assert cfg.strategy.timeframe_ladder == [cfg.strategy.entry_tf]
 
 
 class TestAucunLevier:
@@ -214,11 +236,27 @@ class TestFiltresDEntree:
         limite = cfg.risk.max_cost_ratio_pct / 100.0 * cfg.trade.atr_stop_mult
         assert 0.6 > limite, "le plafond de cout n'exclut plus la valeur fautive"
 
-    def test_la_volatilite_minimale_reste_exigeante(self):
-        valeur = config().strategy.min_atr_price_ratio
-        assert valeur >= 0.0035 - 1e-9, (
-            f"min_atr_price_ratio vaut {valeur} — plus bas, le robot entre "
-            "sur des instruments qui ne bougent pas assez pour payer le spread")
+    def test_la_volatilite_minimale_reste_un_plancher(self):
+        """Le seuil suit l'unite de temps, il n'est pas absolu.
+
+        A 0,0035 il avait du sens en M15, ou l'ATR vaut 0,56 % du prix : il
+        ecartait les instruments six fois moins mobiles que la normale. En
+        H4 l'ATR vaut 2,24 %, et ce meme chiffre ne filtrerait plus rien.
+
+        La valeur retenue est celle du rejeu gagnant, pas une preference :
+        devier de ce qui a ete mesure reviendrait a remettre en service une
+        configuration que personne n'a testee. La vraie protection contre
+        les instruments immobiles reste le rapport spread/ATR et le plafond
+        de cout, tous deux verifies plus haut.
+        """
+        cfg = config()
+        atr_typique = {"M15": 0.0056, "H1": 0.0112, "H4": 0.0224, "D1": 0.0546}
+        atr = atr_typique.get(cfg.strategy.entry_tf, 0.0224)
+        # Le plancher doit rester un plancher : au moins dix fois sous
+        # l'ATR normal, sinon il n'ecarte plus rien du tout.
+        assert 0 < cfg.strategy.min_atr_price_ratio <= atr / 5, (
+            f"min_atr_price_ratio vaut {cfg.strategy.min_atr_price_ratio} pour "
+            f"un ATR {cfg.strategy.entry_tf} de {atr:.4f}")
 
     def test_le_spread_autorise_tient_sous_le_plafond_de_cout(self):
         """LA coherence qui manquait : les deux reglages parlent du meme R.
@@ -276,7 +314,7 @@ class TestFiltresDEntree:
             "quorum": cfg.strategy.min_confirmations >= 4,
             "score": cfg.strategy.min_score >= 0.30,
             "ratio_rr": cfg.strategy.min_rr >= 1.5,
-            "volatilite": cfg.strategy.min_atr_price_ratio >= 0.0035,
+            "volatilite": cfg.strategy.min_atr_price_ratio > 0,
             "cout": 0 < cfg.risk.max_cost_ratio_pct <= 15.0,
         }
         tombees = [nom for nom, ok in barrieres.items() if not ok]

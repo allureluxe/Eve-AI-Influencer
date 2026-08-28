@@ -19,8 +19,8 @@ Le 27 août, après audit chiffré, l'opérateur a tranché :
 | `strategy.max_spread_atr_ratio` | **0.25** | dépasser `max_cost_ratio_pct/100 × atr_stop_mult` |
 | `strategy.min_atr_price_ratio` | **0.0035** | idem |
 | `strategy.min_score` | **0.35** | remettre a zéro « parce que le quorum suffit » |
-| `strategy.entry_tf` | **D1** | revenir au M15 : les spreads Bitvavo ne le permettent pas |
-| `trade.time_stop_minutes` | **17280** | garder une valeur pensée pour le M15 |
+| `strategy.entry_tf` | **H4** | changer sans repasser par `comparer.py` |
+| `trade.time_stop_minutes` | **2880** | garder une valeur pensée pour une autre unité |
 
 `tests/test_garde_fous.py` verrouille ces valeurs. Si un test y échoue, ce
 n'est pas le test qu'il faut changer.
@@ -86,28 +86,45 @@ stop vaut `atr_stop_mult` ATR, soit 1 R, donc un spread de M ATR pèse
 `M / atr_stop_mult` en R. `BotConfig.validate()` refuse désormais la
 contradiction au démarrage, en donnant la valeur à corriger.
 
-### Pourquoi le M15 ne tient pas sur Bitvavo
+### Pourquoi H4, et comment on l'a su
 
-Le 28 août, **7 589 évaluations** en M15 sur une matinée : **91,7 %
-écartées au spread**, et **zéro trade**. Ce n'était pas un filtre trop
-strict — le filtre était aligné sur le plafond de coût.
+Pendant deux jours, les réglages ont été essayés **en argent réel** : 72
+trades, 2,8 % de réussite, espérance −0,406 R. Le 28 août au soir, le
+moteur de rejeu a été mis à contribution — sept configurations, huit
+cryptos, 2 000 bougies, **frais pleins et spread triplé** :
 
-Le spread est à peu près constant en prix ; l'ATR, lui, grandit avec
-l'unité de temps. Un spread ordinaire de 0,22 % vaut donc :
+    H4  plafond 15 %    69 trades   53,6 %   +0,267 R   +16,89 EUR
+    D1  plafond 15 %    88 trades   54,5 %   +0,230 R   +13,13 EUR
+    M15 plafond 25 %    39 trades   56,4 %   +0,453 R   +17,57 EUR
 
-    M15   51 % de l'ATR   refusé
-    H1    26 %            refusé
-    H4    13 %            passe, mais 19 % du risque en frais après la promotion
-    D1     7 %            passe, et 10 % du risque en frais
+H4 l'emporte : meilleur profit parmi les variantes qui respectent le
+plafond de 15 %, sur un échantillon deux fois plus grand que le M15.
 
-Le goulot disparaît en D1, et c'est la seule unité que le plafond de coût
-laisse passer au tarif normal. Conséquence assumée : **quelques trades par
-semaine, tenus plusieurs jours.** Ce n'est plus du scalping — mais les
-chiffres disent que le scalping n'existe pas sur cette plateforme.
+Le plafond à 15 % ne coûte que **6 trades et 0,71 EUR** sur 75 par
+rapport à 25 %, et donne une **meilleure** réussite. La décision de
+l'opérateur tient donc sans qu'on ait rien à sacrifier.
 
-Le stop temporel suit : 17 280 minutes valent douze bougies D1, comme les
-180 minutes d'origine valaient douze bougies M15. Changer l'unité sans
-changer le délai remettrait trois heures sur des bougies journalières.
+### Une correction d'arithmétique
+
+Le premier calcul annonçait « M15 = 78 % du risque en frais », tiré d'un
+tableau de stops types qui ne correspondait pas à la crypto. Avec les ATR
+**réellement mesurés** dans les journaux du 28 août :
+
+    M15   ATR 0,56 %   stop 1,01 %   ->  frais = 60 % du risque
+    H4    ATR 2,24 %   stop 4,03 %   ->  frais = 15 %
+    D1    ATR 5,46 %   stop 9,83 %   ->  frais =  6 %
+
+La conclusion tenait pour le M15 — il reste hors de portée du plafond —
+mais elle écartait le **H4 à tort**, en le calculant à 19 % au lieu de 15.
+C'est cette erreur qui a fait perdre une journée sur le D1.
+
+### Ne jamais changer l'unité sans repasser par le rejeu
+
+`comparer.py` mesure une configuration sur l'historique en quelques
+minutes, sans engager un centime. Deux jours d'essais en argent réel
+n'avaient produit qu'un seul échantillon, faux de surcroît — le stop ne
+suivait pas encore. Un changement d'unité de temps, de plafond de coût ou
+de filtre passe par là **avant** d'atteindre le compte.
 
 ### Pourquoi la confirmation par les bougies est facultative
 

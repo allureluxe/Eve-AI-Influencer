@@ -18,16 +18,18 @@
   "strategy": {
     "mode": "quorum",
     "min_confirmations": 4,
-    "require_candle_confirmation": true,
+    "require_candle_confirmation": false,
     "confirmation_margin": 2,
-    "trigger_tf": "M5",
-    "entry_tf": "M15",
-    "context_tf": "M30",
-    "bias_tf": "H1",
+    "trigger_tf": "H1",
+    "entry_tf": "H4",
+    "context_tf": "H4",
+    "bias_tf": "D1",
     "adaptive_timeframe": false,
-    "timeframe_ladder": ["M15", "M30", "H1"],
-    "max_cost_ratio_pct": 25.0,
-    "max_spread_atr_ratio": 0.35,
+    "timeframe_ladder": [
+      "H4"
+    ],
+    "max_cost_ratio_pct": 15.0,
+    "max_spread_atr_ratio": 0.25,
     "min_atr_percentile": 0.15,
     "max_atr_percentile": 0.95,
     "min_atr_price_ratio": 0.0015,
@@ -43,7 +45,7 @@
     "w_trend": 0.25,
     "w_momentum": 0.18,
     "w_candles": 0.18,
-    "w_chart": 0.10,
+    "w_chart": 0.1,
     "w_divergence": 0.05,
     "w_zones": 0.08,
     "w_volume": 0.06,
@@ -55,7 +57,7 @@
     "base_risk_pct": 0.5,
     "min_risk_pct": 0.3,
     "max_risk_pct": 0.6,
-    "max_cost_ratio_pct": 25.0,
+    "max_cost_ratio_pct": 15.0,
     "commission_pct": 0.0025,
     "daily_loss_limit_pct": 3.0,
     "weekly_loss_limit_pct": 7.0,
@@ -76,7 +78,7 @@
     "atr_stop_mult": 1.8,
     "min_stop_atr": 1.4,
     "max_stop_atr": 4.0,
-    "max_cost_ratio_pct": 25.0,
+    "max_cost_ratio_pct": 15.0,
     "max_stop_atr_for_cost": 5.0,
     "tp_r_multiple": 2.0,
     "spread_buffer_mult": 1.5,
@@ -93,8 +95,8 @@
     "max_extensions": 2,
     "extend_min_momentum": 0.3,
     "lock_r_on_extend": 0.5,
-    "time_stop_minutes": 360.0,
-    "time_stop_min_r": 0.10,
+    "time_stop_minutes": 2880.0,
+    "time_stop_min_r": 0.1,
     "reversal_exit_r": 0.6
   },
   "objectives": {
@@ -107,6 +109,7 @@
     "protect_multiplier": 0.5
   },
   "promotion": {
+    "_note": "Fenetre Bitvavo sans commission. Le robot verifie la date a chaque cycle et revient AUTOMATIQUEMENT au tarif normal apres.",
     "active": true,
     "sans_frais_jusqu_au": "2026-08-29",
     "volume_plafond": 9980.0
