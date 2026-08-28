@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Point d'entrée Bitvavo marge / compte leveraged."""
+"""Point d'entrée Bitvavo : scalping continu avec risque plafonne."""
 from __future__ import annotations
 
 import logging
@@ -27,7 +27,7 @@ engine_module._devise_du_lieu_d_execution = _bitvavo_quote_currency
 
 
 class BitvavoTradingEngine(ContinuousScalpingEngine):
-    """Moteur Bitvavo marge : scalping continu + pyramiding confirme."""
+    """Moteur Bitvavo : scalping continu + multi-positions + pyramiding confirme."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -54,10 +54,16 @@ class BitvavoTradingEngine(ContinuousScalpingEngine):
     def _build_broker(self):
         bv = BitvavoConfig.from_env()
         bv.dry_run = bool(self.config.engine.dry_run)
+        # Le compte reste sans levier par defaut : la configuration de risque
+        # est la source de verite et ne peut pas etre contredite par un
+        # defaut d'environnement a 10x.
+        if hasattr(bv, "leverage"):
+            bv.leverage = min(float(getattr(bv, "leverage", 1.0) or 1.0),
+                              float(self.config.risk.max_leverage))
         broker = BitvavoMarginBroker(bv)
         if not broker.connect():
             raise RuntimeError(
-                "préflight Bitvavo marge impossible : "
+                "préflight Bitvavo impossible : "
                 + (getattr(broker, "_last_error", "connexion refusée") or "connexion refusée")
             )
         self._filtrer_univers_sur_le_broker(broker)
@@ -87,12 +93,13 @@ class BitvavoTradingEngine(ContinuousScalpingEngine):
 def main() -> int:
     os.environ["GB_ENGINE_BROKER"] = "bitvavo"
     os.environ["GB_ENGINE_OFFLINE"] = "0"
-    # Recherche rapide : on veut pouvoir revalider une continuation haussière
-    # sans attendre plusieurs minutes entre deux décisions.
     os.environ["GB_ENGINE_IDLE_POLL_SECONDS"] = "5"
     os.environ["GB_ENGINE_POLL_SECONDS"] = "5"
+    # Ne plus imposer 10x ici : le risque du fichier de configuration reste
+    # souverain. L'environnement peut toujours choisir explicitement un mode
+    # compatible avec la configuration sans que ce launcher le surcharge.
     os.environ.setdefault("BITVAVO_MARGIN_ENABLED", "1")
-    os.environ.setdefault("BITVAVO_MARGIN_LEVERAGE", "10")
+    os.environ.setdefault("BITVAVO_MARGIN_LEVERAGE", "1")
     BitvavoTradingEngine().run()
     return 0
 
