@@ -18,7 +18,7 @@
   "strategy": {
     "mode": "quorum",
     "min_confirmations": 5,
-    "require_candle_confirmation": true,
+    "require_candle_confirmation": false,
     "confirmation_margin": 2,
     "trigger_tf": "H4",
     "entry_tf": "D1",

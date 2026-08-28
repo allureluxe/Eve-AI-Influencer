@@ -109,6 +109,25 @@ Le stop temporel suit : 17 280 minutes valent douze bougies D1, comme les
 180 minutes d'origine valaient douze bougies M15. Changer l'unité sans
 changer le délai remettrait trois heures sur des bougies journalières.
 
+### Pourquoi la confirmation par les bougies est facultative
+
+Passée à `false` le 28 août, après être devenue le seul motif de rejet :
+cinq cryptos sur cinq écartées sur « aucun motif », alors qu'elles avaient
+6 ou 7 confirmations sur 11 quand le quorum n'en demande que 5.
+
+Deux raisons, et la seconde est propre au D1 :
+
+- **C'est un doublon.** Les bougies comptent déjà comme une confirmation
+  parmi les onze. Les rendre obligatoires en plus, c'est exiger cette
+  lecture-là deux fois.
+- **La bougie du jour n'est pas finie.** Le détecteur lit les trois
+  dernières bougies, celle en cours comprise. En D1 elle se déforme toute
+  la journée : un marteau à midi n'en est plus un le soir.
+
+Ce retrait ne vaut que tant que les autres barrières tiennent — quorum,
+score, ratio R/R, volatilité minimale, plafond de coût. Un test les vérifie
+ensemble.
+
 ### Pourquoi le score doit rester une barrière
 
 Le 28 août, un achat XRP **réel** s'est ouvert sur un score de **0,24**

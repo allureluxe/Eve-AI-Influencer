@@ -262,6 +262,26 @@ class TestFiltresDEntree:
             "le seuil de score est force a zero en quorum : le reglage "
             "min_score redeviendrait decoratif")
 
+    def test_il_reste_plusieurs_barrieres_independantes(self):
+        """Une barriere retiree, les autres doivent tenir.
+
+        La confirmation par les bougies a ete rendue facultative le
+        28 aout : elle faisait doublon avec le quorum, qui la compte deja
+        parmi ses confirmations, et elle mesurait une figure sur une
+        bougie journaliere inachevee — un marteau a midi n'en est plus un
+        le soir. Ce retrait ne vaut que si les autres barrieres restent.
+        """
+        cfg = config()
+        barrieres = {
+            "quorum": cfg.strategy.min_confirmations >= 4,
+            "score": cfg.strategy.min_score >= 0.30,
+            "ratio_rr": cfg.strategy.min_rr >= 1.5,
+            "volatilite": cfg.strategy.min_atr_price_ratio >= 0.0035,
+            "cout": 0 < cfg.risk.max_cost_ratio_pct <= 15.0,
+        }
+        tombees = [nom for nom, ok in barrieres.items() if not ok]
+        assert not tombees, f"barriere(s) desarmee(s) : {tombees} — voir CLAUDE.md"
+
     def test_la_contradiction_est_refusee_au_demarrage(self):
         """Un reglage incoherent doit etre annonce, pas subi en silence."""
         cfg = config()
