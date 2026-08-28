@@ -23,6 +23,10 @@ from gold_bot.calibrage import COUT_INCOMPRESSIBLE, calibrer, duree_stop_tempore
 from gold_bot.promotion import Promotion
 from gold_bot.settings import BotConfig
 from gold_bot.state import TradeJournal, ancrer
+from gold_bot.capacite import AUCUN_PLAFOND, places_simultanees
+from gold_bot.engine import positions_tenables
+from gold_bot.risk import RiskManager
+from gold_bot.sorties import categorie_de_sortie
 from gold_bot.universe import Universe
 
 VERT, ROUGE, JAUNE, GRIS, FIN = "\033[32m", "\033[31m", "\033[33m", "\033[90m", "\033[0m"
@@ -50,6 +54,24 @@ def git(*args: str) -> str:
 
 def titre(texte: str) -> None:
     print(f"\n{texte}\n" + "-" * 66)
+
+
+def capital_connu(etat, cfg) -> tuple[float, str]:
+    """Le capital reel du compte, et d'ou vient le chiffre.
+
+    `engine.start_balance` vaut 1000 par defaut et n'est pas renseigne dans
+    la configuration en service : s'en servir faisait calculer tout ce
+    rapport sur un compte imaginaire dix fois trop gros — et annoncer des
+    unites de temps « tenables » que le vrai capital ne tient pas.
+
+    Le robot enregistre le capital du compte a chaque cycle. C'est cette
+    valeur qu'on lit, et on dit laquelle a servi.
+    """
+    if etat.account_reference and etat.account_reference > 0:
+        return etat.account_reference, "capital enregistre par le robot"
+    if etat.peak_equity and etat.peak_equity > 0:
+        return etat.peak_equity, "dernier sommet connu"
+    return cfg.engine.start_balance, "AUCUN capital reel connu : valeur par defaut"
 
 
 def universe_lookup(symbole: str):
@@ -119,8 +141,17 @@ def main() -> int:
     ligne("frais retenus", f"{frais * 100:.2f} % par cote")
 
     # ------------------------------------------------------- calibrage
+    from gold_bot.state import StateStore
+    store = StateStore(instance=cfg.engine.broker)
+    store.load()
+    etat = store.state
+    capital, provenance = capital_connu(etat, cfg)
+
     titre("Ce que le capital permet")
-    cal = calibrer(equity=cfg.engine.start_balance, ticket_minimum=5.0,
+    ligne("capital", f"{capital:.2f} {cfg.engine.currency}",
+          "attention" if provenance.startswith("AUCUN") else "",
+          provenance)
+    cal = calibrer(equity=capital, ticket_minimum=5.0,
                    frais_par_cote=frais,
                    risk_pct_demande=cfg.risk.base_risk_pct,
                    risk_pct_max=cfg.risk.max_risk_pct,
@@ -153,10 +184,6 @@ def main() -> int:
     # « Il ne fait plus rien depuis trois heures » : en D1 c'est souvent
     # qu'il TIENT, pas qu'il dort. Sans voir ce qu'il detient ni ce qui le
     # bloque, l'attente normale et la panne se ressemblent.
-    from gold_bot.state import StateStore
-    store = StateStore(instance=cfg.engine.broker)
-    store.load()
-    etat = store.state
     ouvertes = [store.position_memorisee(i) for i in etat.position_meta]
     ouvertes = [p for p in ouvertes if p is not None]
 
@@ -185,6 +212,72 @@ def main() -> int:
             ligne("groupes pris", ", ".join(sorted(g for g in groupes if g)) or "-",
                   "", "un seul actif par groupe correle")
 
+    # --------------------------------------------------- capacite
+    #
+    # « Il prend peu de positions, il y a un truc qui va pas. » C'est
+    # verifiable : trois reglages plafonnent le nombre de positions
+    # simultanees, et un seul est le plus serre. Sans ce calcul, on
+    # desserre au hasard celui qui ne bridait rien.
+    titre("Combien de positions le robot peut-il tenir")
+    r = cfg.risk
+    try:
+        univers = Universe()
+        symboles = cfg.engine.symbols or univers.symbols()
+        groupes = {getattr(univers.get(s), "correlation_group", "")
+                   for s in symboles}
+        groupes.discard("")
+        n_groupes = len(groupes)
+    except Exception:  # noqa: BLE001
+        symboles, n_groupes = [], 0
+
+    # Le risque par trade reellement applique, echelle anti-martingale
+    # comprise : c'est lui qui consomme le budget de risque total, pas la
+    # valeur de base affichee dans la configuration.
+    #
+    # Le capital vient de la meme source que la section « Ce que le capital
+    # permet » ci-dessus : `start_balance`. Un chiffre lu deux fois dans ce
+    # rapport doit venir du meme endroit, sinon deux sections se
+    # contredisent sans qu'on sache laquelle croire.
+    reference = etat.account_reference or capital
+    risque_par_trade = r.base_risk_pct
+    if capital > 0:
+        rm = RiskManager(r)
+        rm.account.equity = capital
+        rm.account.reference_equity = reference
+        risque_par_trade, _ = rm.effective_risk_pct()
+
+    # Ce que le ticket minimum de la plateforme laisse tenir : le projet
+    # sait deja le calculer, on ne le refait pas ici.
+    # On demande le plafond SANS le limiter par `max_positions` : sinon la
+    # fonction renvoie `max_positions` lui-meme et la ligne « capital »
+    # ferait croire que le capital bride alors qu'elle ne fait que repeter
+    # un autre verrou. C'est `places_simultanees` qui compare, pas elle.
+    par_capital = 0
+    if capital > 0:
+        par_capital, _ = positions_tenables(
+            capital, 5.0, r.max_capital_engaged_pct, AUCUN_PLAFOND)
+
+    cap = places_simultanees(
+        max_positions=r.max_positions,
+        max_par_groupe=r.max_per_correlation_group,
+        n_groupes=n_groupes,
+        max_risque_total_pct=r.max_total_risk_pct,
+        risque_par_trade_pct=risque_par_trade,
+        places_par_capital=par_capital)
+    limites, places, bride = cap.limites, cap.places, cap.bride_par
+
+    ligne("instruments scannes", str(len(symboles)),
+          "", f"{n_groupes} groupes correles disponibles")
+    ligne("risque par trade", f"{risque_par_trade:.2f} %",
+          "", f"budget total {r.max_total_risk_pct:.1f} %")
+    for nom, v in limites.items():
+        serre = nom in bride
+        ligne(nom, f"{v} positions", "attention" if serre else "ok",
+              "<- c'est LUI qui bride" if serre else "")
+    ligne("places simultanees", str(places), "attention" if places <= 3 else "ok",
+          f"{len(bride)} verrous a la meme hauteur : en desserrer un seul "
+          f"ne changera rien" if cap.plusieurs_verrous else "")
+
     # --------------------------------------------------------- resultats
     titre("Resultats reels")
     journal = TradeJournal(instance=cfg.engine.broker)
@@ -206,6 +299,43 @@ def main() -> int:
             ligne("objectif median atteint", f"{porte:.2f} R",
                   "attention" if porte < cfg.trade.tp_r_multiple * .75 else "ok",
                   f"objectif vise : {cfg.trade.tp_r_multiple:.2f} R")
+
+
+    # ------------------------------------------- comment ils se terminent
+    #
+    # « Toutes mes positions se ferment en stop. » Le motif enregistre est
+    # le meme quand le stop d'origine est touche (perte pleine) et quand
+    # un stop remonte au break-even ou porte par le trailing est touche
+    # (gain verrouille). Les separer est la seule facon de savoir si le
+    # robot protege ses gains ou s'il ne gagne jamais.
+    from gold_bot.sorties import EXPLICATION, duree_lisible, repartition
+    termines = [t for t in journal.trades if not t.partial]
+    if termines:
+        titre("Comment les trades se sont termines")
+        parts = repartition(termines)
+        n = len(termines)
+        for cat, compte in parts.items():
+            if not compte:
+                continue
+            gains = [t for t in termines
+                     if categorie_de_sortie(t.reason, t.r_multiple) == cat]
+            r_moyen = sum(t.r_multiple for t in gains) / len(gains)
+            ligne(cat, f"{compte:>3}  ({compte/n*100:.0f} %)",
+                  "ok" if r_moyen > 0 else "attention",
+                  f"{r_moyen:+.2f} R en moyenne — {EXPLICATION[cat]}")
+        durees = [(t.closed_at - t.opened_at) / 3600.0 for t in termines
+                  if t.closed_at >= t.opened_at]
+        if durees:
+            durees.sort()
+            mediane = durees[len(durees) // 2]
+            ligne("duree mediane", duree_lisible(mediane), "",
+                  f"stop temporel a {cfg.trade.time_stop_minutes/60:.0f} h")
+        # Combien le robot a-t-il rendu au marche ?
+        favorable = sum(t.max_favorable_r for t in termines) / n
+        realise = sum(t.r_multiple for t in termines) / n
+        ligne("monte a / garde", f"{favorable:.2f} R  ->  {realise:+.2f} R",
+              "attention" if favorable - realise > 0.5 else "ok",
+              f"{favorable - realise:.2f} R rendus au marche")
 
     print("\n" + "=" * 66)
     return 0
