@@ -88,6 +88,8 @@ def main() -> int:
     ap.add_argument("--bars", type=int, default=1500)
     ap.add_argument("--symbols", default="")
     ap.add_argument("--capital", type=float, default=186.0)
+    ap.add_argument("--spread-x", type=float, default=1.0,
+                    help="multiplie le spread suppose : 1 = modele, 3 = pessimiste")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
@@ -95,6 +97,20 @@ def main() -> int:
                         format="%(levelname)s %(name)s %(message)s")
     if not args.verbose:
         logging.getLogger("gold_bot").setLevel(logging.ERROR)
+
+    # LE SPREAD EST LE POINT FAIBLE DU REJEU.
+    #
+    # Le modele suppose 0,05 % du prix pour toutes les cryptos. Les
+    # journaux du 28 aout montrent des spreads reels de 2 a 20 % de l'ATR,
+    # soit 0,06 a 1,2 % du prix selon l'instrument : le modele est juste
+    # sur les plus liquides et beaucoup trop optimiste ailleurs.
+    #
+    # Un avantage qui disparait quand on double le spread n'est pas un
+    # avantage, c'est une hypothese. Ce reglage permet de le verifier.
+    if args.spread_x != 1.0:
+        import gold_bot.backtest as _bt
+        _origine = _bt.spread_estime
+        _bt.spread_estime = lambda inst, prix: _origine(inst, prix) * args.spread_x
 
     base = BotConfig.load(args.config)
     symboles = ([s.strip().upper() for s in args.symbols.split(",") if s.strip()]
@@ -104,6 +120,10 @@ def main() -> int:
     print(f"  COMPARAISON DE STRATEGIES — {len(symboles)} instruments, "
           f"{args.bars} bougies, capital {args.capital:.0f} EUR")
     print("=" * 78)
+    print(f"  Frais supposes : {base.risk.commission_pct*100:.2f} % par cote "
+          f"(tarif normal, hors promotion)")
+    print(f"  Spread suppose : modele x{args.spread_x:g}"
+          + ("   <- test de robustesse" if args.spread_x != 1.0 else ""))
     print("  Chaque variante ne change qu'une chose par rapport a la config en service.")
     print(f"  Instruments : {', '.join(symboles)}\n")
 
