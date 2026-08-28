@@ -56,7 +56,20 @@ def variante(nom: str, **reglages) -> tuple[str, dict]:
 # Chaque variante ne change QUE ce qui est nomme : le reste vient de la
 # configuration en service, pour que la comparaison porte sur une seule
 # difference a la fois.
+H4 = dict(entry_tf="H4", trigger_tf="H1", context_tf="H4", bias_tf="D1",
+          require_candle_confirmation=False)
+
 VARIANTES = [
+    # Le plafond de cout decide combien de trades survivent au
+    # dimensionnement : le mesurer vaut mieux que de le choisir.
+    variante("H4 — plafond 15 %", **H4, plafond_cout=15.0),
+    variante("H4 — plafond 20 %", **H4, plafond_cout=20.0),
+    variante("H4 — plafond 25 %", **H4, plafond_cout=25.0),
+    variante("D1 — plafond 15 %", entry_tf="D1", trigger_tf="H4",
+             context_tf="D1", bias_tf="D1",
+             require_candle_confirmation=False, plafond_cout=15.0),
+    variante("M15 — plafond 25 %", require_candle_confirmation=False,
+             plafond_cout=25.0),
     variante("M15 tel quel"),
     variante("M15 sans bougies obligatoires", require_candle_confirmation=False),
     variante("M15 score exigeant", min_score=0.55),
@@ -72,6 +85,14 @@ VARIANTES = [
 def config_pour(base: BotConfig, reglages: dict) -> BotConfig:
     cfg = copy.deepcopy(base)
     for cle, valeur in reglages.items():
+        # Le plafond de cout vit dans trois sections et doit rester
+        # coherent : le desaccorder ferait filtrer a un endroit ce qu'un
+        # autre laisse passer.
+        if cle == "plafond_cout":
+            cfg.risk.max_cost_ratio_pct = valeur
+            cfg.strategy.max_cost_ratio_pct = valeur
+            cfg.trade.max_cost_ratio_pct = valeur
+            continue
         cible = cfg.trade if hasattr(cfg.trade, cle) else cfg.strategy
         setattr(cible, cle, valeur)
     # Le stop temporel doit suivre l'unite de temps, sinon on compare une
