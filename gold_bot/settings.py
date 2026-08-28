@@ -99,26 +99,10 @@ class BotConfig:
     def validate(self) -> list[str]:
         problems: list[str] = []
         r, t, s, e = self.risk, self.trade, self.strategy, self.engine
-        # Pionex Futures est un broker live officiel du projet, utilise par
-        # run_pionex.py. Il doit donc passer la validation AVANT la creation
-        # du TradingEngine; l'ancien ensemble de valeurs rejetait "pionex"
-        # alors meme que le runtime savait le construire.
-        # « paper » est le simulateur : il ne passe aucun ordre. Le retirer
-        # de cette liste a rendu le robot impossible a essayer autrement
-        # qu'en argent reel — plus de dry-run, plus de rejeu historique, et
-        # cent trente-sept tests devenus inexecutables faute de pouvoir
-        # construire un moteur. Un lieu d'execution qui n'engage rien doit
-        # toujours etre disponible.
-        brokers_valides = {"paper", "bitvavo", "pionex", "coinbase",
-                           "bitstamp", "multi"}
+        brokers_valides = {"paper", "bitvavo", "pionex", "coinbase", "bitstamp", "multi", "ibkr"}
         if e.broker not in brokers_valides: problems.append(f"broker invalide : {e.broker}")
-        # Le mode hors ligne fabrique des donnees synthetiques : il n'a de
-        # sens qu'avec le simulateur. La regle visait les lieux d'execution
-        # REELS ; ecrite « broker in brokers_valides » elle etait vraie pour
-        # tous, et rendait donc le mode hors ligne impossible partout.
         if e.offline and e.broker != "paper":
-            problems.append(f"mode hors ligne incompatible avec une execution "
-                            f"reelle ({e.broker})")
+            problems.append(f"mode hors ligne incompatible avec une execution reelle ({e.broker})")
         if e.scan_max_instruments < 1: problems.append("scan_max_instruments doit etre >= 1")
         if e.scan_max_instruments > 50: problems.append("scan_max_instruments trop eleve pour le quota API")
         if r.max_risk_pct > 1.5: problems.append(f"risque maximal au-dessus du plafond de securite ({r.max_risk_pct}% > 1.5%)")
@@ -132,28 +116,10 @@ class BotConfig:
         if t.min_stop_atr > t.atr_stop_mult: problems.append("le stop minimal est plus large que le stop nominal")
         if s.min_score > 0.95: problems.append("seuil de score quasi inatteignable")
         if e.poll_seconds < 1.0: problems.append("cadence trop agressive")
-
-        # DEUX REGLAGES QUI POUVAIENT SE CONTREDIRE EN SILENCE.
-        #
-        # Le plafond de cout dit « les frais ne doivent pas depasser N % du
-        # risque ». Le filtre de spread dit « j'accepte un spread jusqu'a
-        # M fois l'ATR ». Comme le stop vaut atr_stop_mult ATR = 1 R, un
-        # spread de M ATR pese M / atr_stop_mult en R — et rien ne verifiait
-        # que ce poids restait sous le plafond.
-        #
-        # Observe en production : plafond a 15 % du risque, filtre de spread
-        # a 0,6 ATR sur un stop de 1,8 ATR, soit 0,33 R de spread autorise
-        # pour 0,15 R de cout permis. Le robot a pris 72 trades sur des
-        # cryptos ou le spread mangeait un tiers du risque : 2,8 % de
-        # reussite, esperance -0,406 R, et une progression mediane de 0,25 R
-        # la ou l'objectif etait a 2,20 R. Aucune erreur, aucune alerte.
         if t.atr_stop_mult > 0:
             spread_en_r = s.max_spread_atr_ratio / t.atr_stop_mult
             plafond_en_r = r.max_cost_ratio_pct / 100.0
             if spread_en_r > plafond_en_r:
                 problems.append(
-                    f"le filtre de spread autorise {spread_en_r:.2f} R de spread "
-                    f"alors que le plafond de cout n'admet que {plafond_en_r:.2f} R : "
-                    f"baisser strategy.max_spread_atr_ratio sous "
-                    f"{plafond_en_r * t.atr_stop_mult:.2f}")
+                    f"le filtre de spread autorise {spread_en_r:.2f} R de spread alors que le plafond de cout n'admet que {plafond_en_r:.2f} R : baisser strategy.max_spread_atr_ratio sous {plafond_en_r * t.atr_stop_mult:.2f}")
         return problems
