@@ -690,11 +690,27 @@ class Strategy:
             return ev
 
         ev.setup = "quorum"
-        # Le score reste calcule pour le journal et le classement entre
-        # instruments, mais il ne conditionne plus l'entree.
         ev.components = self._score_components(side, entry, ctx, bias, chart, None, None, "quorum")
         ev.score = round(sum(c.value for c in ev.components), 4)
-        ev.threshold = 0.0
+
+        # LE SCORE REDEVIENT UNE BARRIERE, MEME EN QUORUM.
+        #
+        # Il avait ete rendu purement indicatif ici, le seuil force a zero.
+        # Un compte de confirmations ne dit pas la meme chose qu'une force
+        # de signal : cinq confirmations faibles restent cinq confirmations.
+        # Observe en production le 28 aout, un achat XRP reel ouvert sur un
+        # score de 0,24 — tendance +0,01, momentum +0,18, bougies +0,14 —
+        # autant dire un tirage a pile ou face, alors que la configuration
+        # portait min_score a 0,55. Le reglage existait, s'affichait, et ne
+        # servait a rien.
+        #
+        # Le bonus d'objectif n'est PAS ajoute ici : en quorum il releve
+        # deja le nombre de confirmations exigees, et le compter deux fois
+        # penaliserait deux fois la meme situation.
+        ev.threshold = round(cfg.min_score, 4)
+        ev.gates.append(Gate("score", ev.score >= ev.threshold,
+                             f"{ev.score:.3f} (seuil {ev.threshold:.3f})"))
+
         evaluables = sum(1 for c in confirmations if c.applicable)
         ev.gates.append(Gate("quorum", compte >= ev.required,
                              f"{compte} confirmations sur {evaluables} evaluables "

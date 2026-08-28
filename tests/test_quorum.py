@@ -356,3 +356,61 @@ class TestUniteDeTempsAdaptative(unittest.TestCase):
                                Tick(mardi_14h(), p - 0.15, p + 0.15),
                                now=mardi_14h(), entry_tf="M5")
         self.assertEqual(ev.timeframe, "M5")
+
+
+class TestScoreEnQuorum(BaseQuorum):
+    """Le score doit etre une barriere, pas une decoration.
+
+    Il avait ete rendu purement indicatif en mode quorum, le seuil force a
+    zero. Observe en production le 28 aout : un achat XRP REEL ouvert sur un
+    score de 0,24 — tendance +0,01, momentum +0,18, bougies +0,14 — alors
+    que la configuration portait min_score a 0,55. Le reglage existait,
+    s'affichait dans le journal, et ne servait a rien.
+
+    Un compte de confirmations ne dit pas la meme chose qu'une force de
+    signal : cinq confirmations faibles restent cinq confirmations.
+    """
+
+    def test_le_seuil_configure_est_bien_applique(self):
+        ev = self.evaluate(self.strategy(min_confirmations=3, min_score=0.35),
+                           pullback_setup_indicators(-1))
+        self.assertAlmostEqual(ev.threshold, 0.35, places=4)
+
+    def test_un_score_trop_faible_refuse_le_trade(self):
+        """Le cas XRP : assez de confirmations, mais un signal trop mou."""
+        ind = pullback_setup_indicators(-1)
+        # Seuil hors d'atteinte : seul le score peut faire echouer ce trade.
+        ev = self.evaluate(self.strategy(min_confirmations=3, min_score=9.0), ind)
+        self.assertFalse(ev.valid, ev.explain())
+        self.assertGreaterEqual(ev.confirmed, 3,
+                                "le quorum etait atteint : c'est bien le score qui refuse")
+        recalees = [g.name for g in ev.failed_gates()]
+        self.assertIn("score", recalees)
+
+    def test_un_score_suffisant_laisse_passer(self):
+        ev = self.evaluate(self.strategy(min_confirmations=3, min_score=0.0),
+                           pullback_setup_indicators(-1))
+        self.assertTrue(ev.valid, ev.explain())
+
+    def test_le_score_reste_lisible_dans_le_journal(self):
+        ev = self.evaluate(self.strategy(min_confirmations=3, min_score=9.0),
+                           pullback_setup_indicators(-1))
+        self.assertIn("score", ev.explain())
+
+    def test_le_retard_sur_objectif_ne_penalise_pas_deux_fois(self):
+        """Le bonus d'objectif releve deja le quorum : pas aussi le score.
+
+        Le compter des deux cotes punirait deux fois la meme situation, et
+        le robot cesserait d'entrer exactement quand il doit se refaire.
+        """
+        ind = pullback_setup_indicators(-1)
+        sans = self.evaluate(self.strategy(min_confirmations=3, min_score=0.35), ind)
+        strat = self.strategy(min_confirmations=3, min_score=0.35)
+        inds = {tf: ind for tf in ("M1", "M5", "M15", "H1")}
+        p = ind.last.close
+        avec = strat.evaluate(self.gold, inds,
+                              Tick(self.now, p - 0.15, p + 0.15),
+                              now=self.now, score_bonus=0.10)
+        self.assertAlmostEqual(sans.threshold, avec.threshold, places=4)
+        self.assertGreater(avec.required, sans.required,
+                           "le retard doit exiger plus de confirmations")

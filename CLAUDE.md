@@ -18,6 +18,7 @@ Le 27 août, après audit chiffré, l'opérateur a tranché :
 | bloc `promotion` | **présent** | retirer |
 | `strategy.max_spread_atr_ratio` | **0.1** | desserrer pour « prendre plus de trades » |
 | `strategy.min_atr_price_ratio` | **0.0035** | idem |
+| `strategy.min_score` | **0.35** | remettre a zéro « parce que le quorum suffit » |
 
 `tests/test_garde_fous.py` verrouille ces valeurs. Si un test y échoue, ce
 n'est pas le test qu'il faut changer.
@@ -75,6 +76,23 @@ Ces deux réglages doivent rester cohérents avec le plafond de coût : le
 stop vaut `atr_stop_mult` ATR, soit 1 R, donc un spread de M ATR pèse
 `M / atr_stop_mult` en R. `BotConfig.validate()` refuse désormais la
 contradiction au démarrage, en donnant la valeur à corriger.
+
+### Pourquoi le score doit rester une barrière
+
+Le 28 août, un achat XRP **réel** s'est ouvert sur un score de **0,24**
+— tendance +0,01, momentum +0,18, bougies +0,14 — alors que la
+configuration portait `min_score` à 0,55. Le seuil était forcé à zéro dans
+`_finish_quorum` : le réglage existait, s'affichait dans le journal, et ne
+servait à rien.
+
+Un compte de confirmations ne dit pas la même chose qu'une force de
+signal : **cinq confirmations faibles restent cinq confirmations.** Le
+score est donc redevenu une porte en mode quorum, à 0,35.
+
+Le bonus d'objectif n'est pas ajouté à ce seuil : en quorum il relève déjà
+le nombre de confirmations exigées, et le compter deux fois punirait deux
+fois la même situation — le robot cesserait d'entrer exactement quand il
+doit se refaire.
 
 ## Deux règles de méthode
 

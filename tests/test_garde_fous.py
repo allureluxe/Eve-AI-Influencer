@@ -177,6 +177,33 @@ class TestFiltresDEntree:
             f"{spread_en_r:.2f} R de spread autorise pour {plafond_en_r:.2f} R "
             "de cout permis")
 
+    def test_le_score_minimal_est_une_vraie_barriere(self):
+        """Un reglage qui a l'air de proteger et ne fait rien est pire que rien.
+
+        min_score avait ete rendu purement indicatif en mode quorum : le
+        seuil etait force a zero, et un achat XRP reel s'est ouvert sur un
+        score de 0,24 alors que la configuration exigeait 0,55.
+        """
+        cfg = config()
+        assert cfg.strategy.min_score >= 0.35 - 1e-9, (
+            f"min_score vaut {cfg.strategy.min_score} — voir CLAUDE.md")
+
+    def test_le_seuil_de_score_est_applique_en_quorum(self):
+        """La valeur ne sert a rien si le mode l'ignore : on verifie l'effet."""
+        from gold_bot.strategy import Strategy, StrategyConfig
+        from gold_bot.trade_manager import TradeManager, TradeManagerConfig
+        cfg = config()
+        strat = Strategy(StrategyConfig(mode=cfg.strategy.mode,
+                                        min_score=cfg.strategy.min_score),
+                         TradeManager(TradeManagerConfig()), macro=None)
+        assert strat.config.min_score == pytest.approx(cfg.strategy.min_score)
+        # Le seuil doit remonter dans l'evaluation, quel que soit le mode.
+        import inspect
+        source = inspect.getsource(Strategy._finish_quorum)
+        assert "ev.threshold = 0.0" not in source, (
+            "le seuil de score est force a zero en quorum : le reglage "
+            "min_score redeviendrait decoratif")
+
     def test_la_contradiction_est_refusee_au_demarrage(self):
         """Un reglage incoherent doit etre annonce, pas subi en silence."""
         cfg = config()
