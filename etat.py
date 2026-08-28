@@ -144,8 +144,12 @@ def main() -> int:
     titre("Resultats reels")
     journal = TradeJournal(instance=cfg.engine.broker)
     stats = journal.stats()
+    # Le chemin est affiche systematiquement : le journal retombe sur le
+    # fichier commun quand le fichier suffixe n'existe pas, et se tromper
+    # de nom fait archiver ou lire le mauvais historique.
+    ligne("journal", journal.path.replace(os.path.expanduser("~"), "~"))
     if not stats.get("trades"):
-        ligne("trades enregistres", "aucun", "attention", journal.path)
+        ligne("trades enregistres", "aucun", "attention")
     else:
         ligne("trades", str(stats["trades"]))
         ligne("reussite", f"{stats['taux_reussite_pct']:.1f} %")
