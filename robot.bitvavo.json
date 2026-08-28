@@ -1,6 +1,6 @@
 {
   "_arme_en_reel": "OUI, DELIBEREMENT. Cette configuration engage de l'argent veritable.",
-  "_note": "Configuration Bitvavo : scalping continu, capital reparti sur plusieurs positions, gestion dynamique des petites tailles et sorties rapides. Les garde-fous de risque et de cout restent actifs.",
+  "_note": "Configuration Bitvavo : scalping continu, capital reparti sur plusieurs positions, gestion dynamique des petites tailles et sorties rapides. Le levier jusqu'a 10x est autorise, avec les garde-fous de risque et de cout actifs.",
   "engine": {
     "broker": "bitvavo",
     "dry_run": false,
@@ -66,7 +66,7 @@
     "max_total_risk_pct": 4.5,
     "max_daily_trades": 0,
     "min_seconds_between_trades": 3.0,
-    "max_leverage": 1.0,
+    "max_leverage": 10.0,
     "max_consecutive_losses": 4,
     "pause_after_losses_minutes": 10.0,
     "min_rr": 1.20,
