@@ -23,6 +23,7 @@ from gold_bot.calibrage import COUT_INCOMPRESSIBLE, calibrer, duree_stop_tempore
 from gold_bot.promotion import Promotion
 from gold_bot.settings import BotConfig
 from gold_bot.state import TradeJournal, ancrer
+from gold_bot.universe import Universe
 
 VERT, ROUGE, JAUNE, GRIS, FIN = "\033[32m", "\033[31m", "\033[33m", "\033[90m", "\033[0m"
 CONFIG = os.getenv("GB_CONFIG", "robot.bitvavo.json")
@@ -49,6 +50,13 @@ def git(*args: str) -> str:
 
 def titre(texte: str) -> None:
     print(f"\n{texte}\n" + "-" * 66)
+
+
+def universe_lookup(symbole: str):
+    try:
+        return Universe().get(symbole)
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def main() -> int:
@@ -139,6 +147,43 @@ def main() -> int:
         ligne("reussite necessaire", f"{seuil:.1f} %",
               "ok" if seuil < 45 else "attention",
               "pour seulement rentrer dans ses frais")
+
+    # ------------------------------------------------- positions ouvertes
+    #
+    # « Il ne fait plus rien depuis trois heures » : en D1 c'est souvent
+    # qu'il TIENT, pas qu'il dort. Sans voir ce qu'il detient ni ce qui le
+    # bloque, l'attente normale et la panne se ressemblent.
+    from gold_bot.state import StateStore
+    store = StateStore(instance=cfg.engine.broker)
+    store.load()
+    etat = store.state
+    ouvertes = [store.position_memorisee(i) for i in etat.position_meta]
+    ouvertes = [p for p in ouvertes if p is not None]
+
+    titre("Positions tenues")
+    if etat.halted:
+        ligne("robot en securite", etat.halt_reason[:44] or "oui", "non",
+              "il ne prendra plus rien tant que ce n'est pas leve")
+    if not ouvertes:
+        ligne("positions", "aucune", "", "il cherche")
+    else:
+        groupes = set()
+        for pos in ouvertes:
+            age = (time.time() - pos.opened_at) / 3600.0
+            inst = universe_lookup(pos.symbol)
+            groupe = getattr(inst, "correlation_group", "") if inst else ""
+            groupes.add(groupe)
+            ligne(pos.symbol,
+                  f"{pos.volume:.6g} @ {pos.entry_price:.6g}",
+                  "", f"depuis {age:.0f} h — stop {pos.stop_loss:.6g} "
+                      f"objectif {pos.take_profit:.6g}")
+        plein = len(ouvertes) >= cfg.risk.max_positions
+        ligne("places occupees", f"{len(ouvertes)} / {cfg.risk.max_positions}",
+              "attention" if plein else "ok",
+              "plus aucune ouverture possible" if plein else "")
+        if cfg.risk.max_per_correlation_group == 1 and groupes:
+            ligne("groupes pris", ", ".join(sorted(g for g in groupes if g)) or "-",
+                  "", "un seul actif par groupe correle")
 
     # --------------------------------------------------------- resultats
     titre("Resultats reels")
