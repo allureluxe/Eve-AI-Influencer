@@ -21,16 +21,15 @@ from .base import AccountInfo, Broker, BrokerError, new_position_id
 
 logger = logging.getLogger(__name__)
 
-try:  # optional dependency: Bitvavo remains installable without IBKR
+try:
     from ib_async import IB, Forex, Stock, MarketOrder, StopOrder, LimitOrder
-except ImportError:  # pragma: no cover - depends on deployment
+except ImportError:
     IB = None
     Forex = Stock = MarketOrder = StopOrder = LimitOrder = None
 
 
 class IBKRBroker(Broker):
     """IB Gateway/TWS execution adapter with real long/short support."""
-
     name = "ibkr"
     is_live = True
     supports_short = True
@@ -52,14 +51,21 @@ class IBKRBroker(Broker):
     @staticmethod
     def _load_specs() -> dict[str, dict]:
         import json
+        defaults = {
+            "EURUSD": {"secType": "CASH", "pair": "EURUSD", "exchange": "IDEALPRO", "currency": "USD", "contract_size": 1.0, "min_lot": 1000.0, "lot_step": 1000.0},
+            "GBPUSD": {"secType": "CASH", "pair": "GBPUSD", "exchange": "IDEALPRO", "currency": "USD", "contract_size": 1.0, "min_lot": 1000.0, "lot_step": 1000.0},
+            "USDJPY": {"secType": "CASH", "pair": "USDJPY", "exchange": "IDEALPRO", "currency": "JPY", "contract_size": 1.0, "min_lot": 1000.0, "lot_step": 1000.0},
+            "AUDUSD": {"secType": "CASH", "pair": "AUDUSD", "exchange": "IDEALPRO", "currency": "USD", "contract_size": 1.0, "min_lot": 1000.0, "lot_step": 1000.0},
+            "USDCAD": {"secType": "CASH", "pair": "USDCAD", "exchange": "IDEALPRO", "currency": "CAD", "contract_size": 1.0, "min_lot": 1000.0, "lot_step": 1000.0},
+        }
         raw = os.getenv("IBKR_CONTRACTS", "").strip()
-        if not raw:
-            return {}
-        try:
-            data = json.loads(raw)
-            return {str(k).upper(): dict(v) for k, v in data.items() if isinstance(v, dict)}
-        except Exception as exc:
-            raise BrokerError(f"IBKR_CONTRACTS invalide: {exc}") from exc
+        if raw:
+            try:
+                data = json.loads(raw)
+                defaults.update({str(k).upper(): dict(v) for k, v in data.items() if isinstance(v, dict)})
+            except Exception as exc:
+                raise BrokerError(f"IBKR_CONTRACTS invalide: {exc}") from exc
+        return defaults
 
     def connect(self) -> bool:
         if IB is None:
@@ -94,19 +100,9 @@ class IBKRBroker(Broker):
         sec_type = str(spec.get("secType", "CASH" if instrument.asset_class == "forex" else "STK")).upper()
         if sec_type == "CASH":
             pair = spec.get("pair") or sym
-            if len(pair) == 6 and pair.isalpha():
-                contract = Forex(pair[:3] + pair[3:], exchange=spec.get("exchange", "IDEALPRO"))
-            else:
-                base = spec.get("symbol", sym[:3])
-                quote = spec.get("currency", sym[3:6] or "USD")
-                contract = Forex(base + quote, exchange=spec.get("exchange", "IDEALPRO"))
+            contract = Forex(pair, exchange=spec.get("exchange", "IDEALPRO"))
         elif sec_type == "STK":
-            contract = Stock(
-                spec.get("symbol", sym),
-                spec.get("exchange", "SMART"),
-                spec.get("currency", instrument.quote_currency or self.currency),
-                primaryExchange=spec.get("primaryExchange", ""),
-            )
+            contract = Stock(spec.get("symbol", sym), spec.get("exchange", "SMART"), spec.get("currency", instrument.quote_currency or self.currency), primaryExchange=spec.get("primaryExchange", ""))
         else:
             raise BrokerError(f"type de contrat IBKR non pris en charge pour {sym}: {sec_type}")
         details = self.ib.reqContractDetails(contract)
@@ -136,8 +132,7 @@ class IBKRBroker(Broker):
         balance = num("TotalCashValue") or equity
         margin_used = num("MaintMarginReq")
         margin_free = num("AvailableFunds") or max(0.0, equity - margin_used)
-        return AccountInfo(equity=equity, balance=balance, currency=self.currency,
-                           margin_used=margin_used, margin_free=margin_free, leverage=(equity / margin_used if margin_used > 0 else 0.0))
+        return AccountInfo(equity=equity, balance=balance, currency=self.currency, margin_used=margin_used, margin_free=margin_free, leverage=(equity / margin_used if margin_used > 0 else 0.0))
 
     def positions(self) -> list[Position]:
         self.sync()
@@ -167,8 +162,7 @@ class IBKRBroker(Broker):
         if acc.margin_free <= 0:
             raise BrokerError(f"marge disponible insuffisante: {acc.margin_free:.2f} {acc.currency}")
 
-    def open_position(self, instrument: Instrument, side: Side, lots: float,
-                      stop_loss: float, take_profit: float, comment: str = "") -> Position:
+    def open_position(self, instrument: Instrument, side: Side, lots: float, stop_loss: float, take_profit: float, comment: str = "") -> Position:
         self._require()
         if side is Side.SELL and not self.allow_short:
             raise BrokerError("short IBKR desactive par IBKR_ALLOW_SHORT=0")
@@ -211,8 +205,7 @@ class IBKRBroker(Broker):
             tp.orderRef = f"GB-TP-{pos.id}"
             self.ib.placeOrder(contract, tp)
 
-    def modify_position(self, position_id: str, stop_loss: Optional[float] = None,
-                        take_profit: Optional[float] = None) -> bool:
+    def modify_position(self, position_id: str, stop_loss: Optional[float] = None, take_profit: Optional[float] = None) -> bool:
         self._require()
         pos = next((p for p in self._positions.values() if p.id == position_id), None)
         if not pos:
@@ -221,16 +214,12 @@ class IBKRBroker(Broker):
         if take_profit is not None: pos.take_profit = float(take_profit)
         return True
 
-    def close_position(self, position_id: str, volume: Optional[float] = None,
-                       reason: str = "") -> Optional[ClosedTrade]:
+    def close_position(self, position_id: str, volume: Optional[float] = None, reason: str = "") -> Optional[ClosedTrade]:
         self._require()
         pos = next((p for p in self._positions.values() if p.id == position_id), None)
         if not pos:
             return None
         qty = min(pos.volume, float(volume)) if volume else pos.volume
-        contract = self._contract_specs.get(pos.symbol)
-        if not contract:
-            raise BrokerError(f"contrat IBKR absent: {pos.symbol}")
         ib_contract = self._contracts.get(pos.symbol) or self._contract_from_symbol(pos.symbol)
         action = "SELL" if pos.side is Side.BUY else "BUY"
         order = MarketOrder(action, qty)
@@ -242,21 +231,15 @@ class IBKRBroker(Broker):
         if exit_price <= 0:
             raise BrokerError("fermeture IBKR sans execution")
         profit = pos.side.sign * (exit_price - pos.entry_price) * qty * self._contract_size(pos.symbol)
-        closed = ClosedTrade(pos.id, pos.symbol, pos.side, qty, pos.entry_price, exit_price,
-                              pos.opened_at, time.time(), profit,
-                              pos.r_multiple(exit_price), reason or "fermeture IBKR")
-        if qty >= pos.volume - 1e-12:
-            self._positions.pop(pos.symbol, None)
-        else:
-            pos.volume -= qty
+        closed = ClosedTrade(pos.id, pos.symbol, pos.side, qty, pos.entry_price, exit_price, pos.opened_at, time.time(), profit, pos.r_multiple(exit_price), reason or "fermeture IBKR")
+        if qty >= pos.volume - 1e-12: self._positions.pop(pos.symbol, None)
+        else: pos.volume -= qty
         self._closed.append(closed)
         return closed
 
     def _contract_from_symbol(self, symbol: str):
-        class Dummy: pass
         spec = self._contract_specs.get(symbol, {})
-        sec_type = str(spec.get("secType", "STK")).upper()
-        if sec_type == "CASH":
+        if str(spec.get("secType", "STK")).upper() == "CASH":
             c = Forex(spec.get("pair", symbol), exchange=spec.get("exchange", "IDEALPRO"))
         else:
             c = Stock(spec.get("symbol", symbol), spec.get("exchange", "SMART"), spec.get("currency", "USD"), primaryExchange=spec.get("primaryExchange", ""))
@@ -266,8 +249,7 @@ class IBKRBroker(Broker):
         return self._contracts[symbol]
 
     def _contract_size(self, symbol: str) -> float:
-        spec = self._contract_specs.get(symbol, {})
-        try: return float(spec.get("contract_size", 1.0))
+        try: return float(self._contract_specs.get(symbol, {}).get("contract_size", 1.0))
         except (TypeError, ValueError): return 1.0
 
     def closed_trades(self) -> list[ClosedTrade]:
