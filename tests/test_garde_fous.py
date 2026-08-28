@@ -75,6 +75,48 @@ class TestPlafondDeCout:
             assert cal.unites == ["D1"], f"a {equity:.0f} EUR : {cal.unites}"
 
 
+class TestUniteDeTemps:
+    """D1, et le stop temporel qui va avec.
+
+    Le 28 aout, 7 589 evaluations en M15 : 91,7 % ecartees au spread,
+    zero trade. Le spread est a peu pres constant en prix tandis que l'ATR
+    grandit avec l'unite de temps — un spread ordinaire de 0,22 % vaut
+    51 % de l'ATR en M15 et 7 % en D1. Ce n'etait pas un filtre trop
+    strict, c'etait le M15 qui ne tient pas sur cette plateforme.
+    """
+
+    def test_l_unite_d_entree_est_le_d1(self):
+        assert config().strategy.entry_tf == "D1", "voir CLAUDE.md"
+
+    def test_le_stop_temporel_est_a_l_echelle_du_d1(self):
+        """Le piege : 180 minutes ont du sens en M15, aucun en D1.
+
+        La transposition automatique prend sa reference dans la
+        configuration. Changer l'unite sans changer le delai remettrait
+        trois heures sur des bougies journalieres — le defaut meme qu'on a
+        corrige.
+        """
+        from gold_bot.calibrage import MINUTES_PAR_UNITE
+        cfg = config()
+        bougies = cfg.trade.time_stop_minutes / MINUTES_PAR_UNITE[cfg.strategy.entry_tf]
+        assert bougies >= 5, (
+            f"le stop temporel ne laisse que {bougies:.1f} bougie(s) de "
+            f"{cfg.strategy.entry_tf} : un mouvement n'a pas le temps de se former")
+
+    def test_le_spread_ordinaire_passe_en_d1(self):
+        """Ce qui bloquait en M15 doit passer : c'est tout l'interet."""
+        cfg = config()
+        atr = 0.06 / cfg.trade.atr_stop_mult          # ATR D1, en fraction du prix
+        spread_ordinaire = 0.0022                      # ~0,22 %, ordre de grandeur observe
+        assert spread_ordinaire / atr <= cfg.strategy.max_spread_atr_ratio
+
+    def test_l_unite_n_est_plus_choisie_a_la_volee(self):
+        """Une echelle adaptative ramenerait le robot vers le M15."""
+        cfg = config()
+        assert cfg.strategy.adaptive_timeframe is False
+        assert cfg.strategy.timeframe_ladder == ["D1"]
+
+
 class TestAucunLevier:
     """Le compte est au comptant.
 

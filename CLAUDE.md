@@ -19,6 +19,8 @@ Le 27 août, après audit chiffré, l'opérateur a tranché :
 | `strategy.max_spread_atr_ratio` | **0.25** | dépasser `max_cost_ratio_pct/100 × atr_stop_mult` |
 | `strategy.min_atr_price_ratio` | **0.0035** | idem |
 | `strategy.min_score` | **0.35** | remettre a zéro « parce que le quorum suffit » |
+| `strategy.entry_tf` | **D1** | revenir au M15 : les spreads Bitvavo ne le permettent pas |
+| `trade.time_stop_minutes` | **17280** | garder une valeur pensée pour le M15 |
 
 `tests/test_garde_fous.py` verrouille ces valeurs. Si un test y échoue, ce
 n'est pas le test qu'il faut changer.
@@ -83,6 +85,29 @@ La borne n'est donc pas un chiffre choisi : c'est
 stop vaut `atr_stop_mult` ATR, soit 1 R, donc un spread de M ATR pèse
 `M / atr_stop_mult` en R. `BotConfig.validate()` refuse désormais la
 contradiction au démarrage, en donnant la valeur à corriger.
+
+### Pourquoi le M15 ne tient pas sur Bitvavo
+
+Le 28 août, **7 589 évaluations** en M15 sur une matinée : **91,7 %
+écartées au spread**, et **zéro trade**. Ce n'était pas un filtre trop
+strict — le filtre était aligné sur le plafond de coût.
+
+Le spread est à peu près constant en prix ; l'ATR, lui, grandit avec
+l'unité de temps. Un spread ordinaire de 0,22 % vaut donc :
+
+    M15   51 % de l'ATR   refusé
+    H1    26 %            refusé
+    H4    13 %            passe, mais 19 % du risque en frais après la promotion
+    D1     7 %            passe, et 10 % du risque en frais
+
+Le goulot disparaît en D1, et c'est la seule unité que le plafond de coût
+laisse passer au tarif normal. Conséquence assumée : **quelques trades par
+semaine, tenus plusieurs jours.** Ce n'est plus du scalping — mais les
+chiffres disent que le scalping n'existe pas sur cette plateforme.
+
+Le stop temporel suit : 17 280 minutes valent douze bougies D1, comme les
+180 minutes d'origine valaient douze bougies M15. Changer l'unité sans
+changer le délai remettrait trois heures sur des bougies journalières.
 
 ### Pourquoi le score doit rester une barrière
 

@@ -20,15 +20,13 @@
     "min_confirmations": 5,
     "require_candle_confirmation": true,
     "confirmation_margin": 2,
-    "trigger_tf": "M5",
-    "entry_tf": "M15",
-    "context_tf": "H1",
-    "bias_tf": "H4",
-    "adaptive_timeframe": true,
+    "trigger_tf": "H4",
+    "entry_tf": "D1",
+    "context_tf": "D1",
+    "bias_tf": "D1",
+    "adaptive_timeframe": false,
     "timeframe_ladder": [
-      "M15",
-      "H1",
-      "H4"
+      "D1"
     ],
     "max_cost_ratio_pct": 15.0,
     "max_spread_atr_ratio": 0.25,
@@ -97,7 +95,7 @@
     "max_extensions": 2,
     "extend_min_momentum": 0.3,
     "lock_r_on_extend": 0.5,
-    "time_stop_minutes": 180.0,
+    "time_stop_minutes": 17280.0,
     "time_stop_min_r": 0.15,
     "reversal_exit_r": 0.6
   },
