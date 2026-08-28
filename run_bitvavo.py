@@ -8,7 +8,7 @@ import time
 
 import gold_bot.engine as engine_module
 from gold_bot.brokers import BitvavoConfig, BitvavoMarginBroker
-from gold_bot.engine import TradingEngine
+from gold_bot.scalping_engine import ContinuousScalpingEngine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,8 +26,8 @@ def _bitvavo_quote_currency(broker: str) -> str:
 engine_module._devise_du_lieu_d_execution = _bitvavo_quote_currency
 
 
-class BitvavoTradingEngine(TradingEngine):
-    """Moteur Bitvavo marge : long + short, sans contourner les garde-fous."""
+class BitvavoTradingEngine(ContinuousScalpingEngine):
+    """Moteur Bitvavo marge : scalping continu + pyramiding confirme."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -76,29 +76,6 @@ class BitvavoTradingEngine(TradingEngine):
             len(positions), getattr(self.broker, "mode", "inconnu"),
         )
 
-        self.broker.sync()
-        account = self.broker.account()
-        self.risk.sync_account(account.equity, account.balance, account.currency)
-        positions = self.broker.positions()
-        allowed, why = self.risk.can_trade(positions)
-        objective_stop, objective_why = self.objectives.should_stop_trading()
-        if not allowed:
-            logger.info(
-                "ENTREE BLOQUEE — raison=%s — capital %.2f %s — positions %d — trades_jour %d — pnl_jour %.2f%% — pnl_semaine %.2f%%",
-                why, account.equity, account.currency, len(positions),
-                self.risk.account.trades_today,
-                self.risk.account.daily_pnl_pct(),
-                self.risk.account.weekly_pnl_pct(),
-            )
-        elif objective_stop:
-            logger.info("ENTREE BLOQUEE — objectif : %s", objective_why)
-        else:
-            logger.info(
-                "ENTREE AUTORISEE — scanner %d instrument(s) — objectif %.2f — réalisé %.2f",
-                len(self.universe), self.objectives.target,
-                self.objectives.state.realized_this_week,
-            )
-
         super().run_cycle()
         logger.info(
             "CYCLE END #%d — durée %.1fs — positions %d — trades ouverts %d",
@@ -110,8 +87,10 @@ class BitvavoTradingEngine(TradingEngine):
 def main() -> int:
     os.environ["GB_ENGINE_BROKER"] = "bitvavo"
     os.environ["GB_ENGINE_OFFLINE"] = "0"
-    os.environ["GB_ENGINE_IDLE_POLL_SECONDS"] = "20"
-    os.environ["GB_ENGINE_POLL_SECONDS"] = "20"
+    # Recherche rapide : on veut pouvoir revalider une continuation haussière
+    # sans attendre plusieurs minutes entre deux décisions.
+    os.environ["GB_ENGINE_IDLE_POLL_SECONDS"] = "5"
+    os.environ["GB_ENGINE_POLL_SECONDS"] = "5"
     os.environ.setdefault("BITVAVO_MARGIN_ENABLED", "1")
     os.environ.setdefault("BITVAVO_MARGIN_LEVERAGE", "10")
     BitvavoTradingEngine().run()
