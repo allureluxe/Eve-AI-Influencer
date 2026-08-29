@@ -13,7 +13,8 @@
     "symbols": [],
     "currency": "EUR",
     "verbose_scan": true,
-    "scan_workers": 12
+    "scan_workers": 12,
+    "scan_max_instruments": 50
   },
   "strategy": {
     "mode": "quorum",
@@ -106,9 +107,5 @@
     "protect_after_target": true,
     "protect_multiplier": 0.5
   },
-  "promotion": {
-    "active": false,
-    "sans_frais_jusqu_au": "",
-    "volume_plafond": 0.0
-  }
+  "promotion": {"active": false, "sans_frais_jusqu_au": "", "volume_plafond": 0.0}
 }
