@@ -390,10 +390,12 @@ class TestFraisEtEchelleDeTemps:
         assert cfg.engine.broker in ("bitvavo", "bitvavo_margin")
         assert cfg.engine.currency == "EUR"
         assert cfg.risk.commission_pct == pytest.approx(0.0025)
-        # L'unite d'entree suit le regime tarifaire en vigueur : M15
-        # pendant la fenetre sans commission, D1 apres. Le calibrage
-        # rebascule tout seul a l'expiration.
-        assert cfg.strategy.entry_tf in ("M15", "H1", "H4", "D1")
+        # L'unite d'entree est celle qu'a designee le rejeu du 30 aout
+        # (M30), et le M15 reste possible pendant une fenetre sans
+        # commission — le calibrage rebascule tout seul a l'expiration.
+        # Le M5 est exclu : il exige un taux de reussite d'un tiers
+        # superieur a tout ce que le systeme a jamais montre.
+        assert cfg.strategy.entry_tf in ("M15", "M30", "H1", "H4", "D1")
         assert cfg.validate() == []
 
     def test_une_configuration_armee_doit_l_assumer(self):

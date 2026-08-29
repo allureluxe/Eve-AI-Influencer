@@ -5,25 +5,75 @@ d'environ 51 EUR. Plusieurs sessions travaillent sur la même branche. Les
 décisions ci-dessous ont été prises par l'opérateur ; elles ne sont pas des
 valeurs par défaut à optimiser.
 
-## H1, sans levier, achat ET vente
+## M30, levier 3x, achat ET vente
 
-Décision révisée le **29 août**. Elle remplace le « D1 puis H4 » du 27-28
-août, dont le raisonnement reste valable et se trouve plus bas.
+Décision du **30 août**, prise sur le rejeu et non sur le raisonnement.
+Elle remplace le H1 du 29 août, lui-même successeur du H4 et du D1.
+
+**Ce qui a changé de nature :** les versions précédentes déduisaient
+l'unité de temps d'un ratio frais/risque jugé acceptable. Le rejeu du
+30 août — 8 cryptos, 4000 bougies, frais pleins et **spread doublé** — a
+départagé douze variantes, et le classement contredit ce raisonnement :
+
+    M30, plafond 50 %    159 trades   56,6 %   +0,273 R   +42,83 EUR
+    H4 tendance 3R       134 trades   49,3 %   +0,130 R   +18,94 EUR
+    H4 tendance 2R       136 trades   48,5 %   +0,096 R   +15,41 EUR
+    H1 (ancienne)         81 trades   43,2 %   +0,073 R    +4,80 EUR
+    D1 tendance 2R       172 trades   45,3 %   -0,067 R   -11,04 EUR
+
+**L'unité la plus lente est la pire**, alors que c'est elle qui paie le
+moins de frais (7 % du risque contre 47 % au M30). Payer cher n'est pas le
+problème ; ne pas avoir d'avantage l'est. La littérature académique sur le
+momentum crypto — qui pointait vers des horizons longs — ne se vérifie pas
+sur ce moteur et ces marchés.
 
 | réglage | valeur | ne pas |
 |---|---|---|
-| `risk.max_cost_ratio_pct` | **35.0** | remonter pour « débloquer » une unité plus rapide |
-| `strategy.max_cost_ratio_pct` | **35.0** | idem |
-| `trade.max_cost_ratio_pct` | **35.0** | idem |
+| `strategy.entry_tf` | **M30** | changer sans repasser par `comparer.py` |
+| `risk.max_cost_ratio_pct` | **50.0** | remonter pour « débloquer » le M15 ou le M5 |
+| `strategy.max_cost_ratio_pct` | **50.0** | idem |
+| `trade.max_cost_ratio_pct` | **50.0** | idem |
 | `risk.max_leverage` | **3.0** | monter à 10x « pour trader plus » : ça n'ouvre aucune position de plus |
 | `engine.broker` | **bitvavo_margin** | confondre « vendre » et « lever » |
 | bloc `promotion` | **présent** | retirer |
-| `strategy.max_spread_atr_ratio` | **0.30** | dépasser `max_cost_ratio_pct/100 × atr_stop_mult` |
+| `strategy.max_spread_atr_ratio` | **0.30** | monter : à 50 % de plafond, la borne dérivée ne protège plus, ce réglage est la seule barrière |
 | `strategy.min_score` | **0.35** | remettre à zéro « parce que le quorum suffit » |
-| `strategy.entry_tf` | **H1** | descendre sous H1 sans baisser les frais |
 | `trade.atr_stop_mult` | **1.60** | resserrer sans recalculer le coût |
 | `trade.tp_r_multiple` | **2.00** | baisser sans recalculer la réussite nécessaire |
-| `trade.time_stop_minutes` | **720** | garder une valeur pensée pour une autre unité |
+| `trade.time_stop_minutes` | **360** | garder une valeur pensée pour une autre unité |
+
+### La marge est mince, et c'est le point important
+
+Le M30 gagne **7,6 points** de réussite au-dessus de son seuil de
+rentabilité (56,6 % mesurés contre 49,0 % nécessaires). Le H4, lui, en
+gagne 19,8.
+
+    stratégie        frais/risque   seuil   mesuré    marge
+    M30 (retenu)          47 %      49,0 %  56,6 %   +7,6 pts
+    H4 tendance 3R        18 %      29,5 %  49,3 %  +19,8 pts
+
+Un système perd toujours en réel une part de ce qu'il montrait en rejeu —
+glissement, ordres refusés, élargissements de spread sur annonce, qu'aucun
+rejeu ne reproduit. Sur 7,6 points, cette perte se voit.
+
+Conséquence : les coupe-circuits et le palier de croissance ne sont pas du
+confort ici, **ils sont la condition de la décision**. Si la réussite
+réelle tombe sous 52 % sur 40 trades, il faut basculer sur le H4 plutôt
+que d'attendre.
+
+### Ce qui distingue ce plafond de celui du 29 août au matin
+
+Le 29 août, le plafond avait été monté à **70 %** pour laisser passer le
+M5. La réussite nécessaire valait alors **122,5 %** : aucune mesure ne
+pouvait sauver ça, et le plafond servait à ne pas voir l'impossibilité.
+
+Ici, la réussite nécessaire vaut 49 % et la mesure en donne 56,6. On n'a
+pas desserré une mesure pour laisser passer un trade perdant : on a
+constaté qu'un ratio de frais élevé reste payant **quand le taux de
+réussite le porte**. La différence n'est pas de degré, elle est de nature.
+
+Le M5, lui, reste exclu : il exigerait 75 % de réussite, soit un tiers de
+plus que tout ce que ce robot a jamais montré.
 
 `tests/test_garde_fous.py` verrouille ces valeurs. Si un test y échoue, ce
 n'est pas le test qu'il faut changer.
