@@ -439,7 +439,23 @@ class RiskManager:
                 # est deja investi en est deduit : sans cela le coussin de
                 # securite disparaitrait des la deuxieme position.
                 places = max(1, cfg.max_positions - len(positions))
-                plafond_engage = acc.equity * cfg.max_capital_engaged_pct / 100.0
+                # Le plafond d'engagement borne ce qu'on peut ENGAGER, donc
+                # il se calcule sur le pouvoir d'achat, pas sur le capital.
+                #
+                # Sur un compte au comptant les deux se confondent
+                # (max_leverage = 1) et rien ne change. Sur un compte de
+                # marge, non : a 3x, plafonner a 90 % du capital rendait le
+                # levier purement decoratif. Mesure a 96 EUR, six places :
+                # chaque position recevait 14,40 EUR de notionnel au lieu
+                # des 32 EUR que le risque demandait, soit 0,27 % de risque
+                # par trade la ou la configuration en reclamait 0,60.
+                #
+                # Le garde-fou qui borne le RISQUE reste max_total_risk_pct,
+                # et c'est lui qui doit mordre en premier ; celui-ci ne sert
+                # qu'a garder un coussin de liquidites.
+                levier = max(1.0, cfg.max_leverage)
+                plafond_engage = (acc.equity * levier
+                                  * cfg.max_capital_engaged_pct / 100.0)
                 deja_engage = 0.0
                 for pos in positions:
                     inst = lookup(pos.symbol)

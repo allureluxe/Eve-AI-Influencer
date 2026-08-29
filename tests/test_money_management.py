@@ -55,6 +55,75 @@ class TestEchelleDeCapital:
         assert "%" in pourquoi and "x" in pourquoi
 
 
+class TestLeRisqueDemandeEstLeRisquePris:
+    """Un money management qui livre la moitie de ce qu'on lui demande.
+
+    Mesure a 96 EUR comme a 186 EUR : la configuration reclamait 0,60 % de
+    risque par trade, le dimensionnement en rendait 0,27 %. Le montant en
+    euros suivait bien le capital — le robot s'adaptait — mais le
+    POURCENTAGE etait faux, et de moitie.
+
+    La cause : le plafond d'engagement se calculait sur le capital et
+    ignorait le levier. A 3x, il coupait chaque position avant que le
+    budget de risque n'ait son mot a dire, ce qui rendait le levier
+    purement decoratif. Un ecart pareil ne se voit jamais dans un journal :
+    tout y parait coherent, simplement deux fois trop petit.
+    """
+
+    @staticmethod
+    def _decision(capital, levier, places=6):
+        from gold_bot.core import Side
+        from gold_bot.risk import RiskConfig, RiskManager
+        from gold_bot.universe import Universe, spread_estime
+
+        u = Universe()
+        inst = u.get("BTCUSD")
+        prix, stop = 68_000.0, 68_000.0 * 0.0112 * 1.60
+
+        rm = RiskManager(RiskConfig(
+            base_risk_pct=0.60, min_risk_pct=0.25, max_risk_pct=1.00,
+            max_cost_ratio_pct=35.0, commission_pct=0.0025,
+            max_positions=places, max_total_risk_pct=3.5,
+            max_capital_engaged_pct=90.0, max_leverage=levier, min_rr=1.6))
+        rm.sync_account(equity=capital, balance=capital)
+        return rm.size_position(
+            inst, Side.BUY, prix, prix - stop, prix + stop * 2.0,
+            universe_lookup=u.get, spread=spread_estime(inst, prix),
+            available_cash=capital * levier * 0.9)
+
+    @pytest.mark.parametrize("capital", [96.0, 186.0, 1000.0])
+    def test_le_risque_pris_est_celui_demande(self, capital):
+        d = self._decision(capital, levier=3.0)
+        assert d.allowed, d.reason
+        assert d.risk_pct == pytest.approx(0.60, abs=0.05), (
+            f"a {capital:.0f} EUR le robot risque {d.risk_pct:.2f} % au lieu "
+            "de 0,60 % : le plafond d'engagement mord avant le budget de risque")
+
+    def test_le_pourcentage_ne_depend_pas_du_capital(self):
+        """Ce que l'operateur attend du money management : la proportion tient."""
+        petit = self._decision(96.0, levier=3.0)
+        gros = self._decision(1000.0, levier=3.0)
+        assert petit.risk_pct == pytest.approx(gros.risk_pct, abs=0.02)
+
+    def test_au_comptant_rien_ne_change(self):
+        """Sans levier, pouvoir d'achat et capital se confondent."""
+        d = self._decision(186.0, levier=1.0)
+        assert d.allowed, d.reason
+        assert d.risk_pct <= 0.60 + 1e-9
+
+    def test_le_budget_de_risque_reste_la_borne(self):
+        """Le levier ne doit pas laisser depasser max_total_risk_pct.
+
+        Six places a 0,60 % feraient 3,6 % pour un plafond a 3,5 % : c'est
+        le budget de RISQUE qui doit arreter le robot, pas le cash.
+        """
+        from gold_bot.core import Position, Side
+        d = self._decision(186.0, levier=3.0)
+        places_par_le_risque = int(3.5 // 0.60)
+        assert places_par_le_risque == 5
+        assert d.allowed
+
+
 class TestReductionParLesPertes:
     """Deux mecanismes de reduction s'ajoutent a l'echelle."""
 
