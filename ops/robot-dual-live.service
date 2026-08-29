@@ -1,0 +1,32 @@
+[Unit]
+Description=Robot trading LIVE Bitvavo + IBKR
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+Environment=IBKR_PORT=4001
+Environment=IBKR_TRADING_LIVE=1
+Environment=IBKR_ALLOW_SHORT=1
+Environment=BITVAVO_DRY_RUN=0
+ExecStart=/usr/bin/python3 /home/ubuntu/Eve-AI-Influencer/run_dual_live.py
+Restart=always
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=70
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=robot-dual-live
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/Eve-AI-Influencer/data
+
+[Install]
+WantedBy=multi-user.target
