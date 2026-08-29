@@ -322,6 +322,7 @@ def ecrire_candidate(cfg: BotConfig, best: dict, args) -> None:
     l'argent — le rejeu ignore les elargissements de spread sur annonce,
     le glissement reel et les ordres refuses.
     """
+    import dataclasses
     import json
 
     cfg.engine.dry_run = True
@@ -330,8 +331,13 @@ def ecrire_candidate(cfg: BotConfig, best: dict, args) -> None:
         section = getattr(cfg, nom, None)
         if section is None:
             continue
-        sections[nom] = {c: getattr(section, c) for c in vars(section)
-                         if not c.startswith("_")}
+        # `vars()` ne marche pas ici : ces sections sont des dataclasses
+        # declarees avec slots=True, donc sans __dict__. C'est justement ce
+        # qui les rend compactes et sures — on passe donc par les champs
+        # declares, seule facon fiable de les enumerer.
+        sections[nom] = {champ.name: getattr(section, champ.name)
+                         for champ in dataclasses.fields(section)
+                         if not champ.name.startswith("_")}
     sections["promotion"] = dict(getattr(cfg, "promotion", {}) or {})
     sections["_note"] = (
         f"Gagnante du rejeu du {time.strftime('%Y-%m-%d')} : « {best['nom']} » — "
@@ -340,9 +346,15 @@ def ecrire_candidate(cfg: BotConfig, best: dict, args) -> None:
         "NON ARMEE : dry_run reste vrai. Verifier en simulation avant "
         "d'engager quoi que ce soit.")
 
-    chemin = "robot.candidat.json"
+    # Ancre a la racine du depot, comme BotConfig.load() : ecrire dans le
+    # repertoire courant produirait un fichier que le chargeur ne trouverait
+    # pas si le rejeu a ete lance d'ailleurs.
+    from gold_bot.settings import RACINE
+    chemin = os.path.join(RACINE, "robot.candidat.json")
     with open(chemin, "w", encoding="utf-8") as f:
-        json.dump(sections, f, indent=2, ensure_ascii=False)
+        # `default=str` : un champ non serialisable ne doit pas faire perdre
+        # le resultat d'un rejeu de dix minutes.
+        json.dump(sections, f, indent=2, ensure_ascii=False, default=str)
     print(f"\n  Configuration gagnante ecrite dans {chemin} (dry_run = true).")
     print(f"  Pour l'essayer sans engager d'argent :")
     print(f"     python3 run_dual_scalping.py --config {chemin}")
