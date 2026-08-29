@@ -7,9 +7,13 @@ from gold_bot.settings import BotConfig
 
 
 class TestLiveConfig(unittest.TestCase):
+    # « bitvavo » au comptant, « bitvavo_margin » quand la vente a decouvert
+    # est activee. Les deux designent la meme plateforme et le meme compte.
+    BROKERS_BITVAVO = ("bitvavo", "bitvavo_margin")
+
     def test_robot_bitvavo_est_coherent(self):
         cfg = BotConfig.load("robot.bitvavo.json")
-        self.assertEqual(cfg.engine.broker, "bitvavo")
+        self.assertIn(cfg.engine.broker, self.BROKERS_BITVAVO)
         self.assertFalse(cfg.engine.offline)
         self.assertLessEqual(cfg.risk.max_risk_pct, 1.5)
         self.assertEqual(cfg.validate(), [])
@@ -21,7 +25,7 @@ class TestLiveConfig(unittest.TestCase):
             os.environ["GB_CONFIG"] = "robot.bitvavo.json"
             os.environ.pop("GB_CONFIG_FILE", None)
             cfg = BotConfig.load()
-            self.assertEqual(cfg.engine.broker, "bitvavo")
+            self.assertIn(cfg.engine.broker, self.BROKERS_BITVAVO)
         finally:
             if old is None:
                 os.environ.pop("GB_CONFIG", None)

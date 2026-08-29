@@ -229,9 +229,22 @@ class TestCompteReel51Euros:
         assert 51.0 * c.risk_pct / 100 < 0.35
 
     def test_la_configuration_livree_correspond(self):
+        """Le plafond de risque doit rester AU MOINS a 0,6 %.
+
+        L'assertion exigeait 0,6 exactement. Ce n'est pas la decision : le
+        calibrage montre qu'a 0,5 % un compte de 51 EUR est sous le seuil
+        (capital minimum 60 EUR) et ne peut dimensionner aucun trade. La
+        contrainte est donc un PLANCHER, pas une egalite — sinon relever le
+        plafond quand le compte grandit ferait echouer un test qui voulait
+        justement empecher qu'il soit trop bas.
+
+        Le plafond dur de securite (1,5 %) reste verifie par validate().
+        """
         from gold_bot.settings import BotConfig
         cfg = BotConfig.load("robot.bitvavo.json")
-        assert cfg.risk.max_risk_pct == pytest.approx(0.6)
+        assert cfg.risk.max_risk_pct >= 0.6 - 1e-9, (
+            f"max_risk_pct vaut {cfg.risk.max_risk_pct} : sous 0,6 % un petit "
+            "compte ne peut plus dimensionner un seul trade")
         assert cfg.validate() == []
 
 

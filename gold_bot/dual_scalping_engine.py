@@ -15,7 +15,8 @@ from .core import Side
 from .engine import TradingEngine
 from .scalping_engine import ContinuousScalpingMixin
 from .universe import Instrument
-from .brokers import IBKRBroker
+from .brokers import (BitvavoConfig, BitvavoMarginBroker, BrokerError,
+                      IBKRBroker)
 from .brokers.ibkr_hardened import HardenedIBKRBroker
 
 logger = logging.getLogger(__name__)
@@ -78,7 +79,48 @@ class MultiEntryScalpingMixin(ContinuousScalpingMixin):
 class DualScalpingEngine(MultiEntryScalpingMixin, TradingEngine):
     """Moteur commun, avec selection du broker Bitvavo ou IBKR."""
 
+    def _broker_bitvavo_margin(self):
+        """Bitvavo avec vente a decouvert.
+
+        Le compte au comptant ne sait qu'acheter : une alerte de vente
+        parfaitement valide y est jetee avant meme d'etre evaluee, ce qui
+        supprime la moitie des occasions dans un marche qui baisse. Bitvavo
+        ouvre desormais la vente a decouvert sur une quinzaine d'actifs.
+
+        Le levier reste celui de la configuration — 1x par defaut. Vendre a
+        decouvert a 1x n'est PAS du levier au sens ou l'entendait la decision
+        de l'operateur : le notionnel ne depasse pas le capital, donc rien
+        n'est multiplie. Seul le sens change. Un levier superieur a 1
+        reintroduirait la multiplication des pertes, et la configuration
+        seule peut le decider.
+        """
+        bv = BitvavoConfig.from_env()
+        if self.config.engine.dry_run:
+            bv.dry_run = True
+        plafond = float(self.config.risk.max_leverage)
+        os.environ.setdefault("BITVAVO_MARGIN_ENABLED", "1")
+        # Le broker lit son plafond dans l'environnement ; la configuration
+        # de risque reste souveraine et ne peut pas etre contredite par un
+        # defaut a 10x.
+        os.environ["BITVAVO_MARGIN_LEVERAGE"] = f"{max(1.0, plafond):.4f}"
+
+        broker = BitvavoMarginBroker(bv)
+        if not broker.connect():
+            raise BrokerError(
+                "compte Bitvavo avec vente a decouvert indisponible : "
+                + (getattr(broker, "_last_error", "") or "raison inconnue")
+                + ". La vente a decouvert doit etre activee sur le compte "
+                  "Bitvavo (elle demande une acceptation des conditions de "
+                  "marge). A defaut, repasser engine.broker a \"bitvavo\" : "
+                  "le robot n'achetera plus que a la hausse.")
+        self._filtrer_univers_sur_le_broker(broker)
+        for inst in self.universe:
+            broker.register_instrument(inst)
+        return broker
+
     def _build_broker(self):
+        if self.config.engine.broker == "bitvavo_margin":
+            return self._broker_bitvavo_margin()
         if self.config.engine.broker != "ibkr":
             return super()._build_broker()
 

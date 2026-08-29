@@ -5,54 +5,126 @@ d'environ 51 EUR. Plusieurs sessions travaillent sur la même branche. Les
 décisions ci-dessous ont été prises par l'opérateur ; elles ne sont pas des
 valeurs par défaut à optimiser.
 
-## D1, sans levier
+## H1, sans levier, achat ET vente
 
-Le 27 août, après audit chiffré, l'opérateur a tranché :
+Décision révisée le **29 août**. Elle remplace le « D1 puis H4 » du 27-28
+août, dont le raisonnement reste valable et se trouve plus bas.
 
 | réglage | valeur | ne pas |
 |---|---|---|
-| `risk.max_cost_ratio_pct` | **15.0** | remonter pour « débloquer » une unité de temps plus rapide |
-| `strategy.max_cost_ratio_pct` | **15.0** | idem |
-| `trade.max_cost_ratio_pct` | **15.0** | idem |
-| `risk.max_leverage` | **1.0** | passer en marge |
+| `risk.max_cost_ratio_pct` | **35.0** | remonter pour « débloquer » une unité plus rapide |
+| `strategy.max_cost_ratio_pct` | **35.0** | idem |
+| `trade.max_cost_ratio_pct` | **35.0** | idem |
+| `risk.max_leverage` | **3.0** | monter à 10x « pour trader plus » : ça n'ouvre aucune position de plus |
+| `engine.broker` | **bitvavo_margin** | confondre « vendre » et « lever » |
 | bloc `promotion` | **présent** | retirer |
-| `strategy.max_spread_atr_ratio` | **0.25** | dépasser `max_cost_ratio_pct/100 × atr_stop_mult` |
-| `strategy.min_atr_price_ratio` | **0.0035** | idem |
-| `strategy.min_score` | **0.35** | remettre a zéro « parce que le quorum suffit » |
-| `strategy.entry_tf` | **H4** | changer sans repasser par `comparer.py` |
-| `trade.time_stop_minutes` | **2880** | garder une valeur pensée pour une autre unité |
+| `strategy.max_spread_atr_ratio` | **0.30** | dépasser `max_cost_ratio_pct/100 × atr_stop_mult` |
+| `strategy.min_score` | **0.35** | remettre à zéro « parce que le quorum suffit » |
+| `strategy.entry_tf` | **H1** | descendre sous H1 sans baisser les frais |
+| `trade.atr_stop_mult` | **1.60** | resserrer sans recalculer le coût |
+| `trade.tp_r_multiple` | **2.00** | baisser sans recalculer la réussite nécessaire |
+| `trade.time_stop_minutes` | **720** | garder une valeur pensée pour une autre unité |
 
 `tests/test_garde_fous.py` verrouille ces valeurs. Si un test y échoue, ce
 n'est pas le test qu'il faut changer.
 
-### Pourquoi le plafond de coût reste à 15 %
+### Pourquoi le plafond de coût est passé de 15 % à 35 %
 
-Bitvavo prélève 0,25 % par côté. Le robot entre et sort au marché, donc
-0,50 % l'aller-retour, plus 0,10 % de spread et de glissement qu'aucune
-promotion n'annule : **0,60 % à absorber par trade**.
+**Ce n'est pas un desserrage : le plafond suit le stop.**
 
-Rapporté à la distance du stop :
+Bitvavo prélève 0,25 % par côté au marché. Le robot entre et sort au
+marché, donc 0,50 % l'aller-retour, plus 0,10 % de spread et de glissement
+qu'aucune promotion n'annule : **0,60 % à absorber par trade**.
 
-    M15   stop 0,77 %  ->  frais = 78 % du risque
-    H1    stop 1,54 %  ->  frais = 39 %
-    H4    stop 3,08 %  ->  frais = 19 %
-    D1    stop 6,00 %  ->  frais =  8 %
+Le plafond à 15 % avait été calculé pour un stop H4 de 3,1 % du prix. Le
+H1 divise le stop par deux : à 1,6 ATR il vaut 1,79 %, et les mêmes 0,60 %
+y pèsent 33 %. Exiger 15 % au H1 reviendrait à imposer un stop de 4 % —
+c'est-à-dire du H4 déguisé en H1.
 
-Avec un objectif à 2,2R, cela donne le taux de réussite nécessaire pour
-seulement rentrer dans ses frais :
+Le plafond reste donc une **mesure**, et la division est refaite :
 
-    M15  ->  55,6 %      D1  ->  34,4 %
+    unité   ATR      stop 1,6 ATR   frais / risque
+    M5      0,30 %      0,48 %          125 %
+    M15     0,56 %      0,90 %           67 %
+    M30     0,80 %      1,28 %           47 %
+    H1      1,12 %      1,79 %           33 %   <- retenu
+    H4      2,24 %      3,58 %           17 %
 
-Remonter le plafond à 80 % « garde le M15 viable » en retirant la mesure,
-pas en changeant le problème. Vérifié : à 0,25 % par côté, **aucun capital
-entre 51 EUR et 20 000 EUR ne rend une unité plus rapide que D1 tenable.**
-Ce n'est pas un problème d'argent, c'est une division.
+Avec un objectif à 2,0 R, la réussite nécessaire pour une espérance nulle :
 
-### Pourquoi pas de levier
+    H1  ->  44,5 %      M5  ->  impossible
 
-Un levier multiplie les gains ET les pertes. Sur un système dont
-l'espérance n'est pas encore établie — 5 trades réels, 0 gagnant — il ne
-rend rien gagnant : il fait perdre plus vite. Le compte est au comptant.
+### Ce qui s'est passé le 29 août au matin, et qu'il ne faut pas refaire
+
+La configuration avait été passée en **M5, plafond de coût 70 %**. À ce
+réglage :
+
+    frais = 182 % du risque  ->  réussite nécessaire : 122,5 %
+
+**Un chiffre supérieur à 100 % n'est pas un objectif difficile : c'est une
+impossibilité arithmétique.** Le robot n'était pas mal réglé, il était
+mathématiquement condamné, et le plafond à 70 % existait précisément pour
+laisser passer ça.
+
+C'est la même erreur que le 28 août, sous une autre forme : desserrer la
+mesure au lieu de changer le problème.
+
+### Le levier : à quoi il sert vraiment, et pourquoi 3x et pas 10x
+
+L'opérateur a autorisé le levier le 29 août. La décision du 27 août
+(« aucun levier ») est levée, mais son raisonnement reste vrai et
+délimite l'usage.
+
+**Ce que le levier ne fait pas.** Il ne corrige pas les frais. Il
+multiplie la taille de la position ET les frais dans la même proportion :
+le rapport frais/risque est **invariant au levier**. À 33 % du risque en
+H1, c'est 33 % à 1x comme à 10x. Aucun levier ne rend le M5 viable — c'est
+la même division qu'avant.
+
+**Ce qu'il fait, et qui compte ici.** Le dimensionnement part du risque :
+une position vaut `capital × 0,6 % / distance au stop`, soit ~23 EUR de
+notionnel sur un compte de 70 EUR. Le budget de risque
+(`max_total_risk_pct: 3.5`) en autorise 5 en parallèle. Mais 5 × 23 EUR
+= 117 EUR, et le compte n'a que 70 EUR : **le cash bloquait à 2
+positions**. Mesuré :
+
+    1x   ->  2 positions   (le CASH bloque)
+    2x   ->  5 positions   (le budget de RISQUE bloque)
+    3x   ->  5 positions
+    5x   ->  5 positions
+    10x  ->  5 positions
+
+Le levier sert donc à occuper les places que le budget de risque autorise
+déjà. **Au-delà de 2x, il n'ouvre plus aucune position** — il n'ajoute que
+du risque de liquidation. 3x est retenu comme marge pour les variations
+de capital et de volatilité.
+
+Le risque par trade, lui, **ne suit pas le levier** : c'est la confusion
+qui coûte cher. Un levier de 3 n'autorise pas 3 × 0,6 %. Le
+dimensionnement remonte du risque vers la taille, jamais l'inverse, et
+`tests/test_garde_fous.py::TestLevierMaitrise` le vérifie.
+
+Corollaire : sous levier, une série de pertes va plus vite. Les
+coupe-circuits (perte journalière 4 %, drawdown 25 %, 4 pertes d'affilée)
+ne sont plus du confort, et le stop temporel devient nécessaire — une
+position à levier paie des intérêts d'emprunt tant qu'elle est ouverte.
+
+### La vente à découvert
+
+Bitvavo a ouvert la vente à découvert (BTC, ETH, XRP, SOL, ADA et une
+dizaine d'autres, à partir de 10 EUR). Elle passe par un compte de marge —
+c'est le seul chemin — d'où `engine.broker: "bitvavo_margin"`.
+
+Ce que ça débloque : au comptant, une alerte de vente parfaitement valide
+était jetée **avant même d'être évaluée** (`supports_short = False` retire
+le sens VENTE du scan). Dans un marché qui baisse, le robot regardait
+passer la moitié des occasions sans pouvoir rien en faire. C'est la
+deuxième cause, après le cash, du « zéro trade » constaté le 29 août.
+
+Le coût d'emprunt est de ~0,0274 % par jour. Sur un trade H1 tenu quelques
+heures, c'est négligeable devant les 0,60 % de frais — mais il court tant
+que la position est ouverte, ce qui est une raison de plus de garder le
+stop temporel (`time_stop_minutes: 720`).
 
 ### Pourquoi le bloc `promotion` doit rester
 
@@ -86,7 +158,43 @@ stop vaut `atr_stop_mult` ATR, soit 1 R, donc un spread de M ATR pèse
 `M / atr_stop_mult` en R. `BotConfig.validate()` refuse désormais la
 contradiction au démarrage, en donnant la valeur à corriger.
 
-### Pourquoi H4, et comment on l'a su
+### IBKR n'est pas utilisable à ce capital, et ce n'est pas un bug
+
+Vérifié le 29 août, tarif public IBKR : la commission forex vaut
+**0,20 point de base, avec un minimum de 2 USD par ordre**. Ce minimum
+change tout pour un petit compte :
+
+- lot minimum sur IDEALPRO : 25 000 USD ; en dessous, l'ordre part en
+  « odd lot », taille minimale 1 000 unités, avec un spread élargi ;
+- un aller-retour de 1 000 EUR coûte 2 USD + 2 USD, soit **0,40 % du
+  notionnel** — plus cher que Bitvavo ;
+- avec 70 EUR de capital, même à 10x, le notionnel plafonne à 700 EUR :
+  **le lot minimum n'est pas atteignable du tout.**
+
+IBKR redevient intéressant à partir du mini-lot (10 000 USD), où les 2 USD
+retombent à 0,02 % — donc à partir de quelques milliers d'euros de capital,
+ou avec un levier que l'opérateur a exclu.
+
+Le code IBKR reste en place et fonctionne (voir `verifier_ibkr.py`). Il
+n'est simplement pas armé tant que le capital ne le justifie pas. Ne pas
+le rebrancher « pour faire tourner les deux plateformes » : chaque ordre
+coûterait plusieurs fois le risque qu'il prend.
+
+### Le levier suivant, non encore tiré : les ordres limite
+
+Le robot entre et sort **au marché**, donc en *taker* : 0,25 % par côté.
+Bitvavo facture 0,15 % en *maker* — un ordre limite qui ne s'exécute pas
+immédiatement. Passer les entrées en limite « post-only » ferait tomber le
+coût de 0,60 % à 0,40 %, soit un tiers de moins :
+
+    H1, ordres au marché  ->  33 % du risque  ->  réussite 44,5 %
+    H1, ordres limite     ->  22 % du risque  ->  réussite 40,8 %
+
+Ce n'est pas fait : un ordre limite peut ne pas être servi, et il faut donc
+une logique de repli et d'expiration que le broker n'a pas encore. C'est
+le chantier au meilleur rapport gain/risque du dépôt.
+
+### Pourquoi H4 avait été retenu le 28 août
 
 Pendant deux jours, les réglages ont été essayés **en argent réel** : 72
 trades, 2,8 % de réussite, espérance −0,406 R. Le 28 août au soir, le

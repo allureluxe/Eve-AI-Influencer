@@ -384,7 +384,10 @@ class TestFraisEtEchelleDeTemps:
         """La commission declaree doit etre celle de Bitvavo, pas de Binance."""
         from gold_bot.settings import BotConfig
         cfg = BotConfig.load("robot.bitvavo.json")
-        assert cfg.engine.broker == "bitvavo"
+        # « bitvavo » au comptant, « bitvavo_margin » quand la vente a
+        # decouvert est activee : meme plateforme, memes frais, meme devise.
+        # C'est le tarif qui est teste ici, pas le nom de l'adaptateur.
+        assert cfg.engine.broker in ("bitvavo", "bitvavo_margin")
         assert cfg.engine.currency == "EUR"
         assert cfg.risk.commission_pct == pytest.approx(0.0025)
         # L'unite d'entree suit le regime tarifaire en vigueur : M15

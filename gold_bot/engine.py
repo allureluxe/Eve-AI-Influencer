@@ -63,7 +63,7 @@ def _devise_du_lieu_d_execution(broker: str) -> str:
     Une chaine vide signifie « aucune contrainte » : les lieux d'execution
     en dollars gardent le jeu complet des sources de secours.
     """
-    if broker == "bitvavo":
+    if broker in ("bitvavo", "bitvavo_margin"):
         return BitvavoConfig.from_env().quote_asset
     if broker == "okx":
         return OkxConfig.from_env().quote_asset
@@ -405,11 +405,14 @@ class TradingEngine:
                     "Les ordres engagent de l'argent veritable. "
                     "OKX_DRY_RUN=1 revient a la simulation.")
 
-        if cfg.broker == "bitvavo" and not cfg.dry_run:
-            self.notifier.warning(
-                "Bitvavo en mode REEL",
-                "Les ordres engagent de l'argent veritable. "
-                "BITVAVO_DRY_RUN=1 revient a la simulation.")
+        if cfg.broker in ("bitvavo", "bitvavo_margin") and not cfg.dry_run:
+            detail = ("Les ordres engagent de l'argent veritable. "
+                      "BITVAVO_DRY_RUN=1 revient a la simulation.")
+            if cfg.broker == "bitvavo_margin":
+                detail += (" VENTE A DECOUVERT ACTIVE : une position vendeuse "
+                           "emprunte l'actif et paie un interet journalier "
+                           "tant qu'elle reste ouverte.")
+            self.notifier.warning("Bitvavo en mode REEL", detail)
 
         if cfg.broker == "moonx" and cfg.offline:
             self.notifier.critical("Demarrage refuse",

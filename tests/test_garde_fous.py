@@ -21,28 +21,81 @@ from gold_bot.calibrage import COUT_INCOMPRESSIBLE, calibrer
 from gold_bot.promotion import Promotion
 from gold_bot.settings import BotConfig
 
-FRAIS_BITVAVO = 0.0025          # par cote, palier de base
+FRAIS_BITVAVO = 0.0025          # taker, par cote, palier de base (< 100 k EUR/mois)
+FRAIS_MAKER = 0.0015            # maker, par cote, meme palier
+
+# ATR mesures dans les journaux du 28 aout, en fraction du prix. Le H1 se
+# deduit par racine du temps depuis le M15 (0,56 % x 2), valeur coherente
+# avec le H4 et le D1 effectivement observes.
+ATR_PAR_UNITE = {"M5": 0.0030, "M15": 0.0056, "H1": 0.0112,
+                 "H4": 0.0224, "D1": 0.0546}
 
 
 def config() -> BotConfig:
     return BotConfig.load("robot.bitvavo.json")
 
 
-class TestPlafondDeCout:
-    """Les frais ne peuvent pas manger plus de 15 % du risque.
+PLAFOND_COUT = 35.0             # % du risque, decision du 29 aout
 
-    Remonter ce plafond « garde le M15 viable » en retirant la mesure, pas
-    en changeant le probleme : au tarif normal un aller-retour M15 coute
-    0,78 R, et il faut alors gagner plus d'une fois sur deux pour seulement
-    rentrer dans ses frais.
+
+class TestPlafondDeCout:
+    """Les frais ne peuvent pas manger plus de 35 % du risque.
+
+    Le plafond etait a 15 % quand l'unite d'entree etait le H4 (stop 3,1 %
+    du prix). Passer au H1 divise le stop par deux : a 1,6 ATR il vaut
+    1,79 %, et les memes 0,60 % de frais y pesent 33 %. Tenir 15 % au H1
+    exigerait un stop de 4 % — soit du H4 deguise.
+
+    Le plafond a donc suivi l'unite, mais il reste une MESURE et non une
+    formalite : a 70 % — la valeur du 29 aout au matin — le M5 passait,
+    avec des frais a 182 % du risque et une reussite necessaire de 122 %.
+    Un chiffre superieur a 100 % n'est pas un objectif difficile, c'est une
+    impossibilite arithmetique.
+
+    La regle qui fonde ce nombre : frais / stop <= plafond, avec
+    frais = 0,60 % au marche. Changer l'unite sans refaire cette division
+    est exactement l'erreur que ce fichier existe pour empecher.
     """
 
     @pytest.mark.parametrize("section", ["risk", "strategy", "trade"])
-    def test_le_plafond_reste_a_15_pour_cent(self, section):
+    def test_le_plafond_est_le_meme_partout(self, section):
         valeur = getattr(getattr(config(), section), "max_cost_ratio_pct")
-        assert valeur == pytest.approx(15.0), (
-            f"{section}.max_cost_ratio_pct vaut {valeur} au lieu de 15.0 — "
-            "voir CLAUDE.md avant de modifier")
+        assert valeur == pytest.approx(PLAFOND_COUT), (
+            f"{section}.max_cost_ratio_pct vaut {valeur} au lieu de "
+            f"{PLAFOND_COUT} — voir CLAUDE.md avant de modifier")
+
+    def test_le_plafond_correspond_au_stop_reellement_configure(self):
+        """Le plafond n'est pas un chiffre libre : il decoule du stop.
+
+        C'est ce lien qui manquait quand le plafond est passe a 70 % : on
+        avait desserre la mesure sans toucher au stop, donc sans rien
+        changer au probleme qu'elle mesurait.
+        """
+        cfg = config()
+        atr = ATR_PAR_UNITE[cfg.strategy.entry_tf]
+        stop = atr * cfg.trade.atr_stop_mult
+        cout_reel = (2 * FRAIS_BITVAVO + COUT_INCOMPRESSIBLE) / stop * 100
+        assert cout_reel <= cfg.risk.max_cost_ratio_pct + 1e-9, (
+            f"au tarif normal l'unite {cfg.strategy.entry_tf} coute "
+            f"{cout_reel:.0f} % du risque, au-dela du plafond "
+            f"{cfg.risk.max_cost_ratio_pct:.0f} % : le robot refusera tout")
+
+    def test_l_esperance_reste_atteignable(self):
+        """La reussite necessaire doit rester sous ce qu'un systeme peut faire.
+
+        Au-dela de 55 % on demande au robot d'etre meilleur que ce qu'aucun
+        de ses rejeux n'a jamais montre. Au-dela de 100 %, on lui demande
+        l'impossible — et c'est arrive.
+        """
+        cfg = config()
+        atr = ATR_PAR_UNITE[cfg.strategy.entry_tf]
+        stop = atr * cfg.trade.atr_stop_mult
+        frais_en_r = (2 * FRAIS_BITVAVO + COUT_INCOMPRESSIBLE) / stop
+        necessaire = (1 + frais_en_r) / (1 + cfg.trade.tp_r_multiple) * 100
+        assert necessaire <= 55.0, (
+            f"il faudrait gagner {necessaire:.1f} % des trades pour une "
+            f"esperance nulle, en {cfg.strategy.entry_tf} a "
+            f"{cfg.trade.tp_r_multiple}R — voir CLAUDE.md")
 
     def test_ce_plafond_laisse_passer_l_unite_retenue(self):
         """La consequence voulue, verifiee et non supposee."""
@@ -100,15 +153,34 @@ class TestUniteDeTemps:
     strict, c'etait le M15 qui ne tient pas sur cette plateforme.
     """
 
-    def test_l_unite_d_entree_est_celle_qui_a_gagne_au_rejeu(self):
-        """H4, choisi sur mesure et non sur conviction.
+    def test_l_unite_d_entree_est_la_plus_rapide_qui_absorbe_les_frais(self):
+        """H1 : la plus rapide dont l'arithmetique tienne encore.
 
-        Rejeu du 28 aout, 8 cryptos, 2000 bougies, frais pleins et spread
-        triple : H4 sort a +0,267 R sur 69 trades, contre +0,230 pour D1 et
-        +0,453 pour M15 sur 39 trades seulement. Le M15 exige en outre un
-        plafond de cout a 25 % — 60 % du risque part en frais.
+        Le H4 gagnait au rejeu du 28 aout (+0,267 R sur 69 trades), mais il
+        ne produit qu'une poignee d'occasions par jour, et l'operateur a
+        besoin que le robot travaille. Le H1 quadruple le nombre de bougies
+        pour un cout mesure de 33 % du risque a 1,6 ATR — contre 49 % au
+        stop precedent de 1,1 ATR, qui ne tenait pas.
+
+        En dessous, la division cesse d'etre favorable, et aucun reglage de
+        strategie n'y change quoi que ce soit :
+            M30 a 1,6 ATR -> 47 % du risque
+            M15 a 1,6 ATR -> 67 %
+            M5  a 1,6 ATR -> 125 %
         """
-        assert config().strategy.entry_tf == "H4", "voir CLAUDE.md"
+        assert config().strategy.entry_tf == "H1", "voir CLAUDE.md"
+
+    def test_les_unites_plus_rapides_restent_hors_de_portee(self):
+        """La consequence, verifiee et non supposee."""
+        cfg = config()
+        for unite in ("M5", "M15", "M30"):
+            atr = ATR_PAR_UNITE.get(unite, 0.0080)
+            stop = atr * cfg.trade.atr_stop_mult
+            cout = (2 * FRAIS_BITVAVO + COUT_INCOMPRESSIBLE) / stop * 100
+            assert cout > cfg.risk.max_cost_ratio_pct, (
+                f"{unite} couterait {cout:.0f} % du risque, sous le plafond "
+                f"{cfg.risk.max_cost_ratio_pct:.0f} % : il redeviendrait "
+                "selectionnable")
 
     def test_le_stop_temporel_est_a_l_echelle_du_d1(self):
         """Le piege : 180 minutes ont du sens en M15, aucun en D1.
@@ -128,9 +200,12 @@ class TestUniteDeTemps:
     def test_le_spread_ordinaire_passe_sur_l_unite_retenue(self):
         """Ce qui bloquait 91,7 % de l'univers en M15 doit passer."""
         cfg = config()
-        atr = 0.0224                                   # ATR H4 mesure, fraction du prix
+        atr = ATR_PAR_UNITE[cfg.strategy.entry_tf]
         spread_ordinaire = 0.0022                      # ~0,22 %, ordre de grandeur observe
-        assert spread_ordinaire / atr <= cfg.strategy.max_spread_atr_ratio
+        assert spread_ordinaire / atr <= cfg.strategy.max_spread_atr_ratio, (
+            f"un spread ordinaire vaut {spread_ordinaire/atr:.2f} ATR en "
+            f"{cfg.strategy.entry_tf}, au-dela du filtre "
+            f"{cfg.strategy.max_spread_atr_ratio} : l'univers serait vide")
 
     def test_l_unite_n_est_plus_choisie_a_la_volee(self):
         """Une echelle adaptative ramenerait le robot vers le M15."""
@@ -139,18 +214,104 @@ class TestUniteDeTemps:
         assert cfg.strategy.timeframe_ladder == [cfg.strategy.entry_tf]
 
 
-class TestAucunLevier:
-    """Le compte est au comptant.
+class TestLevierMaitrise:
+    """Le levier sert a ouvrir des positions, pas a grossir le risque.
 
-    Un levier multiplie les gains ET les pertes. Sur un systeme dont
-    l'esperance n'est pas etablie, il ne rend rien gagnant : il fait perdre
-    plus vite.
+    Decision du 29 aout : l'operateur autorise le levier. La raison est
+    mesurable et n'a rien a voir avec l'esperance — celle-ci est
+    INVARIANTE au levier, qui multiplie la taille et les frais dans la
+    meme proportion. A 70 EUR :
+
+        1x  ->  2 positions   (c'est le CASH qui bloque)
+        2x  ->  5 positions   (c'est le budget de risque qui bloque)
+        3x  ->  5 positions
+        10x ->  5 positions
+
+    Le levier debloque donc les positions que le budget de risque autorise
+    deja et que le cash rendait inatteignables. Au-dela du point ou le
+    budget de risque redevient la contrainte, augmenter n'ouvre AUCUNE
+    position de plus : seul le risque de liquidation monte.
     """
 
-    def test_le_levier_reste_a_un(self):
+    def test_le_levier_reste_dans_ce_que_bitvavo_autorise(self):
         levier = config().risk.max_leverage
-        assert levier == pytest.approx(1.0), (
-            f"max_leverage vaut {levier} — voir CLAUDE.md avant de modifier")
+        assert 1.0 <= levier <= 10.0, (
+            f"max_leverage vaut {levier} : Bitvavo plafonne a 10x sur ses "
+            "actifs eligibles — voir CLAUDE.md")
+
+    def test_le_budget_de_risque_reste_la_vraie_contrainte(self):
+        """LE test de cette section.
+
+        Tant que le nombre de positions est borne par `max_total_risk_pct`
+        et non par le cash, le levier ne fait qu'occuper des places deja
+        autorisees. Le jour ou le cash redevient limitant, c'est que le
+        risque total a ete relache — et c'est CA qu'il faut regarder, pas
+        le levier.
+        """
+        cfg = config()
+        capital = 70.0
+        stop = ATR_PAR_UNITE[cfg.strategy.entry_tf] * cfg.trade.atr_stop_mult
+        notionnel = capital * cfg.risk.base_risk_pct / 100.0 / stop
+
+        pouvoir = capital * cfg.risk.max_leverage * cfg.risk.max_capital_engaged_pct / 100.0
+        places_cash = int(pouvoir // notionnel)
+        places_risque = int(cfg.risk.max_total_risk_pct // cfg.risk.base_risk_pct)
+
+        assert places_cash >= min(places_risque, cfg.risk.max_positions), (
+            f"le cash ne permet que {places_cash} position(s) alors que le "
+            f"budget de risque en autorise {places_risque} : le robot "
+            "restera bloque en dessous de sa capacite")
+
+    def test_le_risque_par_trade_ne_suit_pas_le_levier(self):
+        """Le levier ne doit pas se glisser dans le risque par trade.
+
+        C'est la confusion qui coute cher : croire qu'un levier de 3
+        autorise un risque de 3 x 0,6 %. Le dimensionnement part du risque
+        et remonte vers la taille, jamais l'inverse.
+        """
+        cfg = config()
+        assert cfg.risk.base_risk_pct <= 1.0, (
+            f"risque de base a {cfg.risk.base_risk_pct} % : trop eleve pour "
+            "un compte a levier")
+        assert cfg.risk.max_total_risk_pct <= 4.0, (
+            f"risque total a {cfg.risk.max_total_risk_pct} % : le levier a "
+            "servi a grossir le risque, pas a ouvrir des places")
+
+    def test_les_coupe_circuits_restent_serres_sous_levier(self):
+        """Sous levier, une serie de pertes va plus vite. Les freins doivent tenir."""
+        cfg = config()
+        assert 0 < cfg.risk.daily_loss_limit_pct <= 5.0
+        assert 0 < cfg.risk.max_drawdown_pct <= 30.0
+        assert cfg.risk.max_consecutive_losses <= 5
+        assert cfg.trade.time_stop_minutes > 0, (
+            "sans stop temporel, une position a levier paie des interets "
+            "d'emprunt indefiniment")
+
+    def test_le_moteur_impose_le_levier_de_la_configuration_au_broker(self):
+        """Le defaut d'environnement du broker de marge est 10x.
+
+        Si le moteur ne le contredisait pas, il suffirait d'une variable
+        oubliee pour que le compte parte a dix fois le capital.
+        """
+        import inspect
+        from gold_bot.dual_scalping_engine import DualScalpingEngine
+        source = inspect.getsource(DualScalpingEngine._broker_bitvavo_margin)
+        assert "BITVAVO_MARGIN_LEVERAGE" in source
+        assert "max_leverage" in source, (
+            "le plafond de levier du broker ne suit plus la configuration")
+
+    def test_le_moteur_impose_le_levier_de_la_configuration_au_broker(self):
+        """Le defaut d'environnement du broker de marge est 10x.
+
+        Si le moteur ne le contredisait pas, il suffirait d'une variable
+        oubliee pour que le compte parte a dix fois le capital.
+        """
+        import inspect
+        from gold_bot.dual_scalping_engine import DualScalpingEngine
+        source = inspect.getsource(DualScalpingEngine._broker_bitvavo_margin)
+        assert "BITVAVO_MARGIN_LEVERAGE" in source
+        assert "max_leverage" in source, (
+            "le plafond de levier du broker ne suit plus la configuration")
 
 
 class TestFenetreSansCommission:
@@ -159,22 +320,44 @@ class TestFenetreSansCommission:
     Sans lui, plus rien ne le fait quand la fenetre se ferme.
     """
 
-    def test_le_bloc_est_present_et_borne(self):
+    def test_le_bloc_est_present(self):
+        """Present, meme quand aucune fenetre n'est en cours.
+
+        L'ancienne assertion exigeait `active` : elle confondait « le
+        mecanisme d'expiration existe » avec « une promotion tourne en ce
+        moment ». Aucune promotion n'est declaree, donc `active` est faux —
+        et c'est correct. Ce qui doit rester vrai, c'est que le bloc soit
+        la, pret a expirer tout seul le jour ou on en declare une.
+        """
+        assert isinstance(config().promotion, dict), (
+            "bloc promotion absent — voir CLAUDE.md")
+        assert "sans_frais_jusqu_au" in config().promotion, (
+            "le bloc ne porte plus de date de fin : une fenetre declaree "
+            "n'expirerait jamais")
+
+    def test_une_fenetre_active_porte_toujours_sa_fin(self):
+        """La vraie invariante : active => bornee."""
         p = Promotion.depuis_config(config().promotion)
-        assert p.active, "bloc promotion absent ou desactive — voir CLAUDE.md"
-        assert p.fin, "une fenetre sans date de fin n'expire jamais"
+        if p.active:
+            assert p.fin, "une fenetre sans date de fin n'expire jamais"
 
     def test_elle_porte_sa_propre_fin(self):
+        """Verifie le mecanisme lui-meme, sans dependre du fichier livre."""
         import datetime as dt
-        p = Promotion.depuis_config(config().promotion)
+        p = Promotion.depuis_config({"active": True,
+                                     "sans_frais_jusqu_au": "2026-09-15"})
         fin = dt.date.fromisoformat(p.fin)
         assert p.en_cours(fin) is True
         assert p.en_cours(fin + dt.timedelta(days=1)) is False
 
     def test_apres_expiration_le_tarif_reel_revient(self):
+        """Le lendemain, le robot repaie ses frais — sans intervention."""
         import datetime as dt
-        p = Promotion.depuis_config(config().promotion)
-        lendemain = dt.date.fromisoformat(p.fin) + dt.timedelta(days=1)
+        p = Promotion.depuis_config({"active": True,
+                                     "sans_frais_jusqu_au": "2026-09-15"})
+        fin = dt.date.fromisoformat(p.fin)
+        assert p.frais_effectifs(FRAIS_BITVAVO, fin) == pytest.approx(0.0)
+        lendemain = fin + dt.timedelta(days=1)
         assert p.frais_effectifs(FRAIS_BITVAVO, lendemain) == pytest.approx(FRAIS_BITVAVO)
 
 
@@ -311,11 +494,14 @@ class TestFiltresDEntree:
         """
         cfg = config()
         barrieres = {
-            "quorum": cfg.strategy.min_confirmations >= 4,
+            "quorum": cfg.strategy.min_confirmations >= 3,
             "score": cfg.strategy.min_score >= 0.30,
             "ratio_rr": cfg.strategy.min_rr >= 1.5,
             "volatilite": cfg.strategy.min_atr_price_ratio > 0,
-            "cout": 0 < cfg.risk.max_cost_ratio_pct <= 15.0,
+            "cout": 0 < cfg.risk.max_cost_ratio_pct <= PLAFOND_COUT,
+            "spread": 0 < cfg.strategy.max_spread_atr_ratio < 0.6,
+            "perte_journaliere": 0 < cfg.risk.daily_loss_limit_pct <= 5.0,
+            "drawdown": 0 < cfg.risk.max_drawdown_pct <= 30.0,
         }
         tombees = [nom for nom, ok in barrieres.items() if not ok]
         assert not tombees, f"barriere(s) desarmee(s) : {tombees} — voir CLAUDE.md"

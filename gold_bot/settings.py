@@ -99,7 +99,8 @@ class BotConfig:
     def validate(self) -> list[str]:
         problems: list[str] = []
         r, t, s, e = self.risk, self.trade, self.strategy, self.engine
-        brokers_valides = {"paper", "bitvavo", "pionex", "coinbase", "bitstamp", "multi", "ibkr"}
+        brokers_valides = {"paper", "bitvavo", "bitvavo_margin", "pionex",
+                           "coinbase", "bitstamp", "multi", "ibkr"}
         if e.broker not in brokers_valides: problems.append(f"broker invalide : {e.broker}")
         if e.offline and e.broker != "paper":
             problems.append(f"mode hors ligne incompatible avec une execution reelle ({e.broker})")
