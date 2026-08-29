@@ -159,6 +159,14 @@ class TradingEngine:
                                self.news, cfg.strategy.history,
                                max_workers=cfg.engine.scan_workers)
         self.risk = RiskManager(cfg.risk)
+        # Le risque VOULU par le fichier, garde avant que le calibrage ou le
+        # palier de croissance ne le rabaissent. Sans cette reference, un
+        # plafond applique une fois deviendrait definitif : le robot ne
+        # saurait plus a quoi revenir une fois l'avantage etabli.
+        self._risque_configure = float(cfg.risk.base_risk_pct)
+        # Plancher impose par le ticket minimum de la plateforme, rempli par
+        # le calibrage. Le palier ne descend jamais en dessous.
+        self._risque_plancher = 0.0
         self.objectives = ObjectiveTracker(cfg.objectives)
         # Le lieu d'execution nomme l'instance : deux robots sur deux
         # plateformes tiennent ainsi des comptes separes, sans quoi leurs
@@ -266,6 +274,51 @@ class TradingEngine:
         return ecartes
 
     # ---------------------------------------------------------------
+    def _appliquer_palier_de_croissance(self) -> None:
+        """Plafonne le risque par trade tant que l'avantage n'est pas prouve.
+
+        Un compte grandit par `risque x esperance`. Monter le risque avant
+        de connaitre le signe de l'esperance ne fait pas grandir plus vite :
+        ca amplifie ce qui est la. Le 28 aout, 72 trades a -0,406 R — doubler
+        le risque aurait divise le temps de survie par deux.
+
+        Le plafond suit donc l'echantillon reel du journal, et il ne peut
+        que RESTREINDRE ce que la configuration demande : un fichier qui
+        reclame 1,5 % n'obtient 1,5 % qu'une fois l'avantage etabli.
+        """
+        from .croissance import diagnostiquer
+
+        try:
+            stats = self.journal.stats()
+        except Exception as exc:  # noqa: BLE001 - jamais bloquant
+            logger.debug("palier de croissance : journal illisible (%s)", exc)
+            return
+
+        diag = diagnostiquer(self.risk.account.equity, 0.0, stats, 0.0)
+        demande = float(self._risque_configure)
+        plancher = float(self._risque_plancher)
+        retenu = max(min(demande, diag.palier.risque_pct), plancher)
+        if abs(self.risk.config.base_risk_pct - retenu) < 1e-9:
+            return
+
+        self.risk.config.base_risk_pct = retenu
+        if retenu < demande:
+            logger.warning(
+                "PALIER « %s » : risque ramene a %.2f %% (la configuration "
+                "demande %.2f %%) — %d trade(s), esperance %+.3f R. Manque : %s",
+                diag.palier.nom, retenu, demande, diag.trades, diag.esperance_r,
+                "; ".join(diag.manques) or "conditions du palier suivant non remplies")
+        elif plancher > diag.palier.risque_pct:
+            logger.warning(
+                "PALIER « %s » releve a %.2f %% : le ticket minimum de la "
+                "plateforme l'impose. En dessous, aucun trade n'est "
+                "dimensionnable.", diag.palier.nom, retenu)
+        else:
+            logger.info("PALIER « %s » : risque a %.2f %% par trade, "
+                        "avantage etabli sur %d trade(s) (%+.3f R)",
+                        diag.palier.nom, retenu, diag.trades, diag.esperance_r)
+
+    # ---------------------------------------------------------------
     def _calibrer_sur_le_capital(self) -> None:
         """Aligne la strategie sur ce que le capital permet reellement.
 
@@ -334,6 +387,12 @@ class TradingEngine:
                 logger.warning("risque par trade porte a %.3f %% (ticket minimum "
                                "de %.2f a atteindre)", cal.risk_pct, cal.ticket_minimum)
                 cfg.risk.base_risk_pct = cal.risk_pct
+                # PLANCHER, et non preference : en dessous, le lot minimum de
+                # la plateforme est inatteignable et plus aucun trade ne peut
+                # etre dimensionne. Le palier de croissance plafonne le risque
+                # choisi, jamais celui que l'arithmetique impose — sinon il
+                # figerait le robot en croyant le proteger.
+                self._risque_plancher = cal.risk_pct
 
             # L'unite d'entree suit ce que le capital autorise, sauf si la
             # configuration en demande deja une plus lente — on ne descend
@@ -582,6 +641,9 @@ class TradingEngine:
         # part de risque que le lot minimum rend impossible a maitriser.
         palier = self.capital_tier()
         self.risk.config.max_positions = palier["positions_simultanees"]
+
+        # Le risque par trade ne monte qu'apres PREUVE, jamais par impatience.
+        self._appliquer_palier_de_croissance()
 
         # 2. Gestion des positions ouvertes (priorite absolue)
         self._manage_positions(positions)

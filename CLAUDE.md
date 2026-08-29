@@ -300,6 +300,74 @@ le nombre de confirmations exigées, et le compter deux fois punirait deux
 fois la même situation — le robot cesserait d'entrer exactement quand il
 doit se refaire.
 
+## Le plan de croissance : 186 EUR -> 3 000 EUR
+
+Décidé le 29 août. Les 90 EUR d'IBKR rejoignent Bitvavo (186 EUR au
+total) ; IBKR n'est plus touché jusqu'à 3 000 EUR, où 1 500 EUR y seront
+reversés — au-dessus du seuil de ~830 EUR calculé plus haut.
+
+### Ce que « vite » veut dire, arithmétiquement
+
+Un compte grandit par `risque × espérance`, composé à chaque trade :
+
+    jours = ln(cible / capital) / (trades_par_jour × ln(1 + risque × espérance))
+
+186 → 3 000, c'est **×16**. À 6 trades par jour :
+
+    espérance      0,6 %       1,0 %       1,5 %   <- risque par trade
+      −0,10 R     jamais      jamais      jamais
+      +0,00 R     jamais      jamais      jamais
+      +0,05 R      1545 j       927 j       618 j
+      +0,10 R       773 j       464 j       309 j
+      +0,20 R       386 j       232 j       155 j
+      +0,30 R       258 j       155 j       103 j
+
+Le rejeu H4 du 28 août donnait +0,267 R. En prenant ce chiffre pour
+argent comptant — ce qu'il ne faut pas faire, il vient d'un rejeu et non
+du réel — la cible demande **entre 4 et 8 mois**. Il n'y a pas de réglage
+qui raccourcisse cela : seule l'espérance le peut, et elle ne se décide
+pas.
+
+### La ligne à ne jamais franchir
+
+**Une espérance négative ne se rattrape pas en montant le risque.** Le
+risque, la cadence et le levier amplifient le *signe* de l'espérance ; ils
+ne le changent pas. Le 28 août, 72 trades à −0,406 R : doubler le risque
+aurait divisé le temps de survie par deux, pas rapproché la cible.
+
+C'est pourquoi le risque est désormais **verrouillé sur la preuve**, dans
+`gold_bot/croissance.py`, et appliqué à chaque cycle par
+`TradingEngine._appliquer_palier_de_croissance` :
+
+| palier | risque | conditions d'entrée |
+|---|---|---|
+| `preuve` | 0,60 % | aucune — c'est lui qui produit l'échantillon |
+| `croissance` | 1,00 % | ≥ 40 trades **et** espérance ≥ +0,05 R |
+| `acceleration` | 1,50 % | ≥ 150 trades **et** espérance ≥ +0,15 R |
+
+Le palier **plafonne** le risque : une configuration qui demande 1,5 %
+n'obtient 1,5 % qu'une fois l'avantage établi. Il ne descend jamais sous
+le plancher imposé par le ticket minimum de la plateforme — sinon le robot
+se figerait en croyant se protéger.
+
+Une espérance flatteuse sur 10 trades ne débloque rien : à 40 trades
+l'incertitude vaut encore ±0,32 R. `Diagnostic.esperance_fiable()` exige
+que l'espérance dépasse deux fois cette incertitude avant qu'on puisse
+parler d'avantage.
+
+### Le premier objectif n'est pas 3 000 EUR
+
+C'est **40 trades avec une espérance positive**. Tant que ce n'est pas
+acquis, la vitesse ne veut rien dire : composer une espérance négative
+n'amène pas à 3 000, ça amène à zéro — simplement plus vite si on
+accélère.
+
+    python3 plan_croissance.py --capital 186 --cible 3000
+
+répond avec le journal réel, dit à quel palier le robot se trouve, ce
+qu'il manque pour monter d'un cran, et ce que coûte la série noire à
+chaque niveau de risque.
+
 ## Deux règles de méthode
 
 **Ne jamais supprimer un test pour faire passer la suite.** Si un test
