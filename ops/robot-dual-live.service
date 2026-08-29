@@ -14,7 +14,12 @@ Environment=IBKR_PORT=4001
 Environment=IBKR_TRADING_LIVE=1
 Environment=IBKR_ALLOW_SHORT=1
 Environment=BITVAVO_DRY_RUN=0
-ExecStart=/usr/bin/python3 /home/ubuntu/Eve-AI-Influencer/run_dual_live.py
+# Sans cela, journalctl n'affiche les lignes que par blocs de 8 Ko : pendant
+# une panne on croit le robot muet alors qu'il ecrit dans un tampon.
+Environment=PYTHONUNBUFFERED=1
+# L'interpreteur du venv, pas celui du systeme : ib_async n'est installe que
+# dans le venv (Ubuntu 26.04 refuse les paquets Python hors venv, PEP 668).
+ExecStart=/home/ubuntu/Eve-AI-Influencer/.venv/bin/python /home/ubuntu/Eve-AI-Influencer/run_dual_live.py
 Restart=always
 RestartSec=10
 KillSignal=SIGTERM

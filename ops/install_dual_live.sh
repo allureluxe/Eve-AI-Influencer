@@ -5,9 +5,17 @@ ROOT=/home/ubuntu/Eve-AI-Influencer
 VENV="$ROOT/.venv"
 SERVICE=/etc/systemd/system/robot-dual-live.service
 
+# La branche etait ecrite en dur. Deux branches vivent dans ce depot, et
+# deployer la mauvaise reinstalle silencieusement une version anterieure du
+# robot — sans erreur, sans message : le service redemarre simplement avec
+# l'ancien code. Elle est donc nommee ici, et surchargeable :
+#   BRANCHE=... ./ops/install_dual_live.sh
+BRANCHE="${BRANCHE:-claude/bitvavo-ibkr-integration-waiac5}"
+
 cd "$ROOT"
-git fetch origin
-git reset --hard origin/claude/gold-trading-system-auto-6boe8m
+git fetch origin "$BRANCHE"
+git reset --hard "origin/$BRANCHE"
+echo "== code deploye : $BRANCHE @ $(git rev-parse --short HEAD) =="
 
 # Ubuntu 26.04 enforces PEP 668: keep all Python packages in a venv.
 if [ ! -x "$VENV/bin/python" ]; then
@@ -16,7 +24,9 @@ if [ ! -x "$VENV/bin/python" ]; then
   python3 -m venv "$VENV"
 fi
 "$VENV/bin/python" -m pip install -q --disable-pip-version-check --upgrade pip
-"$VENV/bin/python" -m pip install -q --disable-pip-version-check ib_async
+# La version d'ib_async est epinglee dans requirements-ibkr.txt : l'installer
+# sans borne ferait arriver une version majeure incompatible sans prevenir.
+"$VENV/bin/python" -m pip install -q --disable-pip-version-check -r "$ROOT/requirements-ibkr.txt"
 
 # Install the service file FIRST; it may not exist on a fresh VPS.
 sudo install -m 0644 "$ROOT/ops/robot-dual-live.service" "$SERVICE"
@@ -45,7 +55,16 @@ ps -ef | grep -E 'run_dual_live|run_dual_scalping|ibgateway|GWClient' | grep -v 
 
 echo
 echo "===== IB API PORTS ====="
-ss -ltnp | grep -E ':400[0-9]\\b' || echo 'AUCUN PORT IB 400x EN ECOUTE'
+ss -ltnp | grep -E ':400[0-9]\b' || echo 'AUCUN PORT IB 400x EN ECOUTE'
+
+echo
+echo "===== ETAT REEL DE LA PASSERELLE IBKR ====="
+# Un port ouvert ne veut pas dire une session authentifiee : c'est ce
+# diagnostic-la qui distingue « Gateway eteinte » de « Gateway en attente
+# du code SMS ». Il ne doit pas faire echouer l'installation.
+set +e
+(set -a; . "$ROOT/.env" 2>/dev/null; set +a; "$VENV/bin/python" "$ROOT/verifier_ibkr.py")
+set -e
 echo
 echo "===== LIVE LOG ====="
 sudo journalctl -u robot-dual-live.service -n 120 --no-pager

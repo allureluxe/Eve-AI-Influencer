@@ -416,9 +416,26 @@ class TradingEngine:
                                    "execution reelle demandee avec des donnees synthetiques")
             return False
 
-        if not self.broker.connect():
-            self.notifier.critical("Connexion au broker impossible",
-                                   f"broker={cfg.broker} — verifier la configuration")
+        # Un broker signale une connexion impossible de DEUX facons : en
+        # rendant False, ou en levant une BrokerError qui, elle, porte la
+        # cause exacte. Seule la premiere etait traitee : une passerelle IBKR
+        # eteinte faisait remonter une trace de pile jusqu'au superviseur,
+        # qui relancait le processus sans que personne ne lise jamais la
+        # phrase utile. On rattrape donc les deux, et on garde le motif.
+        try:
+            connecte = self.broker.connect()
+            motif = f"broker={cfg.broker} — verifier la configuration"
+        except BrokerError as exc:
+            connecte, motif = False, str(exc)
+        if not connecte:
+            logger.error("connexion impossible : %s", motif)
+            self.notifier.critical("Connexion au broker impossible", motif)
+            if cfg.broker == "ibkr":
+                # IBKR ne s'ouvre pas avec une cle : il faut une passerelle
+                # authentifiee, second facteur compris. Le journal doit le
+                # dire, sinon on cherche du cote de la configuration.
+                from .ibkr_readiness import etat_passerelle
+                logger.error("%s", etat_passerelle().resume())
             return False
 
         # Les contraintes de la plateforme font foi sur celles declarees par

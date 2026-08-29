@@ -16,6 +16,7 @@ from .engine import TradingEngine
 from .scalping_engine import ContinuousScalpingMixin
 from .universe import Instrument
 from .brokers import IBKRBroker
+from .brokers.ibkr_hardened import HardenedIBKRBroker
 
 logger = logging.getLogger(__name__)
 
@@ -101,10 +102,33 @@ class DualScalpingEngine(MultiEntryScalpingMixin, TradingEngine):
                 quote_currency=quote, correlation_group=str(spec.get("correlation_group", f"ibkr_{sym}")),
             ))
 
-        broker = IBKRBroker()
+        # Broker DURCI, pas le broker nu : c'est lui qui porte la
+        # reconnexion automatique au Gateway et le port 4001 (reel) au lieu
+        # de 4002 (papier). Le moteur tourne des jours d'affilee ; un Gateway
+        # qui se deconnecte la nuit doit se rattraper tout seul.
+        broker = HardenedIBKRBroker()
         if self.config.engine.dry_run:
             broker.live_enabled = False
+
+        # Le tri de l'univers ne lit que la table des contrats declares : il
+        # ne demande rien au Gateway et peut donc se faire hors connexion.
         self._filtrer_univers_sur_le_broker(broker)
-        for inst in self.universe:
-            broker.register_instrument(inst)
+
+        # `register_instrument` interroge le Gateway (reqContractDetails).
+        # L'appeler ici, AVANT que `start()` n'appelle `broker.connect()`,
+        # produisait un « IBKR non connecte » par instrument, avale par le
+        # try/except du broker : cinq avertissements au demarrage et zero
+        # contrat en cache. On repousse donc l'enregistrement juste apres la
+        # connexion reussie.
+        connect_nu = broker.connect
+        univers = self.universe
+
+        def connect_puis_enregistrer() -> bool:
+            ok = connect_nu()
+            if ok:
+                for inst in univers:
+                    broker.register_instrument(inst)
+            return ok
+
+        broker.connect = connect_puis_enregistrer
         return broker
