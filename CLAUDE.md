@@ -368,6 +368,40 @@ répond avec le journal réel, dit à quel palier le robot se trouve, ce
 qu'il manque pour monter d'un cran, et ce que coûte la série noire à
 chaque niveau de risque.
 
+## Trois défauts trouvés en préparant le rejeu (29 août)
+
+Ils ne venaient pas de la stratégie. Ils la rendaient invisible.
+
+**1. BTCUSD était rejeté à chaque évaluation.** L'instrument portait un
+plafond de spread ABSOLU, `max_spread = 30`, hérité d'une autre échelle de
+prix. Le spread modélisé vaut 5 points de base, soit 34 à 68 000 : la
+crypto la plus liquide de l'univers était écartée sur le filtre « spread »,
+450 fois sur 450 au rejeu — et de la même façon en argent réel. Les 81
+paires générées utilisaient déjà `inf` pour cette raison exacte, documentée
+dans `instrument_crypto`. Les quatre réglées à la main ne l'avaient jamais
+été. Corrigé : `max_spread = inf` partout, le contrôle qui vaut est le
+rapport spread/ATR.
+
+**2. Deux modèles de coût dans le même rejeu.** Le filtre de la stratégie
+utilisait `spread_estime()` — relatif — pendant que le dimensionnement,
+faute de recevoir le paramètre, retombait sur `typical_spread`, absolu.
+Les quatre paires réglées à la main étaient donc pénalisées (8,0 de spread
+sur BTCUSD) et les 81 générées flattées (spread nul). Le moteur réel, lui,
+passe `spread=ev.spread`. Le rejeu ne mesurait pas la stratégie qui tourne.
+
+**3. Les tailles de lot écrites en dur rendaient BTCUSD indimensionnable.**
+`min_lot = 0,001` vaut 68 EUR de notionnel à 68 000 — plus du tiers d'un
+compte de 186 EUR — quand Bitvavo n'impose qu'un ticket de 5 EUR. En réel
+`apply_market_rules` remplace ces valeurs au démarrage ; en rejeu, jamais.
+
+La leçon commune : **une constante absolue sur un catalogue qui va du BTC
+à 68 000 au PEPE à 0,00001 est fausse quelque part, toujours.** Trois tests
+la verrouillent désormais (`tests/test_backtest_pipeline.py`), dont un qui
+vérifie que la chaîne évaluation → dimensionnement → ouverture produit
+réellement des trades sur une tendance franche. Un rejeu qui rend zéro
+trade partout ressemble à une stratégie sans avantage ; c'était un filtre
+qui refusait tout en silence.
+
 ## Deux règles de méthode
 
 **Ne jamais supprimer un test pour faire passer la suite.** Si un test

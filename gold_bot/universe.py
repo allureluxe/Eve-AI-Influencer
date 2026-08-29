@@ -233,13 +233,36 @@ DEFAULT_UNIVERSE: list[Instrument] = [
                sessions=LONDON_NY, priority=0.8, correlation_group="commodity_fx", quote_currency="CAD"),
 
     # --- Crypto : prend le relais la nuit et le week-end (24/7) ---
-    Instrument("BTCUSD", "crypto", 2, 1.0, 0.001, 0.001, 20.0, 1000.0, 8.0, 30.0,
+    #
+    # `max_spread` est a l'infini pour TOUTES les cryptos, comme pour les
+    # quatre-vingt-une generees plus bas et pour la raison qu'explique
+    # `instrument_crypto` : un plafond absolu n'a pas de sens quand le prix
+    # bouge d'un facteur dix.
+    #
+    # Ces quatre-la gardaient des valeurs d'une autre epoque, et BTCUSD en
+    # mourait : son plafond valait 30 pour un spread estime de 34 (68 000 x
+    # 5 points de base). La crypto la plus liquide de l'univers etait
+    # ecartee a CHAQUE evaluation, sur le filtre « spread », en backtest
+    # comme en reel — 450 rejets sur 450 au rejeu. Un plafond qui exclut
+    # l'instrument le plus serre du catalogue ne mesure plus rien.
+    #
+    # Le controle qui compte reste `strategy.max_spread_atr_ratio`, qui
+    # compare l'ecart a l'ATR et vaut donc a toutes les echelles de prix.
+    # Les tailles de lot suivent la meme regle que le spread : permissives
+    # ici, remplacees au demarrage par les VRAIES contraintes de la
+    # plateforme (`apply_market_rules`). Une quantite fixe ne peut pas etre
+    # juste a toutes les echelles — 0,001 BTC valait 68 EUR de notionnel,
+    # soit plus du tiers d'un compte de 186 EUR, quand Bitvavo n'impose
+    # qu'un ticket de 5 EUR. En rejeu, ou les regles de marche ne sont
+    # jamais chargees, ces valeurs rendaient BTCUSD indimensionnable et
+    # faussaient toute comparaison de strategies.
+    Instrument("BTCUSD", "crypto", 2, 1.0, 1e-8, 1e-8, 20.0, 1000.0, 8.0, math.inf,
                weekend=True, priority=1.05, correlation_group="crypto_major"),
-    Instrument("ETHUSD", "crypto", 2, 1.0, 0.01, 0.01, 200.0, 50.0, 0.60, 2.50,
+    Instrument("ETHUSD", "crypto", 2, 1.0, 1e-8, 1e-8, 200.0, 50.0, 0.60, math.inf,
                weekend=True, priority=1.0, correlation_group="crypto_major"),
-    Instrument("SOLUSD", "crypto", 3, 1.0, 0.1, 0.1, 2000.0, 5.0, 0.05, 0.25,
+    Instrument("SOLUSD", "crypto", 3, 1.0, 1e-8, 1e-8, 2000.0, 5.0, 0.05, math.inf,
                weekend=True, priority=0.9, correlation_group="crypto_l1"),
-    Instrument("XRPUSD", "crypto", 4, 1.0, 1.0, 1.0, 100000.0, 0.10, 0.0008, 0.0035,
+    Instrument("XRPUSD", "crypto", 4, 1.0, 1e-8, 1e-8, 100000.0, 0.10, 0.0008, math.inf,
                weekend=True, priority=0.8, correlation_group="crypto_paiement"),
 ]
 

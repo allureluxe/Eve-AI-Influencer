@@ -84,11 +84,30 @@ class TestEtendueUnivers:
         assert len(symboles) == len(set(symboles))
 
     def test_les_reglages_manuels_sont_preserves(self):
-        """La generation automatique ne doit pas ecraser les paires reglees."""
+        """La generation automatique ne doit pas ecraser les paires reglees.
+
+        Ce que le test protege, c'est l'IDENTITE des quatre paires reglees
+        a la main : elles ne doivent pas etre remplacees par des entrees
+        generiques. Il verifiait en plus des contraintes de taille et de
+        spread ecrites en dur — et celles-la etaient fausses.
+
+        `min_lot = 0,001` valait 68 EUR de notionnel sur un BTC a 68 000,
+        soit plus du tiers d'un compte de 186 EUR, quand Bitvavo n'impose
+        qu'un ticket de 5 EUR. `max_spread = 30` etait depasse par le
+        spread modelise lui-meme (34 a 5 points de base) : BTCUSD etait
+        rejete a chaque evaluation, en rejeu comme en reel.
+
+        Ces deux valeurs sont desormais permissives, comme pour les
+        quatre-vingt-une paires generees, et remplacees au demarrage par
+        les vraies regles de la plateforme.
+        """
         btc = Universe().get("BTCUSD")
         assert btc.digits == 2
-        assert btc.min_lot == 0.001
-        assert math.isfinite(btc.max_spread)
+        assert btc.priority > 1.0
+        assert btc.correlation_group == "crypto_major"
+        assert btc.weekend is True
+        assert btc.typical_spread > 0, (
+            "la paire generique porte un spread nul : BTCUSD a ete ecrase")
 
     def test_traduction_en_code_du_lieu_d_execution(self):
         """Binance a ete retire du projet : la meme garantie sur Bitvavo."""

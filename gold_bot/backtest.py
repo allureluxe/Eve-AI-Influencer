@@ -230,8 +230,22 @@ class Backtester:
                 result.rejections[key] = result.rejections.get(key, 0) + 1
                 continue
 
+            # LE SPREAD DOIT ETRE LE MEME PARTOUT DANS LE REJEU.
+            #
+            # Le filtre de la strategie utilise `spread_estime()` — relatif,
+            # 5 points de base — tandis que le dimensionnement, faute de
+            # recevoir le parametre, retombait sur `instrument.typical_spread`,
+            # une valeur ABSOLUE heritee d'une autre echelle de prix. Deux
+            # modeles de cout dans le meme rejeu : les quatre cryptos reglees
+            # a la main etaient penalisees (BTCUSD portait 8,0 de spread) et
+            # les quatre-vingt-une generees flattees (spread de zero).
+            #
+            # Le moteur reel passe `spread=ev.spread` (voir engine._execute) :
+            # sans cette ligne, le rejeu ne mesurait pas la meme strategie que
+            # celle qui tourne.
             sizing = risk.size_position(instrument, ev.side, ev.entry, ev.stop_loss,
-                                        ev.take_profit, broker.positions(), self.universe.get)
+                                        ev.take_profit, broker.positions(),
+                                        self.universe.get, spread=tick.spread)
             if not sizing.allowed:
                 key = "dimensionnement"
                 result.rejections[key] = result.rejections.get(key, 0) + 1

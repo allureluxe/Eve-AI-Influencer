@@ -53,32 +53,79 @@ def variante(nom: str, **reglages) -> tuple[str, dict]:
     return nom, reglages
 
 
-# Chaque variante ne change QUE ce qui est nomme : le reste vient de la
-# configuration en service, pour que la comparaison porte sur une seule
-# difference a la fois.
-H4 = dict(entry_tf="H4", trigger_tf="H1", context_tf="H4", bias_tf="D1",
-          require_candle_confirmation=False)
+# --------------------------------------------------------------------------
+# LES CANDIDATES
+# --------------------------------------------------------------------------
+# Deux familles, et une raison de les opposer.
+#
+# 1. SUIVI DE TENDANCE LENT. C'est la seule approche crypto qui dispose de
+#    preuves publiees serieuses : le momentum de serie temporelle. La
+#    litterature converge sur des horizons LONGS — un travail de reference
+#    trouve son optimum a 28 jours de lecture pour 5 jours de detention,
+#    avec un Sharpe de 1,51 contre 0,84 pour l'achat simple. Traduit ici :
+#    entree en D1 ou H4, tendance ponderee lourd, pas de contre-tendance,
+#    accord entre unites de temps exige, stop large, objectif lointain.
+#
+#    Le tarif Bitvavo pousse dans le meme sens : a 0,60 % l'aller-retour,
+#    les frais valent 33 % du risque en H1 et 10 % en D1. Les deux
+#    raisonnements — la preuve et l'arithmetique — designent le meme
+#    endroit, ce qui est rare et vaut d'etre teste.
+#
+# 2. RAPIDE ET NOMBREUX. Ce que l'operateur veut : beaucoup de trades. On
+#    ne l'ecarte pas par principe, on le MESURE. Si le H1 ou le M30 tient
+#    face aux frais sur l'historique, tant mieux ; s'il perd, le rejeu le
+#    dira en quelques minutes au lieu de plusieurs jours d'argent reel.
+#
+# La question n'est pas « laquelle est la meilleure en theorie » mais
+# « laquelle a une esperance positive APRES frais, sur assez de trades
+# pour que ca veuille dire quelque chose ».
+
+TENDANCE = dict(
+    mode="quorum", min_confirmations=3, require_candle_confirmation=False,
+    require_mtf_alignment=True, allow_counter_trend=False,
+    min_adx=20.0, min_rr=1.8,
+    w_trend=0.30, w_momentum=0.24, w_candles=0.10, w_chart=0.08,
+    w_divergence=0.06, w_zones=0.06, w_volume=0.06, w_macro=0.05, w_news=0.05,
+)
+
+D1 = dict(entry_tf="D1", trigger_tf="H4", context_tf="D1", bias_tf="D1")
+H4 = dict(entry_tf="H4", trigger_tf="H1", context_tf="D1", bias_tf="D1")
+H1 = dict(entry_tf="H1", trigger_tf="M15", context_tf="H4", bias_tf="H4")
+M30 = dict(entry_tf="M30", trigger_tf="M15", context_tf="H1", bias_tf="H4")
 
 VARIANTES = [
-    # Le plafond de cout decide combien de trades survivent au
-    # dimensionnement : le mesurer vaut mieux que de le choisir.
-    variante("H4 — plafond 15 %", **H4, plafond_cout=15.0),
-    variante("H4 — plafond 20 %", **H4, plafond_cout=20.0),
-    variante("H4 — plafond 25 %", **H4, plafond_cout=25.0),
-    variante("D1 — plafond 15 %", entry_tf="D1", trigger_tf="H4",
-             context_tf="D1", bias_tf="D1",
-             require_candle_confirmation=False, plafond_cout=15.0),
-    variante("M15 — plafond 25 %", require_candle_confirmation=False,
-             plafond_cout=25.0),
-    variante("M15 tel quel"),
-    variante("M15 sans bougies obligatoires", require_candle_confirmation=False),
-    variante("M15 score exigeant", min_score=0.55),
-    variante("H4", entry_tf="H4", trigger_tf="H1", context_tf="H4", bias_tf="D1"),
-    variante("H4 sans bougies", entry_tf="H4", trigger_tf="H1", context_tf="H4",
-             bias_tf="D1", require_candle_confirmation=False),
-    variante("D1", entry_tf="D1", trigger_tf="H4", context_tf="D1", bias_tf="D1"),
-    variante("D1 sans bougies", entry_tf="D1", trigger_tf="H4", context_tf="D1",
-             bias_tf="D1", require_candle_confirmation=False),
+    # --- Famille 1 : suivi de tendance, du plus lent au plus rapide ---
+    variante("D1 tendance — objectif 3R", **D1, **TENDANCE,
+             plafond_cout=15.0, atr_stop_mult=1.5, tp_r_multiple=3.0),
+    variante("D1 tendance — objectif 2R", **D1, **TENDANCE,
+             plafond_cout=15.0, atr_stop_mult=1.5, tp_r_multiple=2.0),
+    variante("H4 tendance — objectif 3R", **H4, **TENDANCE,
+             plafond_cout=20.0, atr_stop_mult=1.5, tp_r_multiple=3.0),
+    variante("H4 tendance — objectif 2R", **H4, **TENDANCE,
+             plafond_cout=20.0, atr_stop_mult=1.5, tp_r_multiple=2.0),
+    variante("H1 tendance — objectif 2R", **H1, **TENDANCE,
+             plafond_cout=35.0, atr_stop_mult=1.6, tp_r_multiple=2.0),
+
+    # --- Famille 2 : rapide et nombreux, ce que l'operateur demande ---
+    variante("H1 en service (reference)"),
+    variante("H1 — contre-tendance permise", **H1, allow_counter_trend=True,
+             require_mtf_alignment=False, min_confirmations=2),
+    variante("H1 — objectif court 1,3R", **H1, tp_r_multiple=1.3, min_rr=1.2),
+    variante("M30 — plafond desserre a 50 %", **M30, plafond_cout=50.0,
+             atr_stop_mult=1.6, tp_r_multiple=2.0),
+
+    # --- Temoins : est-ce que chaque barriere sert a quelque chose ? ---
+    # Une barriere qui n'ameliore rien coute des trades pour rien ; une
+    # barriere dont le retrait ameliore le resultat n'etait pas une
+    # protection, c'etait un frein.
+    variante("H4 tendance SANS accord multi-unites", **H4, **{
+        **TENDANCE, "require_mtf_alignment": False},
+        plafond_cout=20.0, atr_stop_mult=1.5, tp_r_multiple=3.0),
+    variante("H4 tendance SANS filtre ADX", **H4, **{
+        **TENDANCE, "min_adx": 0.0},
+        plafond_cout=20.0, atr_stop_mult=1.5, tp_r_multiple=3.0),
+    variante("H4 tendance — stop large 2,2 ATR", **H4, **TENDANCE,
+             plafond_cout=20.0, atr_stop_mult=2.2, tp_r_multiple=3.0),
 ]
 
 
@@ -93,13 +140,40 @@ def config_pour(base: BotConfig, reglages: dict) -> BotConfig:
             cfg.strategy.max_cost_ratio_pct = valeur
             cfg.trade.max_cost_ratio_pct = valeur
             continue
+        if cle == "risque_pct":
+            cfg.risk.base_risk_pct = valeur
+            continue
+        # `min_rr` existe dans DEUX sections et les deux comptent : la
+        # strategie s'en sert pour filtrer, le dimensionnement pour
+        # refuser. N'en regler qu'une laissait passer au second ce que le
+        # premier venait d'ecarter.
+        if cle == "min_rr":
+            cfg.strategy.min_rr = valeur
+            cfg.risk.min_rr = valeur
+            continue
         cible = cfg.trade if hasattr(cfg.trade, cle) else cfg.strategy
         setattr(cible, cle, valeur)
+
     # Le stop temporel doit suivre l'unite de temps, sinon on compare une
-    # strategie D1 a qui on laisse trois heures pour se former.
-    depart = MINUTES.get(base.strategy.entry_tf, 15)
-    arrivee = MINUTES.get(cfg.strategy.entry_tf, depart)
-    cfg.trade.time_stop_minutes = base.trade.time_stop_minutes / depart * arrivee
+    # strategie D1 a qui on laisse douze heures pour se former. La variante
+    # garde la main si elle l'a fixe explicitement.
+    if "time_stop_minutes" not in reglages:
+        depart = MINUTES.get(base.strategy.entry_tf, 60)
+        arrivee = MINUTES.get(cfg.strategy.entry_tf, depart)
+        cfg.trade.time_stop_minutes = base.trade.time_stop_minutes / depart * arrivee
+
+    # L'objectif ne peut pas etre sous le ratio minimal exige : la
+    # configuration serait rejetee, et la variante ne mesurerait rien.
+    if cfg.trade.tp_r_multiple < cfg.risk.min_rr:
+        cfg.risk.min_rr = cfg.strategy.min_rr = cfg.trade.tp_r_multiple
+
+    # Meme regle de coherence que dans BotConfig.validate() : un filtre de
+    # spread plus permissif que le plafond de cout laisserait entrer ce que
+    # le dimensionnement refusera ensuite, et la variante compterait des
+    # occasions qu'elle ne peut pas prendre.
+    plafond_en_r = cfg.risk.max_cost_ratio_pct / 100.0
+    cfg.strategy.max_spread_atr_ratio = min(
+        cfg.strategy.max_spread_atr_ratio, plafond_en_r * cfg.trade.atr_stop_mult)
     return cfg
 
 
@@ -112,6 +186,9 @@ def main() -> int:
     ap.add_argument("--spread-x", type=float, default=1.0,
                     help="multiplie le spread suppose : 1 = modele, 3 = pessimiste")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--hors-ligne", action="store_true", dest="hors_ligne",
+                    help="donnees SYNTHETIQUES : verifie que le banc d'essai "
+                         "tourne, ne dit rien d'une strategie")
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.WARNING,
@@ -137,6 +214,22 @@ def main() -> int:
     symboles = ([s.strip().upper() for s in args.symbols.split(",") if s.strip()]
                 or SYMBOLES)
 
+    registre = None
+    if args.hors_ligne:
+        # On passe par registre_pour() et non par le constructeur de bas
+        # niveau : c'est le point de construction UNIQUE du projet, celui
+        # qui porte le verrou de devise. Il a deja ete contourne deux fois,
+        # et chaque oubli donnait des prix en dollars pour des ordres en
+        # euros, sans la moindre erreur. Le mode hors ligne se demande donc
+        # par la configuration, pas par un appel direct.
+        from gold_bot.engine import registre_pour
+        hors_ligne = copy.deepcopy(base)
+        hors_ligne.engine.offline = True
+        registre = registre_pour(hors_ligne)
+        print("\n  !! DONNEES SYNTHETIQUES !!  Ce mode verifie que le banc")
+        print("     d'essai fonctionne. Les resultats ne disent RIEN d'une")
+        print("     strategie : le hasard n'a pas de tendance a suivre.\n")
+
     print("=" * 78)
     print(f"  COMPARAISON DE STRATEGIES — {len(symboles)} instruments, "
           f"{args.bars} bougies, capital {args.capital:.0f} EUR")
@@ -156,8 +249,8 @@ def main() -> int:
         echecs = []
         for sym in symboles:
             try:
-                res = Backtester(cfg).run(sym, bars=args.bars,
-                                          start_balance=args.capital)
+                res = Backtester(cfg, registry=registre).run(
+                    sym, bars=args.bars, start_balance=args.capital)
             except Exception as exc:  # noqa: BLE001
                 echecs.append(f"{sym}: {str(exc)[:40]}")
                 continue
@@ -204,11 +297,55 @@ def main() -> int:
             print("\n  AUCUNE VARIANTE N'EST GAGNANTE SUR L'HISTORIQUE.")
             print("  Ce n'est pas un reglage a corriger : c'est la strategie")
             print("  elle-meme qui ne trouve pas d'avantage sur ces marches.")
+            print("  NE PAS armer en reel. Relancer avec --bars 4000 et plus")
+            print("  d'instruments avant de conclure, puis s'arreter la.")
+        else:
+            # La gagnante est ECRITE, pas seulement affichee : recopier des
+            # reglages a la main depuis un tableau est exactement la facon
+            # dont une configuration testee devient une configuration
+            # differente de celle qu'on a testee.
+            reglages = next(rg for nom, rg in VARIANTES if nom == best["nom"])
+            ecrire_candidate(config_pour(base, reglages), best, args)
+
     for r in resultats:
         if r["echecs"]:
             print(f"\n  {r['nom']} — donnees manquantes : {'; '.join(r['echecs'][:3])}")
     print("=" * 78)
     return 0
+
+
+def ecrire_candidate(cfg: BotConfig, best: dict, args) -> None:
+    """Enregistre la variante gagnante en configuration prete a relire.
+
+    Elle n'est PAS armee : `dry_run` reste vrai. Un rejeu gagnant est une
+    raison de regarder de plus pres, jamais une raison d'engager de
+    l'argent — le rejeu ignore les elargissements de spread sur annonce,
+    le glissement reel et les ordres refuses.
+    """
+    import json
+
+    cfg.engine.dry_run = True
+    sections = {}
+    for nom in ("engine", "strategy", "risk", "trade", "objectives"):
+        section = getattr(cfg, nom, None)
+        if section is None:
+            continue
+        sections[nom] = {c: getattr(section, c) for c in vars(section)
+                         if not c.startswith("_")}
+    sections["promotion"] = dict(getattr(cfg, "promotion", {}) or {})
+    sections["_note"] = (
+        f"Gagnante du rejeu du {time.strftime('%Y-%m-%d')} : « {best['nom']} » — "
+        f"{best['trades']} trades, esperance {best['esperance']:+.3f} R, "
+        f"reussite {best['reussite']:.1f} %, spread x{args.spread_x:g}. "
+        "NON ARMEE : dry_run reste vrai. Verifier en simulation avant "
+        "d'engager quoi que ce soit.")
+
+    chemin = "robot.candidat.json"
+    with open(chemin, "w", encoding="utf-8") as f:
+        json.dump(sections, f, indent=2, ensure_ascii=False)
+    print(f"\n  Configuration gagnante ecrite dans {chemin} (dry_run = true).")
+    print(f"  Pour l'essayer sans engager d'argent :")
+    print(f"     python3 run_dual_scalping.py --config {chemin}")
 
 
 if __name__ == "__main__":
