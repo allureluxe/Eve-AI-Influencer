@@ -38,7 +38,11 @@ class IBKRBroker(Broker):
         self.host = os.getenv("IBKR_HOST", "127.0.0.1")
         self.port = int(os.getenv("IBKR_PORT", "4002"))
         self.client_id = int(os.getenv("IBKR_CLIENT_ID", "27"))
-        self.account_id = os.getenv("IBKR_ACCOUNT", "").strip()
+        raw_account = os.getenv("IBKR_ACCOUNT", "").strip()
+        # Never send a documentation placeholder as an IB account code.
+        self.account_id = "" if raw_account.upper() in {
+            "TON_NUMERO_IBKR", "YOUR_IBKR_ACCOUNT", "YOUR_ACCOUNT", "ACCOUNT_ID"
+        } else raw_account
         self.live_enabled = os.getenv("IBKR_TRADING_LIVE", "0").strip().lower() in {"1", "true", "yes", "oui"}
         self.allow_short = os.getenv("IBKR_ALLOW_SHORT", "1").strip().lower() in {"1", "true", "yes", "oui"}
         self.currency = os.getenv("IBKR_CURRENCY", "EUR")
@@ -82,6 +86,7 @@ class IBKRBroker(Broker):
             accounts = self.ib.managedAccounts()
             if accounts:
                 self.account_id = accounts[0]
+                logger.info("IBKR compte auto-detecte: %s", self.account_id)
         if not self.account_id:
             raise BrokerError("IBKR_ACCOUNT absent et aucun compte retourne par Gateway")
         self.sync()
