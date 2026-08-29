@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from gold_bot.calibrage import (COUT_INCOMPRESSIBLE, calibrer,
                                 duree_stop_temporel, stops_typiques_pour)
+from gold_bot.notifiers import TelegramChannel
 from gold_bot.promotion import Promotion
 from gold_bot.settings import BotConfig
 from gold_bot.state import TradeJournal, ancrer
@@ -123,6 +124,17 @@ def main() -> int:
     plafond_ok = plafond <= 15.0
     ligne("plafond de cout", f"{plafond:g} %", "ok" if plafond_ok else "non",
           "" if plafond_ok else "decision de l'operateur : 15 % (voir CLAUDE.md)")
+
+    # --------------------------------------------------- notifications
+    #
+    # Un robot qui ne previent pas est un robot qu'on surveille a l'oeil.
+    # Le canal echouait en silence sur un 404 — lisible comme une panne de
+    # Telegram alors que c'est le token qui est refuse.
+    tg = TelegramChannel()
+    souci = tg.diagnostic()
+    ligne("alertes Telegram",
+          "actives" if not souci else "INACTIVES",
+          "ok" if not souci else "non", souci)
 
     # ---------------------------------------------------------- tarif
     titre("Regime tarifaire")

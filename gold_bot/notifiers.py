@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -98,16 +99,53 @@ class FileChannel(Channel):
             logger.warning("journal non ecrit : %s", exc)
 
 
+def valeur_env(nom: str) -> str:
+    """Lit une variable d'environnement en enlevant ce qu'un copier-coller ajoute.
+
+    Un token colle depuis un .env arrive regulierement avec des guillemets
+    ou une espace finale. Telegram repond alors 404 — le meme code qu'un
+    token inexistant — et on cherche une panne la ou il n'y a qu'un
+    caractere en trop.
+    """
+    brut = os.getenv(nom, "").strip()
+    if len(brut) >= 2 and brut[0] == brut[-1] and brut[0] in "\"'":
+        brut = brut[1:-1].strip()
+    return brut
+
+
+# Un token Telegram s'ecrit <identifiant numerique>:<chaine>.
+FORME_TOKEN = re.compile(r"^\d+:[A-Za-z0-9_-]{20,}$")
+
+
 class TelegramChannel(Channel):
     name = "telegram"
 
     def __init__(self, min_level: str = "trade") -> None:
-        self.token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-        self.chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+        self.token = valeur_env("TELEGRAM_BOT_TOKEN")
+        self.chat_id = valeur_env("TELEGRAM_CHAT_ID")
         self.min_level = min_level
+        # Une fois le token refuse, il le restera : le reessayer a chaque
+        # notification remplit le journal de la meme ligne et masque le
+        # reste. On le dit une fois, clairement, puis on se tait.
+        self._refuse = False
+
+    def diagnostic(self) -> str:
+        """Ce qui empeche ce canal de fonctionner, en clair. Jamais le token."""
+        if not self.token and not self.chat_id:
+            return "TELEGRAM_BOT_TOKEN et TELEGRAM_CHAT_ID absents"
+        if not self.token:
+            return "TELEGRAM_BOT_TOKEN absent"
+        if not self.chat_id:
+            return "TELEGRAM_CHAT_ID absent"
+        if not FORME_TOKEN.match(self.token):
+            return ("TELEGRAM_BOT_TOKEN mal forme : attendu <numero>:<chaine>, "
+                    f"recu {len(self.token)} caracteres — a reprendre depuis BotFather")
+        if self._refuse:
+            return "token refuse par Telegram (404) : il ne correspond a aucun robot"
+        return ""
 
     def enabled(self) -> bool:
-        return bool(self.token and self.chat_id)
+        return bool(self.token and self.chat_id) and not self._refuse
 
     def send(self, note: Notification) -> None:
         try:
@@ -115,7 +153,25 @@ class TelegramChannel(Channel):
                       {"chat_id": self.chat_id, "text": note.as_text(),
                        "disable_web_page_preview": True}, timeout=10)
         except Exception as exc:
-            logger.warning("telegram indisponible : %s", str(exc)[:120])
+            message = str(exc)
+            # 404 sur cette adresse ne veut PAS dire « Telegram est en
+            # panne » : l'adresse contient le token, donc elle n'existe
+            # que si le token existe. C'est le token qui est refuse, et
+            # aucun reessai n'y changera rien.
+            if "404" in message:
+                self._refuse = True
+                logger.error(
+                    "TELEGRAM : token refuse (404). L'adresse d'envoi contient le "
+                    "token, donc un 404 signifie qu'aucun robot ne correspond a "
+                    "ce token — ce n'est pas une panne reseau. Reprends le token "
+                    "aupres de BotFather (/mybots -> API Token) et remets-le dans "
+                    "TELEGRAM_BOT_TOKEN. Les notifications sont desactivees en "
+                    "attendant.")
+                return
+            # Le token ne doit jamais apparaitre dans un journal : il donne
+            # le controle du robot Telegram a qui le lit.
+            logger.warning("telegram indisponible : %s",
+                           message.replace(self.token, "<token>")[:160])
 
 
 class WebhookChannel(Channel):
