@@ -161,19 +161,49 @@ contradiction au démarrage, en donnant la valeur à corriger.
 ### IBKR n'est pas utilisable à ce capital, et ce n'est pas un bug
 
 Vérifié le 29 août, tarif public IBKR : la commission forex vaut
-**0,20 point de base, avec un minimum de 2 USD par ordre**. Ce minimum
-change tout pour un petit compte :
+**0,20 point de base, avec un minimum de 2 USD par ordre**. C'est un
+montant **fixe** en dessous de 100 000 USD de notionnel — et c'est lui,
+pas la taille de lot, qui ferme la porte.
 
-- lot minimum sur IDEALPRO : 25 000 USD ; en dessous, l'ordre part en
-  « odd lot », taille minimale 1 000 unités, avec un spread élargi ;
-- un aller-retour de 1 000 EUR coûte 2 USD + 2 USD, soit **0,40 % du
-  notionnel** — plus cher que Bitvavo ;
-- avec 70 EUR de capital, même à 10x, le notionnel plafonne à 700 EUR :
-  **le lot minimum n'est pas atteignable du tout.**
+Le compte IBKR porte **90 EUR** (distinct des 70 EUR de Bitvavo).
 
-IBKR redevient intéressant à partir du mini-lot (10 000 USD), où les 2 USD
-retombent à 0,02 % — donc à partir de quelques milliers d'euros de capital,
-ou avec un levier que l'opérateur a exclu.
+Le piège à éviter : croire que le levier résout le problème. Il ne le
+résout pas, il le déplace. Le robot dimensionne par le risque, pas par le
+levier disponible. Avec 90 EUR, l'aller-retour à 3,70 EUR pèse :
+
+    risque 0,6 %  ->  0,54 EUR  ->  686 % du risque
+    risque 1,0 %  ->  0,90 EUR  ->  412 %
+    risque 1,5 %  ->  1,35 EUR  ->  274 %   (plafond dur du robot)
+
+Même au risque maximal que `validate()` autorise, le filtre de coût
+refusera chaque trade — et il aura raison.
+
+    notionnel   risque    commission   coût/risque
+      1 000 E    1,54 E      3,70 E        246 %
+      5 000 E    7,70 E      3,70 E         53 %
+     10 000 E   15,40 E      3,70 E         29 %
+     25 000 E   38,50 E      3,70 E         15 %
+
+Pour tenir sous les 35 % du plafond, il faut ~8 000 EUR de notionnel, soit
+~12,40 EUR de risque par trade :
+
+    à 0,6 % de risque par trade  ->  capital ~ 2 070 EUR
+    à 1,0 % de risque par trade  ->  capital ~ 1 240 EUR
+    à 1,5 % de risque par trade  ->  capital ~   830 EUR
+
+**Plancher absolu ~830 EUR**, et seulement en risquant le maximum autorisé.
+Confortable à partir de ~2 000 EUR. En dessous, IBKR n'est pas un mauvais
+réglage : c'est une addition qui ne tombe pas juste.
+
+En attendant, le compte **papier** d'IBKR (port 4002) coûte zéro et permet
+de valider toute la chaîne — Gateway, code SMS, connexion API, contrats,
+moteur — pour qu'elle soit prête le jour où le capital suit. C'est le seul
+usage d'IBKR qui ait du sens aujourd'hui.
+
+(Correction du 29 août : une première version disait que le lot minimum de
+1 000 unités était inatteignable à 70 EUR. C'est faux — le levier forex
+d'IBKR, jusqu'à 30:1 en Europe sur les majeures, le rend accessible. La
+conclusion tient, mais la raison est la commission fixe, pas la taille.)
 
 Le code IBKR reste en place et fonctionne (voir `verifier_ibkr.py`). Il
 n'est simplement pas armé tant que le capital ne le justifie pas. Ne pas
