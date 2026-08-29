@@ -23,7 +23,7 @@ from gold_bot.calibrage import (COUT_INCOMPRESSIBLE, calibrer,
                                 duree_stop_temporel, stops_typiques_pour)
 from gold_bot.notifiers import TelegramChannel
 from gold_bot.promotion import Promotion
-from gold_bot.settings import BotConfig
+from gold_bot.settings import BotConfig, charger_env
 from gold_bot.state import TradeJournal, ancrer
 from gold_bot.capacite import AUCUN_PLAFOND, places_simultanees
 from gold_bot.engine import positions_tenables
@@ -84,6 +84,10 @@ def universe_lookup(symbole: str):
 
 
 def main() -> int:
+    # Les cles vivent dans .env, que seule l'unite systemd injectait : cette
+    # commande tournait donc sans, et lisait un compte fictif.
+    charger_env()
+
     print("=" * 66)
     print("  ETAT DU ROBOT")
     print("=" * 66)

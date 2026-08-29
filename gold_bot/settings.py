@@ -18,6 +18,56 @@ from .trade_manager import TradeManagerConfig
 logger = logging.getLogger(__name__)
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
+def charger_env(chemin: str = "") -> int:
+    """Charge le fichier .env du projet dans l'environnement.
+
+    POURQUOI CETTE FONCTION EXISTE
+
+    Rien, dans le code Python, ne lisait le .env : c'est l'unite systemd
+    qui l'injecte, par `EnvironmentFile=`. Le service tournait donc avec
+    les cles, et TOUTE commande lancee a la main tournait sans.
+
+    Consequence, observee le 29 aout : `run_bot.py check` — la commande
+    dont le seul role est de verifier l'installation — annoncait
+    « compte : 50.00 EUR », le solde fictif du mode sans cle, pour un
+    compte qui en contenait 96. Rien dans la sortie ne disait pourquoi.
+    Lire ca et croire que son argent a disparu est la reaction normale.
+
+    UNE VARIABLE DEJA DEFINIE N'EST JAMAIS ECRASEE. L'environnement du
+    service reste donc prioritaire sur le fichier : c'est lui qui decide
+    en production, et le fichier ne sert qu'aux commandes manuelles.
+
+    Retourne le nombre de variables ajoutees. Ne journalise JAMAIS les
+    valeurs : ce fichier contient les cles d'API.
+    """
+    chemin = chemin or os.path.join(RACINE, ".env")
+    if not os.path.exists(chemin):
+        return 0
+    ajoutees = 0
+    try:
+        with open(chemin, "r", encoding="utf-8") as fh:
+            for ligne in fh:
+                ligne = ligne.strip()
+                if not ligne or ligne.startswith("#") or "=" not in ligne:
+                    continue
+                nom, _, valeur = ligne.partition("=")
+                nom = nom.strip()
+                # `export CLE=valeur` est une ecriture courante dans un
+                # .env ecrit a la main.
+                if nom.startswith("export "):
+                    nom = nom[7:].strip()
+                valeur = valeur.strip()
+                if len(valeur) >= 2 and valeur[0] == valeur[-1] and valeur[0] in "\"'":
+                    valeur = valeur[1:-1]
+                if nom and nom not in os.environ:
+                    os.environ[nom] = valeur
+                    ajoutees += 1
+    except OSError as exc:
+        logger.warning("fichier .env illisible : %s", exc)
+    return ajoutees
+
+
 @dataclass(slots=True)
 class EngineConfig:
     broker: str = "multi"

@@ -37,7 +37,7 @@ from gold_bot.news import NewsFilter
 from gold_bot.notifiers import Notifier
 from gold_bot.objectives import ObjectiveTracker
 from gold_bot.scanner import Scanner
-from gold_bot.settings import BotConfig
+from gold_bot.settings import BotConfig, charger_env
 from gold_bot.state import TradeJournal
 from gold_bot.strategy import Strategy
 from gold_bot.trade_manager import TradeManager
@@ -54,6 +54,11 @@ def setup_logging(verbose: bool = False) -> None:
 
 
 def build_config(args) -> BotConfig:
+    # Le .env AVANT la configuration : l'unite systemd l'injecte pour le
+    # service, mais une commande lancee a la main n'avait aucune cle. Ce
+    # qui est deja defini n'est jamais ecrase — l'environnement du service
+    # reste prioritaire.
+    charger_env()
     cfg = BotConfig.load(args.config)
     if args.broker:
         cfg.engine.broker = args.broker
