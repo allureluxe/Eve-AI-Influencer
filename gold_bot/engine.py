@@ -319,6 +319,10 @@ class TradingEngine:
             plafond_cout_pct=cfg.risk.max_cost_ratio_pct,
             plafond_positions=cfg.risk.max_positions,
             part_engageable_pct=cfg.risk.max_capital_engaged_pct,
+            # La classe d'actif majoritaire de l'univers decide du tableau
+            # de stops : celui du forex sous-estime la crypto de 30 a 60 %
+            # et declarait tenables des unites que le capital ne tient pas.
+            classe_actif=self.universe.classe_dominante(),
         )
         self.calibrage = cal
         self._ticket_minimum = ticket

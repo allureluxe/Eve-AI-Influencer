@@ -50,6 +50,38 @@ STOP_TYPIQUE = {
     "M30": 0.0110, "H1": 0.0154, "H4": 0.0308, "D1": 0.0600,
 }
 
+# LA CRYPTO BOUGE PLUS QUE CE TABLEAU-LA.
+#
+# Les valeurs ci-dessus decrivent le forex et les metaux, d'ou elles
+# viennent. Appliquees a la crypto elles sous-estiment le stop de 30 a
+# 60 %, et cette erreur a deja coute une journee : le H4 avait ete
+# calcule a 19 % de frais au lieu de 15 %, et ecarte a tort.
+#
+# Ces valeurs-ci sont les ATR REELLEMENT MESURES dans les journaux du
+# 28 aout, multiplies par `atr_stop_mult` = 1,8 :
+#
+#     M15   ATR 0,56 %   ->  stop 1,01 %
+#     H4    ATR 2,24 %   ->  stop 4,03 %
+#     D1    ATR 5,46 %   ->  stop 9,83 %
+#
+# Les unites non mesurees suivent la meme progression, interpolee.
+#
+# Sous-estimer le stop fait croire une unite de temps plus tenable
+# qu'elle ne l'est : le stop plus large exige un notionnel plus petit
+# pour un meme risque, et peut passer sous le ticket minimum. Le tableau
+# du forex declarait donc « tenables » des unites que le capital ne tient
+# pas — exactement ce que le calibrage est cense empecher.
+STOP_TYPIQUE_CRYPTO = {
+    "M1": 0.0017, "M3": 0.0029, "M5": 0.0055, "M15": 0.0101,
+    "M30": 0.0145, "H1": 0.0202, "H4": 0.0403, "D1": 0.0983,
+}
+
+
+def stops_typiques_pour(classe_actif: str) -> dict[str, float]:
+    """Le tableau de stops qui correspond a ce qu'on trade."""
+    return STOP_TYPIQUE_CRYPTO if (classe_actif or "").lower() == "crypto" \
+        else STOP_TYPIQUE
+
 # Ce qu'un aller-retour coute MEME sans commission : le spread, franchi
 # une fois, et le glissement, subi des deux cotes. Aucune promotion ne
 # l'annule — il est paye au marche, pas a la plateforme.
@@ -158,11 +190,19 @@ def calibrer(
     plafond_positions: int = 6,
     part_engageable_pct: float = 80.0,
     cout_incompressible: float = COUT_INCOMPRESSIBLE,
+    classe_actif: str = "",
 ) -> Calibrage:
     """Deduit du capital ce que la strategie peut viser.
 
     `risk_pct_demande` et `risk_pct_max` sont en pourcentage (0.22 = 0,22 %).
+
+    `classe_actif` choisit le tableau de stops typiques : la crypto bouge
+    deux a trois fois plus que le forex, et le calibrer sur le tableau du
+    forex declarait tenables des unites de temps que le capital ne tient
+    pas. Vide = tableau historique, pour ne rien changer aux appels qui
+    ne precisent pas.
     """
+    stops = stops_typiques_pour(classe_actif)
     equity = max(0.0, equity)
     ticket_minimum = max(0.0, ticket_minimum)
     plafond_cout = max(1e-9, plafond_cout_pct / 100.0)
@@ -194,7 +234,7 @@ def calibrer(
     # Unite de temps la moins lente que les frais autorisent. C'est elle
     # qu'il faut pouvoir atteindre : viser la frontiere theorique `stop_min`
     # ouvrirait une fenetre de largeur nulle, ou aucune unite ne rentre.
-    atteignables = sorted(v for v in STOP_TYPIQUE.values() if v >= stop_min)
+    atteignables = sorted(v for v in stops.values() if v >= stop_min)
     cible = atteignables[0] if atteignables else stop_min
 
     # On remonte le risque des que la cible est hors de portee — que la
@@ -207,7 +247,7 @@ def calibrer(
         stop_max = stop_max_pour(risque)
 
     unites = [tf for tf in ORDRE_UNITES
-              if stop_min <= STOP_TYPIQUE[tf] <= stop_max]
+              if stop_min <= stops[tf] <= stop_max]
 
     cal = Calibrage(
         equity=equity, ticket_minimum=ticket_minimum,

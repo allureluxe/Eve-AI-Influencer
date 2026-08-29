@@ -288,3 +288,22 @@ class Universe:
 
     def symbols(self) -> list[str]:
         return list(self._items.keys())
+
+    def classe_dominante(self) -> str:
+        """La classe d'actif majoritaire de cet univers.
+
+        Le calibrage en a besoin : un stop typique de crypto vaut deux a
+        trois fois un stop typique de forex, et les confondre fait declarer
+        « tenables » des unites de temps que le capital ne tient pas.
+
+        L'univers est la seule source qui le sache — la configuration, elle,
+        ne nomme que des symboles. Chaine vide si l'univers est vide.
+        """
+        comptes: dict[str, int] = {}
+        for inst in self._items.values():
+            classe = (inst.asset_class or "").lower()
+            if classe:
+                comptes[classe] = comptes.get(classe, 0) + 1
+        if not comptes:
+            return ""
+        return max(comptes.items(), key=lambda kv: kv[1])[0]

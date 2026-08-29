@@ -19,7 +19,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from gold_bot.calibrage import COUT_INCOMPRESSIBLE, calibrer, duree_stop_temporel
+from gold_bot.calibrage import (COUT_INCOMPRESSIBLE, calibrer,
+                                duree_stop_temporel, stops_typiques_pour)
 from gold_bot.promotion import Promotion
 from gold_bot.settings import BotConfig
 from gold_bot.state import TradeJournal, ancrer
@@ -151,13 +152,18 @@ def main() -> int:
     ligne("capital", f"{capital:.2f} {cfg.engine.currency}",
           "attention" if provenance.startswith("AUCUN") else "",
           provenance)
+    # Sur quoi ce robot calibre-t-il ? Un stop typique de crypto n'a rien a
+    # voir avec un stop typique de forex ; le confondre faisait annoncer
+    # des unites de temps « tenables » que le capital ne tient pas.
+    classe = Universe().classe_dominante()
     cal = calibrer(equity=capital, ticket_minimum=5.0,
                    frais_par_cote=frais,
                    risk_pct_demande=cfg.risk.base_risk_pct,
                    risk_pct_max=cfg.risk.max_risk_pct,
                    plafond_cout_pct=cfg.risk.max_cost_ratio_pct,
                    plafond_positions=cfg.risk.max_positions,
-                   part_engageable_pct=cfg.risk.max_capital_engaged_pct)
+                   part_engageable_pct=cfg.risk.max_capital_engaged_pct,
+                   classe_actif=classe)
     unite = cal.unite_conseillee or cfg.strategy.entry_tf
     ligne("unites tenables", ", ".join(cal.unites) or "AUCUNE",
           "ok" if cal.unites else "non")
@@ -168,8 +174,11 @@ def main() -> int:
     ligne("stop temporel", f"{delai / 1440:.1f} jour(s)" if delai >= 1440
           else f"{delai:.0f} min")
 
-    stop_pct = {"M1": .0013, "M3": .0022, "M5": .0042, "M15": .0077,
-                "M30": .011, "H1": .0154, "H4": .0308, "D1": .06}.get(unite)
+    # Le tableau vient de calibrage.py, il n'est PAS recopie ici : la copie
+    # locale avait garde les valeurs du forex quand celles de la crypto ont
+    # ete corrigees, et cette commande annoncait un cout par trade calcule
+    # sur un stop 30 % trop court.
+    stop_pct = stops_typiques_pour(classe).get(unite)
     if stop_pct:
         cout_r = (2 * frais + COUT_INCOMPRESSIBLE) / stop_pct
         tp = cfg.trade.tp_r_multiple

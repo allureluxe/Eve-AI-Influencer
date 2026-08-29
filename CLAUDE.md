@@ -118,6 +118,31 @@ La conclusion tenait pour le M15 — il reste hors de portée du plafond —
 mais elle écartait le **H4 à tort**, en le calculant à 19 % au lieu de 15.
 C'est cette erreur qui a fait perdre une journée sur le D1.
 
+### La correction était dans ce fichier, pas dans le code
+
+Le 29 août : le raisonnement ci-dessus avait bien été corrigé **ici**,
+mais `calibrage.py` portait toujours le tableau de stops du **forex** —
+H4 à 3,08 % au lieu des 4,03 % mesurés. Le texte disait une chose, le
+code en calculait une autre.
+
+Conséquence concrète, et elle tombait ce jour-là : à la fermeture de la
+fenêtre sans commission, le calibrage déclarait encore le **M15
+« tenable »**. Or en crypto le M15 coûte **59 % du risque** en frais. Le
+robot serait passé sur l'unité que ce fichier interdit, tout seul, sans
+erreur ni alerte — le scénario exact que `promotion.py` est censé
+empêcher.
+
+`STOP_TYPIQUE_CRYPTO` contient désormais les ATR **réellement mesurés**
+(× `atr_stop_mult` = 1,8), et `Universe.classe_dominante()` choisit le bon
+tableau. Le tableau du forex reste intact pour le forex.
+
+Vérifié par `tests/test_stops_crypto.py` : hors promotion, le M15 sort des
+unités tenables et le H4 y entre.
+
+`etat.py` recopiait ce même tableau en dur. C'est cette copie qui avait
+gardé les anciennes valeurs. Elle est supprimée : il n'y a plus qu'une
+source.
+
 ### Ne jamais changer l'unité sans repasser par le rejeu
 
 `comparer.py` mesure une configuration sur l'historique en quelques
