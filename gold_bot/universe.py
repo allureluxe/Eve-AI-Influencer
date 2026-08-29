@@ -88,16 +88,16 @@ LONDON_NY_OVERLAP = ((12, 17),)
 
 
 # ---------------------------------------------------------------------------
-# Catalogue crypto : actif Binance -> groupe de correlation.
+# Catalogue crypto : actif -> groupe de correlation.
 #
 # Les groupes evitent d'empiler trois fois le meme pari : dix jetons de layer 1
 # montent et descendent ensemble, les tenir simultanement revient a tripler une
 # position unique sans le savoir.
 #
 # Toutes ces paires n'existent pas dans toutes les devises de cotation. Celles
-# qui manquent en USDC sont ecartees au demarrage par
-# `BinanceSpotBroker.supports()` : il n'y a rien a maintenir a la main ici, une
-# entree inconnue de Binance est simplement ignoree.
+# que la plateforme ne cote pas sont ecartees au demarrage par le broker :
+# il n'y a rien a maintenir a la main ici, une entree inconnue est
+# simplement ignoree.
 # ---------------------------------------------------------------------------
 CATALOGUE_CRYPTO: dict[str, str] = {
     # --- References ---
@@ -181,10 +181,10 @@ def spread_estime(instrument: "Instrument", prix: float) -> float:
 
 
 def instrument_crypto(actif: str, groupe: str, priorite: float = 0.75) -> Instrument:
-    """Construit un instrument crypto generique pour Binance Spot.
+    """Construit un instrument crypto generique.
 
     Les valeurs de lot sont volontairement permissives : le broker les
-    remplace au demarrage par les vraies contraintes de Binance
+    remplace au demarrage par les vraies contraintes de la plateforme
     (`apply_market_rules`). Il ne sert a rien de les deviner ici.
 
     `max_spread` est laisse a l'infini car un plafond absolu n'a aucun sens
@@ -245,7 +245,7 @@ DEFAULT_UNIVERSE: list[Instrument] = [
 
 # Le reste du catalogue crypto, genere automatiquement. Les quatre paires
 # ci-dessus gardent leurs valeurs reglees a la main ; toutes les autres
-# recoivent des valeurs generiques que Binance corrigera au demarrage.
+# recoivent des valeurs generiques que le broker corrigera au demarrage.
 _deja_definis = {i.symbol for i in DEFAULT_UNIVERSE}
 DEFAULT_UNIVERSE.extend(
     instrument_crypto(actif, groupe)

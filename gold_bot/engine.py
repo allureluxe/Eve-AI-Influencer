@@ -30,11 +30,8 @@ from typing import Optional
 from .apprentissage import PoidsAdaptatifs, alimenter_depuis_journal
 from .calibrage import calibrer, duree_stop_temporel
 from .promotion import Promotion
-from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker,
-                      BitvavoBroker, BitvavoConfig, Broker,
-                      BrokerError, MoonXBroker, MoonXConfig, OkxBroker,
-                      OkxConfig, PaperBroker,
-                      PaperConfig, SpotConfig)
+from .brokers import (BitvavoBroker, BitvavoConfig, Broker, BrokerError,
+                      PaperBroker, PaperConfig)
 from .core import ClosedTrade, Position, Side, Tick
 from .datasources import DataRegistry, build_registry
 from .macro import MacroEngine
@@ -65,8 +62,6 @@ def _devise_du_lieu_d_execution(broker: str) -> str:
     """
     if broker == "bitvavo":
         return BitvavoConfig.from_env().quote_asset
-    if broker == "okx":
-        return OkxConfig.from_env().quote_asset
     return ""
 
 
@@ -180,22 +175,7 @@ class TradingEngine:
     # ---------------------------------------------------------------
     def _build_broker(self) -> Broker:
         cfg = self.config.engine
-        if cfg.broker == "moonx":
-            mx = MoonXConfig.from_env()
-            if cfg.dry_run:
-                mx.dry_run = True
-            broker = MoonXBroker(mx)
-        elif cfg.broker == "binance":
-            bn = BinanceConfig.from_env()
-            if cfg.dry_run:
-                bn.dry_run = True
-            broker = BinanceBroker(bn)
-        elif cfg.broker == "binance_spot":
-            sp = SpotConfig.from_env()
-            if cfg.dry_run:
-                sp.dry_run = True
-            broker = BinanceSpotBroker(sp)
-        elif cfg.broker == "bitvavo":
+        if cfg.broker == "bitvavo":
             bv = BitvavoConfig.from_env()
             # DEUX INTERRUPTEURS, ET LE FICHIER L'EMPORTE.
             #
@@ -219,11 +199,6 @@ class TradingEngine:
             if cfg.dry_run:
                 bv.dry_run = True
             broker = BitvavoBroker(bv)
-        elif cfg.broker == "okx":
-            ok = OkxConfig.from_env()
-            if cfg.dry_run:
-                ok.dry_run = True
-            broker = OkxBroker(ok)
         else:
             broker = PaperBroker(PaperConfig(start_balance=cfg.start_balance,
                                              currency=cfg.currency))
@@ -393,29 +368,17 @@ class TradingEngine:
         """Prepare le robot. Retourne False si le demarrage est impossible."""
         cfg = self.config.engine
 
-        if cfg.broker == "binance" and not cfg.dry_run:
-            bn = getattr(self.broker, "config", None)
-            if bn is not None and not bn.testnet:
-                self.notifier.warning(
-                    "Binance en mode REEL",
-                    "Les ordres engagent de l'argent veritable. "
-                    "BINANCE_TESTNET=1 bascule sur de l'argent fictif.")
-
-        if cfg.broker == "okx" and not cfg.dry_run and not cfg.offline:
-            ok = getattr(self.broker, "config", None)
-            if ok is not None and not ok.demo:
-                self.notifier.warning(
-                    "OKX en mode REEL",
-                    "Les ordres engagent de l'argent veritable. "
-                    "OKX_DRY_RUN=1 revient a la simulation.")
-
         if cfg.broker == "bitvavo" and not cfg.dry_run:
             self.notifier.warning(
                 "Bitvavo en mode REEL",
                 "Les ordres engagent de l'argent veritable. "
                 "BITVAVO_DRY_RUN=1 revient a la simulation.")
 
-        if cfg.broker == "moonx" and cfg.offline:
+        # Des donnees synthetiques + de l'argent reel = des ordres passes
+        # sur des prix inventes. Le test ne visait que MoonX ; il vaut
+        # desormais pour tout lieu d'execution reel, ce qui etait le fond
+        # de la regle depuis le debut.
+        if cfg.offline and cfg.broker != "paper":
             self.notifier.critical("Demarrage refuse",
                                    "execution reelle demandee avec des donnees synthetiques")
             return False

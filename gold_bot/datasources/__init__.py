@@ -10,14 +10,19 @@ from .base import (PriceProvider, ProviderError, SymbolNotSupported,
                    resample, tf_seconds)
 from .providers import (
     AlphaVantageProvider, BinanceProvider, BitvavoProvider, FinnhubProvider,
-    MetalPriceProvider, MoonXProvider, OkxProvider, PolygonProvider,
+    MetalPriceProvider, OkxProvider, PolygonProvider,
     StooqProvider, SyntheticProvider, TwelveDataProvider, YahooProvider,
 )
 
 logger = logging.getLogger(__name__)
 
+# L'ORDRE COMPTE : la premiere source utilisable repond.
+#
+# MoonXProvider etait en tete et n'a jamais ete configure — chaque prix
+# commencait donc par une source morte. Elle a ete retiree avec la
+# plateforme, le 29 aout.
 PROVIDER_CLASSES = [
-    MoonXProvider, OkxProvider, BitvavoProvider, BinanceProvider,
+    OkxProvider, BitvavoProvider, BinanceProvider,
     YahooProvider, TwelveDataProvider, FinnhubProvider, PolygonProvider,
     AlphaVantageProvider, MetalPriceProvider, StooqProvider,
 ]

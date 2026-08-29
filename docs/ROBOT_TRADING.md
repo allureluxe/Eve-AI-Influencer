@@ -23,9 +23,16 @@ python3 run_bot.py backtest XAUUSD --bars 5000
 # 4. Tourner en simulation, en continu
 python3 run_bot.py run --broker paper
 
-# 5. Passer en réel sur MoonX (le robot exécute seul)
-export MOONX_API_URL="https://..." MOONX_API_KEY="..."
-python3 run_bot.py run --broker moonx
+# 5. Passer en réel sur Bitvavo (le robot exécute seul)
+export BITVAVO_API_KEY="..." BITVAVO_API_SECRET="..."
+python3 run_bot.py run --config robot.bitvavo.json
+```
+
+Deux commandes de diagnostic, à connaître :
+
+```bash
+python3 etat.py         # ce que le robot fait, tient, et ce qui le bride
+python3 comparer.py     # mesurer une configuration sur l'historique
 ```
 
 Aucune dépendance à installer : tout est en Python 3.11+ standard.
@@ -234,7 +241,6 @@ défaillante est mise en quarantaine 5 minutes.
 
 | Source | Clé requise | Couverture |
 |---|---|---|
-| MoonX | `MOONX_API_KEY` | tout (prix du lieu d'exécution — prioritaire) |
 | Binance | non | cryptos, à la minute |
 | Yahoo Finance | non | or, forex, cryptos, DXY, VIX, S&P 500, 10 ans US |
 | TwelveData | `TWELVEDATA_API_KEY` | XAU/USD natif, forex, crypto |
@@ -275,155 +281,62 @@ aucune modification de la logique de trading.
 | Lieu | État | Usage |
 |---|---|---|
 | `paper` | intégré | simulation, backtest, mise au point |
-| `binance` | opérationnel | Binance Futures USDT-M — **fermé aux particuliers en France** |
-| `binance_spot` | **opérationnel** | Binance Spot — accessible en France, achat seul |
-| `moonx` | en attente d'un accès API | prêt côté code, bloqué côté plateforme |
+| `bitvavo` | **en service** | plateforme européenne, cotation en euros |
+| `ibkr` | prévu | à ajouter à côté de Bitvavo |
 
-### Binance Futures — le chemin recommandé
+Pionex, Binance, MoonX, OKX, Coinbase et Bitstamp ont été retirés le
+29 août 2026, à la demande de l'opérateur : des intégrations essayées puis
+abandonnées, dont il restait assez de code pour faire échouer un démarrage
+sans qu'on comprenne pourquoi.
 
-```bash
-export BINANCE_API_KEY="..." BINANCE_API_SECRET="..."
-export BINANCE_TESTNET=1          # argent fictif, même API
-python3 run_bot.py run --config robot.binance.json
-```
+`tests/test_plateformes_retirees.py` vérifie qu'elles ne reviennent pas, et
+qu'une configuration qui en nomme une échoue avec un message clair au lieu
+de planter à l'import.
 
-**Pourquoi les futures et non le spot.** Le spot ne permet que d'acheter : la
-moitié des signaux du robot — les ventes — serait perdue. Les futures
-autorisent les deux sens et acceptent surtout des ordres stop et objectif
-**déposés sur la plateforme** : si le robot s'arrête, si le serveur redémarre
-ou si le réseau tombe, la position reste protégée.
-
-**Le levier n'est pas un réglage de risque.** Il vaut 10 par défaut non pour
-amplifier quoi que ce soit, mais pour que la marge immobilisée laisse de la
-place. À 50 USDT, une position BTC au lot minimum représente environ 270 USDT
-de notionnel : sans levier suffisant, Binance refuserait l'ordre faute de
-marge. Le risque réel reste borné par le stop et par `base_risk_pct` :
-
-| Capital | BTCUSD | ETHUSD | SOLUSD | Risque par trade |
-|---|---|---|---|---|
-| 20 USDT | 0,001 | 0,03 | *lot minimum trop grand* | 0,5 – 0,8 % |
-| 50 USDT | 0,004 | 0,09 | 1 | 0,7 – 1,0 % |
-| 100 USDT | 0,009 | 0,18 | 2 | 0,7 – 1,0 % |
-| 250 USDT | 0,024 | 0,46 | 6 | 0,9 – 1,0 % |
-
-**Le testnet d'abord.** `BINANCE_TESTNET=1` utilise la même API avec de
-l'argent fictif (`testnet.binancefuture.com`). C'est la seule façon de valider
-une intégration sans rien risquer. Le testnet est le **défaut** : on ne part
-jamais en argent réel par omission.
-
-**Trois précautions intégrées :**
-
-- Les contraintes réelles de la plateforme (pas de lot, pas de prix, notionnel
-  minimum) sont lues sur `exchangeInfo` au démarrage et **écrasent** celles
-  déclarées par défaut. Sans cela, le robot calculerait par exemple 0,4 SOL
-  alors que Binance exige des unités entières.
-- Le stop est déposé **immédiatement** après l'entrée. S'il ne peut pas
-  l'être, la position est refermée dans la foulée plutôt que laissée nue.
-- Binance ne sait pas *modifier* un ordre stop : il faut l'annuler et le
-  reposer. Comme le robot déplace son stop en permanence, il ne repose l'ordre
-  que si le niveau a bougé de plus de 8 % du risque initial — sinon le quota
-  d'API serait consommé pour des variations invisibles.
-
-Binance Futures ne propose que des cryptos : l'or et le forex sont retirés de
-l'univers automatiquement au démarrage.
-
-### Binance Spot — la voie accessible depuis la France
-
-Les Futures sont fermés aux particuliers français par la réglementation.
-Le comptant reste ouvert, et impose deux contraintes structurelles.
-
-**1. On ne peut qu'acheter.** Pas de vente à découvert. Le robot écarte ses
-signaux de vente — le scanner les signale mais ne les retient pas, sans pour
-autant bloquer une opportunité d'achat ailleurs. Cela retire environ la
-moitié des occasions.
-
-**2. Les frais imposent l'échelle de temps.** Binance prélève 0,1 % à l'achat
-et 0,1 % à la vente. Rapporté au risque du trade :
-
-| Unité | Stop | Frais / risque | |
-|---|---|---|---|
-| M1 | 0,13 % | **159 %** | impossible |
-| M5 | 0,42 % | **48 %** | impossible |
-| M15 | 0,77 % | **26 %** | impossible |
-| **H1** | 1,54 % | **13 %** | ✅ |
-| **H4** | 3,08 % | **6 %** | ✅ |
-
-Pour tenir sous 15 %, il faut un stop d'au moins **1,3 % du prix** — soit du
-H1 ou plus. Ce n'est pas un réglage à forcer : en dessous, le trade est
-perdant avant d'avoir commencé.
-
-**Ce qu'il faut en attendre : 1 à 4 trades par jour**, tenus 2 à 8 heures,
-visant 1,5 à 2 % de mouvement. Pas 20 à 30.
+### Bitvavo
 
 ```bash
-python3 run_bot.py run --config robot.spot.json
+export BITVAVO_API_KEY="..." BITVAVO_API_SECRET="..."
+export BITVAVO_DRY_RUN=1          # simulation : aucun ordre ne part
+python3 run_bot.py run --config robot.bitvavo.json
 ```
 
-Dimensionnement vérifié, avec les contraintes réelles du comptant (notionnel
-minimum 5 USDT, pas de quantité fin) :
+Sur la clé API : cochez **Consulter** et **Trader**. Ne cochez **jamais**
+« Retirer ». Une clé sans droit de retrait ne peut pas sortir un centime du
+compte, même volée.
 
-| Capital | Investi par trade | Risque | Frais | Frais / risque |
-|---|---|---|---|---|
-| 20 USDT | ~12,7 | 0,20 (1,0 %) | 0,027 | 13-14 % |
-| 50 USDT | ~31,8 | 0,50 (1,0 %) | 0,067 | 13-14 % |
-| 100 USDT | ~63,9 | 1,00 (1,0 %) | 0,134 | 13-14 % |
-| 250 USDT | ~160,0 | 2,50 (1,0 %) | 0,336 | 13-14 % |
+**Achat seul.** Bitvavo au comptant ne permet pas la vente à découvert : la
+moitié des signaux du robot — les ventes — est écartée. C'est un choix
+assumé, pas une limite subie : le levier a été refusé (voir `CLAUDE.md`,
+décision D1) sur un système dont l'espérance n'est pas encore établie.
 
-Le stop et l'objectif sont posés en **OCO** (l'un annule l'autre) sur la
-plateforme : si le robot s'arrête, la position reste bornée des deux côtés.
-Si l'OCO ne peut pas être posé, la position est refermée immédiatement plutôt
-que laissée nue.
+**Pas d'ordre lié.** Bitvavo expose `stopLossLimit` et `takeProfitLimit`,
+mais aucun ordre « l'un annule l'autre ». Poser les deux laisserait le
+second vivant après que le premier a vendu, et il revendrait plus tard des
+actifs qui ne sont plus là.
 
-💡 Activer le paiement des frais en **BNB** les fait passer de 0,1 % à
-0,075 %, ce qui ramène le coût à 10 % du risque en H1.
+Le robot ne pose donc **que le stop** sur la plateforme et surveille
+l'objectif lui-même, dans `TradeManager._safety_exits`. Cette vérification
+n'existait d'abord que pour le simulateur : en réel, une position ne pouvait
+pas se fermer en bénéfice sur son objectif. Voir `CLAUDE.md`, décision D3 —
+c'est la panne qui expliquait « le robot n'a jamais clôturé en positif ».
 
-### MoonX — état des lieux
+**Précision des prix.** `pricePrecision` compte des *chiffres significatifs*,
+pas des décimales. Un prix trop précis est refusé avec l'erreur 429 ; le
+broker réessaie alors avec moins de chiffres et retient ce qui a marché.
 
-Le code est prêt (`gold_bot/brokers/moonx.py`), mais la plateforme ne fournit
-pas d'accès API en libre-service :
+**Les frais décident de l'unité de temps.** Bitvavo prélève 0,25 % par côté
+au tarif normal, soit 0,50 % l'aller-retour, plus environ 0,10 % de spread
+et de glissement. Rapporté à la distance du stop, cela donne :
 
-- `api.moon-x.io` existe et répond
-  (`{"message":"Missing or invalid authorization header","statusCode":401}`),
-  ce qui indique une API REST authentifiée par en-tête `Authorization`.
-- Aucune section API dans l'interface du compte.
-- Aucune documentation publique, aucune page Swagger aux adresses usuelles.
-- Le connecteur MCP échoue à l'inscription OAuth et réclame un Client ID que
-  seul MoonX peut délivrer.
+    M15   stop 1,01 %  ->  frais = 59 % du risque
+    H4    stop 4,03 %  ->  frais = 15 %
+    D1    stop 9,83 %  ->  frais =  6 %
 
-Il faut donc passer par leur support. Dès qu'un accès est fourni, l'adaptateur
-se configure entièrement par variables d'environnement, sans toucher au code.
+C'est pourquoi l'unité d'entrée est **H4** et le plafond de coût **15 %**.
+Le raisonnement complet, avec les ATR réellement mesurés, est dans
+`CLAUDE.md` et vérifié par `tests/test_stops_crypto.py`.
 
-## 10. Configuration MoonX (référence)
-
-Deux modes, détectés automatiquement :
-
-**Mode API REST** (recommandé, totalement autonome)
-```bash
-export MOONX_API_URL="https://api.moon-x.io"
-export MOONX_API_KEY="votre_cle"
-export MOONX_ACCOUNT_ID="votre_compte"      # optionnel
-python3 run_bot.py run --broker moonx
-```
-
-**Mode pont** (quand l'accès passe par le connecteur MCP plutôt qu'une clé)
-```bash
-export MOONX_BRIDGE_FILE="data/ordres_moonx.jsonl"
-python3 run_bot.py run --broker moonx
-```
-Le robot dépose ses ordres en JSON Lines ; un exécuteur externe les consomme.
-
-**Routes et champs configurables** — si l'API de MoonX diffère de la
-convention retenue, rien à recompiler :
-```bash
-export MOONX_ORDER_PATH="/v2/orders"
-export MOONX_POSITIONS_PATH="/v2/positions"
-export MOONX_SYMBOL_XAUUSD="GOLD"           # mapping par symbole
-```
-
-Le stop-loss part **dans l'ordre d'ouverture** : si la connexion tombe juste
-après, la position reste protégée côté plateforme.
-
----
 
 ## 11. Fonctionnement 24/7
 
@@ -513,7 +426,7 @@ python3 run_tests.py trade_manager -v
 | `test_strategy.py` | filtres éliminatoires, chemin nominal, score borné |
 | `test_risk.py` | dimensionnement, échelle adaptative, coupe-circuits |
 | `test_objectives.py` | paliers, plafonnement, modulation du risque |
-| `test_execution.py` | simulateur, MoonX, persistance, statistiques |
+| `test_execution.py` | simulateur, persistance, statistiques |
 
 ---
 
@@ -529,7 +442,7 @@ Par honnêteté, et parce que ces limites conditionnent l'usage :
   sur données réelles reste une approximation : il ne reproduit ni
   l'élargissement des spreads sur annonce, ni le slippage, ni les rejets
   d'ordre.
-- **L'API MoonX n'a pas pu être testée en conditions réelles** depuis
+- **(obsolète — MoonX a été retiré le 29 août 2026)** depuis
   l'environnement de développement (domaine bloqué). Le mode `--dry-run`
   existe pour valider le format des ordres avant d'engager de l'argent.
 - **Un objectif hebdomadaire chiffré reste une contrainte artificielle.** Le
@@ -674,11 +587,11 @@ l'efficacité du plancher de stop, qui suffit à le remettre dans le jeu.
 
 ### Mode micro-capital
 
-`robot.micro.json` combine les deux mécanismes pour un compte de 20 à 100 €,
+`robot.bitvavo.json` combine les deux mécanismes pour un compte de 20 à 200 €,
 en M1, quorum de 3 confirmations, jusqu'à 40 trades par jour.
 
 ```bash
-python3 run_bot.py run --config robot.micro.json
+python3 run_bot.py run --config robot.bitvavo.json
 ```
 
 Backtest de contrôle sur l'univers complet, 2,8 jours de données M1 :
@@ -758,14 +671,14 @@ Risque représenté par **un seul lot minimum**, selon le capital :
 
 ### Configuration de rodage fournie
 
-`robot.live.json` est calibré pour un compte réel de moins de 300 € : une
+`robot.bitvavo.json` est calibré pour un compte réel de moins de 300 € : une
 seule position à la fois, risque 0,5 % (plafond 1 %), perte journalière
 limitée à 3 %, hebdomadaire à 6 %, drawdown maximal 15 %, 6 trades par jour
 maximum, 2 minutes minimum entre deux trades, contre-tendance désactivée et
 seuil de score relevé à 0,60.
 
 ```bash
-python3 run_bot.py run --config robot.live.json
+python3 run_bot.py run --config robot.bitvavo.json
 ```
 
 À relever quand le capital dépasse 1 000 € : `max_positions` à 2 puis 3, et
@@ -777,7 +690,7 @@ python3 run_bot.py run --config robot.live.json
 
 1. `python3 run_bot.py check` — vérifier que les sources répondent.
 2. Faire tourner en `--broker paper` pendant plusieurs jours de marché.
-3. Passer en `--broker moonx --dry-run` : ordres formatés et journalisés, rien
+3. Passer en `--broker bitvavo --dry-run` : ordres formatés et journalisés, rien
    envoyé. Vérifier le contenu de `data/journal.jsonl`.
 4. Démarrer en réel avec `GB_RISK_BASE_RISK_PCT=0.25` et
    `GB_RISK_MAX_POSITIONS=1`, puis remonter progressivement.

@@ -1,62 +1,45 @@
-"""Lieux d'execution du robot."""
+"""Lieux d'execution du robot.
+
+DEUX PLATEFORMES, ET UN SIMULATEUR
+
+Le 29 aout, l'operateur : « supprime tout ce qui touche a Pionex, Binance,
+MoonX etc. Je veux que sur le bot il reste juste Bitvavo et IBKR, tout le
+reste tu effaces pour que le bot ne bloque pas a cause d'anciennes
+plateformes qu'on a essaye d'integrer. »
+
+Ne restent donc que :
+
+    bitvavo   la plateforme en service, argent reel
+    paper     le simulateur — voir plus bas, il n'est PAS optionnel
+
+IBKR n'a pas encore de module ici : il s'ajoutera a cote de Bitvavo, et
+`router.py` / `multi.py` sont conserves pour ca — ce sont eux qui savent
+faire tourner deux plateformes en parallele sans qu'une panne de l'une
+arrete l'autre.
+
+POURQUOI `paper` RESTE, MEME S'IL N'EST PAS UNE PLATEFORME
+
+Il a deja ete retire une fois de la liste des brokers valides. Consequence
+immediate : plus de dry-run, plus de rejeu historique, et aucun moteur
+constructible en test. Un lieu d'execution qui n'engage rien doit toujours
+etre disponible — c'est une regle de CLAUDE.md, pas une preference.
+
+CE QUI ARRIVE A UNE ANCIENNE CONFIGURATION
+
+Rien de silencieux. `BotConfig.validate()` refuse au demarrage tout broker
+hors de la liste, en le nommant. Un `"broker": "pionex"` oublie quelque
+part produit un message clair au lieu d'un plantage a l'import.
+"""
 from .base import AccountInfo, Broker, BrokerError
 from .bitvavo import BitvavoBroker, BitvavoConfig, RegleMarche
 from .bitvavo_margin import BitvavoMarginBroker
 from .bitvavo_hardening import harden_bitvavo
-from .pionex import PionexBroker as PionexSpotBroker, PionexConfig as PionexSpotConfig, PionexMarketRule as PionexSpotMarketRule
-from .pionex_futures import PionexFuturesConfig, PionexFuturesRule
-from .pionex_futures_hardened import HardenedPionexFuturesBroker
 from .paper import PaperBroker, PaperConfig
 
 harden_bitvavo(BitvavoBroker, RegleMarche)
-
-PionexFuturesBroker = HardenedPionexFuturesBroker
-PionexBroker = PionexFuturesBroker
-PionexConfig = PionexFuturesConfig
-PionexMarketRule = PionexFuturesRule
-
-
-class _ObsoleteBroker(Broker):
-    """Bouchon de compatibilite pour d'anciennes configs; jamais executable."""
-    name = "obsolete"
-    is_live = False
-
-    def __init__(self, *args, **kwargs):
-        raise BrokerError("Ce broker a ete retire. Utilisez Bitvavo ou Pionex.")
-
-    def connect(self):
-        return False
-
-    def account(self):
-        raise BrokerError("Broker obsolete.")
-
-    def positions(self):
-        return []
-
-    def open_position(self, *args, **kwargs):
-        raise BrokerError("Broker obsolete.")
-
-    def modify_position(self, *args, **kwargs):
-        raise BrokerError("Broker obsolete.")
-
-    def close_position(self, *args, **kwargs):
-        raise BrokerError("Broker obsolete.")
-
-
-class _ObsoleteConfig:
-    @classmethod
-    def from_env(cls):
-        raise BrokerError("Configuration obsolete. Utilisez Bitvavo ou Pionex.")
-
-
-BinanceBroker = BinanceSpotBroker = MoonXBroker = OkxBroker = _ObsoleteBroker
-BinanceConfig = SpotConfig = MoonXConfig = OkxConfig = _ObsoleteConfig
 
 __all__ = [
     "Broker", "BrokerError", "AccountInfo",
     "PaperBroker", "PaperConfig",
     "BitvavoBroker", "BitvavoMarginBroker", "BitvavoConfig", "RegleMarche",
-    "PionexBroker", "PionexConfig", "PionexMarketRule",
-    "PionexFuturesBroker", "PionexFuturesConfig", "PionexFuturesRule",
-    "PionexSpotBroker", "PionexSpotConfig", "PionexSpotMarketRule",
 ]

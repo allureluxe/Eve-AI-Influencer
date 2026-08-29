@@ -99,19 +99,30 @@ class BotConfig:
     def validate(self) -> list[str]:
         problems: list[str] = []
         r, t, s, e = self.risk, self.trade, self.strategy, self.engine
-        # Pionex Futures est un broker live officiel du projet, utilise par
-        # run_pionex.py. Il doit donc passer la validation AVANT la creation
-        # du TradingEngine; l'ancien ensemble de valeurs rejetait "pionex"
-        # alors meme que le runtime savait le construire.
+        # DEUX PLATEFORMES, ET UN SIMULATEUR.
+        #
+        # Pionex, Binance, MoonX, OKX, Coinbase, Bitstamp ont ete retires le
+        # 29 aout a la demande de l'operateur : des integrations essayees
+        # puis abandonnees, dont il restait assez de code pour faire echouer
+        # un demarrage sans qu'on comprenne pourquoi.
+        #
         # « paper » est le simulateur : il ne passe aucun ordre. Le retirer
         # de cette liste a rendu le robot impossible a essayer autrement
         # qu'en argent reel — plus de dry-run, plus de rejeu historique, et
         # cent trente-sept tests devenus inexecutables faute de pouvoir
         # construire un moteur. Un lieu d'execution qui n'engage rien doit
         # toujours etre disponible.
-        brokers_valides = {"paper", "bitvavo", "pionex", "coinbase",
-                           "bitstamp", "multi"}
-        if e.broker not in brokers_valides: problems.append(f"broker invalide : {e.broker}")
+        #
+        # « ibkr » est reserve : le module n'existe pas encore, mais une
+        # configuration qui le nomme doit echouer sur « broker non
+        # implemente » au moment de construire, pas sur « broker invalide »
+        # ici — ce sont deux problemes differents.
+        brokers_valides = {"paper", "bitvavo", "multi"}
+        if e.broker not in brokers_valides:
+            problems.append(
+                f"broker invalide : {e.broker} — seuls "
+                f"{', '.join(sorted(brokers_valides))} existent encore "
+                f"(Pionex, Binance, MoonX, OKX ont ete retires)")
         # Le mode hors ligne fabrique des donnees synthetiques : il n'a de
         # sens qu'avec le simulateur. La regle visait les lieux d'execution
         # REELS ; ecrite « broker in brokers_valides » elle etait vraie pour
