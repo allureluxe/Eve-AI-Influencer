@@ -221,3 +221,69 @@ def test_le_rapport_annonce_franchement_qu_aucune_variante_ne_gagne(capsys):
     rapport([_resultat("toutes perdantes", 40, -0.2)])
     sortie = capsys.readouterr().out
     assert "AUCUNE VARIANTE N'EST GAGNANTE" in sortie
+
+
+# --------------------------------------------------------------------------
+# Les libelles du BROKER REEL
+#
+# Premiere version de ce module : classee sur « stop-loss touche », le
+# libelle du SIMULATEUR. En reel, Bitvavo ecrit « stop declenche sur la
+# plateforme » — et 75 % des trades reels de l'operateur tombaient dans
+# « autre ». Un rapport qui range les trois quarts de ses lignes dans
+# « motif non reconnu » ne renseigne sur rien.
+# --------------------------------------------------------------------------
+def test_le_stop_de_la_plateforme_bitvavo_est_reconnu():
+    assert categorie_de_sortie("stop declenche sur la plateforme", -1.0) == "stop initial"
+    assert categorie_de_sortie("stop declenche sur la plateforme", 1.3) == "stop suiveur"
+
+
+def test_les_accents_ne_changent_pas_le_classement():
+    # Le broker ecrit « stop déjà atteint », avec accents.
+    assert categorie_de_sortie("stop déjà atteint", -0.5) == "stop initial"
+    assert categorie_de_sortie("stop deja atteint", -0.5) == "stop initial"
+
+
+def test_un_stop_impossible_a_poser_n_est_pas_un_resultat_de_marche():
+    """Le robot n'a pas pu proteger la position et l'a fermee.
+
+    Le confondre avec une perte ferait chercher un defaut de strategie la
+    ou il y a un defaut d'execution — deux problemes qui ne se reparent
+    pas au meme endroit.
+    """
+    assert categorie_de_sortie("stop impossible a poser", -0.2) == "abandon technique"
+    assert categorie_de_sortie("stop sous le minimum", -0.2) == "abandon technique"
+
+
+def test_les_echecs_techniques_passent_avant_les_stops_touches():
+    # « stop impossible a poser » commence par « stop » sans etre un stop
+    # touche : l'ordre des tests decide, et il doit rester celui-la.
+    assert categorie_de_sortie("stop impossible a poser", 0.5) != "stop suiveur"
+
+
+def test_la_sortie_de_securite_est_reconnue():
+    assert categorie_de_sortie("perte anormale -3.20R : sortie de securite",
+                               -3.2) == "securite"
+
+
+def test_tous_les_motifs_reellement_emis_sont_classes():
+    """Aucun motif produit par le projet ne doit tomber dans « autre ».
+
+    C'est ce test qui aurait evite la premiere version incomplete.
+    """
+    emis = [
+        # simulateur
+        "objectif atteint", "stop-loss touche", "fin de periode de test",
+        # broker Bitvavo
+        "stop declenche sur la plateforme", "stop déjà atteint",
+        "stop sous le minimum", "stop impossible a poser",
+        # gestionnaire de trade
+        "stop temporel : 2880 min sans progression (+0.05R)",
+        "retournement confirme a +0.90R (dynamique -0.50 : ...)",
+        "perte anormale -3.20R : sortie de securite",
+        "objectif atteint a +2.00R",
+        "prise partielle de 40% a 1.00R",
+    ]
+    for motif in emis:
+        cat = categorie_de_sortie(motif, 0.5)
+        assert cat != "autre", f"motif non classe : {motif}"
+        assert cat in CATEGORIES

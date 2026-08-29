@@ -471,8 +471,36 @@ class TradeManager:
     # ---------------------------------------------------------------
     def _safety_exits(self, position: Position, price: float, r_now: float,
                       momentum: Momentum, now: float) -> Optional[TradeAction]:
-        """Sorties prioritaires : retournement franc, stagnation, derive."""
+        """Sorties prioritaires : objectif, retournement franc, stagnation, derive."""
         cfg = self.config
+
+        # L'OBJECTIF EST ATTEINT. PERSONNE D'AUTRE NE LE REGARDE.
+        #
+        # Ce test manquait, et c'est la panne qui expliquait tout le reste.
+        #
+        # Bitvavo n'a pas d'ordre lie « l'un annule l'autre » : poser a la
+        # fois un stop et un objectif laisserait le second vivant apres que
+        # le premier a vendu, et il revendrait plus tard des actifs qui ne
+        # sont plus la. Le robot ne pose donc QUE le stop sur la
+        # plateforme, et garde l'objectif pour lui.
+        #
+        # Sauf que personne ne comparait le prix a cet objectif. Le
+        # simulateur le fait dans `check_tick`, mais le moteur n'appelle
+        # `check_tick` que `if isinstance(self.broker, PaperBroker)`. En
+        # reel, `take_profit` n'etait donc qu'un nombre en memoire.
+        #
+        # Consequence exacte, et c'est ce que l'operateur observait :
+        # UNE POSITION REELLE NE POUVAIT PAS SE FERMER EN BENEFICE SUR SON
+        # OBJECTIF. Elle montait vers la cible, ne se fermait pas,
+        # redescendait, et sortait sur le stop. Les seuls gains encaisses
+        # l'ont ete a la main.
+        #
+        # C'est aussi pourquoi aucun test ne l'a vu : ils passent tous par
+        # le simulateur, le seul endroit ou la verification existait.
+        if position.take_profit and position.hit_target(price):
+            return TradeAction(
+                ActionType.CLOSE, position.id,
+                reason=f"objectif atteint a {r_now:+.2f}R")
 
         # Retournement net alors qu'un gain correct est acquis : on encaisse.
         if r_now >= cfg.reversal_exit_r and momentum.score <= -0.45:

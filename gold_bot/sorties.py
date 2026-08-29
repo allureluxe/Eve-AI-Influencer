@@ -20,7 +20,8 @@ pour qu'un chiffre lu a un endroit veuille dire la meme chose a l'autre.
 from __future__ import annotations
 
 CATEGORIES = ["objectif", "stop suiveur", "stop initial", "temporel",
-              "retournement", "encore ouvert", "autre"]
+              "retournement", "securite", "abandon technique",
+              "prise partielle", "encore ouvert", "autre"]
 
 # Ce que chaque categorie veut dire, en une ligne, pour les rapports.
 EXPLICATION = {
@@ -29,17 +30,49 @@ EXPLICATION = {
     "stop initial": "stop d'origine touche : perte pleine",
     "temporel": "ferme faute de progression, pas faute de direction",
     "retournement": "sorti sur retournement, avec un gain acquis",
+    "securite": "perte anormale : filet de securite declenche",
+    "abandon technique": "le robot n'a PAS pu proteger la position et l'a fermee",
+    "prise partielle": "une part encaissee en chemin (le trade continue)",
     "encore ouvert": "non termine (fin de periode de test)",
     "autre": "motif non reconnu",
 }
 
+# LES LIBELLES DU BROKER REEL NE SONT PAS CEUX DU SIMULATEUR.
+#
+# Premiere version de ce module : classee sur « stop-loss touche », le
+# libelle du simulateur. En reel, Bitvavo ecrit « stop declenche sur la
+# plateforme » — et 75 % des trades de l'operateur tombaient dans
+# « autre ». Un rapport qui range les trois quarts de ses lignes dans
+# « motif non reconnu » ne renseigne sur rien.
+#
+# L'ordre compte : « stop impossible a poser » commence par « stop » sans
+# etre un stop touche. Les cas particuliers passent donc AVANT.
+_ECHECS_TECHNIQUES = ("stop impossible", "stop sous le minimum")
+_STOPS_TOUCHES = ("stop-loss", "stop declenche", "stop deja atteint")
+
+
+def _sans_accents(texte: str) -> str:
+    """« stop déjà atteint » et « stop deja atteint » doivent se ranger pareil."""
+    for accentue, simple in (("é", "e"), ("è", "e"), ("ê", "e"), ("à", "a"),
+                             ("â", "a"), ("î", "i"), ("ô", "o"), ("û", "u"),
+                             ("ç", "c")):
+        texte = texte.replace(accentue, simple)
+    return texte
+
 
 def categorie_de_sortie(motif: str, r: float) -> str:
     """Classe un motif de fermeture. `r` decide du sens d'un stop touche."""
-    m = (motif or "").lower()
+    m = _sans_accents((motif or "").lower())
+
+    # Le robot n'a pas pu poser de stop et a ferme pour ne pas rester
+    # sans protection. Ce n'est pas un resultat de marche, c'est un
+    # incident — le confondre avec une perte ferait chercher un defaut de
+    # strategie la ou il y a un defaut d'execution.
+    if m.startswith(_ECHECS_TECHNIQUES):
+        return "abandon technique"
     if m.startswith("objectif"):
         return "objectif"
-    if m.startswith("stop-loss"):
+    if m.startswith(_STOPS_TOUCHES):
         # Le signe du resultat est la SEULE facon de distinguer un stop
         # d'origine d'un stop remonte : le motif enregistre est le meme.
         # Un R nul compte comme perte : les frais, eux, ont ete payes.
@@ -48,7 +81,15 @@ def categorie_de_sortie(motif: str, r: float) -> str:
         return "temporel"
     if m.startswith("retournement"):
         return "retournement"
-    if m.startswith("fin de periode"):
+    if m.startswith("perte anormale"):
+        return "securite"
+    # Une prise partielle n'est pas une fin de trade : elle est comptee a
+    # part par `resumer`. Elle est classee ici quand meme, sinon un trade
+    # dont le drapeau `partial` s'est perdu tomberait dans « autre » sans
+    # qu'on sache d'ou il vient.
+    if m.startswith("prise partielle"):
+        return "prise partielle"
+    if m.startswith(("fin de periode", "fin de test")):
         return "encore ouvert"
     return "autre"
 

@@ -241,6 +241,65 @@ se mesure pas — contrairement à l'unité de temps et au plafond de coût,
 qui eux doivent passer par le rejeu. Le rapport le dit lui-même en bas de
 page, pour qu'on ne lise pas ses chiffres comme ceux d'un portefeuille.
 
+## D3, le robot ne pouvait pas prendre ses bénéfices
+
+Le 29 août, l'opérateur : « les bénéfices que tu vois, c'est **moi** qui
+ai fermé une position, pas le bot ». C'était littéralement vrai, et voici
+pourquoi.
+
+Bitvavo n'a pas d'ordre lié « l'un annule l'autre ». Poser à la fois un
+stop et un objectif laisserait le second vivant après que le premier a
+vendu, et il revendrait plus tard des actifs qui ne sont plus là. Le robot
+ne pose donc **que le stop** sur la plateforme et garde l'objectif pour
+lui — décision correcte.
+
+Mais **personne ne comparait le prix à cet objectif.** Le simulateur le
+fait dans `check_tick` ; or `engine.py` n'appelle `check_tick` que :
+
+```python
+if isinstance(self.broker, PaperBroker):
+```
+
+En réel, `position.take_profit` n'était donc qu'un nombre en mémoire que
+rien ne lisait. Les seules sorties possibles étaient le stop de la
+plateforme, le stop temporel, le retournement et le filet de perte
+anormale.
+
+**Une position réelle ne pouvait pas se fermer en bénéfice sur son
+objectif.** Elle montait vers la cible, ne se fermait pas, redescendait,
+et sortait sur le stop.
+
+### Pourquoi aucun test ne l'avait vu
+
+Ils passaient **tous** par le simulateur — le seul endroit où la
+vérification existait. C'est aussi ce qui explique l'écart resté
+inexpliqué entre le rejeu (+0,267 R) et le réel (−0,406 R) : au rejeu, le
+simulateur encaissait les objectifs que le robot réel n'encaissait jamais.
+
+La vérification vit désormais dans `TradeManager._safety_exits`, commun à
+**tous** les lieux d'exécution. Elle se juge au prix de sortie réel — le
+bid pour un achat — et non au milieu de la fourchette, sinon chaque trade
+encaisserait une demi-fourchette de moins que son objectif annoncé.
+
+`tests/test_objectif_en_reel.py` verrouille les deux points.
+
+### Les libellés du broker réel ne sont pas ceux du simulateur
+
+Corollaire découvert en même temps : `gold_bot/sorties.py` classait les
+fermetures sur « stop-loss touché », le libellé du **simulateur**. En réel
+Bitvavo écrit « stop déclenché sur la plateforme » — et **75 % des trades
+réels tombaient dans « motif non reconnu »**.
+
+Deux catégories manquaient aussi, et elles ne disent pas du tout la même
+chose qu'une perte :
+
+- **abandon technique** — « stop impossible à poser », « stop sous le
+  minimum » : le robot n'a pas pu protéger la position et l'a fermée. Ce
+  n'est pas un résultat de marché, c'est un incident d'exécution. Les
+  confondre ferait chercher un défaut de stratégie là où il y a un défaut
+  de plomberie.
+- **sécurité** — « perte anormale » : le filet contre un gap.
+
 ## Deux règles de méthode
 
 **Ne jamais supprimer un test pour faire passer la suite.** Si un test
