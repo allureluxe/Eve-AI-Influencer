@@ -162,6 +162,60 @@ le nombre de confirmations exigées, et le compter deux fois punirait deux
 fois la même situation — le robot cesserait d'entrer exactement quand il
 doit se refaire.
 
+## D2, six positions au lieu de trois
+
+Le 29 août, l'opérateur : « il prend peu de positions à mon goût, sur une
+journée il y a énormément d'opportunités avec 70 instruments, donc il y a
+un truc qui va pas ». L'observation était juste.
+
+Quatre plafonds limitent le nombre de positions simultanées, et c'est le
+plus petit qui décide :
+
+| plafond | avant | après |
+|---|---|---|
+| `risk.max_positions` | 3 | **6** |
+| `risk.max_total_risk_pct` | 1,8 | **3,0** |
+| groupes corrélés (14 groupes × 1) | 14 | 14 |
+| capital (186 €, ticket 5 €) | 29 | 29 |
+
+**Deux verrous étaient à la même hauteur** : `max_positions` à 3, et le
+budget de risque à 1,8 / 0,5 = 3 lui aussi. Remonter le premier seul
+n'aurait rien changé — le second aurait repris le relais exactement au
+même endroit, et le réglage serait passé pour cassé alors qu'il était
+seulement masqué. Les deux ont donc été desserrés ensemble.
+
+Ni les groupes corrélés ni le capital ne bridaient : il reste 14 groupes
+disponibles, et de quoi tenir 29 tickets.
+
+`etat.py` affiche ces quatre chiffres et nomme celui qui bride, pour que
+la prochaine fois la question se règle en une commande.
+
+### Pourquoi 3,0 % et pas plus
+
+Six positions à 0,5 % engagent 3,0 % du capital en même temps — soit
+5,58 € sur 186 €. La limite de perte journalière vaut 3,0 % elle aussi.
+
+Ce n'est pas une coïncidence, c'est la contrainte : **si les six tombent
+le même jour, la perte atteint exactement la limite journalière et le
+robot s'arrête de lui-même.** Au-delà de 3,0 %, il pourrait perdre en une
+journée plus que la limite n'autorise, et la limite ne servirait plus à
+rien. Un test le vérifie.
+
+Et en crypto, « les six tombent le même jour » n'est pas improbable :
+dans une baisse générale les positions ne sont pas indépendantes. Six
+positions corrélées se comportent alors comme une seule position de
+3 %. La diversification par groupe réduit ce risque, elle ne l'annule
+pas.
+
+### Ce que le rejeu ne peut pas trancher
+
+`comparer.py` rejoue **un instrument à la fois et n'en tient qu'une
+position à la fois**. `max_positions` et `max_per_correlation_group`
+n'ont donc aucun effet sur ses chiffres. Ce réglage-là se raisonne, il ne
+se mesure pas — contrairement à l'unité de temps et au plafond de coût,
+qui eux doivent passer par le rejeu. Le rapport le dit lui-même en bas de
+page, pour qu'on ne lise pas ses chiffres comme ceux d'un portefeuille.
+
 ## Deux règles de méthode
 
 **Ne jamais supprimer un test pour faire passer la suite.** Si un test

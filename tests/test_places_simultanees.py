@@ -94,8 +94,15 @@ def test_le_plafond_capital_doit_etre_demande_sans_bornage():
 
 
 # --------------------------------------------------------------------------
-def test_la_configuration_en_service_est_bridee_a_trois_par_deux_verrous():
+def test_la_configuration_en_service_tient_six_positions():
     """Constat, pas prescription : ce test dit ce que la config FAIT.
+
+    Elle etait bridee a 3 par DEUX verrous a la meme hauteur —
+    `max_positions` 3, et `max_total_risk_pct` 1,8 / 0,5 = 3. Remonter le
+    premier seul n'aurait rien change : le second aurait repris le relais
+    au meme endroit, et le reglage serait passe pour casse.
+
+    Les deux ont donc ete desserres ensemble, a 6 et 3,0 %.
 
     S'il echoue un jour, ce n'est pas une regression — c'est que le nombre
     de positions a ete change, et le test doit etre mis a jour en meme
@@ -106,9 +113,26 @@ def test_la_configuration_en_service_est_bridee_a_trois_par_deux_verrous():
                              n_groupes=14,
                              max_risque_total_pct=r.max_total_risk_pct,
                              risque_par_trade_pct=r.base_risk_pct)
-    assert cap.places == 3
-    assert cap.plusieurs_verrous, (
-        "deux verrous a la meme hauteur : en desserrer un seul ne changerait rien")
+    assert cap.places == 6
+
+
+def test_le_risque_simultane_ne_depasse_pas_la_perte_du_jour_permise():
+    """La vraie limite du nombre de positions n'est pas leur nombre.
+
+    Six positions a 0,5 % engagent 3,0 % du capital en meme temps. Si
+    elles tombent toutes le meme jour, la perte atteint exactement la
+    limite journaliere — le robot s'arrete de lui-meme. Au-dela, il
+    pourrait perdre plus dans une journee que ce que la limite autorise,
+    et la limite ne servirait plus a rien.
+
+    En crypto ce cas n'est PAS improbable : dans une baisse generale les
+    positions ne sont pas independantes, elles tombent ensemble.
+    """
+    r = BotConfig.load("robot.bitvavo.json").risk
+    assert r.max_total_risk_pct <= r.daily_loss_limit_pct, (
+        f"risque simultane {r.max_total_risk_pct} % > perte du jour permise "
+        f"{r.daily_loss_limit_pct} % : la limite journaliere serait franchie "
+        f"avant d'avoir pu jouer")
 
 
 # --------------------------------------------------------------------------
