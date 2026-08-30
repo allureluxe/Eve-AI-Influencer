@@ -167,6 +167,37 @@ limite de ce qui reste. À 96 EUR cela donne **2 positions pleines** :
 `tests/test_garde_fous.py::TestLevierMaitrise` verrouille la taille de la
 première position ; c'est elle qui trahit un budget pré-découpé.
 
+### Le partage suit les occasions RÉELLES (30 août, mesuré en réel)
+
+Les deux décisions ci-dessus — « servir chaque position pleine » et
+« partager le cash entre les places » — semblaient s'opposer. Elles ne
+s'opposent que si l'on divise par les places **théoriques**.
+
+Mesuré le 30 août : 97,37 € de capital, **70,82 € disponibles toute la
+journée**. Le partage divisait par six places libres en pariant sur six
+occasions ; il y en a eu **deux**. Quatre sixièmes du compte ont dormi,
+et les deux positions prises ont porté 0,25 % de risque au lieu des
+0,60 % configurés.
+
+Le dimensionnement reçoit désormais `places_visees` — le nombre
+d'occasions que le moteur a réellement sous la main :
+
+    occasions      notionnel     risque
+    6 (avant)        14,61 E     0,192 %
+    3                29,21 E     0,384 %
+    2                43,82 E     0,576 %   <- la journée du 30 août
+    1                45,64 E     0,600 %
+
+Quand six occasions existent, le partage est inchangé : six positions de
+14,60 € risquent autant que deux de 43,80 €. Quand il n'y en a que deux,
+le capital travaille au lieu d'attendre des places imaginaires.
+`max_total_risk_pct` reste la borne dure au-dessus : diviser par moins ne
+peut pas faire dépasser le risque total.
+
+Ne pas remplacer ce mécanisme par un remplissage séquentiel « pour
+investir plus » : quand les occasions sont nombreuses, il concentrerait
+le compte sur les deux premières.
+
 ### Le levier : pourquoi il a été retiré
 
 L'opérateur l'avait autorisé le 29 août, et il servait à occuper les places

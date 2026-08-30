@@ -472,6 +472,7 @@ class RiskManager:
         extra_multiplier: float = 1.0,
         spread: float = 0.0,
         available_cash: Optional[float] = None,
+        places_visees: Optional[int] = None,
     ) -> SizingDecision:
         """Calcule le volume a engager. Refuse si une regle est violee."""
         acc, cfg = self.account, self.config
@@ -567,8 +568,30 @@ class RiskManager:
                 # Le plancher, lui, n'est pas negociable : une part sous le
                 # ticket minimum de la plateforme ne produit aucun ordre.
                 # Mieux vaut alors moins de places, plus grandes.
+                # ON NE RESERVE PAS DE CASH POUR DES PLACES QUI N'EXISTENT PAS.
+                #
+                # Le partage divisait par TOUTES les places libres, donc
+                # par six, en pariant que six occasions se presenteraient.
+                # Le 30 aout il y en a eu DEUX de toute la journee : quatre
+                # sixiemes du compte — environ 55 EUR — ont dormi jusqu'au
+                # soir pour des places qui ne se sont jamais ouvertes, et
+                # les deux positions prises ont porte 0,25 % de risque au
+                # lieu des 0,60 % configures.
+                #
+                # `places_visees` est le nombre d'occasions que l'appelant
+                # a REELLEMENT sous la main. A defaut on retombe sur
+                # l'ancien comportement : une couche qui ne sait pas
+                # compter ses occasions ne doit pas concentrer par
+                # accident.
+                #
+                # Le budget de risque (`max_total_risk_pct`) reste la borne
+                # dure au-dessus : diviser par moins ne peut pas faire
+                # depasser le risque total, il rend seulement au capital le
+                # droit de travailler quand les occasions sont rares.
                 reste = min(available_cash, max(0.0, plafond_engage - deja_engage))
-                places = max(1, cfg.max_positions - len(positions))
+                libres = max(1, cfg.max_positions - len(positions))
+                places = libres if places_visees is None else max(
+                    1, min(libres, int(places_visees)))
                 ticket_minimum = instrument.min_lot * valeur_unitaire
                 part = min(reste, max(reste / places, ticket_minimum))
 

@@ -156,10 +156,22 @@ class MultiEntryScalpingMixin(ContinuousScalpingMixin):
             if not allowed:
                 logger.info("recherche multi-entrees arretee : %s", why)
                 break
+            # LE QUATRIEME VERROU DU RENFORCEMENT.
+            #
+            # Trois etaient connus (check_exposure, l'exclusion du scan, le
+            # rejeu). Celui-ci refusait encore toute occasion sur un
+            # symbole detenu, apres que les autres l'aient laissee passer :
+            # armer la pyramide n'aurait toujours rien change. C'est le
+            # risque de tout verrou duplique — on en leve trois et on
+            # conclut que la fonction ne marche pas.
             if ev.symbol in {p.symbol for p in current}:
-                continue
+                if ev.symbol not in renforcables:
+                    continue
             before = len(current)
-            self._execute(ev)
+            # Ce qu'il reste a ouvrir CE cycle : le partage du cash s'y
+            # accorde plutot que de reserver pour six places imaginaires.
+            self._execute(ev, places_visees=min(max_new - opened,
+                                                len(valid) - valid.index(ev)))
             after = len(self.broker.positions())
             if after > before:
                 opened += 1

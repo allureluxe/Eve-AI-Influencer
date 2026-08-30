@@ -910,8 +910,14 @@ class TradingEngine:
             return
         self._execute(result.best)
 
-    def _execute(self, ev: Evaluation) -> None:
-        """Dimensionne et envoie l'ordre. Aucune validation manuelle."""
+    def _execute(self, ev: Evaluation, places_visees: Optional[int] = None) -> None:
+        """Dimensionne et envoie l'ordre. Aucune validation manuelle.
+
+        `places_visees` : nombre d'occasions reellement disponibles ce
+        cycle. Sans lui, le partage du cash reserve une part pour chacune
+        des six places libres — y compris celles qu'aucune occasion ne
+        viendra remplir.
+        """
         instrument = self.universe.get(ev.symbol)
         if instrument is None or ev.side is None:
             return
@@ -922,7 +928,8 @@ class TradingEngine:
             instrument, ev.side, ev.entry, ev.stop_loss, ev.take_profit,
             open_positions=positions, universe_lookup=self.universe.get,
             extra_multiplier=multiplier, spread=ev.spread,
-            available_cash=self.broker.account().margin_free)
+            available_cash=self.broker.account().margin_free,
+            places_visees=places_visees)
 
         if not sizing.allowed:
             logger.info("%s ecarte au dimensionnement : %s", ev.symbol, sizing.reason)
