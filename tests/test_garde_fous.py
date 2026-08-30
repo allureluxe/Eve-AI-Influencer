@@ -606,13 +606,32 @@ class TestFiltresDEntree:
         de cout, tous deux verifies plus haut.
         """
         cfg = config()
-        atr_typique = {"M15": 0.0056, "H1": 0.0112, "H4": 0.0224, "D1": 0.0546}
-        atr = atr_typique.get(cfg.strategy.entry_tf, 0.0224)
-        # Le plancher doit rester un plancher : au moins dix fois sous
-        # l'ATR normal, sinon il n'ecarte plus rien du tout.
-        assert 0 < cfg.strategy.min_atr_price_ratio <= atr / 5, (
-            f"min_atr_price_ratio vaut {cfg.strategy.min_atr_price_ratio} pour "
-            f"un ATR {cfg.strategy.entry_tf} de {atr:.4f}")
+        atr = ATR_PAR_UNITE[cfg.strategy.entry_tf]
+
+        # BORNE BASSE : le plancher doit au moins valoir ce que le plafond
+        # de cout exige, sinon le robot evalue en boucle des instruments
+        # qu'il refusera au dimensionnement. Observe en production : ETHUSD
+        # declare valide a chaque cycle avec un ATR de 0,217 %, puis rejete
+        # a 173 % de cout, toutes les dix secondes.
+        utile = cfg.atr_minimal_utile()
+        assert cfg.strategy.min_atr_price_ratio >= utile * 0.95, (
+            f"plancher a {cfg.strategy.min_atr_price_ratio:.4f} alors que le "
+            f"plafond de cout exige {utile:.4f} : le dimensionnement refusera "
+            "ce que la strategie laisse passer")
+
+        # BORNE HAUTE : il doit rester un plancher, pas un mur. Au-dessus de
+        # l'ATR typique de l'unite, plus aucun instrument ne passerait.
+        assert 0 < cfg.strategy.min_atr_price_ratio <= atr, (
+            f"plancher a {cfg.strategy.min_atr_price_ratio:.4f} pour un ATR "
+            f"{cfg.strategy.entry_tf} typique de {atr:.4f} : plus rien ne passe")
+
+    def test_le_plancher_est_annonce_quand_il_est_incoherent(self):
+        """Le moteur doit le dire, sans bloquer : le cout protege deja."""
+        import inspect
+        from gold_bot.engine import TradingEngine
+        source = inspect.getsource(TradingEngine._calibrer_sur_le_capital)
+        assert "atr_minimal_utile" in source
+        assert "PLANCHER DE VOLATILITE INCOHERENT" in source
 
     def test_le_spread_autorise_tient_sous_le_plafond_de_cout(self):
         """LA coherence qui manquait : les deux reglages parlent du meme R.

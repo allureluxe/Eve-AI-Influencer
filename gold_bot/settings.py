@@ -123,4 +123,30 @@ class BotConfig:
             if spread_en_r > plafond_en_r:
                 problems.append(
                     f"le filtre de spread autorise {spread_en_r:.2f} R de spread alors que le plafond de cout n'admet que {plafond_en_r:.2f} R : baisser strategy.max_spread_atr_ratio sous {plafond_en_r * t.atr_stop_mult:.2f}")
+
         return problems
+
+    def atr_minimal_utile(self) -> float:
+        """ATR en dessous duquel le plafond de cout refusera toujours.
+
+        Le stop vaut `atr_stop_mult` x ATR. Sur un instrument peu mobile le
+        stop est serre, et les frais — qui ne dependent que du notionnel —
+        le devorent. Evaluer un tel instrument est du travail perdu : il
+        passera les filtres de la strategie et sera rejete au
+        dimensionnement, a chaque cycle.
+
+        Observe en production : plancher a 0,15 %, ETHUSD declare valide a
+        chaque cycle avec un ATR M30 de 0,217 %, puis rejete a 173 % de
+        cout. Le robot tournait en boucle sur un trade qu'il refusait dix
+        secondes plus tard.
+
+        Ce n'est PAS une erreur de securite — le filtre de cout protege
+        correctement — donc `validate()` ne bloque pas le demarrage. C'est
+        une incoherence qui coute des cycles et brouille le journal, et le
+        moteur l'annonce au demarrage.
+        """
+        plafond = self.risk.max_cost_ratio_pct / 100.0
+        if plafond <= 0 or self.trade.atr_stop_mult <= 0:
+            return 0.0
+        cout = 2.0 * max(0.0, self.risk.commission_pct) + 0.0010
+        return cout / plafond / self.trade.atr_stop_mult

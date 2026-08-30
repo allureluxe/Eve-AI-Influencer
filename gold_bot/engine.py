@@ -409,6 +409,20 @@ class TradingEngine:
         )
         self.calibrage = cal
         self._ticket_minimum = ticket
+
+        # Le plancher de volatilite doit suivre le plafond de cout, sinon le
+        # robot evalue en boucle des instruments que le dimensionnement
+        # refusera. Ce n'est pas dangereux — le filtre de cout protege — donc
+        # on avertit sans bloquer.
+        atr_utile = self.config.atr_minimal_utile()
+        if atr_utile > 0 and cfg.strategy.min_atr_price_ratio < atr_utile * 0.95:
+            logger.warning(
+                "PLANCHER DE VOLATILITE INCOHERENT : %.4f accepte des ATR que "
+                "le plafond de cout (%.0f %%) refusera au dimensionnement. Avec "
+                "un stop de %.2f ATR il faut au moins %.4f. Le robot va evaluer "
+                "puis rejeter les memes instruments a chaque cycle.",
+                cfg.strategy.min_atr_price_ratio, cfg.risk.max_cost_ratio_pct,
+                cfg.trade.atr_stop_mult, atr_utile)
         self._promo_en_cours = self.promotion.en_cours()
         for ligne in cal.resume():
             logger.info("calibrage : %s", ligne)
