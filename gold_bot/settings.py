@@ -126,6 +126,29 @@ class BotConfig:
 
         return problems
 
+    def paliers_inatteignables(self) -> list[str]:
+        """Paliers de croissance que le plafond dur rabote en silence.
+
+        `croissance.PALIERS` promet 1,50 % de risque au palier
+        « acceleration » ; `effective_risk_pct` termine par
+        `min(max_risk_pct, risk)`. Quand le second est plus bas que le
+        premier, le palier est atteint — le journal l'annonce, le plan de
+        croissance compte avec — mais le risque reel reste au plafond.
+
+        Personne ne le voit : aucune erreur, aucun avertissement, juste
+        une projection de croissance fausse de 50 % au moment ou le compte
+        est cense accelerer. C'est exactement le genre d'ecart que ce
+        depot a paye cher ailleurs.
+
+        Ce n'est PAS une erreur de securite — raboter va dans le sens
+        prudent — donc `validate()` ne bloque pas le demarrage. Le moteur
+        l'annonce.
+        """
+        from .croissance import PALIERS
+        return [f"{p.nom} demande {p.risque_pct:.2f} % mais max_risk_pct "
+                f"vaut {self.risk.max_risk_pct:.2f} %"
+                for p in PALIERS if p.risque_pct > self.risk.max_risk_pct]
+
     def atr_minimal_utile(self) -> float:
         """ATR en dessous duquel le plafond de cout refusera toujours.
 

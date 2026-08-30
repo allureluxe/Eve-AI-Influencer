@@ -148,7 +148,7 @@ class MultiEntryScalpingMixin(ContinuousScalpingMixin):
 
         max_new = max(1, self.capital_tier()["positions_simultanees"])
         opened = 0
-        for ev in valid:
+        for rang, ev in enumerate(valid):
             if opened >= max_new:
                 break
             current = self.broker.positions()
@@ -170,8 +170,12 @@ class MultiEntryScalpingMixin(ContinuousScalpingMixin):
             before = len(current)
             # Ce qu'il reste a ouvrir CE cycle : le partage du cash s'y
             # accorde plutot que de reserver pour six places imaginaires.
+            # `enumerate` et non `valid.index(ev)` : Evaluation est une
+            # dataclass comparable, donc `index` renvoie le rang du PREMIER
+            # element egal — deux occasions identiques auraient partage le
+            # meme rang et fausse le compte des places restantes.
             self._execute(ev, places_visees=min(max_new - opened,
-                                                len(valid) - valid.index(ev)))
+                                                len(valid) - rang))
             after = len(self.broker.positions())
             if after > before:
                 opened += 1

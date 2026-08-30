@@ -425,6 +425,13 @@ class TradingEngine:
                 "puis rejeter les memes instruments a chaque cycle.",
                 cfg.strategy.min_atr_price_ratio, cfg.risk.max_cost_ratio_pct,
                 cfg.trade.atr_stop_mult, atr_utile)
+        # Un palier de croissance que le plafond dur rabote en silence rend
+        # le plan de croissance faux au moment ou il compte le plus.
+        for probleme in self.config.paliers_inatteignables():
+            logger.warning("PALIER DE CROISSANCE INATTEIGNABLE : %s. Le journal "
+                           "annoncera le palier, le risque reel restera au "
+                           "plafond, et la projection sera fausse d'autant.",
+                           probleme)
         self._promo_en_cours = self.promotion.en_cours()
         for ligne in cal.resume():
             logger.info("calibrage : %s", ligne)
