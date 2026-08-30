@@ -203,6 +203,8 @@ class TradingEngine:
         self.broker: Broker = self._build_broker()
 
         self._running = False
+        # Dernier niveau de stop ANNONCE dans le journal, par position.
+        self._stop_journalise: dict[str, float] = {}
         self._stop_requested = False
         self._consecutive_errors = 0
         self._last_heartbeat = 0.0
@@ -713,6 +715,9 @@ class TradingEngine:
     # ---------------------------------------------------------------
     def _manage_positions(self, positions: list[Position]) -> None:
         """Applique le trailing, les extensions d'objectif et les sorties."""
+        vivantes = {p.id for p in positions}
+        for ferme in [i for i in self._stop_journalise if i not in vivantes]:
+            self._stop_journalise.pop(ferme, None)
         for pos in positions:
             instrument = self.universe.get(pos.symbol)
             if instrument is None:
@@ -749,12 +754,54 @@ class TradingEngine:
 
             self.store.remember_position(pos)
 
+    def _stop_sur_la_plateforme(self, symbol: str) -> Optional[float]:
+        """Stop reellement en carnet, pour les brokers qui en deposent un.
+
+        None quand le broker n'en depose pas (simulateur) : l'appelant se
+        rabat alors sur le seul changement de niveau.
+        """
+        lire = getattr(self.broker, "stop_depose", None)
+        return lire(symbol) if callable(lire) else None
+
     def _apply_action(self, pos: Position, action: TradeAction, instrument: Instrument) -> None:
         """Transmet une action de gestion au broker."""
         try:
             if action.type is ActionType.MODIFY_STOP:
+                # POURQUOI CE FILTRE D'AFFICHAGE.
+                #
+                # Le stop suiveur est un chandelier : max_favorable - k x ATR.
+                # Les deux termes bougent a chaque cycle, donc le niveau
+                # remonte par increments minuscules — arrondis a
+                # instrument.digits, soit 1e-8 sur les cryptos. Chacun est
+                # une hausse REELLE, la section 5 du gestionnaire a raison
+                # de l'emettre, et le broker a raison de ne pas reposer
+                # l'ordre pour si peu (stop_move_threshold_r).
+                #
+                # Mais la ligne de journal, elle, s'affiche a 1e-5 : le 30
+                # aout, UNIUSD a repete « stop -> 4.32703 (+1.15R -> +1.15R
+                # verrouille) » toutes les dix secondes pendant quatre
+                # minutes. Trente lignes identiques annoncant un
+                # deplacement qui n'avait pas eu lieu chez Bitvavo : le
+                # journal disait le contraire de la verite, et noyait les
+                # vrais paliers.
+                #
+                # On n'annonce donc que ce qui se voit : un niveau different
+                # a l'affichage, ou un ordre reellement repose.
+                pose_avant = self._stop_sur_la_plateforme(pos.symbol)
                 if self.broker.modify_position(pos.id, stop_loss=action.price):
-                    logger.info("%s : stop -> %.5f (%s)", pos.symbol, action.price, action.reason)
+                    pose_apres = self._stop_sur_la_plateforme(pos.symbol)
+                    repose = pose_apres is not None and pose_apres != pose_avant
+                    precedent = self._stop_journalise.get(pos.id)
+                    visible = precedent is None or round(action.price, 5) != round(precedent, 5)
+                    self._stop_journalise[pos.id] = action.price
+                    if repose or visible:
+                        logger.info("%s : stop -> %.5f (%s)%s", pos.symbol, action.price,
+                                    action.reason,
+                                    "" if pose_apres is None else
+                                    (" [ordre repose]" if repose else " [interne, ordre inchange]"))
+                    else:
+                        logger.debug("%s : stop interne -> %.8f (%s)",
+                                     pos.symbol, action.price, action.reason)
 
             elif action.type is ActionType.MODIFY_TARGET:
                 if self.broker.modify_position(pos.id, take_profit=action.price):

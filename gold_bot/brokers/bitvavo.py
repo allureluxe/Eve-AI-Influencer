@@ -1141,6 +1141,18 @@ class BitvavoBroker(Broker):
         self._stops.pop(symbol, None)
         self._stop_pose.pop(symbol, None)
 
+    def stop_depose(self, symbol: str) -> Optional[float]:
+        """Niveau de stop REELLEMENT en carnet chez Bitvavo, ou None.
+
+        Position.stop_loss ne repond pas a cette question : le gestionnaire
+        y ecrit son niveau avant meme que le broker soit appele, et le
+        broker ne repose l'ordre que si le deplacement depasse
+        stop_move_threshold_r. Les deux valeurs divergent donc en
+        permanence, de facon parfaitement normale — encore faut-il pouvoir
+        les distinguer dans le journal.
+        """
+        return self._stop_pose.get(symbol)
+
     def modify_position(self, position_id: str, stop_loss: Optional[float] = None,
                         take_profit: Optional[float] = None) -> bool:
         position = self._positions.get(position_id)
