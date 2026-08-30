@@ -113,8 +113,29 @@ def main() -> int:
     if etat.halt_reason:
         print(f"  motif : {etat.halt_reason}")
 
-    if not etat.halted and sommet <= capital:
+    # Le resultat hebdomadaire est un compteur DISTINCT de l'arret : le
+    # robot peut tourner normalement tout en tradant a moitie de sa taille
+    # a cause d'une semaine negative heritee d'une autre configuration.
+    semaine = _semaine_a_purger(cfg)
+    if semaine:
+        ancien, mult, motif = semaine
+        print(f"\n{JAUNE}{GRAS}Semaine heritee : {ancien:+.2f} "
+              f"{cfg.engine.currency}{FIN}")
+        if mult < 1.0:
+            print(f"  reduit la taille des positions (x{mult:.2f} — {motif})")
+
+    if not etat.halted and sommet <= capital and not semaine:
         print(f"\n{VERT}Rien a faire : le robot n'est pas arrete.{FIN}\n")
+        return 0
+
+    if not etat.halted and sommet <= capital and semaine:
+        # Rien a recaler cote drawdown : seule la semaine reste a purger.
+        if not args.confirmer:
+            print(f"\n{JAUNE}Aucune modification.{FIN}")
+            print("  Pour remettre la semaine a zero :")
+            print("     python3 reinitialiser_arret.py --confirmer\n")
+            return 1
+        _purger_la_semaine(cfg)
         return 0
 
     if not args.confirmer:
@@ -142,8 +163,58 @@ def main() -> int:
     print(f"\n{VERT}{GRAS}Arret leve.{FIN}")
     print(f"  sommet recale de {ancien:.2f} a {capital:.2f}")
     print("  Le drawdown repart de zero : la prochaine serie de pertes")
-    print(f"  declenchera de nouveau a {cfg.risk.max_drawdown_pct:.1f} %.\n")
+    print(f"  declenchera de nouveau a {cfg.risk.max_drawdown_pct:.1f} %.")
+
+    _purger_la_semaine(cfg)
     return 0
+
+
+def _semaine_a_purger(cfg):
+    """(resultat, multiplicateur, motif) si la semaine pese encore, sinon None."""
+    from gold_bot.objectives import ObjectiveTracker
+
+    suivi = ObjectiveTracker(cfg.objectives)
+    ancien = suivi.state.realized_this_week
+    if abs(ancien) <= 1e-9:
+        return None
+    mult, motif = suivi.risk_multiplier()
+    return ancien, mult, motif
+
+
+def _purger_la_semaine(cfg) -> None:
+    """Remet a zero le resultat hebdomadaire herite d'une autre strategie.
+
+    Le suivi d'objectif reduit le risque quand la semaine est negative —
+    c'est son role. Mais ce resultat survit au changement de configuration :
+    observe sur le PREMIER trade du M30, « semaine negative (-159 % de
+    l'objectif) : risque reduit », pour des pertes appartenant a la
+    configuration precedente.
+
+    Le moteur remet ce compteur a zero quand l'empreinte de strategie
+    change. Ici on traite le cas ou le changement a DEJA eu lieu et ou le
+    compteur est reste : recaler le drawdown sans recaler la semaine
+    laisserait le robot trader a moitie de sa taille sans raison.
+    """
+    from gold_bot.objectives import ObjectiveTracker
+
+    suivi = ObjectiveTracker(cfg.objectives)
+    ancien = suivi.state.realized_this_week
+    if abs(ancien) <= 1e-9:
+        return
+
+    mult, motif = suivi.risk_multiplier()
+    suivi.state.realized_this_week = 0.0
+    suivi.state.trades_this_week = 0
+    suivi.state.achieved_this_week = False
+    suivi.save()
+
+    print(f"\n{VERT}{GRAS}Semaine remise a zero.{FIN}")
+    print(f"  {ancien:+.2f} {cfg.engine.currency} appartenaient a la "
+          "configuration precedente")
+    if mult < 1.0:
+        print(f"  ils reduisaient la taille des positions (x{mult:.2f} — {motif})")
+    print("  Le mecanisme reste actif : une semaine negative reduira de")
+    print("  nouveau le risque, mais sur les resultats de CETTE strategie.\n")
 
 
 if __name__ == "__main__":

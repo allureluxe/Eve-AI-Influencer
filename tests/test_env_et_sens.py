@@ -270,3 +270,59 @@ class TestLeRecalageRefuseUnServiceActif:
         monkeypatch.setattr(module.shutil if hasattr(module, "shutil") else __import__("shutil"),
                             "which", lambda _nom: None)
         assert module.service_actif() is False
+
+
+class TestPurgeDeLaSemaineHeritee:
+    """Le compteur hebdomadaire est DISTINCT de l'arret.
+
+    Le moteur remet la semaine a zero quand l'empreinte de strategie
+    change. Mais si le changement a deja eu lieu — l'empreinte est deja
+    enregistree — le compteur reste, et le robot trade a 40 % de sa taille
+    sans qu'aucun arret ne soit visible. L'outil doit donc pouvoir purger
+    la semaine SANS qu'il y ait de drawdown a recaler.
+    """
+
+    def test_l_outil_traite_la_semaine_independamment_de_l_arret(self):
+        import pathlib
+        racine = pathlib.Path(__file__).resolve().parent.parent
+        texte = (racine / "reinitialiser_arret.py").read_text(encoding="utf-8")
+        assert "_semaine_a_purger" in texte
+        assert "not etat.halted and sommet <= capital and semaine" in texte, (
+            "la semaine n'est purgeable que via un recalage de drawdown : "
+            "un robot qui tourne a moitie de taille resterait ainsi")
+
+    def test_une_semaine_negative_est_detectee(self, tmp_path, monkeypatch):
+        import json
+        import sys
+        racine = __import__("pathlib").Path(__file__).resolve().parent.parent
+        sys.path.insert(0, str(racine))
+        fichier = tmp_path / "obj.json"
+        fichier.write_text(json.dumps({
+            "realized_this_week": -5.79, "trades_this_week": 8,
+            "week_start_equity": 100.0, "level": 1}), encoding="utf-8")
+        monkeypatch.setenv("GB_OBJECTIVE_FILE", str(fichier))
+
+        import importlib
+        module = importlib.import_module("reinitialiser_arret")
+        from gold_bot.settings import BotConfig
+        cfg = BotConfig.load("robot.bitvavo.json")
+
+        resultat = module._semaine_a_purger(cfg)
+        assert resultat is not None
+        ancien, mult, _ = resultat
+        assert ancien == pytest.approx(-5.79)
+        assert mult < 1.0, "une semaine negative doit reduire la taille"
+
+    def test_une_semaine_neutre_n_est_pas_signalee(self, tmp_path, monkeypatch):
+        import json
+        import sys
+        racine = __import__("pathlib").Path(__file__).resolve().parent.parent
+        sys.path.insert(0, str(racine))
+        fichier = tmp_path / "obj.json"
+        fichier.write_text(json.dumps({"realized_this_week": 0.0}), encoding="utf-8")
+        monkeypatch.setenv("GB_OBJECTIVE_FILE", str(fichier))
+
+        import importlib
+        module = importlib.import_module("reinitialiser_arret")
+        from gold_bot.settings import BotConfig
+        assert module._semaine_a_purger(BotConfig.load("robot.bitvavo.json")) is None
