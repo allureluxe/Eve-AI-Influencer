@@ -65,9 +65,15 @@ def _chemin(instance: str = "") -> str:
 
 
 def depuis_quand(config, instance: str = "", maintenant: float | None = None) -> float:
-    """Horodatage du debut de la strategie courante.
+    """Horodatage du debut de la strategie courante."""
+    return marqueur(config, instance, maintenant)[0]
 
-    Met a jour le marqueur si l'empreinte a change. Retourne 0.0 quand le
+
+def marqueur(config, instance: str = "",
+             maintenant: float | None = None) -> tuple[float, bool]:
+    """(debut de la strategie courante, a-t-elle change a cet appel ?).
+
+    Met a jour le fichier si l'empreinte a change. Retourne 0.0 quand le
     marqueur ne peut pas etre ecrit — dans ce cas tout l'historique est
     compte, ce qui est le comportement d'avant : degrade, jamais bloquant.
     """
@@ -83,18 +89,18 @@ def depuis_quand(config, instance: str = "", maintenant: float | None = None) ->
         connu = {}
 
     if connu.get("empreinte") == signature and connu.get("depuis"):
-        return float(connu["depuis"])
+        return float(connu["depuis"]), False
 
     ancienne = connu.get("empreinte")
-    marqueur = {"empreinte": signature, "depuis": maintenant,
-                "unite": config.strategy.entry_tf, "broker": config.engine.broker}
+    contenu = {"empreinte": signature, "depuis": maintenant,
+               "unite": config.strategy.entry_tf, "broker": config.engine.broker}
     try:
         os.makedirs(os.path.dirname(ancrer(chemin)) or ".", exist_ok=True)
         with open(chemin, "w", encoding="utf-8") as fh:
-            json.dump(marqueur, fh, indent=2)
+            json.dump(contenu, fh, indent=2)
     except OSError as exc:
         logger.warning("marqueur de strategie non ecrit (%s) : %s", chemin, exc)
-        return 0.0
+        return 0.0, False
 
     if ancienne:
         logger.warning(
@@ -105,4 +111,4 @@ def depuis_quand(config, instance: str = "", maintenant: float | None = None) ->
     else:
         logger.info("strategie %s (unite %s) : debut de l'echantillon",
                     signature, config.strategy.entry_tf)
-    return maintenant
+    return maintenant, bool(ancienne)

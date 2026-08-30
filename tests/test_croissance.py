@@ -303,3 +303,57 @@ class TestLEchantillonSuitLaStrategie:
         assert "_strategie_depuis" in source, (
             "le palier lit tout l'historique : une strategie neuve heriterait "
             "des pertes de celle qu'elle remplace")
+
+
+class TestLObjectifHebdomadaireSuitLaStrategie:
+    """Le resultat de la semaine appartient a la strategie qui l'a fait.
+
+    Observe sur le PREMIER trade du M30 : « semaine negative (-159 % de
+    l'objectif) : risque reduit », donc position divisee par deux. Ces
+    -5,79 EUR venaient de la configuration precedente. La nouvelle n'avait
+    rien perdu et etait penalisee pour les pertes d'une autre.
+    """
+
+    def test_le_moteur_remet_la_semaine_a_zero_au_changement(self):
+        import inspect
+        from gold_bot.engine import TradingEngine
+        source = inspect.getsource(TradingEngine.__init__)
+        assert "strategie_changee" in source
+        assert "realized_this_week" in source, (
+            "le resultat hebdomadaire survit au changement de strategie : "
+            "la nouvelle sera penalisee pour les pertes de l'ancienne")
+
+    def test_une_semaine_negative_reduit_bien_le_risque(self):
+        """Le mecanisme lui-meme reste actif : on ne le desarme pas."""
+        from gold_bot.objectives import ObjectiveConfig, ObjectiveTracker
+        suivi = ObjectiveTracker(ObjectiveConfig(base_target=4.0))
+        suivi.state.week_start_equity = 100.0
+        suivi.state.realized_this_week = -6.0
+        mult, motif = suivi.risk_multiplier()
+        assert mult < 1.0
+        assert "negative" in motif
+
+    def test_une_semaine_neutre_ne_reduit_rien(self):
+        from gold_bot.objectives import ObjectiveConfig, ObjectiveTracker
+        suivi = ObjectiveTracker(ObjectiveConfig(base_target=4.0))
+        suivi.state.week_start_equity = 100.0
+        suivi.state.realized_this_week = 0.0
+        mult, _ = suivi.risk_multiplier()
+        assert mult == pytest.approx(1.0)
+
+    def test_le_marqueur_signale_le_changement_une_seule_fois(self, tmp_path, monkeypatch):
+        from gold_bot.settings import BotConfig
+        from gold_bot.version_strategie import marqueur
+        monkeypatch.setenv("GB_STRATEGIE_FILE", str(tmp_path / "s.json"))
+
+        cfg = BotConfig.load("robot.bitvavo.json")
+        _, change = marqueur(cfg)
+        assert change is False, "premier enregistrement : rien a signaler"
+        _, change = marqueur(cfg)
+        assert change is False, "meme strategie : pas de changement"
+
+        cfg.strategy.entry_tf = "H4"
+        _, change = marqueur(cfg)
+        assert change is True, "unite modifiee : le changement doit etre signale"
+        _, change = marqueur(cfg)
+        assert change is False, "signale une fois, pas a chaque demarrage"

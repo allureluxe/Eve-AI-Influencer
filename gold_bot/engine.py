@@ -180,8 +180,26 @@ class TradingEngine:
         # Date du dernier changement de reglage decisif : tout ce qui juge
         # la performance compte a partir de la, sans quoi une strategie
         # neuve herite des pertes de celle qu'elle remplace.
-        from .version_strategie import depuis_quand
-        self._strategie_depuis = depuis_quand(cfg, instance)
+        from .version_strategie import marqueur
+        self._strategie_depuis, strategie_changee = marqueur(cfg, instance)
+        if strategie_changee:
+            # LE RESULTAT DE LA SEMAINE APPARTIENT A LA STRATEGIE QUI L'A FAIT.
+            #
+            # Observe sur le premier trade du M30 : « semaine negative
+            # (-159 % de l'objectif) : risque reduit », donc position
+            # divisee par deux. Ces -5,79 EUR venaient de la configuration
+            # precedente. La nouvelle n'avait rien perdu et se voyait
+            # penalisee pour les pertes d'une autre.
+            ancien = self.objectives.state.realized_this_week
+            if abs(ancien) > 1e-9:
+                logger.warning(
+                    "STRATEGIE MODIFIEE : resultat hebdomadaire remis a zero "
+                    "(%.2f %s appartenaient a la configuration precedente)",
+                    ancien, cfg.engine.currency)
+                self.objectives.state.realized_this_week = 0.0
+                self.objectives.state.trades_this_week = 0
+                self.objectives.state.achieved_this_week = False
+                self.objectives.save()
         self.broker: Broker = self._build_broker()
 
         self._running = False
