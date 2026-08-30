@@ -115,10 +115,14 @@ class ContinuousScalpingMixin:
         try:
             super()._execute(ev, places_visees=places_visees)
         finally:
-            try:
-                self.scanner.wake_symbol(ev.symbol)
-            except Exception:
-                pass
+            # ... SAUF si le courtier vient de refuser l'ordre : ce refus
+            # se reproduit a l'identique, le reveil relancerait une boucle
+            # d'ERROR. On respecte alors la mise en sommeil posee en amont.
+            if getattr(self, "_dernier_refus_courtier", "") != ev.symbol:
+                try:
+                    self.scanner.wake_symbol(ev.symbol)
+                except Exception:
+                    pass
 
 
 class ContinuousScalpingEngine(ContinuousScalpingMixin, TradingEngine):

@@ -207,6 +207,11 @@ class TradingEngine:
         self._stop_journalise: dict[str, float] = {}
         self._stop_requested = False
         self._consecutive_errors = 0
+        # Symbole dont le DERNIER _execute s'est solde par un refus du
+        # courtier. Le moteur scalping reveille sinon tout symbole apres
+        # _execute ; sur un refus qui se reproduira a l'identique, ce
+        # reveil relance une boucle d'ERROR toutes les ~10 s.
+        self._dernier_refus_courtier = ""
         self._last_heartbeat = 0.0
         self._last_report_day = ""
 
@@ -925,6 +930,7 @@ class TradingEngine:
         des six places libres — y compris celles qu'aucune occasion ne
         viendra remplir.
         """
+        self._dernier_refus_courtier = ""
         instrument = self.universe.get(ev.symbol)
         if instrument is None or ev.side is None:
             return
@@ -963,7 +969,9 @@ class TradingEngine:
             # autre position, notionnel sous le minimum). Sans mise en
             # sommeil, l'instrument est repropose toutes les ~10 s et
             # inonde le journal d'ERROR. On le met de cote ; il repassera
-            # quand une position se sera fermee.
+            # quand une position se sera fermee. Le drapeau empeche le
+            # moteur scalping de le reveiller aussitot (voir son _execute).
+            self._dernier_refus_courtier = ev.symbol
             self.scanner.sleep_symbol(ev.symbol, 900.0, "ordre refuse par le courtier")
             return
 
