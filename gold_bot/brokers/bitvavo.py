@@ -148,6 +148,28 @@ class BitvavoConfig:
     # Sans lui : « 400 [203] operatorId parameter is required ».
     operator_id: int = 1
 
+    # --- Entrees en ordre LIMITE « post-only » ---
+    #
+    # Bitvavo facture 0,25 % au preneur de liquidite (ordre au marche) et
+    # 0,15 % au fournisseur (ordre limite non execute immediatement). Sur
+    # l'aller-retour, le cout tombe de 0,60 % a 0,40 % du prix — un tiers
+    # de moins, ce qui fait passer l'ATR minimal exploitable de 0,75 % a
+    # 0,50 % et rend eligibles beaucoup plus d'instruments.
+    #
+    # LA CONTREPARTIE, qui doit etre mesuree et non supposee : un ordre
+    # post-only n'est PAS execute si le prix s'ecarte. On rate alors le
+    # trade. Et on est servi de preference quand le prix revient vers
+    # nous — parfois juste avant qu'il continue dans le mauvais sens.
+    # C'est de la selection adverse, et elle ne se voit que sur un
+    # echantillon.
+    #
+    # Desactive par defaut : la mesure du 30 aout (+0,352 R) porte sur des
+    # ordres AU MARCHE. Armer les limites sans remesurer reviendrait a
+    # trader une strategie que personne n'a testee.
+    entree_limite: bool = False
+    entree_limite_secondes: float = 45.0
+    fee_rate_maker: float = FRAIS_MAKER
+
     @classmethod
     def from_env(cls) -> "BitvavoConfig":
         return cls(
@@ -158,6 +180,9 @@ class BitvavoConfig:
             timeout=float(os.getenv("BITVAVO_TIMEOUT", "15") or 15),
             dry_run=os.getenv("BITVAVO_DRY_RUN", "1").strip() not in ("0", "false", "False", ""),
             fee_rate=float(os.getenv("BITVAVO_FEE_RATE", str(FRAIS_TAKER)) or FRAIS_TAKER),
+            entree_limite=os.getenv("BITVAVO_ENTREE_LIMITE", "0").strip() in ("1", "true", "True", "oui"),
+            entree_limite_secondes=float(os.getenv("BITVAVO_ENTREE_LIMITE_SECONDES", "45") or 45),
+            fee_rate_maker=float(os.getenv("BITVAVO_FEE_MAKER", str(FRAIS_MAKER)) or FRAIS_MAKER),
             stop_move_threshold_r=float(
                 os.getenv("BITVAVO_STOP_MOVE_THRESHOLD_R", "0.15") or 0.15),
             operator_id=int(os.getenv("BITVAVO_OPERATOR_ID", "1") or 1),
@@ -824,6 +849,8 @@ class BitvavoBroker(Broker):
                            formater(take_profit))
             reponse = {"filledAmount": formater(quantite),
                        "filledAmountQuote": formater(notionnel), "orderId": ""}
+        elif self.config.entree_limite:
+            reponse = self._achat_en_limite(code, regle, quantite)
         else:
             reponse = self._appel("POST", "/order", corps={
                 "market": code, "side": "buy", "orderType": "market",
@@ -852,6 +879,95 @@ class BitvavoBroker(Broker):
                     self.mode, code, formater(obtenu), formater(position.entry_price),
                     formater(position.stop_loss), formater(position.take_profit))
         return position
+
+    def _achat_en_limite(self, code: str, regle, quantite: float) -> dict:
+        """Achat en ordre LIMITE « post-only », ou rien.
+
+        Le prix est pose au meilleur ACHETEUR du carnet : l'ordre rejoint
+        la file d'attente sans franchir le spread, donc il paie le tarif
+        maker (0,15 % au lieu de 0,25 %).
+
+        `postOnly` est essentiel : sans lui, un ordre limite pose trop haut
+        s'executerait immediatement contre le carnet — au tarif preneur,
+        exactement ce qu'on cherchait a eviter, et sans qu'on le voie.
+        Bitvavo rejette l'ordre plutot que de le convertir.
+
+        S'il n'est pas servi dans le delai, il est ANNULE et le trade est
+        abandonne. On ne repasse pas au marche : ce serait payer le tarif
+        preneur sur une entree deja degradee — le prix s'est ecarte — donc
+        le pire des deux mondes.
+        """
+        # Le carnet est interroge sur le CODE DE MARCHE deja resolu, pas sur
+        # un symbole reconstruit : « BTC-EUR » ne se rededuit pas de
+        # « BTCUSD » sans refaire la traduction, et un symbole faux
+        # donnerait un prix limite d'une autre paire.
+        try:
+            carnet = self._appel("GET", "/ticker/book",
+                                 params={"market": code}, signe=False)
+            meilleur_acheteur = float(carnet.get("bid") or 0.0)
+        except Exception as exc:  # noqa: BLE001
+            raise BrokerError(
+                f"carnet indisponible sur {code} : ordre limite impossible "
+                f"({str(exc)[:100]})") from exc
+
+        prix_limite = regle.arrondir_prix(meilleur_acheteur) if meilleur_acheteur > 0 else 0.0
+        if prix_limite <= 0:
+            raise BrokerError(f"aucun acheteur au carnet sur {code}")
+
+        reponse = self._appel("POST", "/order", corps={
+            "market": code, "side": "buy", "orderType": "limit",
+            "amount": formater(quantite, regle.amount_decimals),
+            "price": formater(prix_limite),
+            "postOnly": True, "timeInForce": "GTC",
+            "operatorId": self.config.operator_id,
+        })
+        order_id = str(reponse.get("orderId", "") or "")
+        if not order_id:
+            raise BrokerError(f"ordre limite sans identifiant sur {code}")
+
+        logger.info("ordre LIMITE post-only %s %s @ %s (attente %.0fs)",
+                    code, formater(quantite), formater(prix_limite),
+                    self.config.entree_limite_secondes)
+
+        fin = time.time() + max(1.0, self.config.entree_limite_secondes)
+        derniere = reponse
+        while time.time() < fin:
+            time.sleep(min(3.0, max(0.5, self.config.entree_limite_secondes / 10)))
+            try:
+                derniere = self._appel("GET", "/order",
+                                       params={"market": code, "orderId": order_id})
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("suivi de l'ordre limite %s : %s", order_id, str(exc)[:120])
+                continue
+            statut = str(derniere.get("status", "")).lower()
+            rempli = float(derniere.get("filledAmount", 0) or 0)
+            if statut == "filled" or rempli >= quantite * 0.999:
+                logger.info("ordre limite servi sur %s (tarif maker)", code)
+                return derniere
+            if statut in ("canceled", "cancelled", "rejected", "expired"):
+                raise BrokerError(
+                    f"ordre limite {statut} sur {code} : postOnly aurait "
+                    "franchi le spread, entree abandonnee")
+
+        # Delai ecoule : on annule et on renonce.
+        partiel = float(derniere.get("filledAmount", 0) or 0)
+        try:
+            self._appel("DELETE", "/order",
+                        params={"market": code, "orderId": order_id,
+                                "operatorId": self.config.operator_id})
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("annulation de l'ordre limite %s : %s", order_id, str(exc)[:120])
+
+        if partiel > 0:
+            # Servi en partie : on garde ce qui l'a ete plutot que de
+            # laisser une position orpheline sans stop.
+            logger.warning("ordre limite servi partiellement sur %s : %s sur %s",
+                           code, formater(partiel), formater(quantite))
+            return derniere
+
+        raise BrokerError(
+            f"ordre limite non servi en {self.config.entree_limite_secondes:.0f}s "
+            f"sur {code} : le prix s'est ecarte, entree abandonnee")
 
     @staticmethod
     def _frais_reels(reponse: dict) -> Optional[float]:

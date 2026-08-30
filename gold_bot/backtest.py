@@ -88,7 +88,8 @@ class Backtester:
 
     def __init__(self, config: Optional[BotConfig] = None,
                  registry: Optional[DataRegistry] = None,
-                 autorise_vente: Optional[bool] = None) -> None:
+                 autorise_vente: Optional[bool] = None,
+                 entree_limite: bool = False) -> None:
         self.config = config or BotConfig.load()
         # La vente a decouvert suit le lieu d'execution vise. Au comptant
         # (« bitvavo ») elle est impossible ; sur compte de marge
@@ -98,6 +99,17 @@ class Backtester:
         if autorise_vente is None:
             autorise_vente = self.config.engine.broker != "bitvavo"
         self.autorise_vente = bool(autorise_vente)
+
+        # ENTREES EN ORDRE LIMITE : moins de frais, mais des trades rates.
+        #
+        # Un ordre post-only pose au meilleur acheteur paie 0,15 % au lieu
+        # de 0,25 %. En echange il n'est servi QUE si le prix revient le
+        # toucher. Modeliser la baisse de frais sans modeliser les non-
+        # executions donnerait un resultat flatteur et faux — c'est
+        # exactement le genre d'hypothese qui fait armer une strategie que
+        # personne n'a testee.
+        self.entree_limite = bool(entree_limite)
+        self._rates = 0
         # Meme verrou de devise que le moteur : un rejeu sur des prix en
         # dollars pour une configuration en euros donnerait des resultats
         # coherents entre eux mais sans rapport avec le marche ou les ordres
@@ -272,10 +284,31 @@ class Backtester:
                 key = "dimensionnement"
                 result.rejections[key] = result.rejections.get(key, 0) + 1
                 continue
+            prix_entree = None
+            if self.entree_limite:
+                # L'ordre est pose au meilleur acheteur, soit le prix moins
+                # un demi-spread. Il n'est servi que si la bougie SUIVANTE
+                # redescend le toucher. Sinon le prix est parti sans nous :
+                # le trade n'a pas lieu, et c'est le vrai cout de la
+                # methode.
+                limite = candle.close - spread / 2.0
+                suivante = base[i + 1] if i + 1 < len(base) else None
+                if suivante is None or suivante.low > limite:
+                    result.rejections["limite non servie"] = \
+                        result.rejections.get("limite non servie", 0) + 1
+                    self._rates += 1
+                    continue
+                prix_entree = limite
+
             try:
                 broker.open_position(instrument, ev.side, sizing.lots,
                                      ev.stop_loss, ev.take_profit,
                                      comment=f"{ev.setup} {ev.score:.2f}")
+                if prix_entree is not None:
+                    # Servi au prix pose, et au tarif MAKER.
+                    for pos in broker.positions():
+                        if pos.symbol == instrument.symbol:
+                            pos.entry_price = prix_entree
             except Exception as exc:  # noqa: BLE001
                 result.rejections["ouverture_refusee"] = result.rejections.get("ouverture_refusee", 0) + 1
                 logger.debug("ouverture refusee : %s", exc)

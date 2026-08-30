@@ -92,6 +92,29 @@ def _serie_en_tendance(n: int = 700, depart: float = 68_000.0,
     return out
 
 
+def _serie_en_escalier(n: int = 700, depart: float = 68_000.0,
+                       marche: float = 0.004) -> list[Candle]:
+    """Une hausse qui ne redescend JAMAIS toucher le niveau precedent.
+
+    Chaque bougie ouvre au-dessus de la cloture precedente et ne fait que
+    monter. C'est le decrochage : un ordre limite pose au meilleur acheteur
+    reste dans le carnet, le prix part sans lui, et le trade est perdu.
+
+    Irrealiste tel quel, et c'est voulu — on isole la non-execution pour
+    verifier qu'elle est bien modelisee. Sur une hausse ordinaire, des
+    bougies de 1,2 % d'amplitude redescendent toujours toucher une limite
+    posee 0,05 % plus bas : le vrai risque est le decrochage, pas le bruit.
+    """
+    out, prix, t0 = [], depart, time.time() - n * 3600
+    for i in range(n):
+        ouverture = prix * (1.0 + marche)          # ouvre AU-DESSUS
+        fermeture = ouverture * (1.0 + marche)
+        out.append(Candle(t0 + i * 3600, ouverture, fermeture,
+                          ouverture, fermeture, 1000.0))
+        prix = fermeture
+    return out
+
+
 class TestLaChaineProduitDesTrades:
     def test_la_mecanique_ouvre_des_positions(self):
         """Isole la MECANIQUE de la selectivite de la configuration.
@@ -153,3 +176,67 @@ class TestLaChaineProduitDesTrades:
             "BTCUSD", bars=700, start_balance=186.0)
         assert res.rejections, "un rejeu sans trade doit nommer ce qui a refuse"
         assert sum(res.rejections.values()) > 0
+
+
+class TestEntreeEnOrdreLimite:
+    """Moins de frais, mais des trades rates. Les deux doivent etre modelises.
+
+    Modeliser la baisse de tarif sans modeliser les non-executions donnerait
+    un resultat flatteur et faux — exactement le genre d'hypothese qui fait
+    armer une strategie que personne n'a testee.
+    """
+
+    @staticmethod
+    def _permissive():
+        cfg = BotConfig.load("robot.bitvavo.json")
+        cfg.strategy.min_score = 0.0
+        cfg.strategy.min_confirmations = 1
+        cfg.strategy.min_adx = 0.0
+        cfg.strategy.min_headroom_atr = 0.0
+        cfg.strategy.min_atr_percentile = 0.0
+        cfg.strategy.max_atr_percentile = 1.0
+        cfg.strategy.min_atr_price_ratio = 0.0
+        return cfg
+
+    def test_l_ordre_limite_rate_des_trades(self):
+        """Sur une hausse franche, le prix ne revient pas toucher la limite."""
+        serie = _serie_en_tendance(n=700, pente=0.004)
+        au_marche = Backtester(self._permissive(),
+                               registry=_RegistreConstant(serie)).run(
+            "BTCUSD", bars=700, start_balance=186.0)
+        en_limite = Backtester(self._permissive(),
+                               registry=_RegistreConstant(serie),
+                               entree_limite=True).run(
+            "BTCUSD", bars=700, start_balance=186.0)
+
+        assert len(en_limite.trades) <= len(au_marche.trades), (
+            f"l'ordre limite prend {len(en_limite.trades)} trades contre "
+            f"{len(au_marche.trades)} au marche : les non-executions ne sont "
+            "pas modelisees, le resultat serait flatteur")
+
+    def test_les_non_executions_sont_comptees(self):
+        """Un trade rate doit se voir dans les motifs, pas disparaitre.
+
+        Il faut pour cela une serie ou le prix PART SANS REVENIR : sur une
+        hausse ordinaire, des bougies de 1,2 % d'amplitude redescendent
+        toujours toucher une limite posee 0,05 % plus bas, et l'ordre est
+        servi a tous les coups. C'est realiste — le vrai risque de
+        non-execution est le decrochage, pas le bruit.
+        """
+        serie = _serie_en_escalier(n=700)
+        res = Backtester(self._permissive(), registry=_RegistreConstant(serie),
+                         entree_limite=True).run(
+            "BTCUSD", bars=700, start_balance=186.0)
+        assert "limite non servie" in res.rejections, (
+            "aucune non-execution comptee sur une serie qui ne redescend "
+            "jamais : le modele accepte tout, donc il ne modelise rien. "
+            f"Motifs : {sorted(res.rejections.items(), key=lambda kv: -kv[1])[:5]}")
+
+    def test_le_mode_marche_reste_le_defaut(self):
+        """La mesure de reference porte sur des ordres AU MARCHE."""
+        assert Backtester(self._permissive()).entree_limite is False
+
+    def test_le_broker_n_arme_pas_les_limites_tout_seul(self):
+        """Armer sans remesurer reviendrait a trader une strategie non testee."""
+        from gold_bot.brokers.bitvavo import BitvavoConfig
+        assert BitvavoConfig().entree_limite is False

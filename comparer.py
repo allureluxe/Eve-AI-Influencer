@@ -199,6 +199,10 @@ def main() -> int:
     ap.add_argument("--spread-x", type=float, default=1.0,
                     help="multiplie le spread suppose : 1 = modele, 3 = pessimiste")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--entree-limite", action="store_true", dest="entree_limite",
+                    help="entrees en ordre limite post-only : tarif maker a "
+                         "l'entree (0,15 %%), mais les trades non servis sont "
+                         "perdus")
     ap.add_argument("--long-seulement", action="store_true", dest="long_seulement",
                     help="ignorer les ventes a decouvert : ce que donnerait "
                          "la strategie sur un compte au comptant")
@@ -257,12 +261,25 @@ def main() -> int:
     print(f"  Sens autorises : "
           + ("ACHAT SEUL (compte au comptant)" if args.long_seulement
              else "achat ET vente a decouvert (compte de marge)"))
+    if args.entree_limite:
+        print("  Entrees       : ORDRE LIMITE post-only — tarif maker a "
+              "l'entree, mais")
+        print("                  un trade non servi est PERDU (le prix est "
+              "parti sans nous)")
     print("  Chaque variante ne change qu'une chose par rapport a la config en service.")
     print(f"  Instruments : {', '.join(symboles)}\n")
 
     resultats = []
     for nom, reglages in VARIANTES:
         cfg = config_pour(base, reglages)
+        if args.entree_limite:
+            # `execution_cost` applique commission_pct aux DEUX cotes. Une
+            # entree maker (0,15 %) suivie d'une sortie taker (0,25 %) fait
+            # donc 0,20 % en moyenne par cote. Modeliser 0,15 % des deux
+            # cotes surestimerait le gain : la sortie reste au marche, le
+            # stop et l'objectif ne peuvent pas attendre dans le carnet.
+            from gold_bot.brokers.bitvavo import FRAIS_MAKER, FRAIS_TAKER
+            cfg.risk.commission_pct = (FRAIS_MAKER + FRAIS_TAKER) / 2.0
         debut = time.time()
         trades, gagnants, somme_r, profit, dd = 0, 0, 0.0, 0.0, 0.0
         echecs = []
@@ -271,6 +288,7 @@ def main() -> int:
                 res = Backtester(
                     cfg, registry=registre,
                     autorise_vente=(None if not args.long_seulement else False),
+                    entree_limite=args.entree_limite,
                 ).run(sym, bars=args.bars, start_balance=args.capital)
             except Exception as exc:  # noqa: BLE001
                 echecs.append(f"{sym}: {str(exc)[:40]}")
