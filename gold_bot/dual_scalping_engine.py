@@ -95,7 +95,23 @@ class MultiEntryScalpingMixin(ContinuousScalpingMixin):
             return
 
         bonus = self.objectives.score_threshold_bonus()
-        held = {p.symbol for p in positions}
+        # LE SECOND VERROU DU RENFORCEMENT.
+        #
+        # `exclude` retire l'instrument du scan AVANT toute evaluation :
+        # une crypto deja detenue n'etait meme pas regardee, quelle que
+        # soit la regle d'exposition. Renforcer une montee exige donc de
+        # lever les DEUX verrous — celui-ci et check_exposure — sans quoi
+        # armer `pyramide_max` ne changerait rien et ressemblerait a un
+        # reglage qui ne marche pas.
+        renforcables = set()
+        if self.config.risk.pyramide_max > 0:
+            par_symbole: dict[str, list] = {}
+            for p in positions:
+                par_symbole.setdefault(p.symbol, []).append(p)
+            for symbole, etages in par_symbole.items():
+                if self.risk.peut_renforcer(etages, etages[0].side)[0]:
+                    renforcables.add(symbole)
+        held = {p.symbol for p in positions} - renforcables
         sens = None if getattr(self.broker, "supports_short", True) else {Side.BUY}
 
         def exposure_ok(inst):
@@ -103,7 +119,12 @@ class MultiEntryScalpingMixin(ContinuousScalpingMixin):
             # Pas de hedging/pyramiding automatique dans cette couche : on
             # veut multiplier les opportunites, pas multiplier le risque sur
             # le meme actif.
-            return self.risk.check_exposure(inst, Side.BUY, current, self.universe.get)
+            # Le sens compte pour le renforcement : un etage a contre-sens
+            # serait une couverture, pas une pyramide. Au comptant seul
+            # l'achat existe, mais la couche ne doit pas le presupposer.
+            deja = [p for p in current if p.symbol == inst.symbol]
+            sens_teste = deja[0].side if deja else Side.BUY
+            return self.risk.check_exposure(inst, sens_teste, current, self.universe.get)
 
         result = self.scanner.scan(score_bonus=bonus, exclude=held,
                                    allow=exposure_ok, allowed_sides=sens)

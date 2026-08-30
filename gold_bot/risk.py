@@ -55,6 +55,26 @@ class RiskConfig:
     max_capital_engaged_pct: float = 80.0
     max_leverage: float = 30.0         # plafond de levier effectif
 
+    # --- Renforcement (pyramidage) ---
+    #
+    # Ajouter une position sur un actif qui MONTE DEJA, pour que la suite
+    # du mouvement porte plus de volume. C'est la demande de l'operateur :
+    # « grosse montee, plus d'investissement ».
+    #
+    # La regle qui rend la chose tenable est `pyramide_locked_r_min`. Une
+    # position ne peut etre renforcee que si son stop est DEJA au-dessus
+    # de son entree — c'est-a-dire que la premiere ne peut plus perdre.
+    # Sans cette condition, empiler trois entrees sur la meme crypto
+    # revient a tripler le risque sur un seul actif, et une meche a
+    # contre-sens les prend toutes les trois ensemble. Avec elle, le pire
+    # cas de la pyramide reste le risque du dernier etage.
+    #
+    # A zero, rien ne change : c'est le reglage par defaut, et le rejeu
+    # doit avoir tranche avant qu'il bouge.
+    pyramide_max: int = 0              # etages supplementaires autorises (0 = desarme)
+    pyramide_locked_r_min: float = 0.05    # stop de l'etage precedent, en R
+    pyramide_fraction_risque: float = 0.6  # chaque etage risque moins que le precedent
+
     # --- Serie ---
     max_consecutive_losses: int = 4    # au-dela : pause forcee
     pause_after_losses_minutes: float = 90.0
@@ -313,14 +333,58 @@ class RiskManager:
         """
         cfg = self.config
         same_group = 0
+        sur_le_meme = [p for p in open_positions if p.symbol == instrument.symbol]
+        if sur_le_meme:
+            ok, why = self.peut_renforcer(sur_le_meme, side)
+            if not ok:
+                return False, why
         for pos in open_positions:
             if pos.symbol == instrument.symbol:
-                return False, f"position deja ouverte sur {instrument.symbol}"
+                continue
             other = universe_lookup(pos.symbol)
             if other and instrument.correlation_group and other.correlation_group == instrument.correlation_group:
                 same_group += 1
         if instrument.correlation_group and same_group >= cfg.max_per_correlation_group:
             return False, f"exposition deja prise sur le groupe correle '{instrument.correlation_group}'"
+        return True, ""
+
+    def peut_renforcer(self, sur_le_meme: list[Position],
+                       side: Side) -> tuple[bool, str]:
+        """Un etage de plus est-il permis sur un actif deja detenu ?
+
+        Trois conditions, et chacune ferme une porte differente :
+
+        1. le renforcement est arme (`pyramide_max` > 0) ;
+        2. le nombre d'etages n'est pas atteint ;
+        3. TOUS les etages ouverts ont deja leur stop au-dessus de leur
+           entree.
+
+        La troisieme est la seule qui protege vraiment. Elle transforme
+        « trois fois le risque sur une crypto » en « le risque du dernier
+        etage, les precedents ne pouvant plus perdre ». Sans elle, un
+        retournement brutal — ce qui arrive precisement apres une grosse
+        montee — encaisse toutes les pertes d'un coup.
+
+        Elle impose aussi le bon SENS de la pyramide : on ne renforce que
+        ce qui gagne. Renforcer une position perdante est une moyenne a la
+        baisse, exactement l'inverse de ce qui est demande ici.
+        """
+        cfg = self.config
+        if cfg.pyramide_max <= 0:
+            return False, f"position deja ouverte sur {sur_le_meme[0].symbol}"
+        if len(sur_le_meme) > cfg.pyramide_max:
+            return False, (f"{len(sur_le_meme)} etage(s) deja sur "
+                           f"{sur_le_meme[0].symbol}, maximum {cfg.pyramide_max}")
+        # Un renforcement a contre-sens serait une couverture, pas une
+        # pyramide : les deux positions s'annuleraient en payant deux fois
+        # les frais.
+        if any(p.side is not side for p in sur_le_meme):
+            return False, f"position de sens oppose ouverte sur {sur_le_meme[0].symbol}"
+        retard = [p for p in sur_le_meme if p.locked_r() < cfg.pyramide_locked_r_min]
+        if retard:
+            return False, (f"renforcement refuse sur {sur_le_meme[0].symbol} : "
+                           f"un etage n'a que {min(p.locked_r() for p in retard):+.2f}R "
+                           f"verrouille pour {cfg.pyramide_locked_r_min:+.2f}R exiges")
         return True, ""
 
     def open_risk_pct(self, open_positions: list[Position],
@@ -403,6 +467,21 @@ class RiskManager:
             return SizingDecision(False, reason=f"ratio rendement/risque insuffisant ({rr:.2f} < {cfg.min_rr})")
 
         risk_pct, factors = self.effective_risk_pct(extra_multiplier)
+
+        # CHAQUE ETAGE DE PYRAMIDE RISQUE MOINS QUE LE PRECEDENT.
+        #
+        # Sans decroissance, un renforcement double le risque sur le meme
+        # actif ; a trois etages il le triple. La condition d'entree exige
+        # deja que les etages precedents ne puissent plus perdre, donc le
+        # pire cas reste borne — mais la CONCENTRATION, elle, ne l'est pas :
+        # a 96 EUR de capital, deux etages pleins mettent tout le compte
+        # sur une seule crypto. La decroissance geometrique garde le poids
+        # du sommet de la pyramide raisonnable.
+        etages = sum(1 for p in positions if p.symbol == instrument.symbol)
+        if etages and cfg.pyramide_max > 0:
+            attenuation = cfg.pyramide_fraction_risque ** etages
+            risk_pct *= attenuation
+            factors.append(f"etage {etages + 1} de la pyramide (x{attenuation:.2f})")
 
         # Le risque deja engage plafonne le risque du nouveau trade.
         already = self.open_risk_pct(positions, lookup)

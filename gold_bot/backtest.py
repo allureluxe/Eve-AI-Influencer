@@ -234,7 +234,21 @@ class Backtester:
                             risk.record_close(t)
 
             # --- Recherche d'entree ---
-            if broker.positions():
+            #
+            # LE REJEU DOIT POUVOIR EMPILER, SINON IL NE MESURE PAS LA
+            # PYRAMIDE. Cette ligne tenait UNE position a la fois : armer
+            # `pyramide_max` sans la lever aurait donne un resultat
+            # identique a la configuration de base, et on en aurait conclu
+            # que le renforcement « ne change rien » alors qu'il n'avait
+            # simplement jamais eu lieu.
+            #
+            # Hors pyramide le comportement est inchange : une seule
+            # position, comme toutes les mesures precedentes — celles du
+            # 30 aout restent donc comparables.
+            ouvertes = broker.positions()
+            if ouvertes and cfg.risk.pyramide_max <= 0:
+                continue
+            if ouvertes and not risk.peut_renforcer(ouvertes, ouvertes[0].side)[0]:
                 continue
             ok, why = risk.can_trade(broker.positions(), ts=candle.ts)
             if not ok:

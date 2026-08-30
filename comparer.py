@@ -157,6 +157,73 @@ VARIANTES = [
         plafond_cout=20.0, atr_stop_mult=1.5, tp_r_multiple=3.0),
     variante("H4 tendance — stop large 2,2 ATR", **H4, **TENDANCE,
              plafond_cout=20.0, atr_stop_mult=2.2, tp_r_multiple=3.0),
+
+    # --- Famille 3 : LAISSER COURIR LES GROSSES MONTEES ---
+    #
+    # Ce que la configuration en service fait aujourd'hui, calcule :
+    #
+    #     objectif initial            2,00 R
+    #     extension #1 des 1,60 R  -> 2,44 R
+    #     extension #2 des 1,95 R  -> 2,88 R
+    #     extension #3 des 2,30 R  -> 3,31 R   <- max_extensions = 3
+    #
+    # Le TP monte donc bien, mais il s'arrete a 3,3 R. Sur une crypto qui
+    # fait x2, le robot sort a 3,3 R et regarde le reste passer. Trois
+    # reglages ferment la porte, et ils ne se valent pas :
+    #
+    #   max_extensions = 3      le plafond dur ;
+    #   trail_atr_mult = 0,9    0,56 R sous le plus haut — un repli
+    #                           ordinaire suffit a sortir avant meme
+    #                           d'atteindre le plafond ;
+    #   partial 30 % a 1 R      un tiers du volume ne verra jamais la
+    #                           suite du mouvement.
+    #
+    # ATTENTION AU RAISONNEMENT QUI SEMBLE EVIDENT. Elargir le stop
+    # suiveur pour « laisser respirer » rend TOUS les trades plus chers :
+    # on redonne 1,1 R au lieu de 0,56 R sur chacun des perdants, pour
+    # capturer quelques rares gagnants. C'est un echange, pas un gain, et
+    # son signe ne se devine pas — le meme raisonnement « evident » a
+    # produit les ordres limite, qui ont fait perdre 37 % de profit.
+    #
+    # On mesure donc les trois SEPAREMENT avant de les combiner, faute de
+    # quoi un resultat favorable ne dirait pas lequel des trois a paye.
+    variante("laisser courir — plafond 8 extensions", max_extensions=8),
+    variante("laisser courir — stop suiveur large (1,8 ATR)", trail_atr_mult=1.8),
+    variante("laisser courir — sans prise partielle", partial_enabled=False),
+    variante("laisser courir — les trois ensemble", max_extensions=8,
+             trail_atr_mult=1.8, partial_enabled=False),
+    variante("laisser courir — objectif lointain 4R d'emblee", tp_r_multiple=4.0),
+    # Le contraire exact, pour savoir de quel cote penche l'avantage : si
+    # ENCAISSER VITE fait mieux, la question des grosses montees est
+    # tranchee dans l'autre sens, et il vaut mieux le savoir.
+    variante("encaisser vite — objectif 1,3R, sans extension",
+             tp_r_multiple=1.3, min_rr=1.2, extend_enabled=False),
+
+    # --- Famille 4 : RENFORCER LES MONTEES (pyramidage) ---
+    #
+    # « Si le bot voit que ca continue de monter, il ouvre une 2e, puis
+    # une 3e, et elles se ferment toutes au stop suiveur en benefice. »
+    #
+    # Un etage ne s'ouvre que si TOUS les etages deja en place ont leur
+    # stop au-dessus de leur entree : la pyramide ne peut donc jamais
+    # perdre plus que son dernier etage. Chaque etage risque aussi moins
+    # que le precedent (x0,6), sans quoi trois entrees sur la meme crypto
+    # concentreraient tout le compte sur un seul actif.
+    #
+    # Ce que la mesure doit trancher, et qui ne se devine pas : les etages
+    # superieurs entrent PLUS HAUT, donc leur stop suiveur est plus proche
+    # du prix en valeur absolue. Ils sortent les premiers sur le moindre
+    # repli, et ils paient chacun l'aller-retour complet — 47 % du risque
+    # en frais au M30. Une pyramide qui se fait sortir a +0,3R sur ses
+    # deux etages hauts peut tres bien rendre MOINS qu'une position simple
+    # laissee courir, tout en payant trois fois les frais.
+    variante("pyramide — 1 renfort", pyramide_max=1),
+    variante("pyramide — 2 renforts", pyramide_max=2),
+    variante("pyramide — 3 renforts", pyramide_max=3),
+    # La combinaison que l'operateur decrit vraiment : renforcer ET
+    # laisser courir. C'est elle qu'il faut comparer au temoin.
+    variante("pyramide 2 renforts + laisser courir", pyramide_max=2,
+             max_extensions=8, trail_atr_mult=1.8, partial_enabled=False),
 ]
 
 
@@ -181,6 +248,9 @@ def config_pour(base: BotConfig, reglages: dict) -> BotConfig:
         if cle == "min_rr":
             cfg.strategy.min_rr = valeur
             cfg.risk.min_rr = valeur
+            continue
+        if cle.startswith("pyramide_"):
+            setattr(cfg.risk, cle, valeur)
             continue
         cible = cfg.trade if hasattr(cfg.trade, cle) else cfg.strategy
         setattr(cible, cle, valeur)
