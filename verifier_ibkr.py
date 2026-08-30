@@ -16,8 +16,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from gold_bot.env import charger_env
 from gold_bot.ibkr_readiness import (DEPENDANCE_ABSENTE, HORS_LIGNE,
                                      NON_AUTHENTIFIE, PRETE, etat_passerelle)
+
+# IBKR_HOST, IBKR_PORT et IBKR_TRADING_LIVE viennent du .env.
+charger_env()
 
 VERT, ROUGE, JAUNE, GRAS, FIN = "\033[32m", "\033[31m", "\033[33m", "\033[1m", "\033[0m"
 

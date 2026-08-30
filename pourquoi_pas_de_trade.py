@@ -25,8 +25,16 @@ RACINE = Path(__file__).resolve().parent
 sys.path.insert(0, str(RACINE))
 
 from gold_bot.core import Side  # noqa: E402
-from gold_bot.dual_scalping_engine import DualScalpingEngine  # noqa: E402
+from gold_bot.env import charger_env  # noqa: E402
 from gold_bot.settings import BotConfig  # noqa: E402
+
+# AVANT d'importer le moteur : les brokers lisent leur configuration depuis
+# l'environnement au moment de la construction. systemd fournit le .env au
+# service ; une commande tapee a la main, non — d'ou des « cles absentes »
+# avec un .env complet a cote.
+charger_env()
+
+from gold_bot.dual_scalping_engine import DualScalpingEngine  # noqa: E402
 
 GRAS, FIN, JAUNE, VERT, ROUGE = "\033[1m", "\033[0m", "\033[33m", "\033[32m", "\033[31m"
 

@@ -20,8 +20,14 @@ sys.path.insert(0, str(RACINE))
 
 from gold_bot.croissance import (ECHANTILLON_MINIMAL, PALIERS, diagnostiquer,
                                  drawdown_probable, projeter)
+from gold_bot.env import charger_env
 from gold_bot.settings import BotConfig
 from gold_bot.state import TradeJournal
+
+# Les chemins du journal viennent de l'environnement (GB_TRADES_FILE) :
+# sans le .env, ce rapport lirait un journal vide et annoncerait qu'aucun
+# trade n'existe.
+charger_env()
 
 GRAS, FIN, VERT, JAUNE, ROUGE = "\033[1m", "\033[0m", "\033[32m", "\033[33m", "\033[31m"
 

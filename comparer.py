@@ -38,8 +38,15 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from gold_bot.backtest import Backtester
+from gold_bot.env import charger_env
 from gold_bot.settings import BotConfig
+
+# Les cles des sources de prix (TWELVEDATA_API_KEY, etc.) et la devise de
+# cotation vivent dans le .env : sans lui, le rejeu tourne sur les seules
+# sources gratuites et ne mesure pas la meme chose que le robot.
+charger_env()
+
+from gold_bot.backtest import Backtester  # noqa: E402
 
 # Les cryptos les plus liquides de l'univers : spreads les plus serres,
 # donc le terrain le PLUS favorable. Ce qui echoue ici echouera partout.
@@ -186,6 +193,9 @@ def main() -> int:
     ap.add_argument("--spread-x", type=float, default=1.0,
                     help="multiplie le spread suppose : 1 = modele, 3 = pessimiste")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--long-seulement", action="store_true", dest="long_seulement",
+                    help="ignorer les ventes a decouvert : ce que donnerait "
+                         "la strategie sur un compte au comptant")
     ap.add_argument("--hors-ligne", action="store_true", dest="hors_ligne",
                     help="donnees SYNTHETIQUES : verifie que le banc d'essai "
                          "tourne, ne dit rien d'une strategie")
@@ -238,6 +248,9 @@ def main() -> int:
           f"(tarif normal, hors promotion)")
     print(f"  Spread suppose : modele x{args.spread_x:g}"
           + ("   <- test de robustesse" if args.spread_x != 1.0 else ""))
+    print(f"  Sens autorises : "
+          + ("ACHAT SEUL (compte au comptant)" if args.long_seulement
+             else "achat ET vente a decouvert (compte de marge)"))
     print("  Chaque variante ne change qu'une chose par rapport a la config en service.")
     print(f"  Instruments : {', '.join(symboles)}\n")
 
@@ -249,8 +262,10 @@ def main() -> int:
         echecs = []
         for sym in symboles:
             try:
-                res = Backtester(cfg, registry=registre).run(
-                    sym, bars=args.bars, start_balance=args.capital)
+                res = Backtester(
+                    cfg, registry=registre,
+                    autorise_vente=(None if not args.long_seulement else False),
+                ).run(sym, bars=args.bars, start_balance=args.capital)
             except Exception as exc:  # noqa: BLE001
                 echecs.append(f"{sym}: {str(exc)[:40]}")
                 continue

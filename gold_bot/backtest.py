@@ -87,8 +87,17 @@ class Backtester:
     """Rejoue une strategie sur l'historique d'un instrument."""
 
     def __init__(self, config: Optional[BotConfig] = None,
-                 registry: Optional[DataRegistry] = None) -> None:
+                 registry: Optional[DataRegistry] = None,
+                 autorise_vente: Optional[bool] = None) -> None:
         self.config = config or BotConfig.load()
+        # La vente a decouvert suit le lieu d'execution vise. Au comptant
+        # (« bitvavo ») elle est impossible ; sur compte de marge
+        # (« bitvavo_margin ») elle l'est. Mesurer avec des ventes une
+        # strategie qui tournera sans elles surestime le nombre de trades
+        # ET fausse le taux de reussite.
+        if autorise_vente is None:
+            autorise_vente = self.config.engine.broker != "bitvavo"
+        self.autorise_vente = bool(autorise_vente)
         # Meme verrou de devise que le moteur : un rejeu sur des prix en
         # dollars pour une configuration en euros donnerait des resultats
         # coherents entre eux mais sans rapport avec le marche ou les ordres
@@ -224,6 +233,19 @@ class Backtester:
             ev = strategy.evaluate(instrument, indicators, tick, news=None,
                                    charts={entry_tf: chart}, now=candle.ts)
             result.evaluations += 1
+
+            # LE REJEU DOIT REFUSER CE QUE LA PLATEFORME REFUSE.
+            #
+            # `PaperBroker` herite de `supports_short = True` et le rejeu ne
+            # filtrait aucun sens : toutes les mesures comptaient donc des
+            # ventes a decouvert. Sur un compte au comptant, qui ne sait
+            # qu'acheter, la moitie de ces trades n'existerait pas — et le
+            # taux de reussite mesure ne dit alors rien de ce que le robot
+            # fera vraiment.
+            if not self.autorise_vente and ev.side is Side.SELL:
+                result.rejections["vente impossible au comptant"] = \
+                    result.rejections.get("vente impossible au comptant", 0) + 1
+                continue
             if not ev.valid:
                 failed = ev.failed_gates()
                 key = failed[0].name if failed else (ev.rejected_by or "score")
