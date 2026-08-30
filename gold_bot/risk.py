@@ -28,6 +28,27 @@ from .universe import Instrument
 logger = logging.getLogger(__name__)
 
 
+# DEUX REFUS QUI NE SONT PAS DES PANNES.
+#
+# Ils se resolvent seuls en quelques secondes et font partie du
+# fonctionnement normal : le premier suit CHAQUE cloture de trade
+# (`last_trade_ts` vaut `trade.closed_at`), le second signale simplement
+# que le compte travaille a plein.
+#
+# Les annoncer au meme niveau qu'un drawdown ou une limite de perte
+# journaliere transforme une trace d'activite en fausse alerte. Le
+# 30 aout, onze de ces lignes ont fait croire a un robot bloque toute la
+# journee — alors qu'elles prouvaient exactement l'inverse : onze trades
+# s'etaient fermes.
+DELAI_NON_ECOULE = "delai minimal entre deux trades non ecoule"
+PLACES_OCCUPEES = "nombre maximal de positions atteint"
+
+
+def refus_routinier(motif: str) -> bool:
+    """Le refus se resout-il seul, sans que personne ait a intervenir ?"""
+    return motif.startswith((DELAI_NON_ECOULE, PLACES_OCCUPEES))
+
+
 @dataclass(slots=True)
 class RiskConfig:
     """Parametres de gestion du risque."""
@@ -318,9 +339,9 @@ class RiskManager:
         if cfg.max_daily_trades > 0 and acc.trades_today >= cfg.max_daily_trades:
             return False, f"quota de trades du jour atteint ({acc.trades_today})"
         if len(positions) >= cfg.max_positions:
-            return False, f"nombre maximal de positions atteint ({len(positions)})"
+            return False, f"{PLACES_OCCUPEES} ({len(positions)})"
         if now - acc.last_trade_ts < cfg.min_seconds_between_trades:
-            return False, "delai minimal entre deux trades non ecoule"
+            return False, DELAI_NON_ECOULE
         return True, ""
 
     def check_exposure(self, instrument: Instrument, side: Side,

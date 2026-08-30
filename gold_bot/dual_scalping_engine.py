@@ -14,6 +14,7 @@ import time
 
 from .core import Side
 from .engine import TradingEngine
+from .risk import refus_routinier
 from .scalping_engine import ContinuousScalpingMixin
 from .universe import Instrument
 from .brokers import (BitvavoConfig, BitvavoMarginBroker, BrokerError,
@@ -79,10 +80,20 @@ class MultiEntryScalpingMixin(ContinuousScalpingMixin):
             # journee : les cycles tournaient, le journal paraissait sain,
             # et rien n'indiquait qu'aucun scan n'avait lieu. Cherche du
             # cote de la strategie pendant des heures pour un coupe-circuit.
+            # ... MAIS TOUS LES REFUS NE SE VALENT PAS.
+            #
+            # Le delai entre deux trades et les places toutes occupees se
+            # resolvent seuls en quelques secondes : ce sont des traces
+            # d'activite, pas des pannes. Les crier au meme niveau qu'un
+            # drawdown produit exactement le bruit qu'on cherchait a
+            # eviter — et fait chercher une panne la ou il n'y en a pas.
             motif, _ = self._dernier_refus
             maintenant = time.time()
             if motif != why or maintenant - self._dernier_refus[1] > self.INTERVALLE_RAPPEL_REFUS:
-                logger.warning("AUCUNE RECHERCHE — %s", why)
+                if refus_routinier(why):
+                    logger.info("pas de recherche ce cycle — %s", why)
+                else:
+                    logger.warning("AUCUNE RECHERCHE — %s", why)
                 self._dernier_refus = (why, maintenant)
             return
         if self._dernier_refus[0]:

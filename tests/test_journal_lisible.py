@@ -140,3 +140,62 @@ class TestLePlancherDeVolatiliteEstLaBorneDeCout:
             f"plancher livre {cfg.strategy.min_atr_price_ratio:.5f} contre "
             f"borne calculee {borne:.5f} : sous le plancher le robot "
             "evaluerait des trades que le plafond de cout refuse ensuite")
+
+
+class TestUneTraceDActiviteNEstPasUneAlerte:
+    """« AUCUNE RECHERCHE » doit designer une panne, pas un cycle normal.
+
+    Le 30 aout, onze lignes WARNING « delai minimal entre deux trades non
+    ecoule » ont fait croire a un robot bloque toute la journee. Elles
+    prouvaient l'inverse : `last_trade_ts` vaut `trade.closed_at`, donc
+    chacune marque une CLOTURE de trade moins de trente secondes plus
+    tot. Onze de ces lignes, c'est onze trades fermes.
+
+    Une alerte qui se declenche sur le fonctionnement normal ne protege
+    plus de rien : on apprend a l'ignorer, et le jour ou le drawdown
+    arrive on l'ignore aussi.
+    """
+
+    def test_le_delai_entre_trades_est_routinier(self):
+        from gold_bot.risk import DELAI_NON_ECOULE, refus_routinier
+        assert refus_routinier(DELAI_NON_ECOULE)
+
+    def test_les_places_occupees_sont_routinieres(self):
+        from gold_bot.risk import PLACES_OCCUPEES, refus_routinier
+        assert refus_routinier(f"{PLACES_OCCUPEES} (6)")
+
+    def test_un_coupe_circuit_reste_une_alerte(self):
+        """L'envers, et il compte davantage : ces refus-la exigent qu'on
+        intervienne, ils ne se resolvent pas seuls."""
+        from gold_bot.risk import refus_routinier
+        for motif in ("robot arrete : drawdown maximal atteint (48.2%)",
+                      "limite de perte journaliere atteinte (-4.10%)",
+                      "limite de perte hebdomadaire atteinte (-8.30%)",
+                      "pause apres pertes (45 min restantes)",
+                      "capital inconnu ou nul"):
+            assert not refus_routinier(motif), motif
+
+    def test_les_motifs_produits_par_can_trade_sont_reconnus(self):
+        """Le piege : une constante renommee d'un cote seulement.
+
+        Si le texte de can_trade cesse de correspondre a la constante, le
+        refus redevient une alerte en silence — et personne ne s'en rend
+        compte avant de revoir onze WARNING dans le journal.
+        """
+        import time
+        from gold_bot.core import Position, Side
+        from gold_bot.risk import RiskConfig, RiskManager, refus_routinier
+
+        rm = RiskManager(RiskConfig(min_seconds_between_trades=60.0, max_positions=1))
+        rm.sync_account(1000.0, 1000.0, "EUR")
+        rm.account.last_trade_ts = time.time()
+        ok, why = rm.can_trade([])
+        assert not ok and refus_routinier(why), why
+
+        rm2 = RiskManager(RiskConfig(min_seconds_between_trades=0.0, max_positions=1))
+        rm2.sync_account(1000.0, 1000.0, "EUR")
+        pos = Position(id="p1", symbol="SOLUSD", side=Side.BUY, volume=1.0,
+                       entry_price=100.0, stop_loss=98.0, take_profit=104.0,
+                       opened_at=time.time(), initial_risk=2.0)
+        ok, why = rm2.can_trade([pos])
+        assert not ok and refus_routinier(why), why
