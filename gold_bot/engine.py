@@ -177,6 +177,11 @@ class TradingEngine:
         # Le journal existe enfin : c'est seulement ici qu'on peut nourrir
         # la ponderation avec les trades reellement fermes.
         alimenter_depuis_journal(self.poids, self.journal.path)
+        # Date du dernier changement de reglage decisif : tout ce qui juge
+        # la performance compte a partir de la, sans quoi une strategie
+        # neuve herite des pertes de celle qu'elle remplace.
+        from .version_strategie import depuis_quand
+        self._strategie_depuis = depuis_quand(cfg, instance)
         self.broker: Broker = self._build_broker()
 
         self._running = False
@@ -289,7 +294,12 @@ class TradingEngine:
         from .croissance import diagnostiquer
 
         try:
-            stats = self.journal.stats()
+            # UNIQUEMENT les trades de la strategie EN COURS. Le journal est
+            # cumulatif : compter tout l'historique verrouillerait le palier
+            # sur les pertes d'une configuration remplacee depuis, et ferait
+            # lire « 0 % de reussite » a l'operateur pour une strategie qui
+            # n'a pas encore trade.
+            stats = self.journal.stats(since=self._strategie_depuis)
         except Exception as exc:  # noqa: BLE001 - jamais bloquant
             logger.debug("palier de croissance : journal illisible (%s)", exc)
             return

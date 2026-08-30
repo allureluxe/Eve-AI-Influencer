@@ -189,7 +189,11 @@ class _FauxMoteur:
         self.risk.account.equity = equity
         self._risque_configure = demande
         self._risque_plancher = plancher
-        self.journal = type("J", (), {"stats": lambda _s: stats_journal})()
+        # Debut de l'echantillon de la strategie en cours : le palier ne
+        # compte que les trades posterieurs.
+        self._strategie_depuis = 0.0
+        self.journal = type(
+            "J", (), {"stats": lambda _s, since=0.0: stats_journal})()
 
 
 class TestLePalierEstVraimentApplique:
@@ -237,3 +241,65 @@ class TestLePalierEstVraimentApplique:
         m.journal = type("J", (), {"stats": casse})()
         m._appliquer_palier_de_croissance()          # ne doit pas lever
         assert m.risk.config.base_risk_pct == pytest.approx(0.8)
+
+
+class TestLEchantillonSuitLaStrategie:
+    """Un echantillon ne veut dire quelque chose que s'il mesure UNE strategie.
+
+    Observe le 30 aout : quelques minutes apres le passage au M30, le plan
+    annoncait « 8 trades, 0,0 % de reussite, esperance -0,109 R » et
+    refusait de promouvoir le risque. Ces huit trades venaient de la
+    configuration precedente. La nouvelle n'en avait fait aucun.
+
+    Deux degats, et le second est le pire : le palier reste verrouille par
+    des pertes qui ne le concernent pas, et l'operateur croit que la
+    strategie qu'il vient d'armer perd.
+    """
+
+    @staticmethod
+    def _config(**changements):
+        from gold_bot.settings import BotConfig
+        cfg = BotConfig.load("robot.bitvavo.json")
+        for cle, valeur in changements.items():
+            section = cfg.trade if hasattr(cfg.trade, cle) else cfg.strategy
+            setattr(section, cle, valeur)
+        return cfg
+
+    def test_l_unite_de_temps_change_l_empreinte(self):
+        from gold_bot.version_strategie import empreinte
+        assert empreinte(self._config(entry_tf="M30")) != \
+            empreinte(self._config(entry_tf="H4"))
+
+    def test_le_stop_et_l_objectif_changent_l_empreinte(self):
+        from gold_bot.version_strategie import empreinte
+        base = empreinte(self._config())
+        assert empreinte(self._config(atr_stop_mult=2.2)) != base
+        assert empreinte(self._config(tp_r_multiple=3.0)) != base
+
+    def test_le_risque_par_trade_ne_change_PAS_l_empreinte(self):
+        """Le palier fait varier le risque : il ne doit pas s'auto-invalider.
+
+        Changer la taille des positions ne change pas la qualite des
+        signaux. Si le risque comptait dans l'empreinte, chaque promotion
+        de palier remettrait l'echantillon a zero — et aucun palier ne
+        pourrait jamais etre atteint.
+        """
+        from gold_bot.version_strategie import empreinte
+        cfg = self._config()
+        avant = empreinte(cfg)
+        cfg.risk.base_risk_pct = 1.5
+        cfg.risk.max_risk_pct = 1.5
+        assert empreinte(cfg) == avant
+
+    def test_la_meme_configuration_donne_la_meme_empreinte(self):
+        from gold_bot.version_strategie import empreinte
+        assert empreinte(self._config()) == empreinte(self._config())
+
+    def test_le_palier_ne_compte_que_les_trades_de_la_strategie(self):
+        """Le moteur doit passer la fenetre au journal, pas tout lire."""
+        import inspect
+        from gold_bot.engine import TradingEngine
+        source = inspect.getsource(TradingEngine._appliquer_palier_de_croissance)
+        assert "_strategie_depuis" in source, (
+            "le palier lit tout l'historique : une strategie neuve heriterait "
+            "des pertes de celle qu'elle remplace")

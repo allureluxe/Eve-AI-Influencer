@@ -23,6 +23,7 @@ from gold_bot.croissance import (ECHANTILLON_MINIMAL, PALIERS, diagnostiquer,
 from gold_bot.env import charger_env
 from gold_bot.settings import BotConfig
 from gold_bot.state import TradeJournal
+from gold_bot.version_strategie import depuis_quand
 
 # Les chemins du journal viennent de l'environnement (GB_TRADES_FILE) :
 # sans le .env, ce rapport lirait un journal vide et annoncerait qu'aucun
@@ -39,13 +40,25 @@ def main() -> int:
                    help="capital de depart (defaut : lu dans le journal/etat)")
     p.add_argument("--cible", type=float, default=3000.0)
     p.add_argument("--jours", type=float, default=0.0,
-                   help="fenetre d'analyse du journal, en jours (0 = tout)")
+                   help="fenetre d'analyse du journal, en jours")
+    p.add_argument("--tout-l-historique", action="store_true", dest="tout",
+                   help="inclure les trades des configurations precedentes")
     args = p.parse_args()
 
     cfg = BotConfig.load(args.config)
     journal = TradeJournal(instance=cfg.engine.broker)
     journal.load()
-    depuis = time.time() - args.jours * 86400 if args.jours > 0 else 0.0
+
+    # Par defaut on ne juge QUE la strategie en service. Le journal est
+    # cumulatif : lire tout l'historique melangerait les configurations et
+    # ferait porter a la strategie actuelle les pertes de celle qu'elle
+    # remplace. `--tout-l-historique` retablit l'ancien comportement.
+    if args.jours > 0:
+        depuis = time.time() - args.jours * 86400
+    elif args.tout:
+        depuis = 0.0
+    else:
+        depuis = depuis_quand(cfg)
     stats = journal.stats(since=depuis)
 
     capital = args.capital
@@ -54,14 +67,25 @@ def main() -> int:
         print(f"{JAUNE}capital non fourni : hypothese de {capital:.0f} EUR "
               f"(--capital pour corriger){FIN}")
 
-    # Cadence reelle : trades termines / jours ecoules depuis le premier.
+    # Cadence reelle, sur la MEME fenetre que l'esperance : melanger les
+    # deux ferait diviser les trades d'une strategie par les jours d'une
+    # autre, et la projection porterait sur un rythme qui n'a jamais existe.
+    retenus = [t for t in journal.trades
+               if not t.partial and t.closed_at >= depuis]
     trades_par_jour = 0.0
-    if journal.trades:
-        premier = min(t.closed_at for t in journal.trades)
+    if retenus:
+        premier = min(t.closed_at for t in retenus)
         jours = max(1.0, (time.time() - premier) / 86400)
-        trades_par_jour = len([t for t in journal.trades if not t.partial]) / jours
+        trades_par_jour = len(retenus) / jours
 
     print(f"\n{GRAS}Ce que dit votre journal{FIN}")
+    if depuis > 0:
+        age = (time.time() - depuis) / 3600
+        ignores = len([t for t in journal.trades
+                       if not t.partial and t.closed_at < depuis])
+        print(f"  fenetre : strategie {cfg.strategy.entry_tf} en service "
+              f"depuis {age:.1f} h"
+              + (f" ({ignores} trade(s) anterieur(s) ecarte(s))" if ignores else ""))
     if not stats.get("trades"):
         print(f"  {ROUGE}aucun trade termine.{FIN} L'esperance est INCONNUE — "
               "et c'est la seule chose qui")
