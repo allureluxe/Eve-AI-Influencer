@@ -367,9 +367,28 @@ class Strategy:
         atr_ratio = atr / price if price else 0.0
         vol_ok = (cfg.min_atr_percentile <= pct <= cfg.max_atr_percentile
                   and atr_ratio >= cfg.min_atr_price_ratio)
-        ev.gates.append(Gate(
-            "volatilite", vol_ok,
-            f"ATR {atr:.5f} ({atr_ratio * 100:.3f}% du prix), percentile {pct:.2f}"))
+        # Le motif doit NOMMER le critere qui refuse. Les deux se lisent sur
+        # des echelles differentes — un percentile est relatif a l'histoire
+        # de l'instrument, un ratio ATR/prix est absolu — et afficher les
+        # deux valeurs sans dire laquelle mord laisse chercher du mauvais
+        # cote. Le 30 aout, sept cryptos etaient refusees sur le plancher
+        # ABSOLU (0,40 % d'ATR pour 0,75 % exiges) pendant que le journal
+        # mettait le percentile en avant.
+        if not vol_ok:
+            if atr_ratio < cfg.min_atr_price_ratio:
+                pourquoi = (f"marche trop calme : ATR {atr_ratio * 100:.3f}% du prix "
+                            f"pour {cfg.min_atr_price_ratio * 100:.3f}% exiges "
+                            f"(sous ce seuil les frais depassent le plafond de cout)")
+            elif pct < cfg.min_atr_percentile:
+                pourquoi = (f"volatilite au plus bas de son historique : "
+                            f"percentile {pct:.2f} pour {cfg.min_atr_percentile:.2f} exiges")
+            else:
+                pourquoi = (f"volatilite extreme : percentile {pct:.2f} "
+                            f"au-dessus de {cfg.max_atr_percentile:.2f}")
+        else:
+            pourquoi = (f"ATR {atr:.5f} ({atr_ratio * 100:.3f}% du prix), "
+                        f"percentile {pct:.2f}")
+        ev.gates.append(Gate("volatilite", vol_ok, pourquoi))
         if not vol_ok:
             return ev
 
