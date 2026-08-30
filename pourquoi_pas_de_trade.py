@@ -24,6 +24,7 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parent
 sys.path.insert(0, str(RACINE))
 
+from gold_bot.brokers.base import BrokerError  # noqa: E402
 from gold_bot.core import Side  # noqa: E402
 from gold_bot.env import charger_env  # noqa: E402
 from gold_bot.settings import BotConfig  # noqa: E402
@@ -58,7 +59,28 @@ def main() -> int:
             print(f"{ROUGE}configuration : {msg}{FIN}")
         return 2
 
-    moteur = DualScalpingEngine(cfg)
+    # Un diagnostic ne doit JAMAIS repondre par une trace de pile : c'est
+    # l'outil qu'on lance justement quand quelque chose ne va pas.
+    try:
+        moteur = DualScalpingEngine(cfg)
+    except BrokerError as exc:
+        print(f"\n{ROUGE}{GRAS}Le lieu d'execution refuse la connexion.{FIN}")
+        print(f"  {exc}\n")
+        if "netLiquidation" in str(exc) or "leveraged" in str(exc):
+            print(f"{GRAS}Ce que dit Bitvavo{FIN}")
+            print("  /netLiquidation est l'endpoint du compte de MARGE. Une")
+            print("  reponse « not found » signifie que ce compte n'en a pas :")
+            print(f"  {GRAS}la vente a decouvert n'est pas activee.{FIN}\n")
+            print(f"{GRAS}Deux chemins{FIN}")
+            print("  1. L'activer sur bitvavo.com (acceptation des conditions")
+            print("     de marge), puis relancer cette commande.")
+            print("  2. Rester au comptant, en achat seul. Mesurez d'abord ce")
+            print("     que la strategie vaut SANS les ventes :")
+            print("        python3 comparer.py --bars 4000 --spread-x 2 --long-seulement")
+            print("     puis passez engine.broker a \"bitvavo\" dans "
+                  f"{args.config}.\n")
+        return 1
+
     if not moteur.start():
         print(f"{ROUGE}Le moteur n'a pas pu demarrer (voir les messages ci-dessus).{FIN}")
         return 1
