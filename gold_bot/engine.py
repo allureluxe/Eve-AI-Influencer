@@ -372,6 +372,12 @@ class TradingEngine:
             plafond_cout_pct=cfg.risk.max_cost_ratio_pct,
             plafond_positions=cfg.risk.max_positions,
             part_engageable_pct=cfg.risk.max_capital_engaged_pct,
+            # Le stop REELLEMENT configure, et non celui qu'une table
+            # supposait. Sans lui, une configuration a 1,60 ATR voyait son
+            # M30 evalue a 1,10 % au lieu de 1,28 %, tombait sous le seuil,
+            # et le calibrage basculait sur H1 : le robot tournait une
+            # strategie differente de celle mesuree au rejeu.
+            atr_stop_mult=cfg.trade.atr_stop_mult,
         )
         self.calibrage = cal
         self._ticket_minimum = ticket

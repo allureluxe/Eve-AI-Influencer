@@ -338,47 +338,81 @@ class TestLevierMaitrise:
             f"max_leverage vaut {levier} : Bitvavo plafonne a 10x sur ses "
             "actifs eligibles — voir CLAUDE.md")
 
-    def test_les_positions_restent_a_taille_pleine(self):
-        """LE test de cette section, depuis le passage au comptant.
-
-        Au comptant le cash BORNE forcement le nombre de positions : on ne
-        peut pas engager plus qu'on ne possede. Ce n'est pas un defaut, et
-        chercher a le contourner ramenerait le levier.
-
-        Ce qui doit etre garanti n'est donc pas le NOMBRE de positions mais
-        leur TAILLE. Le budget etait auparavant pre-decoupe en parts egales
-        entre les places libres : a 96 EUR avec six places, chacune recevait
-        14,40 EUR au lieu des 45 EUR que le risque demandait, soit 0,19 % de
-        risque pour 0,60 % configures.
-
-        Or le rejeu qui a mesure +0,352 R ne pose aucune contrainte de cash
-        et ne tient qu'une position a la fois : il mesure des positions
-        PLEINES. Des positions six fois plus petites ne sont pas la
-        strategie mesuree — et sur 96 EUR, six parts tombent sous le ticket
-        minimum de 5 EUR de la plateforme.
-        """
-        from gold_bot.core import Side
+    @staticmethod
+    def _remplir(capital: float):
+        """Ouvre des positions jusqu'a epuisement du budget. Renvoie la liste."""
+        from gold_bot.core import Position, Side
         from gold_bot.risk import RiskManager
         from gold_bot.universe import Universe, spread_estime
 
         cfg = config()
         u = Universe()
         inst = u.get("BTCUSD")
-        prix, capital = 68_000.0, 96.0
+        prix = 68_000.0
         stop = prix * ATR_PAR_UNITE[cfg.strategy.entry_tf] * cfg.trade.atr_stop_mult
 
         rm = RiskManager(cfg.risk)
         rm.sync_account(equity=capital, balance=capital)
-        d = rm.size_position(
-            inst, Side.BUY, prix, prix - stop, prix + stop * cfg.trade.tp_r_multiple,
-            universe_lookup=u.get, spread=spread_estime(inst, prix),
-            available_cash=capital * cfg.risk.max_leverage * 0.9)
 
-        assert d.allowed, d.reason
-        assert d.risk_pct == pytest.approx(cfg.risk.base_risk_pct, abs=0.05), (
-            f"la premiere position ne risque que {d.risk_pct:.2f} % pour "
-            f"{cfg.risk.base_risk_pct:.2f} % configures : le budget est "
-            "pre-decoupe au lieu d'etre servi a la demande")
+        ouvertes, engage, tailles = [], 0.0, []
+        for n in range(cfg.risk.max_positions):
+            cash = capital * cfg.risk.max_leverage * 0.9 - engage
+            d = rm.size_position(
+                inst, Side.BUY, prix, prix - stop,
+                prix + stop * cfg.trade.tp_r_multiple,
+                open_positions=ouvertes, universe_lookup=u.get,
+                spread=spread_estime(inst, prix), available_cash=max(0.0, cash))
+            if not d.allowed:
+                break
+            notionnel = d.lots * prix
+            engage += notionnel
+            tailles.append((notionnel, d.risk_pct))
+            ouvertes.append(Position(str(n), "BTCUSD", Side.BUY, d.lots,
+                                     prix, prix - stop, 0.0, 0.0))
+        return cfg, capital, tailles
+
+    def test_le_cash_se_partage_entre_les_places(self):
+        """Au comptant, chaque euro engage sort du solde.
+
+        Servir la premiere position a la taille voulue par le risque lui
+        ferait consommer la moitie du budget, et le compte tiendrait deux
+        lignes la ou il peut en tenir six. Or six positions de 14,40 EUR
+        risquent EXACTEMENT autant que deux de 43 EUR : le risque total
+        vaut le notionnel total fois la distance au stop, et le notionnel
+        total est le budget dans les deux cas.
+
+        Meme risque, meme esperance — celle-ci est normalisee par le
+        risque — mais plus d'instruments, donc moins de variance et plus de
+        trades. C'est ce que veut l'operateur, et c'est arithmetiquement
+        equivalent en risque.
+        """
+        cfg, capital, tailles = self._remplir(96.0)
+        assert len(tailles) >= 4, (
+            f"seulement {len(tailles)} position(s) ouverte(s) sur "
+            f"{cfg.risk.max_positions} places : le budget n'est pas partage")
+
+    def test_le_risque_total_ne_depasse_pas_le_budget(self):
+        """Partager le cash ne doit pas multiplier le risque."""
+        cfg, capital, tailles = self._remplir(96.0)
+        risque_total = sum(pct for _, pct in tailles)
+        assert risque_total <= cfg.risk.max_total_risk_pct + 1e-6, (
+            f"risque total de {risque_total:.2f} % pour un plafond de "
+            f"{cfg.risk.max_total_risk_pct:.2f} %")
+
+    def test_aucune_part_sous_le_ticket_minimum(self):
+        """Une part trop petite ne produit aucun ordre : la plateforme refuse.
+
+        C'est la seule vraie borne au partage. Mieux vaut alors moins de
+        places, plus grandes.
+        """
+        from gold_bot.universe import Universe
+        cfg, capital, tailles = self._remplir(96.0)
+        inst = Universe().get("BTCUSD")
+        plancher = inst.min_lot * 68_000.0
+        for notionnel, _ in tailles:
+            assert notionnel >= plancher - 1e-9, (
+                f"position de {notionnel:.2f} EUR sous le ticket minimum "
+                f"de {plancher:.2f} EUR")
 
     def test_le_comptant_ne_peut_pas_emprunter(self):
         """Sans marge, engager plus que le capital est impossible."""

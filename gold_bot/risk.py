@@ -449,29 +449,30 @@ class RiskManager:
                     inst = lookup(pos.symbol)
                     if inst:
                         deja_engage += abs(pos.entry_price * inst.contract_size * pos.volume)
-                # ON NE PRE-DECOUPE PAS LE BUDGET EN PARTS EGALES.
+                # AU COMPTANT, LE CASH SE PARTAGE ENTRE LES PLACES.
                 #
-                # Le decoupage precedent divisait le budget par le nombre de
-                # places libres. A 96 EUR avec six places, chaque position
-                # recevait 14,40 EUR de notionnel au lieu des 45 EUR que le
-                # risque demandait : le risque par trade tombait a 0,19 %
-                # pour 0,60 % configures.
+                # On achete des cryptos : chaque euro engage sort du solde.
+                # Servir la premiere position a la taille voulue par le
+                # risque la laisserait consommer la moitie du budget, et le
+                # compte tiendrait deux lignes la ou il peut en tenir six.
                 #
-                # Or le REJEU, lui, ne pose aucune contrainte de cash : il
-                # dimensionne uniquement par le risque. Une mesure a +0,352 R
-                # obtenue sur des positions pleines ne dit rien de positions
-                # six fois plus petites — et sur un compte de 96 EUR, six
-                # parts tombent sous le ticket minimum de 5 EUR de la
-                # plateforme.
+                # Or six positions de 14,40 EUR risquent EXACTEMENT autant
+                # que deux de 43 EUR : le risque total vaut le notionnel
+                # total multiplie par la distance au stop, et le notionnel
+                # total est le budget dans les deux cas. Meme risque, meme
+                # esperance — l'esperance en R est normalisee par le risque —
+                # mais six instruments au lieu de deux, donc moins de
+                # variance et plus de trades.
                 #
-                # On sert donc chaque position a la taille voulue par le
-                # risque, dans la limite de ce qui RESTE. C'est le cash qui
-                # limite le NOMBRE de positions, pas leur taille. Le premier
-                # ordre ne peut pas tout consommer : il ne prend que ce que
-                # son risque justifie.
+                # Le plancher, lui, n'est pas negociable : une part sous le
+                # ticket minimum de la plateforme ne produit aucun ordre.
+                # Mieux vaut alors moins de places, plus grandes.
                 reste = min(available_cash, max(0.0, plafond_engage - deja_engage))
+                places = max(1, cfg.max_positions - len(positions))
+                ticket_minimum = instrument.min_lot * valeur_unitaire
+                part = min(reste, max(reste / places, ticket_minimum))
 
-                max_lots_cash = reste / valeur_unitaire
+                max_lots_cash = part / valeur_unitaire
                 if max_lots_cash < instrument.min_lot:
                     # Refus CONJONCTUREL, pas structurel : une cloture au
                     # prochain cycle libere le cash. Le libelle evite donc
@@ -480,14 +481,15 @@ class RiskManager:
                     return SizingDecision(
                         False,
                         reason=(f"budget de place insuffisant sur {instrument.symbol} : "
-                                f"{reste:.2f} {acc.currency} disponibles, il en "
-                                f"faut {instrument.min_lot * valeur_unitaire:.2f}"),
+                                f"{part:.2f} {acc.currency} disponibles, il en "
+                                f"faut {ticket_minimum:.2f}"),
                         factors=factors,
                     )
                 if raw_lots > max_lots_cash:
                     raw_lots = max_lots_cash
-                    factors.append(f"limite par le budget restant "
-                                   f"({reste:.2f} {acc.currency})")
+                    factors.append(f"part de cash : {part:.2f} {acc.currency} "
+                                   f"({places} place(s) libre(s) sur "
+                                   f"{reste:.2f} disponibles)")
 
         # Plafond de levier : la valeur notionnelle ne doit pas exploser.
         max_lots_leverage = None

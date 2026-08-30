@@ -42,13 +42,36 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 # Amplitude typique d'un stop, en fraction du prix, par unite de temps.
-# Ces valeurs viennent des tableaux de frais des configurations livrees.
-# Elles servent a preselectionner : la distance reelle reste calculee sur
-# l'ATR de l'instrument au moment du trade.
+# Table de REFERENCE : elle suppose un stop de 1,375 ATR, valeur implicite
+# des configurations d'origine. Elle sert a preselectionner ; la distance
+# reelle reste calculee sur l'ATR de l'instrument au moment du trade.
 STOP_TYPIQUE = {
     "M1": 0.0013, "M3": 0.0022, "M5": 0.0042, "M15": 0.0077,
     "M30": 0.0110, "H1": 0.0154, "H4": 0.0308, "D1": 0.0600,
 }
+
+# Le multiplicateur que la table ci-dessus suppose.
+ATR_STOP_MULT_DEFAUT = 1.375
+
+
+def stops_par_unite(atr_stop_mult: float = ATR_STOP_MULT_DEFAUT) -> dict[str, float]:
+    """Distance au stop de chaque unite, POUR LE STOP REELLEMENT CONFIGURE.
+
+    La table de reference etait utilisee telle quelle, quel que soit le
+    stop demande. Une configuration a 1,60 ATR voyait donc son M30 evalue
+    a 1,10 % alors qu'il vaut 1,28 % — juste sous le seuil de 1,20 %
+    qu'impose un plafond de cout a 50 %.
+
+    Consequence observee en production : le calibrage annoncait « unite
+    d'entree M30 hors de portee a ce capital, bascule sur H1 » et le robot
+    tournait une strategie DIFFERENTE de celle mesuree au rejeu, sans que
+    rien ne le signale hormis cette ligne de journal.
+
+    On met donc la table a l'echelle du stop demande.
+    """
+    mult = max(0.1, float(atr_stop_mult or ATR_STOP_MULT_DEFAUT))
+    facteur = mult / ATR_STOP_MULT_DEFAUT
+    return {tf: stop * facteur for tf, stop in STOP_TYPIQUE.items()}
 
 # Ce qu'un aller-retour coute MEME sans commission : le spread, franchi
 # une fois, et le glissement, subi des deux cotes. Aucune promotion ne
@@ -158,6 +181,7 @@ def calibrer(
     plafond_positions: int = 6,
     part_engageable_pct: float = 80.0,
     cout_incompressible: float = COUT_INCOMPRESSIBLE,
+    atr_stop_mult: float = ATR_STOP_MULT_DEFAUT,
 ) -> Calibrage:
     """Deduit du capital ce que la strategie peut viser.
 
@@ -194,7 +218,8 @@ def calibrer(
     # Unite de temps la moins lente que les frais autorisent. C'est elle
     # qu'il faut pouvoir atteindre : viser la frontiere theorique `stop_min`
     # ouvrirait une fenetre de largeur nulle, ou aucune unite ne rentre.
-    atteignables = sorted(v for v in STOP_TYPIQUE.values() if v >= stop_min)
+    stops = stops_par_unite(atr_stop_mult)
+    atteignables = sorted(v for v in stops.values() if v >= stop_min)
     cible = atteignables[0] if atteignables else stop_min
 
     # On remonte le risque des que la cible est hors de portee — que la
@@ -207,7 +232,7 @@ def calibrer(
         stop_max = stop_max_pour(risque)
 
     unites = [tf for tf in ORDRE_UNITES
-              if stop_min <= STOP_TYPIQUE[tf] <= stop_max]
+              if stop_min <= stops[tf] <= stop_max]
 
     cal = Calibrage(
         equity=equity, ticket_minimum=ticket_minimum,
