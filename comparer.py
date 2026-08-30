@@ -217,6 +217,12 @@ def main() -> int:
     ap.add_argument("--spread-x", type=float, default=1.0,
                     help="multiplie le spread suppose : 1 = modele, 3 = pessimiste")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--univers-complet", action="store_true", dest="univers_complet",
+                    help="mesurer TOUS les instruments que le robot peut "
+                         "trader, pas seulement les 8 plus liquides")
+    ap.add_argument("--toutes-variantes", action="store_true", dest="toutes_variantes",
+                    help="avec --univers-complet : garder les 17 variantes "
+                         "(compter plusieurs heures)")
     ap.add_argument("--entree-limite", action="store_true", dest="entree_limite",
                     help="entrees en ordre limite post-only : tarif maker a "
                          "l'entree (0,15 %%), mais les trades non servis sont "
@@ -251,6 +257,27 @@ def main() -> int:
     base = BotConfig.load(args.config)
     symboles = ([s.strip().upper() for s in args.symbols.split(",") if s.strip()]
                 or SYMBOLES)
+
+    # L'ECART QUE CE MODE FERME.
+    #
+    # Les 8 symboles par defaut sont les plus liquides du catalogue :
+    # spreads les plus serres, donc le terrain le PLUS favorable. C'est le
+    # bon choix pour ELIMINER une strategie — ce qui echoue la echouera
+    # partout — mais pas pour la valider sur les 62 autres, ou les spreads
+    # sont plus larges et la liquidite plus mince.
+    #
+    # Constate le 30 aout : le premier trade reel est parti sur UNIUSD, qui
+    # ne fait pas partie des 8. La mesure de reference ne disait rien de lui.
+    variantes = VARIANTES
+    if args.univers_complet:
+        from gold_bot.universe import Universe
+        symboles = [i.symbol for i in Universe() if i.asset_class == "crypto"]
+        if not args.toutes_variantes:
+            # 17 variantes x 85 instruments prendrait des heures. On ne
+            # garde que la configuration en service : la question ici n'est
+            # pas « quelle strategie » mais « sur quels instruments ».
+            variantes = [(nom, rg) for nom, rg in VARIANTES
+                         if nom.startswith("configuration en service")]
 
     registre = None
     if args.hors_ligne:
@@ -288,7 +315,8 @@ def main() -> int:
     print(f"  Instruments : {', '.join(symboles)}\n")
 
     resultats = []
-    for nom, reglages in VARIANTES:
+    par_instrument: dict[str, dict] = {}
+    for nom, reglages in variantes:
         cfg = config_pour(base, reglages)
         if args.entree_limite:
             # `execution_cost` applique commission_pct aux DEUX cotes. Une
@@ -317,6 +345,14 @@ def main() -> int:
             somme_r += sum(t.r_multiple for t in reels)
             profit += res.end_balance - res.start_balance
             dd = max(dd, res.stats().get("drawdown_max", 0.0) or 0.0)
+
+            if args.univers_complet and reels:
+                par_instrument[sym] = {
+                    "trades": len(reels),
+                    "gagnants": sum(1 for t in reels if t.profit > 0),
+                    "somme_r": sum(t.r_multiple for t in reels),
+                    "profit": res.end_balance - res.start_balance,
+                }
         resultats.append({
             "nom": nom, "trades": trades, "gagnants": gagnants,
             "reussite": gagnants / trades * 100 if trades else 0.0,
@@ -364,11 +400,61 @@ def main() -> int:
             reglages = next(rg for nom, rg in VARIANTES if nom == best["nom"])
             ecrire_candidate(config_pour(base, reglages), best, args)
 
+    if par_instrument:
+        _detail_par_instrument(par_instrument, len(symboles))
+
     for r in resultats:
         if r["echecs"]:
             print(f"\n  {r['nom']} — donnees manquantes : {'; '.join(r['echecs'][:3])}")
     print("=" * 78)
     return 0
+
+
+def _detail_par_instrument(par_instrument: dict, total: int) -> None:
+    """Ou l'avantage se trouve reellement, instrument par instrument.
+
+    Un chiffre global peut cacher deux situations opposees : un avantage
+    reparti sur tout l'univers, ou trois instruments qui portent tout le
+    resultat pendant que les autres perdent. La decision n'est pas la meme.
+
+    ATTENTION a ce qu'on en fait : restreindre l'univers aux gagnants de
+    l'historique est une facon connue de sur-ajuster. Ce tableau sert a
+    COMPRENDRE la dispersion, pas a selectionner.
+    """
+    lignes = []
+    for sym, d in par_instrument.items():
+        esp = d["somme_r"] / d["trades"] if d["trades"] else 0.0
+        lignes.append((esp, sym, d))
+    lignes.sort(reverse=True)
+
+    print("\n" + "=" * 78)
+    print(f"  DETAIL PAR INSTRUMENT — {len(lignes)} instruments ont produit "
+          f"des trades sur {total}")
+    print("=" * 78)
+    print(f"  {'instrument':<12}{'trades':>8}{'reussite':>10}{'esperance':>11}{'profit':>10}")
+
+    for esp, sym, d in lignes[:15]:
+        reussite = d["gagnants"] / d["trades"] * 100 if d["trades"] else 0.0
+        print(f"  {sym:<12}{d['trades']:>8}{reussite:>9.1f}%{esp:>+11.3f}"
+              f"{d['profit']:>+10.2f}")
+    if len(lignes) > 20:
+        print(f"  {'…':<12}{'':>8}{'':>10}{'':>11}{'':>10}")
+    for esp, sym, d in lignes[-5:] if len(lignes) > 20 else []:
+        reussite = d["gagnants"] / d["trades"] * 100 if d["trades"] else 0.0
+        print(f"  {sym:<12}{d['trades']:>8}{reussite:>9.1f}%{esp:>+11.3f}"
+              f"{d['profit']:>+10.2f}")
+
+    gagnants = [l for l in lignes if l[0] > 0]
+    solides = [l for l in lignes if l[2]["trades"] >= 10]
+    print(f"\n  {len(gagnants)} instrument(s) a esperance positive sur {len(lignes)}")
+    print(f"  {len(solides)} instrument(s) avec au moins 10 trades")
+    if lignes:
+        total_profit = sum(d["profit"] for _, _, d in lignes)
+        top3 = sum(d["profit"] for _, _, d in lignes[:3])
+        if total_profit > 0:
+            print(f"  les 3 meilleurs portent {top3 / total_profit * 100:.0f} % du profit")
+            print("  (au-dela de 60 %, l'avantage tient a une poignee "
+                  "d'instruments — donc a la chance)")
 
 
 def ecrire_candidate(cfg: BotConfig, best: dict, args) -> None:
