@@ -127,6 +127,24 @@ VARIANTES = [
     variante("M30 — plafond desserre a 50 %", **M30, plafond_cout=50.0,
              atr_stop_mult=1.6, tp_r_multiple=2.0),
 
+    # --- Le seuil de score : c'est lui qui ecarte le plus de candidats ---
+    # Observe en production : BTCUSD a 0,139, ETHUSD a 0,140, VETUSD a
+    # 0,164, pour un seuil a 0,35 — alors que le quorum passait partout
+    # (6 ou 7 confirmations sur 11 pour un minimum de 4). Le desserrer au
+    # jugé est exactement ce qui a produit les 72 trades a 2,8 % du
+    # 28 aout ; on le MESURE.
+    variante("score 0,25 (plus permissif)", min_score=0.25),
+    variante("score 0,30", min_score=0.30),
+    variante("score 0,45 (plus exigeant)", min_score=0.45),
+
+    # --- Le plancher de volatilite, change sans avoir ete remesure ---
+    # Il est passe de 0,0015 a 0,0075 pour cesser d'evaluer des
+    # instruments que le plafond de cout refusait ensuite. La mesure de
+    # reference (+0,352 R) date d'AVANT ce changement.
+    variante("plancher de volatilite 0,0015 (avant correction)",
+             min_atr_price_ratio=0.0015),
+    variante("plancher de volatilite 0,0050", min_atr_price_ratio=0.0050),
+
     # --- Temoins : est-ce que chaque barriere sert a quelque chose ? ---
     # Une barriere qui n'ameliore rien coute des trades pour rien ; une
     # barriere dont le retrait ameliore le resultat n'etait pas une
