@@ -319,19 +319,37 @@ n'est simplement pas armé tant que le capital ne le justifie pas. Ne pas
 le rebrancher « pour faire tourner les deux plateformes » : chaque ordre
 coûterait plusieurs fois le risque qu'il prend.
 
-### Le levier suivant, non encore tiré : les ordres limite
+### Les ordres limite : essayés, mesurés, ABANDONNÉS
 
-Le robot entre et sort **au marché**, donc en *taker* : 0,25 % par côté.
-Bitvavo facture 0,15 % en *maker* — un ordre limite qui ne s'exécute pas
-immédiatement. Passer les entrées en limite « post-only » ferait tomber le
-coût de 0,60 % à 0,40 %, soit un tiers de moins :
+C'était présenté ici comme « le chantier au meilleur rapport gain/risque
+du dépôt ». **Le rejeu du 30 août dit le contraire**, et le raisonnement
+qui le portait était faux.
 
-    H1, ordres au marché  ->  33 % du risque  ->  réussite 44,5 %
-    H1, ordres limite     ->  22 % du risque  ->  réussite 40,8 %
+L'idée : Bitvavo facture 0,25 % au preneur et 0,15 % au maker, donc une
+entrée en limite « post-only » ferait tomber l'aller-retour de 0,60 % à
+0,40 %. Implémenté puis mesuré, mêmes 8 cryptos, 4000 bougies, spread
+doublé :
 
-Ce n'est pas fait : un ordre limite peut ne pas être servi, et il faut donc
-une logique de repli et d'expiration que le broker n'a pas encore. C'est
-le chantier au meilleur rapport gain/risque du dépôt.
+    ordres au marché   130 trades   60,0 %   +0,352 R   +48,31 EUR
+    ordres limite      108 trades   57,4 %   +0,267 R   +30,63 EUR
+
+Moins de frais, et pourtant **37 % de profit en moins**.
+
+**Pourquoi — et c'est la leçon.** Sur les 22 trades non servis, 16 étaient
+gagnants : **72,8 % de réussite contre 57,4 % pour ceux qui l'ont été.**
+L'ordre non exécuté n'est pas un tirage au hasard. Quand le prix ne revient
+pas toucher la limite, c'est parce que le mouvement était réel — donc on
+rate exactement les trades qu'on voulait prendre. C'est de la sélection
+adverse, et elle coûte plus cher que les frais qu'elle économise.
+
+Le raisonnement d'origine ne comptait que les frais, en supposant les
+exécutions acquises. Une économie de coût ne vaut rien si elle change
+*lesquels* des trades on obtient.
+
+Le code reste en place et testé (`BITVAVO_ENTREE_LIMITE`, désactivé par
+défaut ; `comparer.py --entree-limite` pour remesurer). Il pourrait
+redevenir favorable sur une unité plus lente, où le prix a le temps de
+revenir. À ce jour, sur le M30 au comptant, il fait perdre.
 
 ### Pourquoi H4 avait été retenu le 28 août
 
