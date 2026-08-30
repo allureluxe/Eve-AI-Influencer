@@ -25,6 +25,43 @@ logger = logging.getLogger(__name__)
 class MultiEntryScalpingMixin(ContinuousScalpingMixin):
     """Execute plusieurs signaux valides, sans depasser le budget de risque."""
 
+    # Un spread trop large est une propriete de LIQUIDITE, pas une humeur
+    # du moment : il tient des heures. Re-telecharger l'historique complet
+    # d'un instrument pour lui opposer le meme refus a chaque cycle gaspille
+    # le quota de la plateforme et allonge le scan.
+    SOMMEIL_SPREAD_SECONDES = 1800.0
+
+    def _endormir_les_spreads_trop_larges(self, result) -> None:
+        """Met de cote les instruments refuses au spread.
+
+        Mesure en production : 61 instruments sur 70 refuses au spread, et
+        un scan de 26,7 secondes pour une cadence reglee a 10. Les 61 sont
+        re-interroges a chaque tour pour un refus previsible.
+
+        Le sommeil est court (30 min) et non definitif : le spread
+        s'elargit sur annonce et se resserre ensuite, et un instrument
+        ecarte pour de bon appauvrirait l'univers sans qu'on s'en rende
+        compte.
+        """
+        endormis = []
+        for ev in result.evaluations:
+            if ev.valid:
+                continue
+            rates = [g.name for g in ev.failed_gates()]
+            # Uniquement quand le spread est le SEUL motif : un instrument
+            # refuse aussi ailleurs peut redevenir valide sans que sa
+            # liquidite ait change.
+            if rates == ["spread"]:
+                self.scanner.sleep_symbol(
+                    ev.symbol, self.SOMMEIL_SPREAD_SECONDES,
+                    "spread trop large pour l'unite de temps")
+                endormis.append(ev.symbol)
+        if endormis:
+            logger.info("%d instrument(s) mis de cote %.0f min sur le spread : %s",
+                        len(endormis), self.SOMMEIL_SPREAD_SECONDES / 60,
+                        ", ".join(endormis[:8])
+                        + (f", … (+{len(endormis) - 8})" if len(endormis) > 8 else ""))
+
     def _look_for_entry(self) -> None:
         positions = self.broker.positions()
         allowed, why = self.risk.can_trade(positions)
@@ -49,6 +86,7 @@ class MultiEntryScalpingMixin(ContinuousScalpingMixin):
 
         result = self.scanner.scan(score_bonus=bonus, exclude=held,
                                    allow=exposure_ok, allowed_sides=sens)
+        self._endormir_les_spreads_trop_larges(result)
         valid = sorted(result.valid_ones(), key=lambda e: (e.score, e.rr), reverse=True)
         logger.info("%s", result.summary())
         if self.config.engine.verbose_scan:

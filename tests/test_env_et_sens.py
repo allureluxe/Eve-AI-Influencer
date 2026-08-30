@@ -150,3 +150,64 @@ class TestLeRejeuRespecteLesSensPossibles:
         assert len(sans) <= len(avec), (
             f"le comptant prend {len(sans)} trades contre {len(avec)} avec "
             "la vente : le filtre de sens ne s'applique pas")
+
+
+class TestSommeilSurSpread:
+    """61 instruments sur 70 refuses au spread, re-interroges a chaque cycle.
+
+    Un spread trop large est une propriete de liquidite : il tient des
+    heures. Redemander tout l'historique d'un instrument pour lui opposer
+    le meme refus a chaque tour gaspille le quota de la plateforme et
+    allonge le scan — 26,7 secondes mesurees pour une cadence de 10.
+    """
+
+    class _FauxScanner:
+        def __init__(self):
+            self.endormis = {}
+
+        def sleep_symbol(self, symbole, secondes, motif):
+            self.endormis[symbole] = (secondes, motif)
+
+    @staticmethod
+    def _evaluation(symbole, gates_rates, valide=False):
+        from gold_bot.strategy import Evaluation, Gate
+        ev = Evaluation(symbol=symbole, asset_class="crypto")
+        ev.gates = [Gate(nom, False, "") for nom in gates_rates]
+        if valide:
+            ev.gates = [Gate("spread", True, "")]
+        return ev
+
+    def _resultat(self, evaluations):
+        from gold_bot.strategy import Evaluation  # noqa: F401
+        return type("R", (), {"evaluations": evaluations})()
+
+    def _moteur(self):
+        from gold_bot.dual_scalping_engine import MultiEntryScalpingMixin
+        moteur = MultiEntryScalpingMixin.__new__(MultiEntryScalpingMixin)
+        moteur.scanner = self._FauxScanner()
+        return moteur
+
+    def test_un_refus_de_spread_endort_l_instrument(self):
+        moteur = self._moteur()
+        moteur._endormir_les_spreads_trop_larges(
+            self._resultat([self._evaluation("PEPEUSD", ["spread"])]))
+        assert "PEPEUSD" in moteur.scanner.endormis
+
+    def test_le_sommeil_reste_court(self):
+        """Un spread s'elargit sur annonce puis se resserre."""
+        from gold_bot.dual_scalping_engine import MultiEntryScalpingMixin
+        assert 0 < MultiEntryScalpingMixin.SOMMEIL_SPREAD_SECONDES <= 3600, (
+            "un sommeil trop long appauvrirait l'univers sans qu'on le voie")
+
+    def test_un_refus_multiple_n_endort_pas(self):
+        """Refuse aussi ailleurs : il peut redevenir valide sans changer de liquidite."""
+        moteur = self._moteur()
+        moteur._endormir_les_spreads_trop_larges(
+            self._resultat([self._evaluation("BTCUSD", ["spread", "volatilite"])]))
+        assert moteur.scanner.endormis == {}
+
+    def test_un_instrument_valide_n_est_jamais_endormi(self):
+        moteur = self._moteur()
+        ev = self._evaluation("UNIUSD", [], valide=True)
+        moteur._endormir_les_spreads_trop_larges(self._resultat([ev]))
+        assert moteur.scanner.endormis == {}
