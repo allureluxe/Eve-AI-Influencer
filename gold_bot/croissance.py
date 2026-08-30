@@ -155,7 +155,19 @@ def diagnostiquer(capital: float, cible: float, stats: dict,
                   trades_par_jour: float) -> Diagnostic:
     """Assemble le diagnostic a partir des statistiques du journal reel."""
     trades = int(stats.get("trades", 0) or 0)
-    esperance = float(stats.get("esperance_R", 0.0) or 0.0)
+    # LE PALIER SE DECIDE SUR LE R NET, PAS SUR LE R BRUT.
+    #
+    # `esperance_R` se calcule sur les prix et ignore la commission ; au
+    # M30 celle-ci vaut 47 % du risque, soit pres d'un demi-R par trade.
+    # Promouvoir sur le brut reviendrait a augmenter le risque sur un
+    # avantage qui n'existe pas : +0,20 R annonces peuvent etre -0,25 R
+    # encaisses. C'est exactement l'erreur que ce module existe pour
+    # empecher.
+    #
+    # Le brut sert de repli quand le net n'est pas calculable — un
+    # journal ancien, une sortie a prix nul — et jamais autrement.
+    net = stats.get("esperance_R_nette")
+    esperance = float(net if net is not None else stats.get("esperance_R", 0.0) or 0.0)
     reussite = float(stats.get("taux_reussite_pct", 0.0) or 0.0)
     courant = palier_courant(trades, esperance, capital)
     suivant = palier_suivant(courant)

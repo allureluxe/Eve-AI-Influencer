@@ -27,7 +27,8 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parent
 sys.path.insert(0, str(RACINE))
 
-from gold_bot.croissance import ECHANTILLON_MINIMAL, Diagnostic, palier_courant  # noqa: E402
+from gold_bot.croissance import (ECHANTILLON_MINIMAL, Diagnostic,  # noqa: E402
+                                 palier_courant, palier_suivant)
 from gold_bot.env import charger_env  # noqa: E402
 from gold_bot.settings import BotConfig  # noqa: E402
 from gold_bot.state import TradeJournal  # noqa: E402
@@ -157,11 +158,22 @@ def main() -> int:
     stats = journal.stats(since=depuis)
     taux = stats["taux_reussite_pct"]
     esperance = stats["esperance_R"]
+    esperance_nette = stats.get("esperance_R_nette")
+    esperance_nette = esperance if esperance_nette is None else esperance_nette
     n = stats["trades"]
 
     couleur = VERT if taux >= seuil else ROUGE
     print(f"  mesure sur la periode : {couleur}{taux:.1f} % de reussite{FIN} "
-          f"sur {n} trade(s), esperance {couleur}{esperance:+.3f} R{FIN}")
+          f"sur {n} trade(s)")
+    # LES DEUX CHIFFRES, ET SEUL LE SECOND COMPTE.
+    #
+    # La colonne R du tableau ci-dessus se calcule sur les prix : elle
+    # ignore la commission. L'ecart entre les deux vaut le rapport
+    # frais/risque, soit pres d'un demi-R par trade au M30. Afficher le
+    # brut seul donnerait un avantage imaginaire.
+    print(f"  esperance BRUTE (prix seuls)  : {esperance:+.3f} R")
+    print(f"  esperance {GRAS}NETTE de frais{FIN}       : "
+          f"{couleur}{GRAS}{esperance_nette:+.3f} R{FIN}   <- le seul chiffre qui compte")
     print(f"  profit net : {stats['profit_net']:+.2f} {cfg.engine.currency}"
           + (f", {len(partielles)} prise(s) partielle(s)" if partielles else ""))
 
@@ -173,14 +185,16 @@ def main() -> int:
     # marche pas » a ce stade, c'est lire du bruit.
     incertitude = 1.0 / math.sqrt(n)
     print(f"\n  incertitude a {n} trades : {GRAS}±{incertitude:.2f} R{FIN} "
-          f"(soit {esperance - 2 * incertitude:+.2f} a "
-          f"{esperance + 2 * incertitude:+.2f} R)")
+          f"(soit {esperance_nette - 2 * incertitude:+.2f} a "
+          f"{esperance_nette + 2 * incertitude:+.2f} R en net)")
 
-    diag = Diagnostic(capital=0.0, cible=0.0, trades=n, esperance_r=esperance,
+    palier = palier_courant(n, esperance_nette, 0.0)
+    diag = Diagnostic(capital=0.0, cible=0.0, trades=n,
+                      esperance_r=esperance_nette,
                       taux_reussite_pct=taux, trades_par_jour=0.0,
-                      palier=palier_courant(n, esperance, 0.0))
+                      palier=palier, palier_suivant=palier_suivant(palier))
     if diag.esperance_fiable():
-        verdict = (f"{VERT}L'AVANTAGE EST ETABLI{FIN}" if esperance > 0
+        verdict = (f"{VERT}L'AVANTAGE EST ETABLI{FIN}" if esperance_nette > 0
                    else f"{ROUGE}LA PERTE EST ETABLIE — il faut changer quelque chose{FIN}")
         print(f"\n  {GRAS}{verdict}{FIN}")
     else:

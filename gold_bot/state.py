@@ -258,6 +258,34 @@ class TradeJournal:
             logger.warning("trade non journalise : %s", exc)
 
     # ---------------------------------------------------------------
+    @staticmethod
+    def r_net(trade: ClosedTrade) -> Optional[float]:
+        """Le R du trade APRES frais. None quand il n'est pas calculable.
+
+        `ClosedTrade.r_multiple` se calcule sur les PRIX seuls
+        (`Position.r_multiple`) : il ignore la commission. `profit`, lui,
+        est net. Les deux ne mesurent donc pas la meme chose, et l'ecart
+        vaut exactement le rapport frais/risque — 47 % au M30, la moitie
+        d'un R par trade.
+
+        Mesure du 30 aout en reel : 7 trades, +0,446 R annonces, +0,31 EUR
+        encaisses. Le meme journal donnait +0,186 R nets. L'ecart n'est pas
+        cosmetique : c'est lui qui decide de la promotion au palier
+        superieur, donc du RISQUE engage sur chaque trade suivant.
+
+        La valeur de 1 R en devise se retrouve sans connaitre le stop :
+        le gain BRUT vaut `(sortie - entree) x sens x volume`, et il vaut
+        aussi `r_multiple` fois le risque. Le rapport des deux donne le
+        risque, et `profit / risque` donne le R net.
+        """
+        brut = (trade.exit_price - trade.entry_price) * trade.side.sign * trade.volume
+        if abs(trade.r_multiple) < 1e-9 or abs(brut) < 1e-12:
+            return None
+        risque = brut / trade.r_multiple
+        if risque <= 0:
+            return None
+        return trade.profit / risque
+
     def stats(self, since: float = 0.0) -> dict[str, Any]:
         """Statistiques de performance sur la periode."""
         rows = [t for t in self.trades if t.closed_at >= since]
@@ -279,6 +307,7 @@ class TradeJournal:
         gross_win = sum(t.profit for t in wins)
         gross_loss = abs(sum(t.profit for t in losses))
         rs = [t.r_multiple for t in trades]
+        nets = [r for r in (self.r_net(t) for t in trades) if r is not None]
 
         # Drawdown sur la courbe des gains cumules
         equity, peak, max_dd = 0.0, 0.0, 0.0
@@ -298,6 +327,7 @@ class TradeJournal:
             "perte_brute": round(gross_loss, 2),
             "facteur_profit": round(gross_win / gross_loss, 2) if gross_loss > 0 else None,
             "esperance_R": round(sum(rs) / len(rs), 3),
+            "esperance_R_nette": round(sum(nets) / len(nets), 3) if nets else None,
             "R_moyen_gagnant": round(sum(t.r_multiple for t in wins) / len(wins), 3) if wins else 0.0,
             "R_moyen_perdant": round(sum(t.r_multiple for t in losses) / len(losses), 3) if losses else 0.0,
             "meilleur": round(max(t.profit for t in trades), 2),
