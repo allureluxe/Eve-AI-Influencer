@@ -585,6 +585,36 @@ brokers valides : plus de dry-run, plus de rejeu historique, et aucun
 moteur constructible en test. Un lieu d'exécution qui n'engage rien doit
 toujours être disponible.
 
+## Claude Code sur le VPS
+
+Installé le 30 août pour piloter le robot sans copier-coller.
+
+    curl -fsSL https://claude.ai/install.sh | bash
+    cd ~/Eve-AI-Influencer && claude
+
+`.claude/settings.json` — versionné, donc il suit le dépôt — pré-autorise
+la **lecture et le diagnostic** : `journalctl`, `systemctl status`,
+`git status/log/diff/pull`, les tests, et les outils du dépôt
+(`bilan_journee.py`, `etat.py`, `pourquoi_pas_de_trade.py`,
+`plan_croissance.py`, `comparer.py`, `verifier_*.py`). Rien de tout cela
+n'engage un centime.
+
+Restent en **demande explicite**, parce qu'elles touchent au robot armé
+ou sortent du VPS : `systemctl restart/start/stop`, `git push`,
+`git reset`, `git checkout`, les lanceurs `run_*.py`, et
+`reinitialiser_arret.py`.
+
+Sont **refusées** : la lecture de `.env` (il porte les clés Bitvavo, et
+ce qui est lu part dans la conversation), `rm -rf`, et `git push --force`.
+
+Cette barrière ne remplace pas la seule qui compte vraiment : **le retrait
+doit être désactivé sur la clé API Bitvavo**. Avec « trade » et « view »
+seuls, le pire cas est un compte mal tradé, pas un compte vidé — et ça ne
+dépend d'aucun code de ce dépôt.
+
+Pour que la session survive à une déconnexion SSH : `tmux new -s bot`,
+puis `tmux attach -t bot` pour la retrouver.
+
 ## Où se trouve la vérité
 
 - Audit chiffré : https://claude.ai/code/artifact/182489e5-d5db-4b0d-bdb9-b9cc44e68b0b

@@ -1,0 +1,61 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(journalctl *)",
+      "Bash(systemctl status *)",
+      "Bash(systemctl is-active *)",
+      "Bash(systemctl is-enabled *)",
+      "Bash(systemctl list-units *)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git fetch*)",
+      "Bash(git pull*)",
+      "Bash(python3 -m pytest*)",
+      "Bash(python3 run_tests.py*)",
+      "Bash(python3 bilan_journee.py*)",
+      "Bash(python3 etat.py*)",
+      "Bash(python3 pourquoi_pas_de_trade.py*)",
+      "Bash(python3 plan_croissance.py*)",
+      "Bash(python3 comparer.py*)",
+      "Bash(python3 regles_marche.py*)",
+      "Bash(python3 verifier_bitvavo.py*)",
+      "Bash(python3 verifier_ibkr.py*)",
+      "Bash(python3 -m compileall*)",
+      "Bash(ls *)",
+      "Bash(cat robot*.json)",
+      "Bash(tail *)",
+      "Bash(head *)",
+      "Bash(wc *)",
+      "Bash(df *)",
+      "Bash(free *)",
+      "Bash(uptime)",
+      "Bash(date)"
+    ],
+    "ask": [
+      "Bash(systemctl restart *)",
+      "Bash(systemctl start *)",
+      "Bash(systemctl stop *)",
+      "Bash(systemctl disable *)",
+      "Bash(systemctl enable *)",
+      "Bash(git push*)",
+      "Bash(git reset*)",
+      "Bash(git checkout*)",
+      "Bash(python3 run_dual_live.py*)",
+      "Bash(python3 run_bitvavo.py*)",
+      "Bash(python3 run_bot.py*)",
+      "Bash(python3 reinitialiser_arret.py*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Bash(cat .env*)",
+      "Bash(cat ~/.env*)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)"
+    ]
+  }
+}
