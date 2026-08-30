@@ -503,6 +503,20 @@ C'est pourquoi le risque est désormais **verrouillé sur la preuve**, dans
 | `croissance` | 1,00 % | ≥ 40 trades **et** espérance ≥ +0,05 R |
 | `acceleration` | 1,50 % | ≥ 150 trades **et** espérance ≥ +0,15 R |
 
+L'espérance lue ici est **nette de frais** (`esperance_R_nette`). Le
+`r_multiple` du journal se calcule sur les prix seuls : au M30 les frais
+valent 47 % du risque, et promouvoir sur le brut ferait monter la mise
+sur un avantage inexistant. Mesuré le 30 août : +0,446 R bruts pour
++0,186 R nets sur les mêmes sept trades.
+
+`risk.max_risk_pct` valait **1,00 %** jusqu'au 30 août, ce qui rendait le
+palier `acceleration` inatteignable — annoncé dans le journal, rabaissé
+en silence au dimensionnement, donc une projection de croissance fausse
+de 50 %. Porté à **1,50 %** sur décision de l'opérateur. Le plafond dur
+**borne**, il n'autorise pas : c'est le palier qui décide, et il exige
+150 trades. `tests/test_audit_coherence.py::TestLePlafondDurNeContourneRienDuTout`
+vérifie qu'à 7 trades le risque reste à 0,60 %.
+
 Le palier **plafonne** le risque : une configuration qui demande 1,5 %
 n'obtient 1,5 % qu'une fois l'avantage établi. Il ne descend jamais sous
 le plancher imposé par le ticket minimum de la plateforme — sinon le robot

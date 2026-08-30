@@ -90,3 +90,56 @@ class TestLeCoutEstCoherentDansLesTroisSections:
         cfg = config()
         assert cfg.trade.tp_r_multiple >= cfg.risk.min_rr - 1e-9
         assert cfg.trade.tp_r_multiple >= cfg.strategy.min_rr - 1e-9
+
+
+class TestLePlafondDurNeContourneRienDuTout:
+    """max_risk_pct passe a 1,5 % le 30 aout, sur decision de l'operateur.
+
+    Le plafond dur borne, il n'AUTORISE pas : c'est le palier de
+    croissance qui decide, et lui exige un echantillon reel. Le relever
+    ne doit donc rien changer tant que l'avantage n'est pas prouve —
+    sinon on aurait simplement augmente le risque sur une strategie
+    inconnue, ce que tout ce mecanisme existe pour empecher.
+    """
+
+    @staticmethod
+    def _risque(trades, esperance_nette, variation_pct=0.0):
+        from gold_bot.croissance import diagnostiquer
+        from gold_bot.risk import RiskManager
+
+        cfg = config()
+        rm = RiskManager(cfg.risk)
+        reference = 100.0
+        equity = reference * (1 + variation_pct / 100.0)
+        rm.sync_account(equity=equity, balance=equity)
+        rm.account.reference_equity = reference
+        diag = diagnostiquer(equity, 0.0, {
+            "trades": trades, "esperance_R_nette": esperance_nette,
+            "taux_reussite_pct": 55.0}, 0.0)
+        # Le moteur applique exactement ceci a chaque cycle.
+        rm.config.base_risk_pct = min(cfg.risk.base_risk_pct, diag.palier.risque_pct)
+        return diag.palier.nom, rm.effective_risk_pct()[0]
+
+    def test_sans_echantillon_le_risque_reste_a_la_preuve(self):
+        nom, risque = self._risque(trades=7, esperance_nette=0.19)
+        assert nom == "preuve"
+        assert abs(risque - config().risk.base_risk_pct) < 1e-9, (
+            f"{risque:.3f} % risques sur 7 trades : relever le plafond dur "
+            "ne doit RIEN changer tant que l'avantage n'est pas prouve")
+
+    def test_une_esperance_nette_negative_ne_promeut_jamais(self):
+        """Meme avec 300 trades : c'est le signe qui compte, pas le nombre."""
+        nom, risque = self._risque(trades=300, esperance_nette=-0.10)
+        assert nom == "preuve"
+        assert risque <= config().risk.base_risk_pct + 1e-9
+
+    def test_l_avantage_confirme_debloque_le_palier_haut(self):
+        """L'envers : un plafond qui ne sert jamais serait decoratif."""
+        nom, _ = self._risque(trades=150, esperance_nette=0.20)
+        assert nom == "acceleration"
+
+    def test_le_plafond_dur_borne_toujours_l_echelle_adaptative(self):
+        """L'echelle multiplie jusqu'a x1,8 ; le plafond doit rester dessus."""
+        cfg = config()
+        _, risque = self._risque(trades=150, esperance_nette=0.20, variation_pct=50.0)
+        assert risque <= cfg.risk.max_risk_pct + 1e-9
