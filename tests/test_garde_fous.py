@@ -338,28 +338,56 @@ class TestLevierMaitrise:
             f"max_leverage vaut {levier} : Bitvavo plafonne a 10x sur ses "
             "actifs eligibles — voir CLAUDE.md")
 
-    def test_le_budget_de_risque_reste_la_vraie_contrainte(self):
-        """LE test de cette section.
+    def test_les_positions_restent_a_taille_pleine(self):
+        """LE test de cette section, depuis le passage au comptant.
 
-        Tant que le nombre de positions est borne par `max_total_risk_pct`
-        et non par le cash, le levier ne fait qu'occuper des places deja
-        autorisees. Le jour ou le cash redevient limitant, c'est que le
-        risque total a ete relache — et c'est CA qu'il faut regarder, pas
-        le levier.
+        Au comptant le cash BORNE forcement le nombre de positions : on ne
+        peut pas engager plus qu'on ne possede. Ce n'est pas un defaut, et
+        chercher a le contourner ramenerait le levier.
+
+        Ce qui doit etre garanti n'est donc pas le NOMBRE de positions mais
+        leur TAILLE. Le budget etait auparavant pre-decoupe en parts egales
+        entre les places libres : a 96 EUR avec six places, chacune recevait
+        14,40 EUR au lieu des 45 EUR que le risque demandait, soit 0,19 % de
+        risque pour 0,60 % configures.
+
+        Or le rejeu qui a mesure +0,352 R ne pose aucune contrainte de cash
+        et ne tient qu'une position a la fois : il mesure des positions
+        PLEINES. Des positions six fois plus petites ne sont pas la
+        strategie mesuree — et sur 96 EUR, six parts tombent sous le ticket
+        minimum de 5 EUR de la plateforme.
         """
+        from gold_bot.core import Side
+        from gold_bot.risk import RiskManager
+        from gold_bot.universe import Universe, spread_estime
+
         cfg = config()
-        capital = 70.0
-        stop = ATR_PAR_UNITE[cfg.strategy.entry_tf] * cfg.trade.atr_stop_mult
-        notionnel = capital * cfg.risk.base_risk_pct / 100.0 / stop
+        u = Universe()
+        inst = u.get("BTCUSD")
+        prix, capital = 68_000.0, 96.0
+        stop = prix * ATR_PAR_UNITE[cfg.strategy.entry_tf] * cfg.trade.atr_stop_mult
 
-        pouvoir = capital * cfg.risk.max_leverage * cfg.risk.max_capital_engaged_pct / 100.0
-        places_cash = int(pouvoir // notionnel)
-        places_risque = int(cfg.risk.max_total_risk_pct // cfg.risk.base_risk_pct)
+        rm = RiskManager(cfg.risk)
+        rm.sync_account(equity=capital, balance=capital)
+        d = rm.size_position(
+            inst, Side.BUY, prix, prix - stop, prix + stop * cfg.trade.tp_r_multiple,
+            universe_lookup=u.get, spread=spread_estime(inst, prix),
+            available_cash=capital * cfg.risk.max_leverage * 0.9)
 
-        assert places_cash >= min(places_risque, cfg.risk.max_positions), (
-            f"le cash ne permet que {places_cash} position(s) alors que le "
-            f"budget de risque en autorise {places_risque} : le robot "
-            "restera bloque en dessous de sa capacite")
+        assert d.allowed, d.reason
+        assert d.risk_pct == pytest.approx(cfg.risk.base_risk_pct, abs=0.05), (
+            f"la premiere position ne risque que {d.risk_pct:.2f} % pour "
+            f"{cfg.risk.base_risk_pct:.2f} % configures : le budget est "
+            "pre-decoupe au lieu d'etre servi a la demande")
+
+    def test_le_comptant_ne_peut_pas_emprunter(self):
+        """Sans marge, engager plus que le capital est impossible."""
+        cfg = config()
+        if cfg.engine.broker == "bitvavo":
+            assert cfg.risk.max_leverage == pytest.approx(1.0), (
+                f"broker au comptant avec max_leverage a {cfg.risk.max_leverage} : "
+                "le robot dimensionnerait des positions que la plateforme "
+                "refusera faute de liquidites")
 
     def test_le_risque_par_trade_ne_suit_pas_le_levier(self):
         """Le levier ne doit pas se glisser dans le risque par trade.

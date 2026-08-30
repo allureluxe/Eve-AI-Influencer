@@ -114,7 +114,13 @@ VARIANTES = [
              plafond_cout=35.0, atr_stop_mult=1.6, tp_r_multiple=2.0),
 
     # --- Famille 2 : rapide et nombreux, ce que l'operateur demande ---
-    variante("H1 en service (reference)"),
+    # Sans aucun override : cette ligne suit la configuration EN SERVICE,
+    # quelle qu'elle soit. Elle s'appelait « H1 en service » et est restee
+    # ainsi apres le passage au M30 : elle affichait alors des resultats
+    # identiques a la variante M30, ce qui ressemblait a un bug alors que
+    # c'etait le meme reglage teste deux fois. Un libelle qui nomme un
+    # reglage plutot que son role finit toujours par mentir.
+    variante("configuration en service (temoin)"),
     variante("H1 — contre-tendance permise", **H1, allow_counter_trend=True,
              require_mtf_alignment=False, min_confirmations=2),
     variante("H1 — objectif court 1,3R", **H1, tp_r_multiple=1.3, min_rr=1.2),

@@ -438,21 +438,9 @@ class RiskManager:
                 # La part est bornee par le plafond d'engagement, et ce qui
                 # est deja investi en est deduit : sans cela le coussin de
                 # securite disparaitrait des la deuxieme position.
-                places = max(1, cfg.max_positions - len(positions))
                 # Le plafond d'engagement borne ce qu'on peut ENGAGER, donc
                 # il se calcule sur le pouvoir d'achat, pas sur le capital.
-                #
-                # Sur un compte au comptant les deux se confondent
-                # (max_leverage = 1) et rien ne change. Sur un compte de
-                # marge, non : a 3x, plafonner a 90 % du capital rendait le
-                # levier purement decoratif. Mesure a 96 EUR, six places :
-                # chaque position recevait 14,40 EUR de notionnel au lieu
-                # des 32 EUR que le risque demandait, soit 0,27 % de risque
-                # par trade la ou la configuration en reclamait 0,60.
-                #
-                # Le garde-fou qui borne le RISQUE reste max_total_risk_pct,
-                # et c'est lui qui doit mordre en premier ; celui-ci ne sert
-                # qu'a garder un coussin de liquidites.
+                # Au comptant les deux se confondent (max_leverage = 1).
                 levier = max(1.0, cfg.max_leverage)
                 plafond_engage = (acc.equity * levier
                                   * cfg.max_capital_engaged_pct / 100.0)
@@ -461,11 +449,29 @@ class RiskManager:
                     inst = lookup(pos.symbol)
                     if inst:
                         deja_engage += abs(pos.entry_price * inst.contract_size * pos.volume)
-                part = min(available_cash, max(0.0, plafond_engage - deja_engage))
-                if places > 1:
-                    part /= places
+                # ON NE PRE-DECOUPE PAS LE BUDGET EN PARTS EGALES.
+                #
+                # Le decoupage precedent divisait le budget par le nombre de
+                # places libres. A 96 EUR avec six places, chaque position
+                # recevait 14,40 EUR de notionnel au lieu des 45 EUR que le
+                # risque demandait : le risque par trade tombait a 0,19 %
+                # pour 0,60 % configures.
+                #
+                # Or le REJEU, lui, ne pose aucune contrainte de cash : il
+                # dimensionne uniquement par le risque. Une mesure a +0,352 R
+                # obtenue sur des positions pleines ne dit rien de positions
+                # six fois plus petites — et sur un compte de 96 EUR, six
+                # parts tombent sous le ticket minimum de 5 EUR de la
+                # plateforme.
+                #
+                # On sert donc chaque position a la taille voulue par le
+                # risque, dans la limite de ce qui RESTE. C'est le cash qui
+                # limite le NOMBRE de positions, pas leur taille. Le premier
+                # ordre ne peut pas tout consommer : il ne prend que ce que
+                # son risque justifie.
+                reste = min(available_cash, max(0.0, plafond_engage - deja_engage))
 
-                max_lots_cash = part / valeur_unitaire
+                max_lots_cash = reste / valeur_unitaire
                 if max_lots_cash < instrument.min_lot:
                     # Refus CONJONCTUREL, pas structurel : une cloture au
                     # prochain cycle libere le cash. Le libelle evite donc
@@ -474,14 +480,14 @@ class RiskManager:
                     return SizingDecision(
                         False,
                         reason=(f"budget de place insuffisant sur {instrument.symbol} : "
-                                f"{part:.2f} {acc.currency} pour {places} place(s), "
-                                f"il en faut {instrument.min_lot * valeur_unitaire:.2f}"),
+                                f"{reste:.2f} {acc.currency} disponibles, il en "
+                                f"faut {instrument.min_lot * valeur_unitaire:.2f}"),
                         factors=factors,
                     )
                 if raw_lots > max_lots_cash:
                     raw_lots = max_lots_cash
-                    factors.append(f"allocation par place : {part:.2f} {acc.currency} "
-                                   f"({places} place(s) restante(s))")
+                    factors.append(f"limite par le budget restant "
+                                   f"({reste:.2f} {acc.currency})")
 
         # Plafond de levier : la valeur notionnelle ne doit pas exploser.
         max_lots_leverage = None

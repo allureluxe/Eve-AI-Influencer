@@ -5,10 +5,32 @@ d'environ 51 EUR. Plusieurs sessions travaillent sur la même branche. Les
 décisions ci-dessous ont été prises par l'opérateur ; elles ne sont pas des
 valeurs par défaut à optimiser.
 
-## M30, levier 3x, achat ET vente
+## M30 au comptant, achat seul
 
 Décision du **30 août**, prise sur le rejeu et non sur le raisonnement.
 Elle remplace le H1 du 29 août, lui-même successeur du H4 et du D1.
+
+### La vente à découvert coûtait de l'argent
+
+Le compte n'a pas la marge activée — Bitvavo répond `Net liquidation not
+found` sur `/netLiquidation`. En mesurant la même stratégie **sans les
+ventes**, le résultat s'est amélioré :
+
+    M30 avec ventes     159 trades   56,6 %   +0,273 R   +42,83 EUR
+    M30 achat seul      130 trades   60,0 %   +0,352 R   +48,31 EUR
+
+Les ventes coûtaient **3,4 points de réussite**. La contrainte du compte
+et le meilleur réglage coïncident, ce qui règle la question : `broker`
+reste `"bitvavo"` (comptant), `max_leverage` à **1.0**.
+
+Le H4 en tendance, lui, passe de +0,130 R à **−0,098 R** sans les ventes :
+tout son avantage venait des ventes à découvert. Il n'est donc plus un
+repli.
+
+Attention : le rejeu **ne pose aucune contrainte de cash** et ne tient
+qu'une position à la fois. Il mesure des positions PLEINES. C'est pourquoi
+le dimensionnement réel doit servir chaque position à la taille voulue par
+le risque plutôt que de pré-découper le budget — voir plus bas.
 
 **Ce qui a changé de nature :** les versions précédentes déduisaient
 l'unité de temps d'un ratio frais/risque jugé acceptable. Le rejeu du
@@ -33,8 +55,8 @@ sur ce moteur et ces marchés.
 | `risk.max_cost_ratio_pct` | **50.0** | remonter pour « débloquer » le M15 ou le M5 |
 | `strategy.max_cost_ratio_pct` | **50.0** | idem |
 | `trade.max_cost_ratio_pct` | **50.0** | idem |
-| `risk.max_leverage` | **3.0** | monter à 10x « pour trader plus » : ça n'ouvre aucune position de plus |
-| `engine.broker` | **bitvavo_margin** | confondre « vendre » et « lever » |
+| `risk.max_leverage` | **1.0** | monter : le compte est au comptant, la plateforme refusera |
+| `engine.broker` | **bitvavo** | repasser en marge sans avoir remesuré : les ventes faisaient perdre |
 | bloc `promotion` | **présent** | retirer |
 | `strategy.max_spread_atr_ratio` | **0.30** | monter : à 50 % de plafond, la borne dérivée ne protège plus, ce réglage est la seule barrière |
 | `strategy.min_score` | **0.35** | remettre à zéro « parce que le quorum suffit » |
@@ -119,7 +141,44 @@ laisser passer ça.
 C'est la même erreur que le 28 août, sous une autre forme : desserrer la
 mesure au lieu de changer le problème.
 
-### Le levier : à quoi il sert vraiment, et pourquoi 3x et pas 10x
+### Le cash limite le NOMBRE de positions, jamais leur taille
+
+Au comptant, on ne peut pas engager plus qu'on ne possède. Le nombre de
+positions simultanées est donc borné par le cash, et c'est normal.
+
+Ce qui n'est pas normal, c'est de **rétrécir chaque position** pour en
+loger davantage. Le budget était pré-découpé en parts égales entre les
+places libres : à 96 EUR avec six places, chacune recevait 14,40 EUR de
+notionnel au lieu des 45 EUR que le risque demandait — soit **0,19 % de
+risque par trade pour 0,60 % configurés**, et des tickets sous le minimum
+de 5 EUR de la plateforme.
+
+Or le rejeu qui a mesuré +0,352 R ne pose aucune contrainte de cash et ne
+tient qu'une position à la fois : **il mesure des positions pleines**. Des
+positions six fois plus petites ne sont pas la stratégie mesurée.
+
+Chaque position est donc servie à la taille voulue par le risque, dans la
+limite de ce qui reste. À 96 EUR cela donne **2 positions pleines** :
+
+    position 1   45,00 EUR de notionnel   risque 0,58 EUR (0,60 %)
+    position 2   41,40 EUR de notionnel   risque 0,53 EUR (0,55 %)
+    position 3   refusée — budget épuisé
+
+`tests/test_garde_fous.py::TestLevierMaitrise` verrouille la taille de la
+première position ; c'est elle qui trahit un budget pré-découpé.
+
+### Le levier : pourquoi il a été retiré
+
+L'opérateur l'avait autorisé le 29 août, et il servait à occuper les places
+que le budget de risque autorisait déjà. Le passage au comptant le rend
+sans objet : sans compte de marge, il n'y a rien à emprunter, et une
+configuration qui demanderait 3x ferait dimensionner des positions que
+Bitvavo refuserait faute de liquidités.
+
+Le raisonnement d'origine reste valable si la marge est un jour activée —
+il est conservé ci-dessous — mais il ne s'applique plus au réglage actuel.
+
+### Ce que le levier faisait, quand il était armé
 
 L'opérateur a autorisé le levier le 29 août. La décision du 27 août
 (« aucun levier ») est levée, mais son raisonnement reste vrai et
