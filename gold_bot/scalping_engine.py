@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Optional
 
 from .core import Side
 from .engine import TradingEngine
@@ -101,13 +102,18 @@ class ContinuousScalpingMixin:
             return False
         return True
 
-    def _execute(self, ev) -> None:
+    def _execute(self, ev, places_visees: Optional[int] = None) -> None:
         # Le moteur historique pouvait endormir un symbole une heure apres un
         # refus de dimensionnement. Pour un scalpeur, le capital se libere au
         # fil des secondes : on reveille donc toujours le symbole apres cet
         # appel afin qu'il soit reevalue au cycle suivant.
+        #
+        # `places_visees` vient du partage du cash entre occasions reelles
+        # (MultiEntryScalpingMixin). Sans ce parametre ici, tout cycle de
+        # recherche multi-entrees plantait et le robot s'arretait au bout
+        # de 12 echecs : plus aucun trade.
         try:
-            super()._execute(ev)
+            super()._execute(ev, places_visees=places_visees)
         finally:
             try:
                 self.scanner.wake_symbol(ev.symbol)
