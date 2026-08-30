@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+import time
 
 from .core import Side
 from .engine import TradingEngine
@@ -62,12 +63,32 @@ class MultiEntryScalpingMixin(ContinuousScalpingMixin):
                         ", ".join(endormis[:8])
                         + (f", … (+{len(endormis) - 8})" if len(endormis) > 8 else ""))
 
+    # Dernier motif de refus annonce, et quand. Sert a ne pas repeter la
+    # meme ligne a chaque cycle sans pour autant la taire.
+    _dernier_refus: tuple[str, float] = ("", 0.0)
+    INTERVALLE_RAPPEL_REFUS = 900.0
+
     def _look_for_entry(self) -> None:
         positions = self.broker.positions()
         allowed, why = self.risk.can_trade(positions)
         if not allowed:
-            logger.debug("pas de recherche : %s", why)
+            # UN ROBOT QUI NE CHERCHE PAS DOIT LE DIRE.
+            #
+            # Ce message etait en debug, donc invisible en production. Le
+            # 30 aout le robot est reste arrete sur un drawdown toute la
+            # journee : les cycles tournaient, le journal paraissait sain,
+            # et rien n'indiquait qu'aucun scan n'avait lieu. Cherche du
+            # cote de la strategie pendant des heures pour un coupe-circuit.
+            motif, _ = self._dernier_refus
+            maintenant = time.time()
+            if motif != why or maintenant - self._dernier_refus[1] > self.INTERVALLE_RAPPEL_REFUS:
+                logger.warning("AUCUNE RECHERCHE — %s", why)
+                self._dernier_refus = (why, maintenant)
             return
+        if self._dernier_refus[0]:
+            logger.warning("recherche reprise (blocage precedent : %s)",
+                           self._dernier_refus[0])
+            self._dernier_refus = ("", 0.0)
         stop, stop_why = self.objectives.should_stop_trading()
         if stop:
             logger.info("recherche suspendue : %s", stop_why)

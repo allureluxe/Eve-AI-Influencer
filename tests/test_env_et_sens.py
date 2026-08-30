@@ -211,3 +211,62 @@ class TestSommeilSurSpread:
         ev = self._evaluation("UNIUSD", [], valide=True)
         moteur._endormir_les_spreads_trop_larges(self._resultat([ev]))
         assert moteur.scanner.endormis == {}
+
+
+class TestUnRobotArreteLeDit:
+    """Un robot qui ne cherche pas doit le dire, et fort.
+
+    Le 30 aout, le robot est reste arrete sur un drawdown TOUTE la
+    journee. Les cycles tournaient, le journal paraissait sain, et le
+    motif — « drawdown maximal atteint » — etait journalise en debug, donc
+    invisible en production. L'operateur a cherche du cote de la strategie
+    pendant des heures pour un coupe-circuit.
+    """
+
+    def test_le_motif_de_blocage_est_un_avertissement(self):
+        import inspect
+        from gold_bot.dual_scalping_engine import MultiEntryScalpingMixin
+        source = inspect.getsource(MultiEntryScalpingMixin._look_for_entry)
+        assert "logger.warning" in source, (
+            "le motif de non-recherche n'est pas journalise en avertissement : "
+            "un robot fige passerait de nouveau inapercu")
+        assert "logger.debug(\"pas de recherche" not in source
+
+    def test_le_rappel_est_periodique_et_non_a_chaque_cycle(self):
+        """Ni silencieux, ni une ligne toutes les dix secondes."""
+        from gold_bot.dual_scalping_engine import MultiEntryScalpingMixin
+        assert 60.0 <= MultiEntryScalpingMixin.INTERVALLE_RAPPEL_REFUS <= 3600.0
+
+    def test_la_reprise_est_annoncee(self):
+        import inspect
+        from gold_bot.dual_scalping_engine import MultiEntryScalpingMixin
+        source = inspect.getsource(MultiEntryScalpingMixin._look_for_entry)
+        assert "recherche reprise" in source, (
+            "sans message de reprise, on ne sait pas si le deblocage a marche")
+
+
+class TestLeRecalageRefuseUnServiceActif:
+    """Recaler l'etat pendant que le robot tourne ne sert a rien.
+
+    Le service garde son etat EN MEMOIRE et le reecrit a chaque cycle : le
+    recalage tient quelques secondes, puis le sommet revient. C'est ce qui
+    a fait croire le 30 aout que l'arret avait ete leve alors qu'il ne
+    l'etait pas.
+    """
+
+    def test_l_outil_verifie_le_service(self):
+        import pathlib
+        racine = pathlib.Path(__file__).resolve().parent.parent
+        texte = (racine / "reinitialiser_arret.py").read_text(encoding="utf-8")
+        assert "service_actif" in texte
+        assert "systemctl" in texte
+
+    def test_sans_systemctl_on_ne_bloque_pas(self, monkeypatch):
+        """Hors d'un VPS systemd, l'outil doit rester utilisable."""
+        import sys
+        sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent.parent))
+        import importlib
+        module = importlib.import_module("reinitialiser_arret")
+        monkeypatch.setattr(module.shutil if hasattr(module, "shutil") else __import__("shutil"),
+                            "which", lambda _nom: None)
+        assert module.service_actif() is False

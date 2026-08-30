@@ -40,6 +40,34 @@ charger_env()
 
 GRAS, FIN, VERT, JAUNE, ROUGE = "\033[1m", "\033[0m", "\033[32m", "\033[33m", "\033[31m"
 
+SERVICES = ("robot-dual-live", "gold-bot", "robot-trading")
+
+
+def service_actif() -> bool:
+    """Un service du robot tourne-t-il ?
+
+    Le recalage ecrit dans le fichier d'etat. Or le service garde le sien
+    EN MEMOIRE et le reecrit a chaque cycle : recaler pendant qu'il tourne
+    fonctionne quelques secondes, puis le sommet revient. Observe le
+    30 aout — le robot est reste arrete toute la journee, en tournant a
+    vide, sans qu'aucune ligne ne l'explique.
+    """
+    import shutil
+    import subprocess
+
+    if not shutil.which("systemctl"):
+        return False
+    for nom in SERVICES:
+        try:
+            sortie = subprocess.run(
+                ["systemctl", "is-active", nom],
+                capture_output=True, text=True, timeout=5)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if sortie.stdout.strip() == "active":
+            return True
+    return False
+
 
 def main() -> int:
     p = argparse.ArgumentParser()
@@ -48,7 +76,24 @@ def main() -> int:
                    help="capital reel actuel (defaut : le dernier connu)")
     p.add_argument("--confirmer", action="store_true",
                    help="applique reellement le recalage")
+    p.add_argument("--malgre-le-service", action="store_true",
+                   dest="malgre_le_service",
+                   help="recaler meme si le robot tourne (le service "
+                        "reecrira l'ancien sommet : a n'utiliser que si vous "
+                        "savez pourquoi)")
     args = p.parse_args()
+
+    if service_actif() and not args.malgre_le_service:
+        print(f"\n{ROUGE}{GRAS}Le robot tourne : le recalage serait annule.{FIN}")
+        print("\n  Le service garde son propre etat EN MEMOIRE et le reecrit")
+        print("  a chaque cycle. Recaler le fichier pendant qu'il tourne")
+        print("  fonctionne quelques secondes, puis le sommet revient — et")
+        print("  le robot reste arrete sans que rien ne l'explique.")
+        print(f"\n{GRAS}L'ordre qui marche{FIN}")
+        print("     sudo systemctl stop robot-dual-live")
+        print(f"     python3 reinitialiser_arret.py --confirmer --capital <solde>")
+        print("     sudo systemctl start robot-dual-live\n")
+        return 3
 
     cfg = BotConfig.load(args.config)
     store = StateStore(instance=cfg.engine.broker)
