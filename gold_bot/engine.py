@@ -958,6 +958,13 @@ class TradingEngine:
             logger.error("ordre refuse sur %s : %s", ev.symbol, exc)
             self.notifier.warning(f"Ordre refuse — {ev.symbol}", str(exc))
             self.store.state.errors += 1
+            # Un refus du courtier se reproduit a l'identique au cycle
+            # suivant tant que la cause n'a pas bouge (cash pris par une
+            # autre position, notionnel sous le minimum). Sans mise en
+            # sommeil, l'instrument est repropose toutes les ~10 s et
+            # inonde le journal d'ERROR. On le met de cote ; il repassera
+            # quand une position se sera fermee.
+            self.scanner.sleep_symbol(ev.symbol, 900.0, "ordre refuse par le courtier")
             return
 
         pos.initial_risk = abs(pos.entry_price - pos.stop_loss) or sizing.stop_distance
