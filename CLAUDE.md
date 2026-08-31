@@ -59,7 +59,7 @@ sur ce moteur et ces marchés.
 | `engine.broker` | **bitvavo** | repasser en marge sans avoir remesuré : les ventes faisaient perdre |
 | bloc `promotion` | **présent** | retirer |
 | `strategy.max_spread_atr_ratio` | **0.30** | monter : à 50 % de plafond, la borne dérivée ne protège plus, ce réglage est la seule barrière |
-| `strategy.min_score` | **0.35** | remettre à zéro « parce que le quorum suffit » |
+| `strategy.min_score` | **0.45** | redescendre à 0,35 : quatre rejeux le donnent perdant, voir plus bas |
 | `trade.atr_stop_mult` | **1.60** | resserrer sans recalculer le coût |
 | `trade.tp_r_multiple` | **2.00** | baisser sans recalculer la réussite nécessaire |
 | `trade.time_stop_minutes` | **360** | garder une valeur pensée pour une autre unité |
@@ -457,6 +457,37 @@ Le bonus d'objectif n'est pas ajouté à ce seuil : en quorum il relève déjà
 le nombre de confirmations exigées, et le compter deux fois punirait deux
 fois la même situation — le robot cesserait d'entrer exactement quand il
 doit se refaire.
+
+### Le seuil est passé de 0,35 à 0,45 le 31 août
+
+Le 31 août, le marché crypto a décroché dans la nuit. Le robot, achat
+seul, a enchaîné six stops pleins (ALGO, CRO, PENDLE, CAKE, STRK, EGLD).
+Les trois pertes les plus nettes — PENDLE, STRK, EGLD — étaient entrées
+sur les signaux les plus faibles qui passaient encore la porte :
+**score 0,39, 0,36 et 0,36** pour un seuil à 0,35. Sur quatorze entrées
+M30, sept étaient sous 0,45.
+
+Quatre rejeux successifs — 2500, 4000 et 8000 bougies, huit cryptos,
+spread doublé, frais pleins — désignent **score 0,45 comme la meilleure
+variante**, à chaque fois :
+
+    variante                  trades   réussite   espérance nette
+    score 0,45                    65     67,7 %       +0,396 R
+    config en service (témoin)   103     57,3 %       +0,245 R
+
+C'est le seul changement où le rejeu et le réel pointent le même doigt :
+le robot entrait sur ses signaux les plus médiocres, et ce sont eux qui
+saignaient. La règle des 40 trades sert à ne pas courir après du bruit ;
+ici la preuve est convergente, pas du bruit.
+
+Le prix : 65 trades contre 103, soit un échantillon réel plus lent à
+construire. `tests/test_garde_fous.py` verrouille le plancher à 0,45.
+
+Ce que ce changement ne règle **pas** : le robot achat seul dans un
+krach corrélé. Aucun réglage de score n'y protège — seuls les
+coupe-circuits le font. La vente à découvert n'aide pas non plus (mesurée
+trois fois, jamais favorable : le M30 ne produit quasiment aucune entrée
+VENTE qui passe ses filtres).
 
 ## Le plan de croissance : 186 EUR -> 3 000 EUR
 

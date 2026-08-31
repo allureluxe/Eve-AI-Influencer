@@ -40,7 +40,7 @@
     "require_mtf_alignment": false,
     "allow_counter_trend": true,
     "macro_veto_threshold": 0.8,
-    "min_score": 0.35,
+    "min_score": 0.45,
     "min_score_counter_trend": 0.55,
     "w_trend": 0.18,
     "w_momentum": 0.22,

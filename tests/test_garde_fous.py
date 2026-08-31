@@ -654,9 +654,15 @@ class TestFiltresDEntree:
         min_score avait ete rendu purement indicatif en mode quorum : le
         seuil etait force a zero, et un achat XRP reel s'est ouvert sur un
         score de 0,24 alors que la configuration exigeait 0,55.
+
+        Plancher remonte de 0,35 a 0,45 le 31 aout : quatre rejeux
+        successifs (2500, 4000, 8000 bougies) designent score 0,45 comme
+        la meilleure variante (+0,396 R, 67,7 %) devant le temoin
+        (+0,245 R, 57,3 %), et les trois grosses pertes reelles du krach
+        du 31 aout etaient entrees a 0,36-0,39. Voir CLAUDE.md.
         """
         cfg = config()
-        assert cfg.strategy.min_score >= 0.35 - 1e-9, (
+        assert cfg.strategy.min_score >= 0.45 - 1e-9, (
             f"min_score vaut {cfg.strategy.min_score} — voir CLAUDE.md")
 
     def test_le_seuil_de_score_est_applique_en_quorum(self):
