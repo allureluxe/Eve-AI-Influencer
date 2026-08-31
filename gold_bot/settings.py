@@ -116,6 +116,13 @@ class BotConfig:
         if t.extend_at_progress >= 1.0: problems.append("le seuil d'extension doit etre inferieur a 1")
         if t.min_stop_atr > t.atr_stop_mult: problems.append("le stop minimal est plus large que le stop nominal")
         if s.min_score > 0.95: problems.append("seuil de score quasi inatteignable")
+        if s.famille not in ("tendance", "reversion"):
+            problems.append(f"strategy.famille invalide : {s.famille} (attendu 'tendance' ou 'reversion')")
+        if s.famille == "reversion":
+            if s.reversion_ma_periode < 5:
+                problems.append("reversion_ma_periode trop courte (< 5)")
+            if s.reversion_entree_atr <= s.reversion_sortie_atr:
+                problems.append("reversion_entree_atr doit etre strictement superieur a reversion_sortie_atr")
         if e.poll_seconds < 1.0: problems.append("cadence trop agressive")
         if t.atr_stop_mult > 0:
             spread_en_r = s.max_spread_atr_ratio / t.atr_stop_mult

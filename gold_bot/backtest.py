@@ -117,7 +117,16 @@ class Backtester:
         self.registry = registry or registre_pour(self.config)
         self.universe = Universe()
 
-    def run(self, symbol: str, bars: int = 1500, start_balance: float = 1000.0) -> BacktestResult:
+    def run(self, symbol: str, bars: int = 1500, start_balance: float = 1000.0,
+            series: Optional[dict[str, list[Candle]]] = None) -> BacktestResult:
+        """Rejoue la strategie sur un instrument.
+
+        `series` : si fourni, `{unite: bougies}` remplace le telechargement
+        par le registre. Sert aux rejeux sur une fenetre longue (6 mois)
+        recuperee a part, que les fournisseurs du registre ne servent pas.
+        La serie d'entree doit couvrir la periode ; les unites superieures
+        doivent inclure de l'historique ANTERIEUR pour le prechauffage.
+        """
         instrument = self.universe.get(symbol.upper())
         if instrument is None:
             raise ValueError(f"instrument inconnu : {symbol}")
@@ -126,11 +135,19 @@ class Backtester:
         entry_tf = cfg.strategy.entry_tf
         result = BacktestResult(symbol=instrument.symbol, start_balance=start_balance)
 
-        base = self.registry.candles(instrument.symbol, instrument.asset_class, entry_tf, bars)
+        if series and entry_tf in series:
+            base = list(series[entry_tf])
+        else:
+            base = self.registry.candles(instrument.symbol, instrument.asset_class, entry_tf, bars)
         if len(base) < 200:
             raise ValueError(f"historique insuffisant ({len(base)} bougies)")
 
-        broker = PaperBroker(PaperConfig(start_balance=start_balance, currency=cfg.engine.currency))
+        # La commission du rejeu suit celle de la configuration (Bitvavo
+        # taker = 0,25 % par cote). Sans ce passage, PaperConfig retombait
+        # sur son defaut 0,02 %, soit douze fois moins que le tarif reel.
+        broker = PaperBroker(PaperConfig(
+            start_balance=start_balance, currency=cfg.engine.currency,
+            commission_pct=cfg.risk.commission_pct))
         broker.connect()
         broker.register_instrument(instrument)
 
@@ -160,9 +177,12 @@ class Backtester:
         debut = base[0].ts
         for tf in higher:
             try:
-                anterieures = [c for c in self.registry.candles(
-                    instrument.symbol, instrument.asset_class, tf, cfg.strategy.history)
-                    if c.ts < debut]
+                if series and tf in series:
+                    source = list(series[tf])
+                else:
+                    source = self.registry.candles(
+                        instrument.symbol, instrument.asset_class, tf, cfg.strategy.history)
+                anterieures = [c for c in source if c.ts < debut]
             except Exception as exc:  # noqa: BLE001
                 logger.warning("prechauffage %s impossible sur %s : %s",
                                tf, instrument.symbol, str(exc)[:120])
@@ -232,6 +252,25 @@ class Backtester:
                         if t:
                             result.trades.append(t)
                             risk.record_close(t)
+
+            # --- Sortie reversion : retour dans la bande sous la SMA courante ---
+            #
+            # En famille « reversion » il n'y a pas d'objectif fixe : on
+            # sort des que le prix repasse a moins de `reversion_sortie_atr`
+            # ATR sous la SMA COURANTE (reevaluee ici chaque bougie). Le
+            # stop ATR reste gere par `process_candle` : une reversion qui
+            # ne revient jamais sort au stop.
+            if cfg.strategy.famille == "reversion" and broker.positions():
+                n_ma = int(cfg.strategy.reversion_ma_periode)
+                closes = [c.close for c in indicators[entry_tf].candles]
+                if len(closes) >= n_ma and atr > 0:
+                    sma_now = sum(closes[-n_ma:]) / n_ma
+                    if (sma_now - candle.close) <= cfg.strategy.reversion_sortie_atr * atr:
+                        for pos in list(broker.positions()):
+                            t = broker.close_position(pos.id, None, "reversion : retour a la MA")
+                            if t:
+                                result.trades.append(t)
+                                risk.record_close(t)
 
             # --- Recherche d'entree ---
             #

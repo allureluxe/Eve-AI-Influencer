@@ -124,6 +124,10 @@ class Evaluation:
             return False
         if self.mode == "quorum":
             return self.confirmed >= self.required
+        if self.mode == "reversion":
+            # Le declencheur est mecanique : les portes suffisent, il n'y a
+            # ni quorum ni score a franchir.
+            return True
         return self.score >= self.threshold
 
     def failed_gates(self) -> list[Gate]:
@@ -208,6 +212,22 @@ class StrategyConfig:
     # --- Seuil de validation ---
     min_score: float = 0.55       # score de confluence minimal
     min_score_counter_trend: float = 0.75   # exigence relevee a contre-tendance
+
+    # --- Famille de strategie ---
+    #
+    # "tendance"  : le comportement historique — on achete la force (prix qui
+    #               suit sa moyenne, ADX, quorum de confirmations).
+    # "reversion" : on achete quand le prix DECROCHE nettement sous sa MA,
+    #               mesure en multiples d'ATR, et on sort au retour vers la
+    #               MA (bande), sans objectif fixe. Achat seul (comptant).
+    #               Les filtres de tendance, de regime et d'accord multi-
+    #               unites sont desactives : ils contrediraient le scenario.
+    #
+    # A backtester avant tout armement. Defaut "tendance" : rien ne change.
+    famille: str = "tendance"
+    reversion_ma_periode: int = 50       # periode de la SMA de reference (dediee)
+    reversion_entree_atr: float = 2.0    # ecart MA-prix minimal, en ATR, pour entrer
+    reversion_sortie_atr: float = 0.5    # sortie quand MA-prix repasse sous ce seuil, en ATR
 
     # --- Filtres eliminatoires ---
     max_spread_atr_ratio: float = 0.22    # spread max en fraction d'ATR
@@ -398,6 +418,10 @@ class Strategy:
                              news.reason if (news and news.reason) else "aucune annonce bloquante"))
         if not news_ok:
             return ev
+
+        # ---------- Branche reversion : achat sur decrochage sous la MA ----------
+        if cfg.famille == "reversion":
+            return self._finish_reversion(ev, instrument, entry_ind, price, atr, tick)
 
         # ---------- Branche rapide : mode quorum ----------
         if cfg.mode == "quorum":
@@ -641,6 +665,56 @@ class Strategy:
                                     "tailles du carnet indisponibles", applicable=False))
 
         return out
+
+    def _finish_reversion(
+        self,
+        ev: Evaluation,
+        instrument: Instrument,
+        entry: IndicatorSet,
+        price: float,
+        atr: float,
+        tick: Tick,
+    ) -> Evaluation:
+        """Famille « reversion » : achat seul quand le prix decroche sous sa
+        SMA d'au moins `reversion_entree_atr` x ATR.
+
+        Ni tendance, ni regime, ni accord multi-unites, ni score : le
+        declencheur est une distance a la moyenne, mesuree en ATR. Le stop
+        reste le stop ATR habituel. La cible affichee est la bande
+        `SMA - reversion_sortie_atr x ATR` ; la sortie reelle est geree
+        bougie par bougie contre la SMA COURANTE (voir le rejeu), donc sans
+        objectif fixe.
+        """
+        cfg = self.config
+        ev.mode = "reversion"
+        n = int(cfg.reversion_ma_periode)
+        closes = [c.close for c in entry.candles]
+        if len(closes) < n or atr <= 0:
+            ev.gates.append(Gate("reversion", False,
+                                 f"historique insuffisant ({len(closes)}/{n} bougies)"))
+            return ev
+
+        sma = sum(closes[-n:]) / n
+        ecart = sma - price
+        seuil = cfg.reversion_entree_atr * atr
+        declenche = ecart >= seuil
+        ev.gates.append(Gate(
+            "reversion", declenche,
+            f"ecart MA{n}-prix = {ecart / atr:.2f} ATR "
+            f"(entree a partir de {cfg.reversion_entree_atr:.2f} ATR)"))
+        if not declenche:
+            return ev
+
+        ev.side = Side.BUY
+        ev.setup = "reversion_ecart"
+        sl, _ = self.trade_manager.initial_levels(
+            Side.BUY, price, atr, spread=tick.spread,
+            structure_stop=None, digits=instrument.digits)
+        ev.stop_loss = sl
+        ev.take_profit = round(sma - cfg.reversion_sortie_atr * atr, instrument.digits)
+        risque = abs(price - sl)
+        ev.rr = (ev.take_profit - price) / risque if risque > 0 else 0.0
+        return ev
 
     def _finish_quorum(
         self,
