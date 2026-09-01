@@ -30,7 +30,7 @@
     "max_spread_atr_ratio": 0.35,
     "min_atr_percentile": 0.10,
     "max_atr_percentile": 0.98,
-    "min_atr_price_ratio": 0.0055,
+    "min_atr_price_ratio": 0.0060,
     "min_adx": 10.0,
     "min_headroom_atr": 0.5,
     "min_rr": 1.5,
