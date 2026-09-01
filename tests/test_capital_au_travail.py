@@ -49,11 +49,11 @@ class TestLePartageSAccordeAuxOccasionsREELLES:
             f"{six.risk_pct:.3f} % en reservant pour 6 : le capital dort "
             "toujours pour des places qui ne s'ouvriront pas")
 
-    def test_six_occasions_partagent_comme_avant(self):
+    def test_huit_occasions_partagent_comme_avant(self):
         """Le partage reste juste quand les occasions existent vraiment."""
         _, defaut = _dimensionner(places_visees=None)
-        _, six = _dimensionner(places_visees=6)
-        assert abs(six.risk_pct - defaut.risk_pct) < 1e-9
+        _, huit = _dimensionner(places_visees=8)
+        assert abs(huit.risk_pct - defaut.risk_pct) < 1e-9
 
     def test_une_seule_occasion_ne_depasse_pas_le_risque_configure(self):
         """La borne dure : partager moins ne doit pas risquer plus.

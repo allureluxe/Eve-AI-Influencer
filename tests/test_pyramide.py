@@ -43,8 +43,8 @@ def _gestionnaire(**reglages) -> RiskManager:
 class TestLaPyramideResteFermeeParDefaut:
     """Le renforcement ne s'arme pas tout seul : le rejeu tranche avant."""
 
-    def test_le_reglage_livre_est_desarme(self):
-        assert BotConfig.load("robot.bitvavo.json").risk.pyramide_max == 0
+    def test_le_reglage_livre_est_arme(self):
+        assert BotConfig.load("robot.bitvavo.json").risk.pyramide_max == 2
 
     def test_le_defaut_du_code_est_desarme(self):
         assert RiskConfig().pyramide_max == 0

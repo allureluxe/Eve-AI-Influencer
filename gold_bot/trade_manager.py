@@ -193,11 +193,11 @@ class TradeManager:
         exit_action = self._safety_exits(position, price, r_now, momentum, now)
         if exit_action:
             return [exit_action]
-        if (cfg.micro_profit_enabled and r_now >= cfg.micro_profit_at_r
-                and momentum.score < cfg.micro_profit_min_momentum):
-            return [TradeAction(ActionType.CLOSE, position.id,
-                reason=(f"micro-profit {r_now:+.2f}R : dynamique faible "
-                        f"({momentum.score:+.2f}), gain encaisse"))]
+        micro_profit = (
+            cfg.micro_profit_enabled
+            and r_now >= cfg.micro_profit_at_r
+            and momentum.score < cfg.micro_profit_min_momentum
+        )
         new_stop = position.stop_loss
         if not position.breakeven_done and r_now >= cfg.breakeven_at_r:
             be = position.entry_price + sign * cfg.breakeven_offset_r * position.initial_risk
@@ -261,6 +261,19 @@ class TradeManager:
                     reason=f"stop suiveur a {position.locked_r():+.2f}R -> "
                            f"{(sign * (new_stop - position.entry_price) / position.initial_risk):+.2f}R verrouille"))
             position.stop_loss = new_stop
+
+        if micro_profit:
+            actions.append(
+                TradeAction(
+                    ActionType.CLOSE,
+                    position.id,
+                    reason=(
+                        f"micro-profit {r_now:+.2f}R : dynamique faible "
+                        f"({momentum.score:+.2f}), gain encaisse"
+                    ),
+                )
+            )
+
         return actions
 
     def _safety_exits(self, position: Position, price: float, r_now: float,
