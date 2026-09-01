@@ -703,8 +703,14 @@ class BitvavoBroker(Broker):
         if quantite <= 0:
             return None
 
-        sortie, servi, frais_sortie, exit_order_id, ferme_a = self._ventes_depuis(
-            position.symbol, position.opened_at)
+        ventes = self._ventes_depuis(position.symbol, position.opened_at)
+        sortie = servi = frais_sortie = 0.0
+        exit_order_id = ""
+        ferme_a = 0.0
+        if len(ventes) >= 3:
+            sortie, servi, frais_sortie = ventes[:3]
+        if len(ventes) >= 5:
+            exit_order_id, ferme_a = ventes[3], ventes[4]
         estime = ""
         if not sortie:
             # Sans historique lisible, le stop est l'explication la plus
