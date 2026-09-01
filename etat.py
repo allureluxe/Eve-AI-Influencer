@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from gold_bot.calibrage import COUT_INCOMPRESSIBLE, calibrer, duree_stop_temporel
 from gold_bot.promotion import Promotion
+from gold_bot.runtime_context import instance_key, runtime_report
 from gold_bot.settings import BotConfig
 from gold_bot.state import TradeJournal, ancrer
 from gold_bot.universe import Universe
@@ -87,11 +88,16 @@ def main() -> int:
 
     # ------------------------------------------------------ configuration
     cfg = BotConfig.load(CONFIG)
+    cle = instance_key(cfg)
+    contexte = runtime_report(cfg)
     titre(f"Configuration ({CONFIG})")
     reel = not cfg.engine.dry_run
     ligne("mode", "ARGENT REEL" if reel else "simulation",
           "attention" if reel else "ok")
     ligne("lieu d'execution", cfg.engine.broker)
+    ligne("instance", cle)
+    ligne("source chargee", cfg.source_path or CONFIG)
+    ligne("repertoire courant", contexte["cwd"])
 
     levier_ok = cfg.risk.max_leverage <= 1.0
     ligne("levier", f"{cfg.risk.max_leverage:g}x", "ok" if levier_ok else "non",
@@ -155,7 +161,7 @@ def main() -> int:
     # qu'il TIENT, pas qu'il dort. Sans voir ce qu'il detient ni ce qui le
     # bloque, l'attente normale et la panne se ressemblent.
     from gold_bot.state import StateStore
-    store = StateStore(instance=cfg.engine.broker)
+    store = StateStore(instance=cle)
     store.load()
     etat = store.state
     ouvertes = [store.position_memorisee(i) for i in etat.position_meta]
@@ -188,7 +194,7 @@ def main() -> int:
 
     # --------------------------------------------------------- resultats
     titre("Resultats reels")
-    journal = TradeJournal(instance=cfg.engine.broker)
+    journal = TradeJournal(instance=cle)
     stats = journal.stats()
     # Le chemin est affiche systematiquement : le journal retombe sur le
     # fichier commun quand le fichier suffixe n'existe pas, et se tromper

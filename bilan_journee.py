@@ -30,6 +30,7 @@ sys.path.insert(0, str(RACINE))
 from gold_bot.croissance import (ECHANTILLON_MINIMAL, Diagnostic,  # noqa: E402
                                  palier_courant, palier_suivant)
 from gold_bot.env import charger_env  # noqa: E402
+from gold_bot.runtime_context import instance_key  # noqa: E402
 from gold_bot.settings import BotConfig  # noqa: E402
 from gold_bot.state import TradeJournal  # noqa: E402
 
@@ -57,14 +58,35 @@ def seuil_de_rentabilite(cfg: BotConfig) -> tuple[float, float]:
     return (1.0 + cout_r) / (1.0 + cible) * 100.0, cout_r
 
 
+def broker_pour_rapport(cfg: BotConfig):
+    """Connexion lecture seule au broker configure."""
+    if cfg.engine.broker not in ("bitvavo", "bitvavo_margin"):
+        return None
+    if cfg.engine.broker == "bitvavo_margin":
+        from gold_bot.brokers.bitvavo_margin import BitvavoMarginBroker
+        broker = BitvavoMarginBroker()
+    else:
+        from gold_bot.brokers.bitvavo import BitvavoBroker
+        broker = BitvavoBroker()
+    if not broker.connect():
+        return None
+    broker.sync()
+    return broker
+
+
 def positions_ouvertes(cfg: BotConfig):
     """Ce que le compte detient encore. Aucune commande passee."""
-    from gold_bot.dual_scalping_engine import DualScalpingEngine
-    cfg.engine.dry_run = True                 # aucun ordre, jamais
-    moteur = DualScalpingEngine(cfg)
-    moteur.broker.connect()
-    moteur.broker.sync()
-    return moteur.broker.positions(), moteur.broker.account()
+    broker = broker_pour_rapport(cfg)
+    if broker is None:
+        return [], type("Compte", (), {"equity": 0.0, "currency": cfg.engine.currency, "margin_free": 0.0})()
+    return broker.positions(), broker.account()
+
+
+def transactions_reelles(cfg: BotConfig, depuis: float):
+    broker = broker_pour_rapport(cfg)
+    if broker is None or not hasattr(broker, "recent_transactions"):
+        return []
+    return broker.recent_transactions(depuis)
 
 
 def main() -> int:
@@ -77,7 +99,8 @@ def main() -> int:
     args = ap.parse_args()
 
     cfg = BotConfig.load(args.config)
-    journal = TradeJournal()
+    cle = instance_key(cfg)
+    journal = TradeJournal(instance=cle)
 
     if args.jours <= 1.0:
         minuit = dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -86,9 +109,27 @@ def main() -> int:
         depuis = time.time() - args.jours * 86400
         titre = f"{args.jours:.0f} DERNIERS JOURS"
 
+    depuis_24h = time.time() - 86400
+    tx_24h = transactions_reelles(cfg, depuis_24h)
+    tx_periode = [t for t in tx_24h if t.timestamp >= depuis] if args.jours <= 1.0 else transactions_reelles(cfg, depuis)
+
     print(f"\n{GRAS}{'=' * 74}{FIN}")
     print(f"{GRAS}  BILAN — {titre}{FIN}")
     print(f"{GRAS}{'=' * 74}{FIN}\n")
+    print(f"  instance journalisee : {cle}")
+    print(f"  journal : {journal.path}")
+    print(f"  depuis minuit : {len([t for t in tx_24h if t.timestamp >= minuit]) if args.jours <= 1.0 else 'n/a'} transaction(s) broker")
+    print(f"  sur 24h       : {len(tx_24h)} transaction(s) broker\n")
+
+    if tx_periode:
+        print(f"{GRAS}  TRANSACTIONS BITVAVO{FIN}")
+        print(f"  {'heure':>5}  {'sens':<6} {'symbole':<10} {'montant':>12} {'prix':>12} {'frais':>9}")
+        for tx in sorted(tx_periode, key=lambda x: x.timestamp):
+            heure = dt.datetime.fromtimestamp(tx.timestamp).strftime("%H:%M")
+            sens = "achat" if tx.side.value == "BUY" else "vente"
+            print(f"  {heure:>5}  {sens:<6} {tx.symbol:<10} {tx.quote_amount:>11.2f} "
+                  f"{tx.price:>12.6f} {tx.fee:>8.4f}")
+        print()
 
     # ---------------------------------------------------------------
     # 1. Ce qui s'est ferme
@@ -100,9 +141,9 @@ def main() -> int:
     if not fermes:
         print(f"{GRIS}  Aucun trade ferme sur la periode.{FIN}\n")
     else:
-        print(f"{GRAS}  POSITIONS FERMEES{FIN}")
+        print(f"{GRAS}  TRADES JOURNALISES{FIN}")
         print(f"  {'heure':>5}  {'symbole':<10} {'R':>7} {'profit':>9}  "
-              f"{'plus haut':>9}  motif")
+              f"{'plus haut':>9}  {'ordre sortie':<14} motif")
         for t in sorted(fermes, key=lambda x: x.closed_at):
             heure = dt.datetime.fromtimestamp(t.closed_at).strftime("%H:%M")
             couleur = VERT if t.profit > 0 else ROUGE
@@ -113,7 +154,7 @@ def main() -> int:
             # a l'oppose, et rien d'autre ne les distingue.
             print(f"  {heure:>5}  {t.symbol:<10} {couleur}{t.r_multiple:>+7.2f}"
                   f" {t.profit:>+8.2f}{FIN}  {t.max_favorable_r:>+9.2f}"
-                  f"  {t.reason[:28]}{marque}")
+                  f"  {str(t.exit_order_id or '-')[:14]:<14} {t.reason[:28]}{marque}")
         print()
 
     # ---------------------------------------------------------------
@@ -176,6 +217,9 @@ def main() -> int:
           f"{couleur}{GRAS}{esperance_nette:+.3f} R{FIN}   <- le seul chiffre qui compte")
     print(f"  profit net : {stats['profit_net']:+.2f} {cfg.engine.currency}"
           + (f", {len(partielles)} prise(s) partielle(s)" if partielles else ""))
+    if tx_periode and not fermes:
+        print(f"  {JAUNE}ATTENTION : Bitvavo montre {len(tx_periode)} transaction(s) "
+              f"mais le journal local n'a rien sur la meme periode.{FIN}")
 
     # L'INCERTITUDE, ET C'EST ELLE QUI DOIT PARLER EN PREMIER.
     #
@@ -219,6 +263,15 @@ def main() -> int:
                 print(f"  {GRIS}-> ils n'allaient nulle part : c'est l'ENTREE "
                       f"qui ne vaut rien, aucun reglage de stop n'y changera "
                       f"quoi que ce soit.{FIN}")
+    par_symbole = journal.by_symbol(since=depuis)
+    if par_symbole:
+        print(f"\n{GRAS}  PAR ACTIF{FIN}")
+        print(f"  {'symbole':<10}{'trades':>8}{'reussite':>11}{'profit':>12}{'R net':>9}{'duree':>9}  raison")
+        for sym, row in sorted(par_symbole.items(), key=lambda kv: -kv[1]["profit_net"]):
+            r_net = row["esperance_R_nette"] if row["esperance_R_nette"] is not None else 0.0
+            print(f"  {sym:<10}{row['trades']:>8}{row['taux_reussite_pct']:>10.1f}%"
+                  f"{row['profit_net']:>12.2f}{r_net:>9.2f}{row['duree_moyenne_min']:>8.0f}m  "
+                  f"{row['raison_sortie_top'][:24]}")
     print()
     return 0
 

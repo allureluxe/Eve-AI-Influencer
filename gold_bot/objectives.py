@@ -30,6 +30,8 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from .state import chemin_par_instance
+
 logger = logging.getLogger(__name__)
 
 
@@ -90,9 +92,11 @@ class ObjectiveState:
 class ObjectiveTracker:
     """Suit le defi hebdomadaire et module le comportement du robot."""
 
-    def __init__(self, config: Optional[ObjectiveConfig] = None, state_file: str = "") -> None:
+    def __init__(self, config: Optional[ObjectiveConfig] = None, state_file: str = "",
+                 instance: str = "") -> None:
         self.config = config or ObjectiveConfig()
-        self.state_file = state_file or os.getenv("GB_OBJECTIVE_FILE", "data/objectives.json")
+        self.state_file = state_file or chemin_par_instance(
+            "data/objectives.json", "GB_OBJECTIVE_FILE", instance)
         self.state = ObjectiveState()
         self.load()
 

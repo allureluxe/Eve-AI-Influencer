@@ -37,6 +37,8 @@ class BotState:
     peak_equity: float = 0.0
     halted: bool = False
     halt_reason: str = ""
+    last_reconciliation_ts: float = 0.0
+    last_exchange_tx_ts: float = 0.0
 
 
 # Racine du projet : le dossier qui contient le paquet gold_bot.
@@ -226,6 +228,7 @@ class TradeJournal:
     """Historique des trades et statistiques de performance."""
 
     def __init__(self, path: str = "", instance: str = "") -> None:
+        self.instance = instance
         self.path = path or chemin_par_instance(
             "data/trades.jsonl", "GB_TRADES_FILE", instance)
         self.trades: list[ClosedTrade] = []
@@ -355,12 +358,33 @@ class TradeJournal:
         for t in self.trades:
             if t.closed_at < since:
                 continue
-            row = out.setdefault(t.symbol, {"trades": 0, "profit": 0.0, "gagnants": 0, "R": 0.0})
-            row["trades"] += 1
+            row = out.setdefault(
+                t.symbol, {"trades": 0, "prises_partielles": 0, "profit": 0.0,
+                           "gagnants": 0, "R": 0.0, "R_nets": [],
+                           "duree_totale_min": 0.0, "raisons": {}})
             row["profit"] = round(row["profit"] + t.profit, 2)
+            if t.partial:
+                row["prises_partielles"] += 1
+                continue
+            row["trades"] += 1
             row["R"] = round(row["R"] + t.r_multiple, 3)
+            row["duree_totale_min"] += max(0.0, (t.closed_at - t.opened_at) / 60.0)
+            row["raisons"][t.reason] = row["raisons"].get(t.reason, 0) + 1
+            r_net = self.r_net(t)
+            if r_net is not None:
+                row["R_nets"].append(r_net)
             if t.profit > 0:
                 row["gagnants"] += 1
         for row in out.values():
-            row["taux_reussite_pct"] = round(row["gagnants"] / row["trades"] * 100.0, 1)
+            trades = row["trades"]
+            row["taux_reussite_pct"] = round(row["gagnants"] / trades * 100.0, 1) if trades else 0.0
+            row["esperance_R"] = round(row["R"] / trades, 3) if trades else 0.0
+            nets = row.pop("R_nets")
+            row["esperance_R_nette"] = round(sum(nets) / len(nets), 3) if nets else None
+            row["duree_moyenne_min"] = round(row["duree_totale_min"] / trades, 1) if trades else 0.0
+            raisons = row.pop("raisons")
+            row["raison_sortie_top"] = max(raisons, key=raisons.get) if raisons else ""
+            row["raisons_sortie"] = raisons
+            row["profit_net"] = row.pop("profit")
+            row.pop("duree_totale_min")
         return out

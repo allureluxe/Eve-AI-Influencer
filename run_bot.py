@@ -8,6 +8,7 @@
     python3 run_bot.py backtest XAUUSD       rejeu historique
     python3 run_bot.py objectifs             etat du defi hebdomadaire
     python3 run_bot.py stats                 statistiques des trades realises
+    python3 run_bot.py context               chemins et config reellement utilises
     python3 run_bot.py run                   lance le robot en continu (24h/24)
 
 Options utiles :
@@ -36,9 +37,10 @@ from gold_bot.macro import MacroEngine
 from gold_bot.news import NewsFilter
 from gold_bot.notifiers import Notifier
 from gold_bot.objectives import ObjectiveTracker
+from gold_bot.runtime_context import instance_key, runtime_report
 from gold_bot.scanner import Scanner
 from gold_bot.settings import BotConfig
-from gold_bot.state import TradeJournal
+from gold_bot.state import StateStore, TradeJournal
 from gold_bot.strategy import Strategy
 from gold_bot.trade_manager import TradeManager
 from gold_bot.universe import Universe
@@ -82,6 +84,10 @@ def cmd_check(args) -> int:
     print(f"\n[Configuration] {'OK' if not problems else str(len(problems)) + ' probleme(s)'}")
     for p in problems:
         print(f"   - {p}")
+    contexte = runtime_report(cfg)
+    print(f"   source : {contexte['config_source']}")
+    print(f"   instance : {contexte['instance']}")
+    print(f"   journal : {contexte['trades_path']}")
 
     print(f"\n[Univers] {len(Universe())} instruments")
     universe = Universe()
@@ -158,7 +164,7 @@ def cmd_check(args) -> int:
     print(f"   canaux actifs : {', '.join(Notifier().active_channels())}")
 
     print("\n[Objectifs]")
-    obj = ObjectiveTracker(cfg.objectives)
+    obj = ObjectiveTracker(cfg.objectives, instance=instance_key(cfg))
     st = obj.status()
     print(f"   palier {st['palier']} : {st['objectif_nominal']:.2f} nominal")
     if st["plafonne"]:
@@ -269,7 +275,7 @@ def cmd_backtest(args) -> int:
 
 def cmd_objectifs(args) -> int:
     cfg = build_config(args)
-    tracker = ObjectiveTracker(cfg.objectives)
+    tracker = ObjectiveTracker(cfg.objectives, instance=instance_key(cfg))
     equity = args.balance or cfg.engine.start_balance
     st = tracker.status()
     print("=" * 74)
@@ -306,7 +312,7 @@ def cmd_stats(args) -> int:
     # Sans lire la configuration, la commande ouvrait le journal commun, vide,
     # et annoncait « aucun trade » alors que le robot en avait enregistre.
     cfg = build_config(args)
-    journal = TradeJournal(instance=cfg.engine.broker)
+    journal = TradeJournal(instance=instance_key(cfg))
     since = time.time() - args.days * 86400 if args.days else 0.0
     stats = journal.stats(since)
     print("=" * 74)
@@ -336,10 +342,41 @@ def cmd_stats(args) -> int:
     per_symbol = journal.by_symbol(since)
     if per_symbol:
         print("\n   Par instrument :")
-        print(f"   {'symbole':<10}{'trades':>8}{'reussite':>11}{'profit':>12}{'R cumule':>11}")
-        for sym, row in sorted(per_symbol.items(), key=lambda kv: -kv[1]["profit"]):
+        print(f"   {'symbole':<10}{'trades':>8}{'reussite':>11}{'profit':>12}{'R net':>9}{'duree':>9}")
+        for sym, row in sorted(per_symbol.items(), key=lambda kv: -kv[1]["profit_net"]):
             print(f"   {sym:<10}{row['trades']:>8}{row['taux_reussite_pct']:>10.1f}%"
-                  f"{row['profit']:>12.2f}{row['R']:>11.2f}")
+                  f"{row['profit_net']:>12.2f}"
+                  f"{(row['esperance_R_nette'] if row['esperance_R_nette'] is not None else 0.0):>9.2f}"
+                  f"{row['duree_moyenne_min']:>8.0f}m")
+            if row["raison_sortie_top"]:
+                print(f"   {'':<10}raison top : {row['raison_sortie_top']}")
+    print("=" * 74)
+    return 0
+
+
+def cmd_context(args) -> int:
+    cfg = build_config(args)
+    cle = instance_key(cfg)
+    journal = TradeJournal(instance=cle)
+    store = StateStore(instance=cle)
+    tracker = ObjectiveTracker(cfg.objectives, instance=cle)
+    contexte = runtime_report(cfg, trades_count=len(journal.trades))
+    print("=" * 74)
+    print("  CONTEXTE D'EXECUTION")
+    print("=" * 74)
+    print(f"  config_source         {contexte['config_source']}")
+    print(f"  cwd                   {contexte['cwd']}")
+    print(f"  project_root          {contexte['project_root']}")
+    print(f"  broker                {contexte['broker']}")
+    print(f"  instance_id           {contexte['instance_id'] or '-'}")
+    print(f"  instance              {contexte['instance']}")
+    print(f"  state_path            {store.path}")
+    print(f"  trades_path           {journal.path}")
+    print(f"  objectives_path       {tracker.state_file}")
+    print(f"  lock_path             {contexte['lock_path']}")
+    print(f"  trades_lus            {len(journal.trades)}")
+    print(f"  GB_CONFIG             {contexte['gb_config'] or '-'}")
+    print(f"  GB_CONFIG_FILE        {contexte['gb_config_file'] or '-'}")
     print("=" * 74)
     return 0
 
@@ -372,7 +409,16 @@ def cmd_status(args) -> int:
     cfg = build_config(args)
     try:
         engine = TradingEngine(cfg)
-        engine.start()
+        if not engine.broker.connect():
+            raise RuntimeError(f"broker={cfg.engine.broker} — verifier la configuration")
+        if hasattr(engine.broker, "apply_market_rules"):
+            engine.broker.apply_market_rules(engine.universe)
+        engine._calibrer_sur_le_capital()
+        engine._filtrer_univers_sur_le_broker()
+        acc = engine.broker.account()
+        engine.risk.sync_account(acc.equity, acc.balance, acc.currency)
+        engine.objectives.sync(acc.equity)
+        engine._restore_positions()
         print(json.dumps(engine.status(), indent=2, ensure_ascii=False))
     except Exception as exc:
         print(f"etat indisponible : {exc}")
@@ -425,6 +471,7 @@ def main() -> int:
     sub.add_parser("objectifs", help="etat du defi hebdomadaire", parents=[commun])
     p = sub.add_parser("stats", help="statistiques des trades", parents=[commun])
     p.add_argument("--days", type=int, default=0)
+    sub.add_parser("context", help="chemins et config reellement utilises", parents=[commun])
     sub.add_parser("run", help="lancer le robot en continu", parents=[commun])
     sub.add_parser("status", help="etat courant du robot", parents=[commun])
 
@@ -437,7 +484,7 @@ def main() -> int:
     handlers = {
         "check": cmd_check, "scan": cmd_scan, "analyse": cmd_analyse,
         "backtest": cmd_backtest, "objectifs": cmd_objectifs,
-        "stats": cmd_stats, "run": cmd_run, "status": cmd_status,
+        "stats": cmd_stats, "context": cmd_context, "run": cmd_run, "status": cmd_status,
     }
     if not args.command:
         parser.print_help()

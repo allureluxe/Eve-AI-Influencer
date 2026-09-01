@@ -33,6 +33,7 @@ RACINE = Path(__file__).resolve().parent
 sys.path.insert(0, str(RACINE))
 
 from gold_bot.env import charger_env  # noqa: E402
+from gold_bot.runtime_context import instance_key  # noqa: E402
 from gold_bot.settings import BotConfig  # noqa: E402
 from gold_bot.state import StateStore  # noqa: E402
 
@@ -96,13 +97,14 @@ def main() -> int:
         return 3
 
     cfg = BotConfig.load(args.config)
-    store = StateStore(instance=cfg.engine.broker)
+    cle = instance_key(cfg)
+    store = StateStore(instance=cle)
     etat = store.load()
 
     sommet = float(etat.peak_equity or 0.0)
     capital = args.capital or float(etat.account_reference or 0.0)
 
-    print(f"\n{GRAS}Etat memorise ({cfg.engine.broker}){FIN}")
+    print(f"\n{GRAS}Etat memorise ({cle}){FIN}")
     print(f"  sommet historique : {sommet:.2f}")
     print(f"  capital de reference : {capital:.2f}")
     if sommet > 0 and capital > 0:
@@ -173,7 +175,7 @@ def _semaine_a_purger(cfg):
     """(resultat, multiplicateur, motif) si la semaine pese encore, sinon None."""
     from gold_bot.objectives import ObjectiveTracker
 
-    suivi = ObjectiveTracker(cfg.objectives)
+    suivi = ObjectiveTracker(cfg.objectives, instance=instance_key(cfg))
     ancien = suivi.state.realized_this_week
     if abs(ancien) <= 1e-9:
         return None
@@ -197,7 +199,7 @@ def _purger_la_semaine(cfg) -> None:
     """
     from gold_bot.objectives import ObjectiveTracker
 
-    suivi = ObjectiveTracker(cfg.objectives)
+    suivi = ObjectiveTracker(cfg.objectives, instance=instance_key(cfg))
     ancien = suivi.state.realized_this_week
     if abs(ancien) <= 1e-9:
         return
