@@ -24,16 +24,15 @@
     "entry_tf": "M30",
     "context_tf": "H1",
     "bias_tf": "H4",
-    "adaptive_timeframe": true,
+    "adaptive_timeframe": false,
     "timeframe_ladder": [
-      "M15",
       "M30"
     ],
     "max_cost_ratio_pct": 50.0,
     "max_spread_atr_ratio": 0.35,
     "min_atr_percentile": 0.10,
     "max_atr_percentile": 0.98,
-    "min_atr_price_ratio": 0.005,
+    "min_atr_price_ratio": 0.006,
     "min_adx": 10.0,
     "min_headroom_atr": 0.5,
     "min_rr": 1.5,
@@ -79,9 +78,9 @@
     "pyramide_fraction_risque": 0.6
   },
   "trade": {
-    "atr_stop_mult": 2.4,
-    "min_stop_atr": 1.8,
-    "max_stop_atr": 3.0,
+    "atr_stop_mult": 2.0,
+    "min_stop_atr": 1.5,
+    "max_stop_atr": 2.8,
     "max_cost_ratio_pct": 50.0,
     "max_stop_atr_for_cost": 3.0,
     "tp_r_multiple": 2.0,
