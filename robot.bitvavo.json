@@ -1,6 +1,6 @@
 {
   "_arme_en_reel": "OUI, DELIBEREMENT. Cette configuration engage de l'argent veritable.",
-  "_note": "Bitvavo M30 AU COMPTANT, achat seul. Calibrage scalping: davantage de signaux executables tout en conservant le plancher de score, le controle des couts et les garde-fous de risque.",
+  "_note": "Bitvavo M30 AU COMPTANT, achat seul. Calibrage scalping: davantage de signaux executables; en mode quorum le score est indicatif et ne bloque plus les signaux qui atteignent le quorum. Les controles de couts et les garde-fous de risque restent actifs.",
   "engine": {
     "broker": "bitvavo",
     "dry_run": false,
@@ -38,7 +38,7 @@
     "require_mtf_alignment": false,
     "allow_counter_trend": true,
     "macro_veto_threshold": 0.8,
-    "min_score": 0.45,
+    "min_score": 0.0,
     "min_score_counter_trend": 0.50,
     "w_trend": 0.18,
     "w_momentum": 0.22,
