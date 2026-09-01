@@ -64,7 +64,7 @@ import urllib.request
 from dataclasses import dataclass, replace
 from typing import Any, Optional
 
-from ..core import ClosedTrade, Position, Side, Tick
+from ..core import BrokerTransaction, ClosedTrade, Position, Side, Tick
 from ..universe import CATALOGUE_CRYPTO, Instrument
 from .base import AccountInfo, Broker, BrokerError
 
@@ -75,6 +75,7 @@ BASE = "https://api.bitvavo.com/v2"
 # Le catalogue suit l'univers du robot, il n'est pas tenu a la main ici :
 # une seconde liste divergerait silencieusement de la premiere.
 ACTIFS = {f"{actif}USD": actif for actif in CATALOGUE_CRYPTO}
+SYMBOLES = {actif: symbole for symbole, actif in ACTIFS.items()}
 
 # Bitvavo est un marche europeen : sa devise naturelle est l'euro.
 DEVISE_DEFAUT = os.getenv("BITVAVO_QUOTE_ASSET", "EUR").upper()
@@ -256,6 +257,7 @@ class BitvavoBroker(Broker):
         self._account = AccountInfo(0.0, 0.0, self.config.quote_asset)
         self._soldes: dict[str, float] = {}
         self._stops: dict[str, str] = {}
+        self._last_transactions: list[BrokerTransaction] = []
         # Niveau de declenchement REELLEMENT depose chez Bitvavo, par marche.
         # Il ne peut pas etre deduit de Position.stop_loss : le gestionnaire
         # de position ecrit son nouveau niveau dans cet objet avant que le
@@ -553,6 +555,63 @@ class BitvavoBroker(Broker):
             logger.info("contrainte alignee sur Bitvavo : %s", ligne)
         return modifies
 
+    def _symbol_from_market(self, code: str) -> str:
+        base = str(code).split("-", 1)[0].upper()
+        return SYMBOLES.get(base, f"{base}USD")
+
+    def recent_transactions(self, since: float = 0.0) -> list[BrokerTransaction]:
+        """Executions recentes, agregees par ordre pour les rapports et alertes."""
+        codes = sorted(self._regles) if self._regles else [
+            f"{actif}-{self.config.quote_asset}" for actif in sorted(SYMBOLES)]
+        sorties: list[BrokerTransaction] = []
+        for code in codes:
+            try:
+                lignes = self._appel("GET", "/trades",
+                                     params={"market": code, "limit": 100})
+            except BrokerError as exc:
+                logger.warning("historique %s indisponible : %s", code, str(exc)[:120])
+                continue
+            agreges: dict[str, dict[str, Any]] = {}
+            for ligne in lignes if isinstance(lignes, list) else []:
+                try:
+                    instant = float(ligne.get("timestamp", 0) or 0) / 1000.0
+                    amount = float(ligne.get("amount", 0) or 0)
+                    price = float(ligne.get("price", 0) or 0)
+                except (TypeError, ValueError):
+                    continue
+                if instant < since or amount <= 0 or price <= 0:
+                    continue
+                side_txt = str(ligne.get("side", "")).lower()
+                if side_txt not in ("buy", "sell"):
+                    continue
+                side = Side.BUY if side_txt == "buy" else Side.SELL
+                order_id = str(ligne.get("orderId", "") or "")
+                tx_id = str(ligne.get("id", "") or ligne.get("tradeId", "") or order_id)
+                key = order_id or tx_id or f"{code}:{instant:.0f}:{amount}"
+                row = agreges.setdefault(key, {
+                    "tx_id": tx_id or key, "order_id": order_id, "market": code,
+                    "symbol": self._symbol_from_market(code), "side": side,
+                    "amount": 0.0, "quote_amount": 0.0, "fee": 0.0, "timestamp": 0.0,
+                })
+                row["amount"] += amount
+                row["quote_amount"] += amount * price
+                row["timestamp"] = max(row["timestamp"], instant)
+                try:
+                    row["fee"] += abs(float(ligne.get("fee", 0) or 0))
+                except (TypeError, ValueError):
+                    pass
+            for row in agreges.values():
+                sorties.append(BrokerTransaction(
+                    tx_id=str(row["tx_id"]), order_id=str(row["order_id"]),
+                    market=str(row["market"]), symbol=str(row["symbol"]),
+                    side=row["side"], amount=row["amount"],
+                    price=(row["quote_amount"] / row["amount"]) if row["amount"] else 0.0,
+                    fee=row["fee"], timestamp=row["timestamp"],
+                    quote_amount=row["quote_amount"], source=self.name))
+        sorties.sort(key=lambda tx: tx.timestamp, reverse=True)
+        self._last_transactions = list(sorties)
+        return sorties
+
     # ------------------------------------------------------------------
     def sync(self) -> None:
         """Lit les soldes et reconstitue la valeur du compte en devise.
@@ -644,7 +703,8 @@ class BitvavoBroker(Broker):
         if quantite <= 0:
             return None
 
-        sortie, servi, frais_sortie = self._ventes_depuis(code, position.opened_at)
+        sortie, servi, frais_sortie, exit_order_id, ferme_a = self._ventes_depuis(
+            position.symbol, position.opened_at)
         estime = ""
         if not sortie:
             # Sans historique lisible, le stop est l'explication la plus
@@ -668,13 +728,18 @@ class BitvavoBroker(Broker):
             position_id=position.id, symbol=position.symbol, side=Side.BUY,
             volume=quantite, entry_price=position.entry_price,
             exit_price=regle.arrondir_prix(sortie),
-            opened_at=position.opened_at, closed_at=time.time(),
+            opened_at=position.opened_at, closed_at=ferme_a or time.time(),
             profit=round(brut - frais, 6),
             r_multiple=round(position.r_multiple(sortie), 3),
             reason="stop declenche sur la plateforme",
             tp_extensions=position.tp_extensions,
             max_favorable_r=round(position.r_multiple(position.max_favorable), 3),
-            partial=not invendable)
+            partial=not invendable, broker=self.name, market=code,
+            journal_instance=self.name, entry_order_id=position.broker_ref or "",
+            exit_order_id=exit_order_id, stop_order_id=self._stops.get(position.symbol, ""),
+            entry_fee=round(part_entree, 8), exit_fee=round(max(0.0, frais - part_entree), 8),
+            entry_value=round(position.entry_price * quantite, 8),
+            exit_value=round(sortie * quantite, 8))
         self._closed.append(trade)
 
         if invendable:
@@ -708,7 +773,7 @@ class BitvavoBroker(Broker):
             return connus
         return connus * min(1.0, quantite / position.volume)
 
-    def _ventes_depuis(self, code: str, depuis: float) -> tuple[float, float, float]:
+    def _ventes_depuis(self, symbol: str, depuis: float) -> tuple[float, float, float, str, float]:
         """Prix moyen, quantite et frais des ventes reelles sur ce marche.
 
         Le vrai prix d'execution du stop plutot qu'une approximation : c'est
@@ -717,30 +782,17 @@ class BitvavoBroker(Broker):
         millisecondes.
         """
         try:
-            lignes = self._appel("GET", "/trades",
-                                 params={"market": code, "limit": 100})
+            ventes = [t for t in self.recent_transactions(depuis)
+                      if t.symbol == symbol and t.side is Side.SELL]
         except BrokerError as exc:
-            logger.warning("executions %s illisibles : %s", code, str(exc)[:120])
-            return 0.0, 0.0, 0.0
-        quantite = valeur = frais = 0.0
-        for ligne in lignes if isinstance(lignes, list) else []:
-            if str(ligne.get("side", "")).lower() != "sell":
-                continue
-            try:
-                instant = float(ligne.get("timestamp", 0) or 0) / 1000.0
-                q = float(ligne.get("amount", 0) or 0)
-                prix = float(ligne.get("price", 0) or 0)
-            except (TypeError, ValueError):
-                continue
-            if q <= 0 or prix <= 0 or instant < depuis:
-                continue
-            quantite += q
-            valeur += q * prix
-            try:
-                frais += abs(float(ligne.get("fee", 0) or 0))
-            except (TypeError, ValueError):
-                pass
-        return (valeur / quantite if quantite else 0.0), quantite, frais
+            logger.warning("executions %s illisibles : %s", symbol, str(exc)[:120])
+            return 0.0, 0.0, 0.0, "", 0.0
+        quantite = sum(t.amount for t in ventes)
+        valeur = sum(t.quote_amount or (t.amount * t.price) for t in ventes)
+        frais = sum(t.fee for t in ventes)
+        dernier = max(ventes, key=lambda t: t.timestamp) if ventes else None
+        return (valeur / quantite if quantite else 0.0), quantite, frais, \
+            (dernier.order_id if dernier else ""), (dernier.timestamp if dernier else 0.0)
 
     def _prix_du_marche(self) -> dict[str, float]:
         """Tous les derniers prix en un appel plutot qu'un par actif detenu."""
@@ -1213,6 +1265,7 @@ class BitvavoBroker(Broker):
         if quantite <= 0:
             return None
         partielle = quantite < position.volume - 1e-12
+        stop_order_id = self._stops.get(position.symbol, "")
 
         # Une prise partielle ne doit pas créer un reliquat que Bitvavo ne
         # pourra plus protéger ni revendre. Dans ce cas, on transforme la
@@ -1286,7 +1339,14 @@ class BitvavoBroker(Broker):
             profit=round(profit, 6), r_multiple=round(position.r_multiple(sortie), 3),
             reason=reason, tp_extensions=position.tp_extensions,
             max_favorable_r=round(position.r_multiple(position.max_favorable), 3),
-            partial=partielle)
+            partial=partielle, broker=self.name, market=code,
+            journal_instance=self.name, entry_order_id=position.broker_ref or "",
+            exit_order_id=str(reponse.get("orderId", "") or ""),
+            stop_order_id=stop_order_id,
+            entry_fee=round(self._part_des_frais_d_entree(position, quantite), 8),
+            exit_fee=round(frais_sortie, 8),
+            entry_value=round(position.entry_price * quantite, 8),
+            exit_value=round(sortie * quantite, 8))
         self._closed.append(trade)
 
         reste_frais = self._frais_entree.get(position.id)

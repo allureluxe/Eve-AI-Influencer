@@ -146,6 +146,26 @@ class TestJournal(unittest.TestCase):
         finally:
             os.path.exists(path) and os.unlink(path)
 
+    def test_par_symbole_expose_duree_r_nette_et_raison(self):
+        from gold_bot.core import ClosedTrade
+        fd, path = tempfile.mkstemp(suffix=".jsonl")
+        os.close(fd)
+        os.unlink(path)
+        try:
+            journal = TradeJournal(path)
+            base = dict(symbol="XAUUSD", side=Side.BUY, volume=1.0, entry_price=100.0,
+                        opened_at=0.0, reason="objectif atteint")
+            journal.append(ClosedTrade(position_id="1", exit_price=102.0, closed_at=600.0,
+                                       profit=1.5, r_multiple=2.0, entry_fee=0.2, exit_fee=0.3,
+                                       partial=False, **base))
+            row = journal.by_symbol()["XAUUSD"]
+            self.assertEqual(row["trades"], 1)
+            self.assertAlmostEqual(row["duree_moyenne_min"], 10.0)
+            self.assertAlmostEqual(row["esperance_R_nette"], 1.5)
+            self.assertEqual(row["raison_sortie_top"], "objectif atteint")
+        finally:
+            os.path.exists(path) and os.unlink(path)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

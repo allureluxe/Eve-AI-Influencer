@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional
 
-from ..core import ClosedTrade, Position, Side, Tick
+from ..core import BrokerTransaction, ClosedTrade, Position, Side, Tick
 from ..universe import Instrument
 
 
@@ -98,6 +98,9 @@ class Broker(ABC):
         """Rafraichit l'etat depuis le lieu d'execution (positions, compte)."""
 
     def closed_trades(self) -> list[ClosedTrade]:
+        return []
+
+    def recent_transactions(self, since: float = 0.0) -> list[BrokerTransaction]:
         return []
 
     def healthy(self) -> bool:

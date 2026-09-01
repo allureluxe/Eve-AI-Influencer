@@ -21,6 +21,7 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 @dataclass(slots=True)
 class EngineConfig:
     broker: str = "multi"
+    instance_id: str = ""
     poll_seconds: float = 5.0
     idle_poll_seconds: float = 20.0
     closed_market_seconds: float = 300.0
@@ -45,12 +46,14 @@ class BotConfig:
     trade: TradeManagerConfig = field(default_factory=TradeManagerConfig)
     promotion: dict = field(default_factory=dict)
     objectives: ObjectiveConfig = field(default_factory=ObjectiveConfig)
+    source_path: str = ""
 
     @classmethod
     def load(cls, path: str = "") -> "BotConfig":
         cfg = cls()
         path = path or os.getenv("GB_CONFIG_FILE") or os.getenv("GB_CONFIG", "")
         if path and not os.path.isabs(path): path = os.path.join(RACINE, path)
+        cfg.source_path = path or "<defauts internes>"
         if path and os.path.exists(path):
             try:
                 with open(path, "r", encoding="utf-8") as fh: cfg.apply(json.load(fh))

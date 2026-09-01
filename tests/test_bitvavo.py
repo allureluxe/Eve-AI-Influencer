@@ -298,6 +298,24 @@ class TestQuota:
         assert b._quota_restant == 900
 
 
+class TestHistoriqueDesTransactions:
+    def test_recent_transactions_agrege_les_fills_d_un_meme_ordre(self):
+        b = broker_de_test()
+        b._regles["ROSE-EUR"] = RegleMarche("ROSE-EUR")
+        b._appel = lambda methode, chemin, params=None, **_kw: [
+            {"id": "a", "orderId": "ordre-1", "side": "buy",
+             "timestamp": 1_700_000_000_000, "amount": "100", "price": "0.0050", "fee": "0.01"},
+            {"id": "b", "orderId": "ordre-1", "side": "buy",
+             "timestamp": 1_700_000_010_000, "amount": "50", "price": "0.0060", "fee": "0.02"},
+        ]
+        txs = b.recent_transactions(1_699_999_000)
+        assert len(txs) == 1
+        assert txs[0].symbol == "ROSEUSD"
+        assert txs[0].amount == pytest.approx(150.0)
+        assert txs[0].quote_amount == pytest.approx(0.8)
+        assert txs[0].fee == pytest.approx(0.03)
+
+
 # ==========================================================================
 class TestBougies:
     def test_ordre_chronologique_retabli(self, monkeypatch):

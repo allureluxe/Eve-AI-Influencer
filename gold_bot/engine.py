@@ -42,6 +42,7 @@ from .news import NewsFilter
 from .notifiers import Notifier
 from .objectives import ObjectiveTracker
 from .risk import RiskManager
+from .runtime_context import RunLock, instance_key, runtime_paths, runtime_report
 from .scanner import Scanner, ScanResult
 from .settings import BotConfig
 from .state import StateStore, TradeJournal
@@ -167,13 +168,14 @@ class TradingEngine:
         # Plancher impose par le ticket minimum de la plateforme, rempli par
         # le calibrage. Le palier ne descend jamais en dessous.
         self._risque_plancher = 0.0
-        self.objectives = ObjectiveTracker(cfg.objectives)
+        self.instance = instance_key(cfg)
+        self.runtime_paths = runtime_paths(cfg)
+        self.objectives = ObjectiveTracker(cfg.objectives, instance=self.instance)
         # Le lieu d'execution nomme l'instance : deux robots sur deux
         # plateformes tiennent ainsi des comptes separes, sans quoi leurs
         # plafonds de pertes et leurs journaux se melangeraient.
-        instance = cfg.engine.broker
-        self.store = StateStore(instance=instance)
-        self.journal = TradeJournal(instance=instance)
+        self.store = StateStore(instance=self.instance)
+        self.journal = TradeJournal(instance=self.instance)
         # Le journal existe enfin : c'est seulement ici qu'on peut nourrir
         # la ponderation avec les trades reellement fermes.
         alimenter_depuis_journal(self.poids, self.journal.path)
@@ -181,7 +183,7 @@ class TradingEngine:
         # la performance compte a partir de la, sans quoi une strategie
         # neuve herite des pertes de celle qu'elle remplace.
         from .version_strategie import marqueur
-        self._strategie_depuis, strategie_changee = marqueur(cfg, instance)
+        self._strategie_depuis, strategie_changee = marqueur(cfg, self.instance)
         if strategie_changee:
             # LE RESULTAT DE LA SEMAINE APPARTIENT A LA STRATEGIE QUI L'A FAIT.
             #
@@ -214,6 +216,7 @@ class TradingEngine:
         self._dernier_refus_courtier = ""
         self._last_heartbeat = 0.0
         self._last_report_day = ""
+        self._lock: Optional[RunLock] = None
 
     # ---------------------------------------------------------------
     def _build_broker(self) -> Broker:
@@ -506,9 +509,19 @@ class TradingEngine:
     # ---------------------------------------------------------------
     # Demarrage
     # ---------------------------------------------------------------
-    def start(self) -> bool:
+    def start(self, acquire_lock: bool = True) -> bool:
         """Prepare le robot. Retourne False si le demarrage est impossible."""
         cfg = self.config.engine
+        if acquire_lock and self._lock is None:
+            rapport = runtime_report(self.config, trades_count=len(self.journal.trades))
+            self._lock = RunLock(self.runtime_paths.lock, metadata=rapport)
+            try:
+                self._lock.acquire()
+            except RuntimeError as exc:
+                logger.error("%s", exc)
+                self.notifier.critical("Instance deja active", str(exc))
+                self._lock = None
+                return False
 
         if cfg.broker == "binance" and not cfg.dry_run:
             bn = getattr(self.broker, "config", None)
@@ -596,12 +609,17 @@ class TradingEngine:
 
         obj = self.objectives.status()
         body = "\n".join([
+            f"Config         : {self.config.source_path or '<inconnue>'}",
             f"Execution      : {cfg.broker}" + (" (DRY-RUN, aucun ordre envoye)" if cfg.dry_run else ""),
+            f"Instance       : {self.instance}",
+            f"Repertoire     : {self.runtime_paths.state.rsplit('/data/', 1)[0] if '/data/' in self.runtime_paths.state else self.runtime_paths.state}",
             f"Capital        : {acc.equity:.2f} {acc.currency}",
             f"Instruments    : {len(self.universe)} suivis, {len(self.universe.tradable())} ouverts maintenant",
             f"Sources prix   : {', '.join(sources) or 'aucune'}",
             f"Calendrier     : {n_events} evenements charges",
             f"Alertes        : {', '.join(self.notifier.active_channels())}",
+            f"Journal trades : {self.journal.path} ({len(self.journal.trades)} trade(s) lu(s))",
+            f"Etat / objectif: {self.store.path} | {self.objectives.state_file}",
             f"Objectif       : palier {obj['palier']}, {obj['objectif']:.2f} {acc.currency} cette semaine"
             + (f" (nominal {obj['objectif_nominal']:.2f}, plafonne par le capital)" if obj["plafonne"] else ""),
             f"Risque/trade   : {self.risk.effective_risk_pct()[0]:.2f} % "
@@ -712,6 +730,7 @@ class TradingEngine:
 
         # 3. Detection des cloturees
         self._collect_closed()
+        self._reconcile_exchange_activity()
 
         # 4. Recherche d'une nouvelle opportunite
         self._look_for_entry()
@@ -873,12 +892,17 @@ class TradingEngine:
             "\n".join([
                 f"{trade.side.value} {trade.volume} lots : {trade.entry_price} -> {trade.exit_price}",
                 f"Resultat : {trade.r_multiple:+.2f}R ({trade.reason})",
+                f"Ordres    : entree {trade.entry_order_id or '-'} | sortie {trade.exit_order_id or '-'}"
+                + (f" | stop {trade.stop_order_id}" if trade.stop_order_id else ""),
+                f"Frais     : entree {trade.entry_fee:.4f} | sortie {trade.exit_fee:.4f}",
                 f"Extensions d'objectif : {trade.tp_extensions}",
                 f"Semaine : {obj['realise']:+.2f} / {obj['objectif']:.2f} "
                 f"({obj['avancement']:.0%} du palier {obj['palier']})",
                 f"Journee : {acc.daily_pnl_pct():+.2f} % | drawdown {acc.drawdown_pct():.2f} %",
             ]),
-            data={"symbole": trade.symbol, "profit": trade.profit, "R": trade.r_multiple},
+            data={"symbole": trade.symbol, "profit": trade.profit, "R": trade.r_multiple,
+                  "journal": self.journal.path, "entree_order_id": trade.entry_order_id,
+                  "sortie_order_id": trade.exit_order_id, "stop_order_id": trade.stop_order_id},
         )
 
         # Coupe-circuits atteints : on previent immediatement.
@@ -886,6 +910,39 @@ class TradingEngine:
         if not ok and any(k in why for k in ("limite", "drawdown", "pause")):
             self.notifier.warning("Trading suspendu", why,
                                   throttle_key="suspendu", throttle_seconds=1800)
+
+    def _reconcile_exchange_activity(self) -> None:
+        """Alerte si Bitvavo execute des ventes que le journal local n'a pas vues."""
+        lire = getattr(self.broker, "recent_transactions", None)
+        if not callable(lire):
+            return
+        now = time.time()
+        if now - self.store.state.last_reconciliation_ts < 900:
+            return
+        since = max(self.store.state.started_at - 3600, now - 36 * 3600)
+        try:
+            transactions = lire(since=since)
+        except Exception as exc:  # noqa: BLE001 - pure observabilite
+            logger.warning("rapprochement broker/journal indisponible : %s", str(exc)[:160])
+            return
+        self.store.state.last_reconciliation_ts = now
+        if transactions:
+            self.store.state.last_exchange_tx_ts = max(t.timestamp for t in transactions)
+
+        ventes = [t for t in transactions if t.side is Side.SELL]
+        journal_recent = [t for t in self.journal.trades if t.closed_at >= since]
+        if ventes and not journal_recent:
+            exemple = ", ".join(
+                f"{t.symbol} {t.amount:.6g} @ {t.price:.6g}"
+                for t in ventes[:3])
+            detail = (f"{len(ventes)} vente(s) vues sur {self.broker.name} depuis "
+                      f"{datetime.fromtimestamp(since, tz=timezone.utc).strftime('%d/%m %H:%M UTC')} "
+                      f"mais 0 trade dans {self.journal.path}. Exemples : {exemple}")
+            logger.warning("RAPPROCHEMENT : %s", detail)
+            self.notifier.warning(
+                "Journal local en retard sur Bitvavo", detail,
+                data={"journal": self.journal.path, "ventes_broker": len(ventes)},
+                throttle_key="journal_vs_bitvavo", throttle_seconds=3600)
 
     # ---------------------------------------------------------------
     # Recherche d'entree
@@ -1068,6 +1125,7 @@ class TradingEngine:
                 f"Capital {acc.equity:.2f} {acc.currency} "
                 f"(jour {acc.daily_pnl_pct():+.2f} %, semaine {acc.weekly_pnl_pct():+.2f} %)",
                 f"Positions ouvertes : {len(self.broker.positions())}",
+                f"Journal : {self.journal.path} ({len(self.journal.trades)} trade(s))",
                 f"Objectif palier {obj['palier']} : {obj['realise']:+.2f}/{obj['objectif']:.2f}",
                 f"Marches ouverts : {', '.join(i.symbol for i in self.universe.tradable()) or 'aucun'}",
             ]),
@@ -1087,15 +1145,30 @@ class TradingEngine:
         obj = self.objectives.status()
         lines = [f"Capital : {acc.equity:.2f} {acc.currency} ({acc.daily_pnl_pct():+.2f} % sur la journee)"]
         if stats.get("trades"):
+            net = stats.get("esperance_R_nette")
             lines += [
                 f"Trades : {stats['trades']} ({stats['gagnants']} gagnants, "
                 f"{stats['taux_reussite_pct']:.0f} % de reussite)",
                 f"Resultat net : {stats['profit_net']:+.2f} {acc.currency}",
                 f"Esperance : {stats['esperance_R']:+.3f}R par trade",
+                f"Esperance nette : {net:+.3f}R par trade" if net is not None else
+                "Esperance nette : indisponible",
                 f"Facteur de profit : {stats['facteur_profit']}",
                 f"Objectifs repousses : {stats['trades_avec_extension']} trade(s), "
                 f"{stats['extensions_tp_totales']} extension(s)",
             ]
+            par_symbole = self.journal.by_symbol(since)
+            if par_symbole:
+                top = sorted(par_symbole.items(),
+                             key=lambda kv: (-kv[1]["profit_net"], kv[0]))[:4]
+                lignes_symbole = [
+                    f"{sym} {row['profit_net']:+.2f} {acc.currency}, "
+                    f"{row['taux_reussite_pct']:.0f}% reussite, "
+                    f"R net {row['esperance_R_nette']:+.3f}" if row["esperance_R_nette"] is not None
+                    else f"{sym} {row['profit_net']:+.2f} {acc.currency}, "
+                         f"{row['taux_reussite_pct']:.0f}% reussite"
+                    for sym, row in top]
+                lines.append("Par actif : " + " | ".join(lignes_symbole))
         else:
             lines.append("Aucun trade aujourd'hui : aucune configuration n'a passe les filtres.")
         lines.append(f"Objectif hebdomadaire : {obj['realise']:+.2f} / {obj['objectif']:.2f} "
@@ -1135,6 +1208,9 @@ class TradingEngine:
                 f"{len(positions)} position(s) laissee(s) ouverte(s), protegees par leur stop",
             ]),
         )
+        if self._lock is not None:
+            self._lock.release()
+            self._lock = None
         self._running = False
 
     # ---------------------------------------------------------------
@@ -1186,14 +1262,23 @@ class TradingEngine:
     def status(self) -> dict:
         """Etat complet du robot (diagnostic, supervision)."""
         acc = self.broker.account()
+        contexte = runtime_report(self.config, trades_count=len(self.journal.trades))
         return {
+            "config_source": self.config.source_path,
             "broker": self.broker.name,
+            "instance": self.instance,
             "mode": getattr(self.broker, "mode", "simulation"),
             "actif": self._running,
             "cycles": self.store.state.cycles,
             "capital": round(acc.equity, 2),
             "devise": acc.currency,
             "positions": len(self.broker.positions()),
+            "journal": {"path": self.journal.path, "trades_lus": len(self.journal.trades)},
+            "etat_local": {"state_path": self.store.path,
+                            "objectives_path": self.objectives.state_file,
+                            "lock_path": self.runtime_paths.lock,
+                            "cwd": contexte["cwd"],
+                            "project_root": contexte["project_root"]},
             "risque": self.risk.snapshot(),
             "objectif": self.objectives.status(),
             "palier_capital": self.capital_tier(),

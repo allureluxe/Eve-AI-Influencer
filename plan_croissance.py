@@ -21,6 +21,7 @@ sys.path.insert(0, str(RACINE))
 from gold_bot.croissance import (ECHANTILLON_MINIMAL, PALIERS, diagnostiquer,
                                  drawdown_probable, projeter)
 from gold_bot.env import charger_env
+from gold_bot.runtime_context import instance_key
 from gold_bot.settings import BotConfig
 from gold_bot.state import TradeJournal
 from gold_bot.version_strategie import depuis_quand
@@ -46,7 +47,7 @@ def main() -> int:
     args = p.parse_args()
 
     cfg = BotConfig.load(args.config)
-    journal = TradeJournal(instance=cfg.engine.broker)
+    journal = TradeJournal(instance=instance_key(cfg))
     journal.load()
 
     # Par defaut on ne juge QUE la strategie en service. Le journal est

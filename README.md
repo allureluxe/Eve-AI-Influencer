@@ -13,7 +13,9 @@ Le robot analyse les marchés, applique ses règles de stratégie et de gestion 
 
 ```bash
 python3 run_bot.py check
+python3 run_bot.py context
 python3 run_bot.py analyse BTC-EUR
+python3 bilan_journee.py --sans-positions
 python3 run_bot.py backtest BTC-EUR
 python3 run_bot.py run
 ```

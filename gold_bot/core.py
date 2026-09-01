@@ -219,6 +219,33 @@ class ClosedTrade:
     tp_extensions: int = 0
     max_favorable_r: float = 0.0
     partial: bool = False   # True = fermeture partielle, pas la fin du trade
+    broker: str = ""
+    market: str = ""
+    journal_instance: str = ""
+    entry_order_id: str = ""
+    exit_order_id: str = ""
+    stop_order_id: str = ""
+    entry_fee: float = 0.0
+    exit_fee: float = 0.0
+    entry_value: float = 0.0
+    exit_value: float = 0.0
+
+
+@dataclass(slots=True)
+class BrokerTransaction:
+    """Execution telle qu'elle apparait cote broker."""
+
+    tx_id: str
+    order_id: str
+    market: str
+    symbol: str
+    side: Side
+    amount: float
+    price: float
+    fee: float
+    timestamp: float
+    quote_amount: float = 0.0
+    source: str = ""
 
 
 def round_price(price: float, digits: int) -> float:
