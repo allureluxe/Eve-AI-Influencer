@@ -760,7 +760,8 @@ class TradingEngine:
             window = self.news.check(instrument.asset_class, pos.symbol)
 
             actions = self.trade_manager.manage(
-                pos, tick, ind, chart=chart, news=window, digits=instrument.digits)
+                pos, tick, ind, chart=chart, news=window, digits=instrument.digits,
+                etages=positions)
             for action in actions:
                 self._apply_action(pos, action, instrument)
 

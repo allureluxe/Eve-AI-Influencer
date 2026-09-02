@@ -234,10 +234,11 @@ class Backtester:
 
             # --- Gestion dynamique des positions restantes ---
             chart = read_chart(indicators[entry_tf], instrument.round_step)
-            for pos in list(broker.positions()):
+            ouvertes = list(broker.positions())
+            for pos in ouvertes:
                 for action in manager.manage(pos, tick, indicators[entry_tf],
                                              chart=chart, digits=instrument.digits,
-                                             now=candle.ts):
+                                             now=candle.ts, etages=ouvertes):
                     if action.type is ActionType.MODIFY_STOP:
                         broker.modify_position(pos.id, stop_loss=action.price)
                     elif action.type is ActionType.MODIFY_TARGET:

@@ -176,3 +176,65 @@ class TestLeRejeuSaitEmpiler:
             f"{len(res.trades)} trades, aucun ne chevauche un autre : le "
             "rejeu tient toujours une seule position, la pyramide n'a "
             "jamais ete mesuree")
+
+
+class TestLeStopCommunDeLaPyramide:
+    """Les etages sortent ENSEMBLE, pas un par un par le haut.
+
+    Le defaut corrige ici : chaque etage suivait son propre plus-haut avec
+    la meme distance ATR. L'etage 2, entre plus haut, se retrouvait avec un
+    stop AU-DESSUS de celui de l'etage 1 — au moindre repli c'est le
+    renfort qui sautait, en payant l'aller-retour complet, pendant que la
+    base survivait. On perdait exactement l'etage qu'on venait d'ajouter
+    parce que ca montait.
+    """
+
+    @staticmethod
+    def _gestionnaire(commun: bool):
+        from gold_bot.trade_manager import TradeManager, TradeManagerConfig
+        return TradeManager(TradeManagerConfig(pyramide_stop_commun=commun))
+
+    @staticmethod
+    def _pyramide():
+        """Base a 100 (stop deja monte a 106), renfort a 110 (stop 108).
+
+        Le renfort a le stop le plus haut : c'est lui qui saute en premier
+        au moindre repli. Le point mort collectif vaut 105, il ne contraint
+        donc pas ici — on mesure bien l'effet du niveau partage seul.
+        """
+        base = _position(entree=100.0, stop=106.0, pid="base")
+        haut = _position(entree=110.0, stop=108.0, pid="haut")
+        return base, haut
+
+    def test_l_etage_haut_ne_se_resserre_pas_devant_les_autres(self):
+        base, haut = self._pyramide()
+        partage = self._gestionnaire(True).stop_partage(haut, [base, haut])
+        assert partage == 106.0, (
+            "le niveau partage doit valoir le stop le plus lache de la "
+            f"pyramide (106.0), pas {partage}")
+        assert partage < haut.stop_loss, (
+            "l'etage haut garde un stop plus serre que les autres : il "
+            "sortira encore seul au premier repli")
+
+    def test_le_niveau_partage_ne_passe_pas_sous_le_point_mort_collectif(self):
+        """Une pyramide ne doit jamais sortir collectivement perdante."""
+        tm = self._gestionnaire(True)
+        # Base a 100 avec un stop tres bas : le point mort collectif (105)
+        # devient contraignant.
+        base = _position(entree=100.0, stop=90.0, pid="base")
+        haut = _position(entree=110.0, stop=108.0, pid="haut")
+        partage = tm.stop_partage(haut, [base, haut])
+        mort = tm.point_mort_collectif([base, haut])
+        assert mort == 105.0
+        assert partage == 105.0, (
+            f"niveau partage {partage} sous le point mort collectif {mort} : "
+            "la pyramide sortirait dans le rouge")
+
+    def test_une_position_seule_n_est_pas_une_pyramide(self):
+        base = _position(pid="base")
+        assert self._gestionnaire(True).stop_partage(base, [base]) is None
+
+    def test_desarme_rien_ne_change(self):
+        """Sans le reglage, le comportement d'origine est intact."""
+        from gold_bot.trade_manager import TradeManagerConfig
+        assert TradeManagerConfig().pyramide_stop_commun is False

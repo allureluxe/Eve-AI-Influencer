@@ -71,6 +71,29 @@ class TradeManagerConfig:
     news_tighten_atr_mult: float = 0.9
     max_adverse_r: float = 1.0
 
+    # --- Stop COMMUN a une pyramide ---
+    #
+    # LE DEFAUT QUI FAIT PERDRE LE PYRAMIDAGE, ET IL EST A L'ENVERS.
+    #
+    # Chaque etage suit son PROPRE plus-haut, avec la meme distance ATR.
+    # L'etage 2 etant entre plus haut, son stop se retrouve AU-DESSUS de
+    # celui de l'etage 1 : au moindre repli c'est lui qui saute — celui
+    # qu'on venait d'ajouter parce que ca montait — pendant que la base
+    # survit. Il paie l'aller-retour complet (~50 % de son risque en frais
+    # au M30) pour un mouvement de bruit. On perd le renfort et on garde
+    # la position d'origine : exactement l'inverse de ce qu'on veut.
+    #
+    # Arme, tous les etages partagent le meme niveau de sortie — le plus
+    # LACHE de la pyramide — et sortent donc ENSEMBLE quand la tendance
+    # casse vraiment, pas un par un par le haut.
+    #
+    # La garde qui rend ca tenable : ce niveau partage ne descend jamais
+    # sous le point mort COLLECTIF de la pyramide. Un etage haut peut donc
+    # rendre plus que son propre R, mais l'ensemble ne peut pas passer
+    # perdant. C'est la meme promesse qu'avant, deplacee de l'etage vers
+    # la pyramide — la seule echelle a laquelle elle ait un sens.
+    pyramide_stop_commun: bool = False
+
 @dataclass(slots=True)
 class Momentum:
     score: float
@@ -176,9 +199,43 @@ class TradeManager:
             distance = max(distance, plancher)
         return spread / distance * 100.0
 
+    @staticmethod
+    def point_mort_collectif(etages: list[Position]) -> Optional[float]:
+        """Prix auquel la pyramide entiere sort a zero, frais exclus.
+
+        Somme des volumes ponderee par les entrees : le niveau ou les gains
+        des etages bas compensent exactement les pertes des etages hauts.
+        Sous ce prix la pyramide est collectivement perdante.
+        """
+        volume = sum(p.volume for p in etages)
+        if volume <= 0:
+            return None
+        return sum(p.entry_price * p.volume for p in etages) / volume
+
+    def stop_partage(self, position: Position,
+                     etages: list[Position]) -> Optional[float]:
+        """Niveau de sortie commun a tous les etages d'une pyramide.
+
+        Le plus LACHE des stops en place (le plus bas a l'achat), borne par
+        le point mort collectif : les etages sortent ensemble sur une vraie
+        cassure, jamais dans le rouge pour l'ensemble.
+        """
+        famille = [p for p in etages if p.symbol == position.symbol
+                   and p.side is position.side]
+        if len(famille) < 2:
+            return None
+        sign = position.side.sign
+        # Le plus lache = le moins avance dans le sens du trade.
+        partage = min((p.stop_loss for p in famille), key=lambda s: sign * s)
+        mort = self.point_mort_collectif(famille)
+        if mort is not None and sign * (mort - partage) > 0:
+            partage = mort          # jamais sous le point mort collectif
+        return partage
+
     def manage(self, position: Position, tick: Tick, ind: IndicatorSet,
                chart: Optional[ChartRead] = None, news: Optional[NewsWindow] = None,
-               digits: int = 2, now: Optional[float] = None) -> list[TradeAction]:
+               digits: int = 2, now: Optional[float] = None,
+               etages: Optional[list[Position]] = None) -> list[TradeAction]:
         cfg = self.config
         now = now or time.time()
         actions: list[TradeAction] = []
@@ -253,6 +310,17 @@ class TradeManager:
                     actions.append(TradeAction(ActionType.MODIFY_STOP, position.id, round(new_stop, digits),
                         reason=(f"proche du TP mais dynamique faible ({momentum.score:+.2f}) : "
                                 "stop resserre, objectif inchange")))
+        # Stop COMMUN : on empeche cet etage de se resserrer AU-DELA du
+        # niveau partage. Sans ce plafond, l'etage haut court devant les
+        # autres et se fait sortir seul au premier repli (voir le
+        # commentaire de `pyramide_stop_commun`). On ne desserre jamais un
+        # stop deja pose — le cliquet plus bas s'en charge — on evite
+        # seulement de le serrer trop tot.
+        if cfg.pyramide_stop_commun and etages:
+            partage = self.stop_partage(position, etages)
+            if partage is not None and sign * (new_stop - partage) > 0:
+                new_stop = partage
+
         new_stop = round(new_stop, digits)
         if sign * (new_stop - position.stop_loss) > 0:
             already = any(a.type is ActionType.MODIFY_STOP and a.price == new_stop for a in actions)
