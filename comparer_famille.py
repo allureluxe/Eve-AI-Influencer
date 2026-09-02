@@ -86,7 +86,7 @@ def fetch_bitvavo(marche: str, tf: str, debut_ms: int, fin_ms: int) -> list[Cand
     return [par_ts[k] for k in sorted(par_ts)]
 
 
-def config_mode(chemin: str, famille: str) -> BotConfig:
+def config_mode(chemin: str, famille: str, extra: dict | None = None) -> BotConfig:
     c = BotConfig.load(chemin)
     c.strategy.famille = famille
     c.strategy.entry_tf = "M30"
@@ -103,7 +103,38 @@ def config_mode(chemin: str, famille: str) -> BotConfig:
     c.risk.max_drawdown_pct = 99.0
     c.engine.broker = "bitvavo"             # comptant : achat seul
     c.engine.offline = False
+    # Reglages propres a une variante. `pyramide_stop_commun` vit dans le
+    # gestionnaire de trade (c'est une regle de SORTIE), les autres
+    # `pyramide_*` dans le risque (regles d'ENTREE) : le prefixe seul ne
+    # suffit pas a router, on cherche ou l'attribut existe.
+    for cle, valeur in (extra or {}).items():
+        cible = c.trade if hasattr(c.trade, cle) else c.risk
+        setattr(cible, cle, valeur)
     return c
+
+
+# Ce qu'on mesure : (nom affiche, famille de strategie, reglages en plus).
+#
+# « tenir » : le M30 entre pareil mais n'encaisse plus a 2R — objectif 6R,
+# stop suiveur desserre a 2,2 ATR, pas de prise partielle. C'est la seule
+# modif qui ait battu le temoin sur les deux groupes de cryptos.
+#
+# Les deux modes pyramide sont dessus, PAS tout seuls : mesure le 1er
+# sept., la pyramide seule ne s'ouvre presque jamais parce que la position
+# de base meurt a 2R avant qu'un 2e signal ait le temps d'apparaitre. Il
+# lui faut d'abord de la place pour construire.
+TENIR = {"tp_r_multiple": 6.0, "trail_atr_mult": 2.2,
+         "partial_enabled": False, "max_extensions": 12}
+PYRAMIDE = {"pyramide_max": 4, "pyramide_fraction_risque": 1.0}
+
+MODES: list[tuple[str, str, dict]] = [
+    ("tendance", "tendance", {}),
+    ("reversion", "reversion", {}),
+    ("tenir", "tendance", TENIR),
+    ("tenir+pyr", "tendance", {**TENIR, **PYRAMIDE}),
+    ("tenir+pyr+commun", "tendance",
+     {**TENIR, **PYRAMIDE, "pyramide_stop_commun": True}),
+]
 
 
 def bloc_stats(trades: list) -> dict:
@@ -162,8 +193,8 @@ def main() -> int:
 
     # 2. Rejouer chaque mode
     resultats: dict[str, dict] = {}
-    for famille in ("tendance", "reversion"):
-        cfg = config_mode(args.config, famille)
+    for nom, famille, extra in MODES:
+        cfg = config_mode(args.config, famille, extra)
         bt = Backtester(cfg, autorise_vente=False)
         is_trades, oos_trades = [], []
         detail = []
@@ -171,13 +202,13 @@ def main() -> int:
             try:
                 r = bt.run(interne, series=s, start_balance=args.capital)
             except Exception as exc:  # noqa: BLE001
-                print(f"  ! {famille}/{interne} : {str(exc)[:100]}")
+                print(f"  ! {nom}/{interne} : {str(exc)[:100]}")
                 continue
             reels = [t for t in r.trades if not t.partial]
             detail.append((interne, len(reels)))
             for t in reels:
                 (is_trades if t.closed_at < milieu else oos_trades).append(t)
-        resultats[famille] = {
+        resultats[nom] = {
             "in_sample": bloc_stats(is_trades),
             "out_of_sample": bloc_stats(oos_trades),
             "total": bloc_stats(is_trades + oos_trades),
@@ -189,33 +220,33 @@ def main() -> int:
     print("  RESULTATS — expectancy NETTE de frais, en R")
     print("=" * 78)
     entete = f"  {'mode':10} {'bloc':14} {'trades':>7} {'reussite':>9} {'R net':>8} {'R brut':>8} {'EUR':>9}"
-    for famille in ("tendance", "reversion"):
-        print(f"\n  --- {famille.upper()} ---")
+    for nom, _, _ in MODES:
+        print(f"\n  --- {nom.upper()} ---")
         print(entete)
-        for cle, nom in (("in_sample", "in-sample 3m"),
-                         ("out_of_sample", "OOS 3m"),
-                         ("total", "total 6m")):
-            b = resultats[famille][cle]
+        for cle, libelle in (("in_sample", "in-sample 3m"),
+                             ("out_of_sample", "OOS 3m"),
+                             ("total", "total 6m")):
+            b = resultats[nom][cle]
             rn = f"{b['R_net']:+.3f}" if b["R_net"] is not None else "   n/a"
             rb = f"{b['R_brut']:+.3f}" if b["R_brut"] is not None else "   n/a"
-            print(f"  {'':10} {nom:14} {b['trades']:>7} {b['reussite']:>8.1f}% "
+            print(f"  {'':10} {libelle:14} {b['trades']:>7} {b['reussite']:>8.1f}% "
                   f"{rn:>8} {rb:>8} {b['eur']:>+9.2f}")
-        pp = ", ".join(f"{s}:{n}" for s, n in resultats[famille]["par_paire"])
+        pp = ", ".join(f"{s}:{n}" for s, n in resultats[nom]["par_paire"])
         print(f"  {'':10} par paire : {pp}")
 
     print("\n" + "-" * 78)
     print("  LECTURE")
-    for famille in ("tendance", "reversion"):
-        tot = resultats[famille]["total"]["trades"]
-        oos = resultats[famille]["out_of_sample"]
-        is_ = resultats[famille]["in_sample"]
+    for nom, _, _ in MODES:
+        tot = resultats[nom]["total"]["trades"]
+        oos = resultats[nom]["out_of_sample"]
+        is_ = resultats[nom]["in_sample"]
         if tot < 100:
-            print(f"  {famille:10}: {tot} trades — SOUS 100, le resultat ne veut rien dire.")
+            print(f"  {nom:10}: {tot} trades — SOUS 100, le resultat ne veut rien dire.")
             continue
         if oos["R_net"] is None or is_["R_net"] is None:
-            print(f"  {famille:10}: bloc sans R net calculable.")
+            print(f"  {nom:10}: bloc sans R net calculable.")
             continue
-        total_r = resultats[famille]["total"]["R_net"]
+        total_r = resultats[nom]["total"]["R_net"]
         if total_r is not None and total_r <= 0:
             verdict = "PAS D'AVANTAGE : negatif net de frais sur 6 mois"
         elif oos["R_net"] <= 0:
@@ -226,7 +257,7 @@ def main() -> int:
             verdict = "OOS degrade nettement -> fragile"
         else:
             verdict = "OOS tient"
-        print(f"  {famille:10}: in-sample {is_['R_net']:+.3f} R | OOS {oos['R_net']:+.3f} R "
+        print(f"  {nom:10}: in-sample {is_['R_net']:+.3f} R | OOS {oos['R_net']:+.3f} R "
               f"| total {total_r:+.3f} R ({tot} trades) -> {verdict}")
     print("=" * 78)
     return 0
