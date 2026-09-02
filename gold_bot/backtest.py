@@ -290,6 +290,20 @@ class Backtester:
                 continue
             if ouvertes and not risk.peut_renforcer(ouvertes, ouvertes[0].side)[0]:
                 continue
+            # LE MEME PIEGE QUE POUR LA PYRAMIDE, ET IL A DEJA MENTI UNE FOIS.
+            #
+            # Le delai de carence vit dans `check_exposure`, que le rejeu
+            # n'appelle pas : il a sa propre porte d'entree. Sans cette
+            # ligne, la premiere mesure a rendu des chiffres IDENTIQUES au
+            # temoin — au centieme et par paire — et on aurait conclu que la
+            # carence ne sert a rien alors qu'elle ne s'etait jamais
+            # declenchee. Elle est ici sur l'horloge des BOUGIES, pas celle
+            # du systeme, sinon elle ne se declencherait toujours pas.
+            if not ouvertes and risk.carence_restante(instrument.symbol,
+                                                      now=candle.ts) > 0:
+                result.rejections["carence apres sortie"] = \
+                    result.rejections.get("carence apres sortie", 0) + 1
+                continue
             ok, why = risk.can_trade(broker.positions(), ts=candle.ts)
             if not ok:
                 result.rejections[why.split("(")[0].strip()] = \

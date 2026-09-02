@@ -418,9 +418,28 @@ class RiskManager:
             return False, DELAI_NON_ECOULE
         return True, ""
 
+    def carence_restante(self, symbol: str, now: Optional[float] = None) -> float:
+        """Minutes restantes avant de pouvoir RACHETER ce symbole.
+
+        `now` est explicite pour que le rejeu, qui avance sur l'horloge des
+        bougies et non sur celle du systeme, mesure la meme chose que le
+        robot. Sans ce parametre le delai ne s'appliquait jamais en rejeu —
+        et le banc d'essai aurait rendu un resultat identique au temoin,
+        exactement le piege decrit pour la pyramide.
+        """
+        cfg = self.config
+        if cfg.cooldown_apres_sortie_minutes <= 0:
+            return 0.0
+        sortie = self._derniere_sortie.get(symbol)
+        if not sortie:
+            return 0.0
+        ecoule = ((now or time.time()) - sortie) / 60.0
+        return max(0.0, cfg.cooldown_apres_sortie_minutes - ecoule)
+
     def check_exposure(self, instrument: Instrument, side: Side,
                        open_positions: list[Position],
-                       universe_lookup) -> tuple[bool, str]:
+                       universe_lookup,
+                       now: Optional[float] = None) -> tuple[bool, str]:
         """Verifie les regles d'exposition et de correlation.
 
         Empiler trois achats correles (or + argent + AUD par exemple)
@@ -436,17 +455,15 @@ class RiskManager:
             ok, why = self.peut_renforcer(sur_le_meme, side)
             if not ok:
                 return False, why
-        elif cfg.cooldown_apres_sortie_minutes > 0:
+        else:
             # Rien d'ouvert sur ce symbole : c'est un RACHAT. C'est celui-la
             # qui a produit dix entrees sur UNIUSD en 48 h.
-            sortie = self._derniere_sortie.get(instrument.symbol)
-            if sortie:
-                ecoule = (time.time() - sortie) / 60.0
-                if ecoule < cfg.cooldown_apres_sortie_minutes:
-                    return False, (
-                        f"rachat de {instrument.symbol} trop tot : "
-                        f"{ecoule:.0f} min depuis la sortie, "
-                        f"{cfg.cooldown_apres_sortie_minutes:.0f} exigees")
+            reste = self.carence_restante(instrument.symbol, now)
+            if reste > 0:
+                return False, (
+                    f"rachat de {instrument.symbol} trop tot : encore "
+                    f"{reste:.0f} min de carence sur "
+                    f"{cfg.cooldown_apres_sortie_minutes:.0f}")
         for pos in open_positions:
             if pos.symbol == instrument.symbol:
                 continue

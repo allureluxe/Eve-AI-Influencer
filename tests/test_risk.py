@@ -350,3 +350,37 @@ class TestUnApportNEstPasUnePerformance:
         assert rm.account.reference_equity == ref, (
             "un gain de trading a ete pris pour un apport : l'echelle ne "
             "montera jamais")
+
+
+class TestLeRejeuAppliqueVraimentLaCarence:
+    """Le piege qui a deja menti une fois.
+
+    La carence vit dans `check_exposure`, que le rejeu n'appelle pas : il a
+    sa propre porte d'entree. La premiere mesure a rendu des chiffres
+    IDENTIQUES au temoin — au centieme et par paire — et on aurait conclu
+    que la carence ne sert a rien alors qu'elle ne s'etait jamais
+    declenchee. C'est exactement ce qui etait arrive au pyramidage.
+    """
+
+    def test_le_rejeu_refuse_bien_un_rachat_trop_tot(self):
+        import inspect
+        from gold_bot.backtest import Backtester
+        src = inspect.getsource(Backtester.run)
+        assert "carence_restante" in src, (
+            "le rejeu n'applique pas le delai de carence : toute mesure "
+            "rendra un resultat identique au temoin, sans rien casser")
+
+    def test_la_carence_suit_l_horloge_qu_on_lui_donne(self):
+        """En rejeu l'horloge est celle des bougies, pas celle du systeme."""
+        rm = RiskManager(RiskConfig(cooldown_apres_sortie_minutes=60.0))
+        rm.sync_account(1000.0, 1000.0, "EUR")
+        from gold_bot.core import ClosedTrade
+        t0 = 1_700_000_000.0
+        rm.record_close(ClosedTrade(
+            position_id="x", symbol="SOLUSD", side=Side.BUY, volume=1.0,
+            entry_price=100.0, exit_price=99.0, opened_at=t0 - 600,
+            closed_at=t0, profit=-1.0, r_multiple=-1.0, reason="stop"))
+        assert rm.carence_restante("SOLUSD", now=t0 + 600) > 0, (
+            "10 min apres la sortie, la carence de 60 min devrait tenir")
+        assert rm.carence_restante("SOLUSD", now=t0 + 4000) == 0.0, (
+            "66 min apres la sortie, la carence devrait etre levee")
