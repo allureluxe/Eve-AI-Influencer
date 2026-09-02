@@ -16,3 +16,4 @@ venv/
 
 # Images generees par le module Eve
 generated_images/
+data/bougies/

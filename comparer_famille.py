@@ -36,17 +36,75 @@ from gold_bot.core import Candle  # noqa: E402
 from gold_bot.settings import BotConfig  # noqa: E402
 from gold_bot.backtest import Backtester  # noqa: E402
 from gold_bot.state import TradeJournal  # noqa: E402
+from gold_bot.calibrage import duree_stop_temporel  # noqa: E402
+
+# Unite d'entree -> (contexte, biais). Chaque unite doit etre lue avec
+# des references a son echelle.
+ECHELLES = {"M30": ("H1", "H4"), "H1": ("H4", "D1"),
+            "H4": ("D1", "D1"), "D1": ("D1", "D1")}
 
 PAIRES_EUR = {
-    "BTC": ("BTCUSD", "BTC-EUR"), "ETH": ("ETHUSD", "ETH-EUR"),
-    "SOL": ("SOLUSD", "SOL-EUR"), "XRP": ("XRPUSD", "XRP-EUR"),
-    "ADA": ("ADAUSD", "ADA-EUR"), "LINK": ("LINKUSD", "LINK-EUR"),
-    "DOT": ("DOTUSD", "DOT-EUR"),
+    "1INCH": ("1INCHUSD", "1INCH-EUR"),    "AAVE": ("AAVEUSD", "AAVE-EUR"),    "ADA": ("ADAUSD", "ADA-EUR"),
+    "ALGO": ("ALGOUSD", "ALGO-EUR"),    "APE": ("APEUSD", "APE-EUR"),    "APT": ("APTUSD", "APT-EUR"),
+    "ARB": ("ARBUSD", "ARB-EUR"),    "ATOM": ("ATOMUSD", "ATOM-EUR"),    "AVAX": ("AVAXUSD", "AVAX-EUR"),
+    "AXS": ("AXSUSD", "AXS-EUR"),    "BCH": ("BCHUSD", "BCH-EUR"),    "BNB": ("BNBUSD", "BNB-EUR"),
+    "BONK": ("BONKUSD", "BONK-EUR"),    "BTC": ("BTCUSD", "BTC-EUR"),    "CAKE": ("CAKEUSD", "CAKE-EUR"),
+    "CELO": ("CELOUSD", "CELO-EUR"),    "CHZ": ("CHZUSD", "CHZ-EUR"),    "COMP": ("COMPUSD", "COMP-EUR"),
+    "CRO": ("CROUSD", "CRO-EUR"),    "CRV": ("CRVUSD", "CRV-EUR"),    "DOGE": ("DOGEUSD", "DOGE-EUR"),
+    "DOT": ("DOTUSD", "DOT-EUR"),    "DYDX": ("DYDXUSD", "DYDX-EUR"),    "EGLD": ("EGLDUSD", "EGLD-EUR"),
+    "ENJ": ("ENJUSD", "ENJ-EUR"),    "ETC": ("ETCUSD", "ETC-EUR"),    "ETH": ("ETHUSD", "ETH-EUR"),
+    "FET": ("FETUSD", "FET-EUR"),    "FIL": ("FILUSD", "FIL-EUR"),    "FLOKI": ("FLOKIUSD", "FLOKI-EUR"),
+    "GALA": ("GALAUSD", "GALA-EUR"),    "GMX": ("GMXUSD", "GMX-EUR"),    "GRT": ("GRTUSD", "GRT-EUR"),
+    "HBAR": ("HBARUSD", "HBAR-EUR"),    "ICP": ("ICPUSD", "ICP-EUR"),    "IMX": ("IMXUSD", "IMX-EUR"),
+    "INJ": ("INJUSD", "INJ-EUR"),    "KAVA": ("KAVAUSD", "KAVA-EUR"),    "LDO": ("LDOUSD", "LDO-EUR"),
+    "LINK": ("LINKUSD", "LINK-EUR"),    "LRC": ("LRCUSD", "LRC-EUR"),    "LTC": ("LTCUSD", "LTC-EUR"),
+    "MANA": ("MANAUSD", "MANA-EUR"),    "METIS": ("METISUSD", "METIS-EUR"),    "NEAR": ("NEARUSD", "NEAR-EUR"),
+    "NEO": ("NEOUSD", "NEO-EUR"),    "OP": ("OPUSD", "OP-EUR"),    "PENDLE": ("PENDLEUSD", "PENDLE-EUR"),
+    "PEPE": ("PEPEUSD", "PEPE-EUR"),    "POL": ("POLUSD", "POL-EUR"),    "RENDER": ("RENDERUSD", "RENDER-EUR"),
+    "ROSE": ("ROSEUSD", "ROSE-EUR"),    "RUNE": ("RUNEUSD", "RUNE-EUR"),    "SAND": ("SANDUSD", "SAND-EUR"),
+    "SEI": ("SEIUSD", "SEI-EUR"),    "SHIB": ("SHIBUSD", "SHIB-EUR"),    "SNX": ("SNXUSD", "SNX-EUR"),
+    "SOL": ("SOLUSD", "SOL-EUR"),    "STRK": ("STRKUSD", "STRK-EUR"),    "SUI": ("SUIUSD", "SUI-EUR"),
+    "SUSHI": ("SUSHIUSD", "SUSHI-EUR"),    "TIA": ("TIAUSD", "TIA-EUR"),    "TRX": ("TRXUSD", "TRX-EUR"),
+    "UNI": ("UNIUSD", "UNI-EUR"),    "VET": ("VETUSD", "VET-EUR"),    "WIF": ("WIFUSD", "WIF-EUR"),
+    "XLM": ("XLMUSD", "XLM-EUR"),    "XRP": ("XRPUSD", "XRP-EUR"),    "XTZ": ("XTZUSD", "XTZ-EUR"),
+    "ZIL": ("ZILUSD", "ZIL-EUR"),
 }
-INTERVALLE = {"M30": ("30m", 1800), "H1": ("1h", 3600), "H4": ("4h", 14400)}
+INTERVALLE = {"M30": ("30m", 1800), "H1": ("1h", 3600), "H4": ("4h", 14400),
+              "D1": ("1d", 86400)}
 # Prechauffage : bougies AVANT le debut de la fenetre pour amorcer les
 # indicateurs des unites superieures (et la SMA 50 en M30).
-PRECHAUFFE = {"M30": 60 * 86400, "H1": 30 * 86400, "H4": 120 * 86400}
+PRECHAUFFE = {"M30": 60 * 86400, "H1": 30 * 86400, "H4": 120 * 86400,
+              "D1": 400 * 86400}
+
+
+CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "bougies")
+
+
+def fetch_cache(marche: str, tf: str, debut_ms: int, fin_ms: int) -> list[Candle]:
+    """Meme chose que `fetch_bitvavo`, mais garde les bougies sur disque.
+
+    Telecharger 70 paires x 4 unites prend un quart d'heure. Le faire a
+    chaque essai de strategie decourage de mesurer — et c'est comme ca
+    qu'on finit par tester sur sept paires « pour aller plus vite », ce
+    qui a deja produit une conclusion fausse.
+    """
+    os.makedirs(CACHE, exist_ok=True)
+    cle = os.path.join(CACHE, f"{marche}_{tf}_{debut_ms // 86400000}_{fin_ms // 86400000}.json")
+    if os.path.exists(cle):
+        try:
+            with open(cle) as f:
+                return [Candle(*r) for r in json.load(f)]
+        except Exception:  # noqa: BLE001
+            pass
+    bougies = fetch_bitvavo(marche, tf, debut_ms, fin_ms)
+    if bougies:
+        try:
+            with open(cle, "w") as f:
+                json.dump([[c.ts, c.open, c.high, c.low, c.close, c.volume]
+                           for c in bougies], f)
+        except Exception:  # noqa: BLE001
+            pass
+    return bougies
 
 
 def fetch_bitvavo(marche: str, tf: str, debut_ms: int, fin_ms: int) -> list[Candle]:
@@ -86,12 +144,36 @@ def fetch_bitvavo(marche: str, tf: str, debut_ms: int, fin_ms: int) -> list[Cand
     return [par_ts[k] for k in sorted(par_ts)]
 
 
+def unites_requises() -> tuple[str, ...]:
+    """Les unites qu'il faut telecharger, deduites des MODES.
+
+    Telecharger le M30 sur 70 paires quand aucune variante ne l'utilise
+    coute une dizaine de minutes pour rien.
+    """
+    besoin = set()
+    for _, _, extra in MODES:
+        u = extra.get("entry_tf", "M30")
+        besoin.update({u, *ECHELLES[u]})
+    return tuple(t for t in ("M30", "H1", "H4", "D1") if t in besoin)
+
+
 def config_mode(chemin: str, famille: str, extra: dict | None = None) -> BotConfig:
     c = BotConfig.load(chemin)
     c.strategy.famille = famille
-    c.strategy.entry_tf = "M30"
-    c.strategy.context_tf = "H1"
-    c.strategy.bias_tf = "H4"
+    # L'unite d'entree vient de la variante. Les unites de contexte et de
+    # biais suivent : comparer un M30 a un D1 en leur donnant le meme
+    # contexte ne mesurerait pas deux strategies mais deux moities.
+    unite = (extra or {}).get("entry_tf", "M30")
+    contexte, biais = ECHELLES[unite]
+    c.strategy.entry_tf = unite
+    c.strategy.context_tf = contexte
+    c.strategy.bias_tf = biais
+    # LE STOP TEMPOREL EST LE SEUL REGLAGE EN TEMPS D'HORLOGE.
+    # Laisse a 360 min, il tuerait chaque position D1 avant qu'elle ait eu
+    # une chance, et le D1 paraitrait mauvais pour une raison qui n'a rien
+    # a voir avec la strategie. On le transpose en NOMBRE DE BOUGIES.
+    c.trade.time_stop_minutes = duree_stop_temporel(
+        "M30", 360.0, unite)
     c.risk.base_risk_pct = 0.6
     c.risk.min_risk_pct = min(c.risk.min_risk_pct, 0.6)
     c.risk.max_risk_pct = max(c.risk.max_risk_pct, 0.6)
@@ -108,8 +190,12 @@ def config_mode(chemin: str, famille: str, extra: dict | None = None) -> BotConf
     # `pyramide_*` dans le risque (regles d'ENTREE) : le prefixe seul ne
     # suffit pas a router, on cherche ou l'attribut existe.
     for cle, valeur in (extra or {}).items():
-        cible = c.trade if hasattr(c.trade, cle) else c.risk
-        setattr(cible, cle, valeur)
+        for section in (c.trade, c.risk, c.strategy):
+            if hasattr(section, cle):
+                setattr(section, cle, valeur)
+                break
+        else:
+            raise KeyError(f"reglage inconnu : {cle}")
     return c
 
 
@@ -135,14 +221,90 @@ PYRAMIDE = {"pyramide_max": 4, "pyramide_fraction_risque": 1.0}
 # le verifie sur les chiffres.
 CARENCE = {"cooldown_apres_sortie_minutes": 240.0}
 
+# Audit du 2 sept. : le quorum n'a JAMAIS rejete un candidat en 30 h
+# (0 rejet contre 53 698 sur la volatilite et 26 663 sur le score). Le
+# minimum observe est 5 confirmations pour un seuil a 3 : le reglage est
+# sous le plancher reel. Et l'« oscillateur » est vrai 99,7 % du temps —
+# en le retirant, 100 % des signaux passent encore.
+#
+# On teste donc trois familles de correctifs sur la meilleure base
+# connue (tenir+pyr, -0,030 R total / +0,319 R en OOS) :
+#   1. resserrer la bande RSI pour que l'oscillateur discrimine ;
+#   2. monter le quorum au-dessus du plancher reel ;
+#   3. grouper les quatre lectures correlees de « le prix monte ».
+BASE = {**TENIR, **PYRAMIDE}
+
+# ---------------------------------------------------------------------
+# LE TEST QUI N'A JAMAIS ETE FAIT : L'UNITE DE TEMPS
+# ---------------------------------------------------------------------
+# Cet outil a TOUJOURS force `entry_tf = "M30"`. Le H4 et le D1 n'ont
+# ete juges que par `comparer.py`, dont la source de donnees plafonne a
+# ~30 jours quoi qu'on lui demande — et, avant le 31 aout au soir, avec
+# une commission de 0,02 % au lieu de 0,25 %. Aucun des deux n'a jamais
+# ete mesure sur 6 mois de vraies donnees aux vrais frais.
+#
+# L'ARITHMETIQUE DIT QUE C'EST LA QUE CA SE JOUE. L'aller-retour coute
+# 0,60 % (0,25 % x2 + spread), et il ne depend PAS de l'unite. Ce qui en
+# depend, c'est la taille du stop :
+#
+#     unite   ATR      stop 1,6 ATR   frais / risque
+#     M30     0,80 %      1,28 %          47 %
+#     H1      1,12 %      1,79 %          33 %
+#     H4      2,24 %      3,58 %          17 %
+#     D1      5,46 %      8,74 %           7 %
+#
+# Mesure du 2 septembre en reel : esperance BRUTE +0,135 R, NETTE
+# -0,105 R. L'entree gagne, les frais retournent le signe. Le meme
+# avantage brut porte en H4 laisserait +0,135 - 0,17 ... et en D1
+# +0,135 - 0,07 = POSITIF. C'est une hypothese arithmetique, pas une
+# certitude : le signal peut valoir autre chose a une autre echelle.
+#
+# La litterature pousse dans le meme sens : le momentum de serie
+# temporelle en crypto est documente sur des horizons LONGS (jusqu'a
+# huit semaines de predictibilite), et il devient insignifiant des que
+# les frais montent — « avec 0,1 % de cout la strategie rapporte »,
+# alors que Bitvavo prend cinq fois cela.
+BASE_TF = {**TENIR, **PYRAMIDE}
+
+# L'ERREUR DE MESURE QU'IL FALLAIT CORRIGER.
+#
+# Les premiers passages tournaient sur SEPT paires. Le robot en suit 92,
+# dont 70 ont une paire EUR chez Bitvavo. Le D1 rendait 38 trades sur six
+# mois — j'en ai conclu « strategie trop lente », alors que je l'avais
+# mesuree sur 8 % de son terrain. A 70 paires, la meme strategie tourne
+# a ~380 trades sur la meme periode, soit ~60 par mois.
+#
+# Ce n'est pas un detail de precision : un resultat a 38 trades est du
+# bruit (±0,39 R a deux ecarts-types), un resultat a 380 devient lisible
+# (±0,12 R). Et une strategie « qui ne rapporte que 4 EUR » sur 8 % de
+# l'univers en rapporte mecaniquement treize fois plus sur la totalite.
+D1 = {"entry_tf": "D1"}
+H4 = {"entry_tf": "H4"}
+
+# TURTLE (Dennis, 1983) — le systeme public le plus verifie qui existe :
+# 23 debutants, 175 millions de dollars en cinq ans, regles publiees.
+# Entree a la cassure du plus-haut de 20 (ou 55) bougies, sortie sur le
+# canal bas de 10. Long-only, D1, taille par l'ATR : tout colle au compte.
+#
+# Le papier « Catching Crypto Trends » (2025) l'applique a TOUTES les
+# cryptos depuis 2015, sans biais du survivant et NET DE FRAIS — Sharpe
+# 1,58, CAGR 30 %, alpha +14 % contre le bitcoin — en agregeant PLUSIEURS
+# horizons de canal plutot qu'un seul. D'ou la variante « ensemble ».
+TURTLE = {"donchian_entrees": (20, 55)}
+TURTLE_ENS = {"donchian_entrees": (10, 20, 55)}
+
 MODES: list[tuple[str, str, dict]] = [
-    ("tendance", "tendance", {}),
-    ("reversion", "reversion", {}),
-    ("tenir", "tendance", TENIR),
-    ("tenir+pyr", "tendance", {**TENIR, **PYRAMIDE}),
-    ("tendance+carence", "tendance", CARENCE),
-    ("tenir+carence", "tendance", {**TENIR, **CARENCE}),
-    ("tenir+pyr+carence", "tendance", {**TENIR, **PYRAMIDE, **CARENCE}),
+    ("M30 actuel", "tendance", {}),
+    ("M30 tenir+pyr", "tendance", BASE_TF),
+    ("H4 simple", "tendance", H4),
+    ("D1 simple", "tendance", D1),
+    ("D1 tenir", "tendance", {**TENIR, **D1}),
+    ("D1 tenir+pyr", "tendance", {**BASE_TF, **D1}),
+    ("D1 TURTLE 20/55", "donchian", {**D1, **TURTLE}),
+    ("D1 TURTLE tenir", "donchian", {**D1, **TURTLE, **TENIR}),
+    ("D1 TURTLE tenir+pyr", "donchian", {**D1, **TURTLE, **BASE_TF}),
+    ("D1 TURTLE ensemble", "donchian", {**D1, **TURTLE_ENS, **TENIR}),
+    ("H4 TURTLE tenir", "donchian", {**H4, **TURTLE, **TENIR}),
 ]
 
 
@@ -192,9 +354,15 @@ def main() -> int:
             continue
         interne, marche = PAIRES_EUR[p]
         s: dict[str, list[Candle]] = {}
-        for tf in ("M30", "H1", "H4"):
+        # D1 COMPRIS, et ce n'est pas un detail : sans lui, une variante
+        # « entry_tf = D1 » ne trouve pas sa serie dans `series` et
+        # `Backtester.run` retombe SILENCIEUSEMENT sur le registre par
+        # defaut — qui plafonne a ~30 jours. On mesurerait le D1 sur un
+        # mois en croyant le mesurer sur six, et le resultat serait faux
+        # sans qu'aucune erreur ne soit levee.
+        for tf in unites_requises():
             deb = debut_ms - PRECHAUFFE[tf] * 1000
-            c = fetch_bitvavo(marche, tf, deb, fin_ms)
+            c = fetch_cache(marche, tf, deb, fin_ms)
             s[tf] = c
             jours = (c[-1].ts - c[0].ts) / 86400 if c else 0
             print(f"  {marche:9} {tf:3} : {len(c):5} bougies ({jours:.0f} j)")
