@@ -96,6 +96,29 @@ class RiskConfig:
     pyramide_locked_r_min: float = 0.05    # stop de l'etage precedent, en R
     pyramide_fraction_risque: float = 0.6  # chaque etage risque moins que le precedent
 
+    # --- Delai de carence apres une SORTIE, par symbole ---
+    #
+    # Mesure sur 48 h les 1er-2 septembre : 53 trades, dont DIX entrees
+    # successives sur UNIUSD (4,54 -> 4,64 -> 4,80 -> 5,00 -> ... -> 5,49)
+    # pour un gain total de 0,64 EUR. Sept sur CRVUSD, six sur FILUSD dont
+    # la plus haute a pris la perte pleine (-1,06 R).
+    #
+    # Le robot refermait une position et rouvrait la MEME crypto quelques
+    # minutes plus tard, plus haut, en repayant l'aller-retour a chaque
+    # fois. Le chiffre qui tranche : esperance BRUTE +0,135 R (les entrees
+    # sont gagnantes sur les prix) contre NETTE -0,105 R. Ce ne sont pas
+    # les entrees qui sont mauvaises, c'est la ROTATION qui les mange.
+    #
+    # CE DELAI NE TOUCHE PAS AU PYRAMIDAGE, ET C'EST LA DISTINCTION QUI
+    # COMPTE. Il ne s'applique qu'a un RACHAT apres une sortie — quand
+    # plus rien n'est ouvert sur le symbole. Ajouter un etage a une
+    # position encore ouverte passe par `peut_renforcer` et n'est jamais
+    # concerne : renforcer un gagnant en cours et racheter un actif qu'on
+    # vient de quitter sont deux gestes opposes.
+    #
+    # A zero, rien ne change : le rejeu doit trancher avant.
+    cooldown_apres_sortie_minutes: float = 0.0
+
     # --- Serie ---
     max_consecutive_losses: int = 4    # au-dela : pause forcee
     pause_after_losses_minutes: float = 90.0
@@ -244,6 +267,10 @@ class RiskManager:
         self.config = config or RiskConfig()
         self.ladder = ladder or EquityLadder()
         self.account = AccountState()
+        # Derniere SORTIE par symbole, pour le delai de carence. Distinct
+        # de `last_trade_ts` qui est global : c'est le rachat du MEME actif
+        # qui coute, pas la cadence generale.
+        self._derniere_sortie: dict[str, float] = {}
 
     # ---------------------------------------------------------------
     # Suivi du compte
@@ -257,6 +284,52 @@ class RiskManager:
         day = dt.strftime("%Y-%m-%d")
         year, week, _ = dt.isocalendar()
         wk = f"{year}-W{week:02d}"
+
+        # UN APPORT N'EST PAS UNE PERFORMANCE.
+        #
+        # Observe le 2 septembre : un depot de ~69 EUR a porte le compte de
+        # 90 a 158 EUR. L'echelle de capital (anti-martingale) y a lu +63 %
+        # de gain, est montee au cran x1,80, et le risque par trade est
+        # passe de 0,41 % a 1,08 % — au-dessus du palier « preuve » (0,6 %)
+        # que le plan de croissance impose tant que l'avantage n'est pas
+        # etabli. La perte suivante a coute 2,28 EUR la ou les precedentes
+        # coutaient 0,30 a 0,71 EUR : meme strategie, position trois fois
+        # plus grosse.
+        #
+        # L'echelle ne peut pas distinguer un virement d'une serie de gains
+        # : les deux font monter la courbe. On la lui apprend ici — un saut
+        # que les trades fermes n'expliquent pas est un mouvement de
+        # tresorerie, et la reference le suit au lieu de le recompenser.
+        #
+        # UNIQUEMENT LES SAUTS VERS LE HAUT, et l'asymetrie est deliberee.
+        #
+        # Un bond que les trades n'expliquent pas est presque toujours un
+        # depot. Une CHUTE que les trades n'expliquent pas, elle, peut etre
+        # un retrait — ou une grosse perte. Traiter une perte comme un
+        # retrait recalerait la reference vers le bas et **desarmerait le
+        # coupe-circuit de drawdown** au pire moment. Les deux erreurs ne
+        # coutent pas la meme chose : se tromper sur un depot donne des
+        # positions un peu trop petites, se tromper sur une perte retire le
+        # filet. On ne corrige donc que le sens dangereux.
+        #
+        # `peak_equity` n'est pas touche : il remonte tout seul par le
+        # `max()` juste apres, et le baisser aurait le meme effet que
+        # ci-dessus.
+        #
+        # Seuil volontairement large (5 % du capital ET 3x le realise du
+        # jour) : on recale sur un apport franc, pas sur un gros gagnant.
+        precedent = acc.equity
+        if precedent > 0 and acc.reference_equity > 0:
+            saut = equity - precedent
+            explique = abs(acc.realized_today) * 3.0 + 0.02 * precedent
+            if saut > max(explique, 0.05 * precedent):
+                acc.reference_equity += saut
+                logger.warning(
+                    "apport detecte : +%.2f %s que les trades n'expliquent "
+                    "pas. Reference %.2f -> %.2f : l'echelle de capital ne "
+                    "prend PAS ce saut pour un gain.",
+                    saut, currency, acc.reference_equity - saut,
+                    acc.reference_equity)
 
         acc.equity, acc.balance, acc.currency = equity, balance, currency
         if acc.reference_equity <= 0:
@@ -286,6 +359,7 @@ class RiskManager:
         acc.realized_this_week += trade.profit
         acc.trades_today += 1
         acc.last_trade_ts = trade.closed_at
+        self._derniere_sortie[trade.symbol] = trade.closed_at
         if trade.profit < 0:
             acc.consecutive_losses += 1
             acc.consecutive_wins = 0
@@ -356,9 +430,23 @@ class RiskManager:
         same_group = 0
         sur_le_meme = [p for p in open_positions if p.symbol == instrument.symbol]
         if sur_le_meme:
+            # Position encore ouverte : c'est une decision de PYRAMIDE.
+            # Le delai de carence ne s'applique pas ici — renforcer un
+            # gagnant en cours n'est pas racheter ce qu'on vient de quitter.
             ok, why = self.peut_renforcer(sur_le_meme, side)
             if not ok:
                 return False, why
+        elif cfg.cooldown_apres_sortie_minutes > 0:
+            # Rien d'ouvert sur ce symbole : c'est un RACHAT. C'est celui-la
+            # qui a produit dix entrees sur UNIUSD en 48 h.
+            sortie = self._derniere_sortie.get(instrument.symbol)
+            if sortie:
+                ecoule = (time.time() - sortie) / 60.0
+                if ecoule < cfg.cooldown_apres_sortie_minutes:
+                    return False, (
+                        f"rachat de {instrument.symbol} trop tot : "
+                        f"{ecoule:.0f} min depuis la sortie, "
+                        f"{cfg.cooldown_apres_sortie_minutes:.0f} exigees")
         for pos in open_positions:
             if pos.symbol == instrument.symbol:
                 continue

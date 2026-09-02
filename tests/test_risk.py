@@ -214,3 +214,139 @@ class TestExposition(Base):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+def _pos_carence(symbole="SOLUSD", entree=100.0, stop=98.0, pid="p1") -> Position:
+    return Position(id=pid, symbol=symbole, side=Side.BUY, volume=1.0,
+                    entry_price=entree, stop_loss=stop, take_profit=104.0,
+                    opened_at=time.time(), initial_risk=2.0)
+
+
+def _rm_carence(**reglages) -> RiskManager:
+    rm = RiskManager(RiskConfig(**reglages))
+    rm.sync_account(1000.0, 1000.0, "EUR")
+    return rm
+
+
+class TestLeDelaiDeCarenceNeTouchePasAuPyramidage:
+    """Le rachat et le renforcement sont deux gestes opposes.
+
+    Mesure des 1er-2 septembre : dix entrees successives sur UNIUSD en
+    48 h (4,54 -> 5,49) pour 0,64 EUR de gain, six sur FILUSD dont la plus
+    haute a pris -1,06 R. Le robot refermait puis rouvrait la MEME crypto
+    plus haut, en repayant l'aller-retour. Esperance BRUTE +0,135 R contre
+    NETTE -0,105 R : ce sont les frais de rotation qui retournent le signe,
+    pas la qualite des entrees.
+
+    Mais brider le rachat ne doit PAS brider la pyramide, sinon on tue le
+    renforcement en croyant tuer la rotation.
+    """
+
+    @staticmethod
+    def _ferme(symbole="SOLUSD", quand=None):
+        from gold_bot.core import ClosedTrade
+        return ClosedTrade(
+            position_id="x", symbol=symbole, side=Side.BUY, volume=1.0,
+            entry_price=100.0, exit_price=99.0,
+            opened_at=(quand or time.time()) - 600,
+            closed_at=quand or time.time(),
+            profit=-1.0, r_multiple=-1.0, reason="stop")
+
+    def test_le_rachat_immediat_est_refuse(self):
+        rm = _rm_carence(cooldown_apres_sortie_minutes=120.0)
+        rm.record_close(self._ferme())
+        ok, why = rm.check_exposure(Universe().get("SOLUSD"), Side.BUY, [],
+                                    Universe().get)
+        assert not ok, "le rachat immediat passe encore"
+        assert "trop tot" in why
+
+    def test_le_rachat_est_permis_une_fois_le_delai_ecoule(self):
+        rm = _rm_carence(cooldown_apres_sortie_minutes=30.0)
+        rm.record_close(self._ferme(quand=time.time() - 3600))   # il y a 1 h
+        ok, why = rm.check_exposure(Universe().get("SOLUSD"), Side.BUY, [],
+                                    Universe().get)
+        assert ok, why
+
+    def test_un_autre_symbole_n_est_pas_bride(self):
+        """La carence est PAR symbole, pas une pause generale."""
+        rm = _rm_carence(cooldown_apres_sortie_minutes=120.0)
+        rm.record_close(self._ferme(symbole="SOLUSD"))
+        ok, why = rm.check_exposure(Universe().get("ETHUSD"), Side.BUY, [],
+                                    Universe().get)
+        assert ok, why
+
+    def test_LA_PYRAMIDE_PASSE_MALGRE_LA_CARENCE(self):
+        """Le test qui protege le chantier pyramidage.
+
+        Symbole en carence ET position ouverte deja verrouillee en profit :
+        c'est un renforcement, pas un rachat. Il doit passer.
+        """
+        rm = _rm_carence(pyramide_max=2, cooldown_apres_sortie_minutes=240.0)
+        rm.record_close(self._ferme())                    # sortie a l'instant
+        ouverte = _pos_carence(stop=100.5)                   # +0,25R deja verrouille
+        ok, why = rm.check_exposure(Universe().get("SOLUSD"), Side.BUY,
+                                    [ouverte], Universe().get)
+        assert ok, (
+            f"la carence bloque un etage de pyramide : {why!r} — "
+            "renforcer un gagnant en cours n'est pas racheter ce qu'on "
+            "vient de quitter")
+
+    def test_desarme_par_defaut(self):
+        assert RiskConfig().cooldown_apres_sortie_minutes == 0.0
+        rm = _rm_carence()
+        rm.record_close(self._ferme())
+        ok, _ = rm.check_exposure(Universe().get("SOLUSD"), Side.BUY, [],
+                                  Universe().get)
+        assert ok, "le comportement par defaut a change"
+
+
+class TestUnApportNEstPasUnePerformance:
+    """L'echelle de capital ne doit pas recompenser un virement.
+
+    Observe le 2 septembre : un depot de ~69 EUR (90 -> 158) a ete lu comme
+    +63 % de gain. L'echelle anti-martingale est montee au cran x1,80 et le
+    risque par trade est passe de 0,41 % a 1,08 %, au-dessus du palier
+    « preuve » (0,6 %). La perte suivante a coute 2,28 EUR contre 0,30 a
+    0,71 EUR les jours precedents : meme strategie, position 3x plus grosse.
+    """
+
+    def test_un_depot_ne_gonfle_pas_l_echelle(self):
+        rm = RiskManager()
+        rm.sync_account(90.0, 90.0, "EUR")
+        avant = rm.account.reference_equity
+        rm.sync_account(159.0, 159.0, "EUR")          # depot de 69 EUR
+        assert rm.account.reference_equity > avant + 60, (
+            f"reference restee a {rm.account.reference_equity:.2f} apres un "
+            "depot de 69 EUR : l'echelle va lire un gain de +63 %")
+        gain = rm.account.equity / rm.account.reference_equity - 1
+        assert abs(gain) < 0.02, (
+            f"l'echelle voit encore {gain * 100:+.1f} % de gain apres un depot")
+
+    def test_une_chute_reste_traitee_comme_une_perte(self):
+        """L'asymetrie est voulue, et c'est la moitie qui protege.
+
+        Une chute inexpliquee peut etre un retrait ou une grosse perte. La
+        prendre pour un retrait recalerait la reference vers le bas et
+        desarmerait le coupe-circuit de drawdown au pire moment. On accepte
+        donc de brimer la taille apres un vrai retrait : c'est l'erreur qui
+        ne coute rien.
+        """
+        rm = RiskManager()
+        rm.sync_account(160.0, 160.0, "EUR")
+        ref = rm.account.reference_equity
+        rm.sync_account(90.0, 90.0, "EUR")
+        assert rm.account.reference_equity == ref, (
+            "la reference a suivi une chute : le drawdown ne se verra plus")
+        assert rm.account.peak_equity >= 160.0, (
+            "le sommet a ete abaisse : le coupe-circuit de drawdown est mort")
+
+    def test_un_vrai_gain_de_trading_est_bien_compte(self):
+        """Le garde-fou ne doit pas avaler les vraies performances."""
+        rm = RiskManager()
+        rm.sync_account(100.0, 100.0, "EUR")
+        ref = rm.account.reference_equity
+        rm.account.realized_today = 3.0                # gagne en tradant
+        rm.sync_account(103.0, 103.0, "EUR")
+        assert rm.account.reference_equity == ref, (
+            "un gain de trading a ete pris pour un apport : l'echelle ne "
+            "montera jamais")

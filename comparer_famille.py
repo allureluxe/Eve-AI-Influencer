@@ -127,13 +127,22 @@ TENIR = {"tp_r_multiple": 6.0, "trail_atr_mult": 2.2,
          "partial_enabled": False, "max_extensions": 12}
 PYRAMIDE = {"pyramide_max": 4, "pyramide_fraction_risque": 1.0}
 
+# Delai de carence : interdit de RACHETER un symbole qu'on vient de
+# quitter. Mesure des 1er-2 sept. : dix entrees sur UNIUSD en 48 h pour
+# 0,64 EUR, esperance brute +0,135 R contre nette -0,105 R — la rotation
+# mange des entrees qui gagnent. Il ne bride jamais la pyramide (celle-ci
+# ajoute un etage a une position ENCORE OUVERTE), et la derniere ligne
+# le verifie sur les chiffres.
+CARENCE = {"cooldown_apres_sortie_minutes": 240.0}
+
 MODES: list[tuple[str, str, dict]] = [
     ("tendance", "tendance", {}),
     ("reversion", "reversion", {}),
     ("tenir", "tendance", TENIR),
     ("tenir+pyr", "tendance", {**TENIR, **PYRAMIDE}),
-    ("tenir+pyr+commun", "tendance",
-     {**TENIR, **PYRAMIDE, "pyramide_stop_commun": True}),
+    ("tendance+carence", "tendance", CARENCE),
+    ("tenir+carence", "tendance", {**TENIR, **CARENCE}),
+    ("tenir+pyr+carence", "tendance", {**TENIR, **PYRAMIDE, **CARENCE}),
 ]
 
 
