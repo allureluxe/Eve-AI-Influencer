@@ -8,8 +8,15 @@ INDEPENDANT du bot et de toute session : il tourne via cron toutes les
 5 min, lit le solde reel chez Bitvavo, et coupe le service si la perte
 depuis le pic depasse la limite.
 
-  PIC de reference : 97.35 EUR (maximum historique au 31 aout)
-  LIMITE           : 10 EUR de perte  ->  plancher 87.35 EUR
+  PIC de reference : 160.00 EUR (apres le depot du 2 septembre)
+  LIMITE           : 10 EUR de perte  ->  plancher 150.00 EUR
+
+  Recalibre le 2 sept. : un depot de ~69 EUR a porte le compte de 90 a
+  160 EUR sans que le plancher (87.35) bouge. Le chien de garde tolerait
+  donc 72 EUR de perte — 45 % du compte — au lieu des 10 EUR voulus.
+  UN DEPOT N'EST PAS UN GAIN : le plancher doit suivre le capital, sinon
+  la protection s'evapore silencieusement au moment ou l'on ajoute de
+  l'argent, c'est-a-dire exactement quand il y a le plus a perdre.
 
 Quand il declenche : `systemctl stop robot-dual-live`, puis il pose un
 fichier temoin et NE REDEMARRE JAMAIS le bot tout seul. Retirer le
@@ -30,7 +37,7 @@ from dataclasses import replace
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-PIC_EUR = 97.35
+PIC_EUR = 160.00
 LIMITE_PERTE_EUR = 10.0
 # Plancher = pic - limite. Surchargeable par CHIEN_PLANCHER_EUR (reglage
 # a chaud sans toucher au code, et test du declenchement).
