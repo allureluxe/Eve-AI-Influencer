@@ -267,36 +267,26 @@ BASE = {**TENIR, **PYRAMIDE}
 BASE_TF = {**TENIR, **PYRAMIDE}
 
 # ---------------------------------------------------------------------
-# CE QUI COUPE LES GROSSES MONTEES — mesure du 3 septembre
+# LE PLAFOND DE VOLATILITE CONTRE LA CASSURE
 # ---------------------------------------------------------------------
-# Constat sur la variante gagnante : 9 trades sur 469 font 124 % du
-# benefice, et TOUS sortent au meme endroit — 5,76 / 5,77 / 5,78 R, motif
-# « objectif atteint ». Ce n'est pas le marche qui les arrete, c'est le
-# plafond de 6 R. FIL avait fait +99 % de prix.
+# 3 sept. : ARB casse son canal de 20 jours (+19 % en deux jours) et le
+# robot la refuse — « volatilite extreme : percentile 1.00 au-dessus de
+# 0.98 ». Le plafond vient de l'ancienne strategie M30 quorum.
 #
-# Deuxieme coupe-file trouve dans les motifs : le « micro-profit » ferme
-# ~70 gagnants entre 1 et 2 R des que la dynamique faiblit. Sur une
-# strategie qui ne vit que de ses rares gros trades, fermer a 1,5 R ce qui
-# allait a 20 R coute plus cher que tout le reste.
-#
-# On teste donc les trois sorties qui peuvent brider une montee :
-#   le PLAFOND (tp_r_multiple), le STOP SUIVEUR (trail_atr_mult),
-#   et le MICRO-PROFIT.
-BASE_D1 = {"entry_tf": "D1", "donchian_entrees": (20,),
-           "partial_enabled": False, "max_extensions": 12,
-           "base_risk_pct": 1.0}
-SANS_MICRO = {"micro_profit_enabled": False}
+# La contradiction est structurelle : une cassure de canal EST un pic de
+# volatilite. Le Turtle existe pour acheter ca, le filtre existe pour
+# l'eviter. Mais le plafond etait DEJA actif pendant la mesure a +0,130 R :
+# le rater fait partie du resultat connu. L'enlever est un changement non
+# mesure, d'ou ce banc d'essai.
+BASE_T = {"entry_tf": "D1", "donchian_entrees": (20,), "partial_enabled": False,
+          "max_extensions": 12, "base_risk_pct": 0.6,
+          "micro_profit_enabled": False, "tp_actif": False,
+          "tp_r_multiple": 2.0, "trail_atr_mult": 2.2}
 
 MODES: list[tuple[str, str, dict]] = [
-    ("CONFIG ARMEE (tp_actif=False)", "donchian",
-     {"entry_tf": "D1", "donchian_entrees": (20,), "partial_enabled": False,
-      "max_extensions": 12, "base_risk_pct": 0.6, "micro_profit_enabled": False,
-      "tp_actif": False, "tp_r_multiple": 2.0, "trail_atr_mult": 2.2}),
-    ("mesure precedente (tp=99)", "donchian",
-     {"entry_tf": "D1", "donchian_entrees": (20,), "partial_enabled": False,
-      "max_extensions": 12, "base_risk_pct": 0.6, "micro_profit_enabled": False,
-      "tp_r_multiple": 99.0, "trail_atr_mult": 2.2}),
-    ("M30 remplace (temoin)", "tendance", {"base_risk_pct": 0.6}),
+    ("AVEC plafond 0,98 (arme)", "donchian", BASE_T),
+    ("SANS plafond (1,01)", "donchian", {**BASE_T, "max_atr_percentile": 1.01}),
+    ("plafond assoupli 0,995", "donchian", {**BASE_T, "max_atr_percentile": 0.995}),
 ]
 
 
