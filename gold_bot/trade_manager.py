@@ -43,6 +43,21 @@ class TradeManagerConfig:
     min_stop_atr: float = 0.8
     max_stop_atr: float = 3.0
     tp_r_multiple: float = 2.0
+    # AUCUN objectif de profit : la sortie n'est plus qu'un stop suiveur.
+    #
+    # Mesure du 3 septembre : 9 trades sur 469 faisaient 124 % du benefice
+    # et sortaient TOUS a 5,77 R — c'etait le plafond qui coupait, pas le
+    # marche (FIL avait fait +99 % de prix). Sans plafond, ces memes trades
+    # montent a 17 R.
+    #
+    # POURQUOI UN BOOLEEN ET PAS « tp_r_multiple = 99 ». Le 99 marchait,
+    # mais il MENTAIT aux garde-fous : la reussite necessaire se calcule par
+    # (1 + frais) / (1 + objectif), et un objectif de 99 la faisait tomber a
+    # 2 % pour n'importe quelle unite de temps — y compris le M5, que le
+    # test de securite est justement la pour tenir dehors. Un nombre magique
+    # qui desarme une barriere en silence est pire que le probleme qu'il
+    # resout.
+    tp_actif: bool = True
     spread_buffer_mult: float = 1.5
     max_cost_ratio_pct: float = 15.0
     max_stop_atr_for_cost: float = 4.0
@@ -93,6 +108,23 @@ class TradeManagerConfig:
     # perdant. C'est la meme promesse qu'avant, deplacee de l'etage vers
     # la pyramide — la seule echelle a laquelle elle ait un sens.
     pyramide_stop_commun: bool = False
+
+    # --- Sortie par CANAL (regle Turtle d'origine) ---
+    #
+    # Les Turtles ne sortaient pas sur un objectif en R : ils sortaient
+    # quand le prix cassait le plus-bas des 10 dernieres bougies (System 1)
+    # ou des 20 dernieres (System 2). C'est un stop qui SUIT la structure
+    # du marche au lieu de suivre une distance en ATR.
+    #
+    # La difference n'est pas cosmetique. Un stop a 2,2 ATR sort sur un
+    # repli ordinaire ; un canal de 10 jours laisse respirer tant que la
+    # structure haussiere tient, et coupe des qu'elle casse. C'est ce qui
+    # permet de tenir une tendance des semaines — la seule facon de payer
+    # 0,60 % de frais et d'en sortir gagnant.
+    #
+    # A zero, rien ne change. Le canal ne fait que RELEVER le stop, jamais
+    # l'abaisser : le cliquet existant garde la main.
+    sortie_canal_bougies: int = 0
 
 @dataclass(slots=True)
 class Momentum:
@@ -183,7 +215,11 @@ class TradeManager:
             if plancher > distance:
                 distance = min(plancher, cfg.max_stop_atr_for_cost * atr)
         stop = entry_price - sign * distance
-        target = entry_price + sign * distance * cfg.tp_r_multiple
+        # Sans objectif, on pose une cible hors d'atteinte : le trade ne
+        # peut alors sortir que par le stop suiveur, comme voulu. Le
+        # multiplicateur reste declare pour le controle de ratio R/R.
+        cible_r = cfg.tp_r_multiple if cfg.tp_actif else 1000.0
+        target = entry_price + sign * distance * cible_r
         return round(stop, digits), round(target, digits)
 
     def cost_ratio(self, atr: float, spread: float, structure_stop_distance: float = 0.0) -> float:
@@ -310,6 +346,19 @@ class TradeManager:
                     actions.append(TradeAction(ActionType.MODIFY_STOP, position.id, round(new_stop, digits),
                         reason=(f"proche du TP mais dynamique faible ({momentum.score:+.2f}) : "
                                 "stop resserre, objectif inchange")))
+        # SORTIE PAR CANAL (Turtle) : le stop suit le plus-bas des N
+        # dernieres bougies CLOTUREES. `[:-1]` exclut la bougie courante —
+        # sans quoi le plus-bas contiendrait le creux en train de se former
+        # et le stop se collerait au prix a chaque secousse.
+        if cfg.sortie_canal_bougies > 0:
+            n = int(cfg.sortie_canal_bougies)
+            closes = list(ind.candles)[-(n + 1):-1]
+            if len(closes) >= n:
+                canal = (min(c.low for c in closes) if sign > 0
+                         else max(c.high for c in closes))
+                if sign * (canal - new_stop) > 0:
+                    new_stop = canal
+
         # Stop COMMUN : on empeche cet etage de se resserrer AU-DELA du
         # niveau partage. Sans ce plafond, l'etage haut court devant les
         # autres et se fait sortir seul au premier repli (voir le

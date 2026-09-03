@@ -8,8 +8,13 @@ INDEPENDANT du bot et de toute session : il tourne via cron toutes les
 5 min, lit le solde reel chez Bitvavo, et coupe le service si la perte
 depuis le pic depasse la limite.
 
-  PIC de reference : 160.00 EUR (apres le depot du 2 septembre)
-  LIMITE           : 10 EUR de perte  ->  plancher 150.00 EUR
+  PIC de reference : 158.00 EUR
+  LIMITE           : 58 EUR de perte  ->  plancher 100.00 EUR
+
+  Plancher porte a 100 EUR le 3 septembre, sur decision explicite de
+  l'operateur, pour laisser respirer le test Turtle en D1 : une strategie
+  qui tient ses positions des jours ne peut pas etre jugee avec 8 EUR de
+  marge. C'est un choix ASSUME de tolerer -37 % avant coupure.
 
   Recalibre le 2 sept. : un depot de ~69 EUR a porte le compte de 90 a
   160 EUR sans que le plancher (87.35) bouge. Le chien de garde tolerait
@@ -37,8 +42,8 @@ from dataclasses import replace
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-PIC_EUR = 160.00
-LIMITE_PERTE_EUR = 10.0
+PIC_EUR = 158.00
+LIMITE_PERTE_EUR = 58.0
 # Plancher = pic - limite. Surchargeable par CHIEN_PLANCHER_EUR (reglage
 # a chaud sans toucher au code, et test du declenchement).
 PLANCHER_EUR = float(os.environ.get("CHIEN_PLANCHER_EUR", PIC_EUR - LIMITE_PERTE_EUR))

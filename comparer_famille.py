@@ -266,45 +266,37 @@ BASE = {**TENIR, **PYRAMIDE}
 # alors que Bitvavo prend cinq fois cela.
 BASE_TF = {**TENIR, **PYRAMIDE}
 
-# L'ERREUR DE MESURE QU'IL FALLAIT CORRIGER.
+# ---------------------------------------------------------------------
+# CE QUI COUPE LES GROSSES MONTEES — mesure du 3 septembre
+# ---------------------------------------------------------------------
+# Constat sur la variante gagnante : 9 trades sur 469 font 124 % du
+# benefice, et TOUS sortent au meme endroit — 5,76 / 5,77 / 5,78 R, motif
+# « objectif atteint ». Ce n'est pas le marche qui les arrete, c'est le
+# plafond de 6 R. FIL avait fait +99 % de prix.
 #
-# Les premiers passages tournaient sur SEPT paires. Le robot en suit 92,
-# dont 70 ont une paire EUR chez Bitvavo. Le D1 rendait 38 trades sur six
-# mois — j'en ai conclu « strategie trop lente », alors que je l'avais
-# mesuree sur 8 % de son terrain. A 70 paires, la meme strategie tourne
-# a ~380 trades sur la meme periode, soit ~60 par mois.
+# Deuxieme coupe-file trouve dans les motifs : le « micro-profit » ferme
+# ~70 gagnants entre 1 et 2 R des que la dynamique faiblit. Sur une
+# strategie qui ne vit que de ses rares gros trades, fermer a 1,5 R ce qui
+# allait a 20 R coute plus cher que tout le reste.
 #
-# Ce n'est pas un detail de precision : un resultat a 38 trades est du
-# bruit (±0,39 R a deux ecarts-types), un resultat a 380 devient lisible
-# (±0,12 R). Et une strategie « qui ne rapporte que 4 EUR » sur 8 % de
-# l'univers en rapporte mecaniquement treize fois plus sur la totalite.
-D1 = {"entry_tf": "D1"}
-H4 = {"entry_tf": "H4"}
-
-# TURTLE (Dennis, 1983) — le systeme public le plus verifie qui existe :
-# 23 debutants, 175 millions de dollars en cinq ans, regles publiees.
-# Entree a la cassure du plus-haut de 20 (ou 55) bougies, sortie sur le
-# canal bas de 10. Long-only, D1, taille par l'ATR : tout colle au compte.
-#
-# Le papier « Catching Crypto Trends » (2025) l'applique a TOUTES les
-# cryptos depuis 2015, sans biais du survivant et NET DE FRAIS — Sharpe
-# 1,58, CAGR 30 %, alpha +14 % contre le bitcoin — en agregeant PLUSIEURS
-# horizons de canal plutot qu'un seul. D'ou la variante « ensemble ».
-TURTLE = {"donchian_entrees": (20, 55)}
-TURTLE_ENS = {"donchian_entrees": (10, 20, 55)}
+# On teste donc les trois sorties qui peuvent brider une montee :
+#   le PLAFOND (tp_r_multiple), le STOP SUIVEUR (trail_atr_mult),
+#   et le MICRO-PROFIT.
+BASE_D1 = {"entry_tf": "D1", "donchian_entrees": (20,),
+           "partial_enabled": False, "max_extensions": 12,
+           "base_risk_pct": 1.0}
+SANS_MICRO = {"micro_profit_enabled": False}
 
 MODES: list[tuple[str, str, dict]] = [
-    ("M30 actuel", "tendance", {}),
-    ("M30 tenir+pyr", "tendance", BASE_TF),
-    ("H4 simple", "tendance", H4),
-    ("D1 simple", "tendance", D1),
-    ("D1 tenir", "tendance", {**TENIR, **D1}),
-    ("D1 tenir+pyr", "tendance", {**BASE_TF, **D1}),
-    ("D1 TURTLE 20/55", "donchian", {**D1, **TURTLE}),
-    ("D1 TURTLE tenir", "donchian", {**D1, **TURTLE, **TENIR}),
-    ("D1 TURTLE tenir+pyr", "donchian", {**D1, **TURTLE, **BASE_TF}),
-    ("D1 TURTLE ensemble", "donchian", {**D1, **TURTLE_ENS, **TENIR}),
-    ("H4 TURTLE tenir", "donchian", {**H4, **TURTLE, **TENIR}),
+    ("CONFIG ARMEE (tp_actif=False)", "donchian",
+     {"entry_tf": "D1", "donchian_entrees": (20,), "partial_enabled": False,
+      "max_extensions": 12, "base_risk_pct": 0.6, "micro_profit_enabled": False,
+      "tp_actif": False, "tp_r_multiple": 2.0, "trail_atr_mult": 2.2}),
+    ("mesure precedente (tp=99)", "donchian",
+     {"entry_tf": "D1", "donchian_entrees": (20,), "partial_enabled": False,
+      "max_extensions": 12, "base_risk_pct": 0.6, "micro_profit_enabled": False,
+      "tp_r_multiple": 99.0, "trail_atr_mult": 2.2}),
+    ("M30 remplace (temoin)", "tendance", {"base_risk_pct": 0.6}),
 ]
 
 

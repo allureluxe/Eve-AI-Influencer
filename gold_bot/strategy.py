@@ -271,6 +271,23 @@ class StrategyConfig:
     # depasse le plus-haut d'AU MOINS UN de ces horizons.
     donchian_entrees: tuple[int, ...] = (20, 55)
     donchian_sortie: int = 10       # canal bas de sortie (regle d'origine)
+
+    # LE FILTRE DU SYSTEM 1, et c'est le coeur de la regle.
+    #
+    # Si la cassure PRECEDENTE sur ce marche a ete gagnante, on SAUTE la
+    # suivante. Seule une cassure perdante redonne le droit d'entrer.
+    #
+    # Contre-intuitif, et c'est justement pour ca qu'il marche : les
+    # cassures arrivent en grappes, et apres une reussite le marche a deja
+    # fait son mouvement. Sauter l'une sur deux evite d'acheter la fin
+    # d'une tendance — exactement le defaut observe en reel sur UNI et FIL,
+    # ou le robot rachetait de plus en plus haut jusqu'a prendre la perte
+    # pleine sur la derniere.
+    #
+    # Les Turtles gardaient System 2 (55 j) SANS ce filtre, comme filet :
+    # si S1 saute la cassure qui devient la grande tendance de l'annee,
+    # S2 la reprend. On ne modelise ici que S1.
+    donchian_filtre_precedent: bool = False
     reversion_ma_periode: int = 50       # periode de la SMA de reference (dediee)
     reversion_entree_atr: float = 2.0    # ecart MA-prix minimal, en ATR, pour entrer
     reversion_sortie_atr: float = 0.5    # sortie quand MA-prix repasse sous ce seuil, en ATR
@@ -321,6 +338,14 @@ class Strategy:
         # Ponderation apprise sur les trades reellement fermes. Neutre par
         # defaut : sans historique, elle ne change rien.
         self.poids = poids or PoidsAdaptatifs()
+        # Par symbole : la derniere cassure Donchian a-t-elle ete gagnante ?
+        # Renseigne a chaque cloture (`noter_sortie_donchian`). Absent = on
+        # ne sait pas encore, donc on prend la cassure.
+        self._donchian_dernier_gagnant: dict[str, bool] = {}
+
+    def noter_sortie_donchian(self, symbol: str, gagnant: bool) -> None:
+        """Memorise l'issue d'une cassure, pour le filtre du System 1."""
+        self._donchian_dernier_gagnant[symbol] = bool(gagnant)
 
     # ---------------------------------------------------------------
     ORDRE_TF = {"M1": 1, "M3": 3, "M5": 5, "M15": 15,
@@ -857,6 +882,18 @@ class Strategy:
         if not casses:
             return ev
 
+        # Filtre System 1 : la cassure precedente etait-elle gagnante ?
+        # `_donchian_dernier_gagnant` est renseigne par le moteur/rejeu a
+        # chaque cloture. Inconnu = on prend (comme au demarrage reel).
+        if cfg.donchian_filtre_precedent:
+            precedent = self._donchian_dernier_gagnant.get(instrument.symbol)
+            if precedent is True:
+                ev.gates.append(Gate(
+                    "donchian_filtre", False,
+                    "cassure precedente GAGNANTE : on saute celle-ci "
+                    "(regle System 1)"))
+                return ev
+
         ev.side = Side.BUY
         ev.setup = "donchian_cassure"
         sl, _ = self.trade_manager.initial_levels(
@@ -868,7 +905,14 @@ class Strategy:
         # satisfaire le controle de ratio : un systeme de cassure n'a pas
         # de cible fixe, c'est tout son interet.
         risque = max(price - sl, 1e-12)
-        cible_r = self.trade_manager.config.tp_r_multiple
+        # `tp_actif` doit etre respecte ICI AUSSI. Il ne suffit pas de le
+        # lire dans `initial_levels` : c'est la strategie qui pose la cible
+        # de l'evaluation, et elle la reimposait a 2 R par l'autre bout.
+        # Mesure : le plafond revenait en silence et l'esperance tombait de
+        # +0,130 a +0,044 R. Deux endroits decident du meme reglage — celui
+        # qu'on oublie est celui qui gagne.
+        tm = self.trade_manager.config
+        cible_r = tm.tp_r_multiple if tm.tp_actif else 1000.0
         ev.take_profit = round(price + cible_r * risque, instrument.digits)
         ev.rr = cible_r
         return ev

@@ -242,7 +242,14 @@ class TestUniteDeTemps:
         moins de frais (7 % du risque contre 47 % au M30). Payer cher n'est
         pas le probleme ; ne pas avoir d'avantage l'est.
         """
-        assert config().strategy.entry_tf == "M30", "voir CLAUDE.md"
+        # M30 -> D1 le 3 septembre. La decision du 30 aout reposait sur
+        # 8 paires et ~30 jours de donnees (le fournisseur plafonnait la
+        # sans le dire). Remesure sur 70 paires et 6 mois en walk-forward :
+        #     M30 : -0,201 R (3379 trades)   D1 : +0,130 R (450 trades)
+        # L'assertion change parce que la MESURE a change, pas pour faire
+        # passer une config — c'est le geste qui a sabote le bot le
+        # 1er septembre, et il ne doit jamais se faire en silence.
+        assert config().strategy.entry_tf == "D1", "voir CLAUDE.md"
 
     def test_les_unites_plus_rapides_restent_hors_de_portee(self):
         """En dessous du M30, la division redevient impossible.
@@ -260,26 +267,40 @@ class TestUniteDeTemps:
                 "selectionnable")
 
     def test_le_m5_reste_hors_de_portee_du_systeme(self):
-        """Le M5 exige bien plus que ce que ce robot sait faire.
+        """Le M5 part perdant quoi qu'on fasse ensuite.
 
-        Le 29 aout au matin il tournait en argent reel avec une reussite
-        NECESSAIRE de 122,5 % — arithmetiquement impossible. Le stop plus
-        large (1,6 ATR au lieu de 1,10) et l'objectif a 2R ramenent ce
-        chiffre a 75 %, donc plus « impossible » au sens strict.
+        REECRIT LE 3 SEPTEMBRE, et il faut dire pourquoi.
 
-        Mais le meilleur rejeu jamais obtenu donne 56,6 %. Exiger 75 %,
-        c'est demander au systeme d'etre d'un tiers meilleur que tout ce
-        qu'il a montre : la barriere reste, elle a seulement change de
-        nature — de l'arithmetique a la mesure.
+        L'assertion d'origine passait par la reussite necessaire,
+        (1 + frais) / (1 + objectif). Elle supposait un objectif FIXE. Le
+        passage a une sortie par stop suiveur seul (`tp_actif = False`) l'a
+        rendue aveugle : sans objectif le denominateur explose, et le M5 ne
+        demandait plus que 2 % de reussite. La barriere tombait sans que
+        rien ne casse — le genre de trou qu'on ne voit qu'en le cherchant.
+
+        Le nouveau critere ne depend d'AUCUN mode de sortie : le rapport
+        frais / risque. Il ne dit pas combien il faut gagner, il dit combien
+        on part perdant. Au M5 l'aller-retour coute plus que le risque
+        entier du trade — aucune sortie, aussi bonne soit-elle, ne rattrape
+        ca.
+
+            M5  : stop 0,48 % pour 0,60 % de frais  ->  125 %
+            M30 : stop 1,28 %                       ->   47 %
+            D1  : stop 8,74 %                       ->    7 %
         """
         cfg = config()
-        stop = ATR_PAR_UNITE["M5"] * cfg.trade.atr_stop_mult
-        frais_en_r = (2 * FRAIS_BITVAVO + COUT_INCOMPRESSIBLE) / stop
-        necessaire = (1 + frais_en_r) / (1 + cfg.trade.tp_r_multiple) * 100
-        assert necessaire > REJEU_REUSSITE_PCT + 10.0, (
-            f"le M5 ne demanderait plus que {necessaire:.0f} % de reussite "
-            f"pour {REJEU_REUSSITE_PCT:.1f} % mesures : il redevient "
-            "tentant, et c'est exactement le piege du 29 aout")
+        stop_m5 = ATR_PAR_UNITE["M5"] * cfg.trade.atr_stop_mult
+        frais_m5 = (2 * FRAIS_BITVAVO + COUT_INCOMPRESSIBLE) / stop_m5
+        assert frais_m5 > 1.0, (
+            f"au M5 les frais ne valent plus que {frais_m5:.0%} du risque : "
+            "l'unite redevient tentante, et c'est le piege du 29 aout")
+
+        stop_reel = ATR_PAR_UNITE[cfg.strategy.entry_tf] * cfg.trade.atr_stop_mult
+        frais_reel = (2 * FRAIS_BITVAVO + COUT_INCOMPRESSIBLE) / stop_reel
+        assert frais_reel < 0.40, (
+            f"l'unite en service ({cfg.strategy.entry_tf}) part avec "
+            f"{frais_reel:.0%} de son risque en frais ; la mesure du "
+            "3 septembre donne le M30 (47 %) perdant a -0,201 R")
 
     def test_le_stop_temporel_est_a_l_echelle_du_d1(self):
         """Le piege : 180 minutes ont du sens en M15, aucun en D1.

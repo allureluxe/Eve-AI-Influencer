@@ -1,6 +1,6 @@
 {
   "_arme_en_reel": "OUI, DELIBEREMENT. Cette configuration engage de l'argent veritable.",
-  "_note": "Bitvavo M30 AU COMPTANT, achat seul. Rejeu du 30 aout, 8 cryptos, 4000 bougies, SPREAD DOUBLE : +0,352 R sur 130 trades, 60,0 % de reussite. La version avec vente a decouvert faisait MOINS bien (+0,273 R, 56,6 %) : les ventes coutaient 3,4 points de reussite. Le compte n'a de toute facon pas la marge activee. Voir CLAUDE.md, section « M30 au comptant ».",
+  "_note": "Turtle adapte, arme le 3 sept. apres mesure walk-forward sur 70 paires : D1 canal-20, sans plafond de profit, sans micro-profit, stop suiveur 2,2 ATR, sans pyramidage. +0,130 R total / +0,214 R OOS contre -0,201 R pour le M30 remplace. Risque 0,6 % (palier preuve).",
   "engine": {
     "broker": "bitvavo",
     "dry_run": false,
@@ -20,13 +20,13 @@
     "min_confirmations": 3,
     "require_candle_confirmation": false,
     "confirmation_margin": 0,
-    "trigger_tf": "M15",
-    "entry_tf": "M30",
-    "context_tf": "H1",
-    "bias_tf": "H4",
+    "trigger_tf": "D1",
+    "entry_tf": "D1",
+    "context_tf": "D1",
+    "bias_tf": "D1",
     "adaptive_timeframe": false,
     "timeframe_ladder": [
-      "M30"
+      "D1"
     ],
     "max_cost_ratio_pct": 50.0,
     "max_spread_atr_ratio": 0.3,
@@ -51,7 +51,13 @@
     "w_volume": 0.08,
     "w_macro": 0.06,
     "w_news": 0.07,
-    "history": 300
+    "history": 300,
+    "famille": "donchian",
+    "donchian_entrees": [
+      20
+    ],
+    "donchian_sortie": 10,
+    "donchian_filtre_precedent": false
   },
   "risk": {
     "base_risk_pct": 0.6,
@@ -72,7 +78,8 @@
     "max_consecutive_losses": 4,
     "pause_after_losses_minutes": 45.0,
     "min_rr": 1.6,
-    "max_capital_engaged_pct": 90.0
+    "max_capital_engaged_pct": 90.0,
+    "pyramide_max": 0
   },
   "trade": {
     "atr_stop_mult": 1.6,
@@ -84,25 +91,27 @@
     "spread_buffer_mult": 1.2,
     "breakeven_at_r": 0.7,
     "breakeven_offset_r": 0.05,
-    "partial_enabled": true,
+    "partial_enabled": false,
     "partial_at_r": 1.0,
     "partial_fraction": 0.3,
     "trail_start_r": 1.1,
-    "trail_atr_mult": 0.9,
+    "trail_atr_mult": 2.2,
     "trail_tighten_atr_mult": 0.6,
     "extend_enabled": true,
     "extend_at_progress": 0.8,
     "extend_by_atr": 0.7,
     "extend_by_r_min": 0.4,
-    "max_extensions": 3,
+    "max_extensions": 12,
     "extend_min_momentum": 0.3,
     "lock_r_on_extend": 0.4,
     "lock_back_atr": 0.9,
-    "time_stop_minutes": 360.0,
+    "time_stop_minutes": 17280.0,
     "time_stop_min_r": 0.4,
     "reversal_exit_r": 0.25,
     "news_tighten_atr_mult": 0.6,
-    "max_adverse_r": 1.0
+    "max_adverse_r": 1.0,
+    "micro_profit_enabled": false,
+    "tp_actif": false
   },
   "objectives": {
     "base_target": 4.0,

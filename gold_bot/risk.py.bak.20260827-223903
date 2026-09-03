@@ -28,27 +28,6 @@ from .universe import Instrument
 logger = logging.getLogger(__name__)
 
 
-# DEUX REFUS QUI NE SONT PAS DES PANNES.
-#
-# Ils se resolvent seuls en quelques secondes et font partie du
-# fonctionnement normal : le premier suit CHAQUE cloture de trade
-# (`last_trade_ts` vaut `trade.closed_at`), le second signale simplement
-# que le compte travaille a plein.
-#
-# Les annoncer au meme niveau qu'un drawdown ou une limite de perte
-# journaliere transforme une trace d'activite en fausse alerte. Le
-# 30 aout, onze de ces lignes ont fait croire a un robot bloque toute la
-# journee — alors qu'elles prouvaient exactement l'inverse : onze trades
-# s'etaient fermes.
-DELAI_NON_ECOULE = "delai minimal entre deux trades non ecoule"
-PLACES_OCCUPEES = "nombre maximal de positions atteint"
-
-
-def refus_routinier(motif: str) -> bool:
-    """Le refus se resout-il seul, sans que personne ait a intervenir ?"""
-    return motif.startswith((DELAI_NON_ECOULE, PLACES_OCCUPEES))
-
-
 @dataclass(slots=True)
 class RiskConfig:
     """Parametres de gestion du risque."""
@@ -65,7 +44,7 @@ class RiskConfig:
     daily_profit_target_pct: float = 6.0   # au-dela : on protege la journee
 
     # --- Exposition ---
-    max_positions: int = 3
+    max_positions: int = 999
     max_per_correlation_group: int = 1
     max_total_risk_pct: float = 3.0    # somme des risques ouverts
     max_daily_trades: int = 12
@@ -75,55 +54,6 @@ class RiskConfig:
     # par la plateforme au pire moment, faute de liquidites disponibles.
     max_capital_engaged_pct: float = 80.0
     max_leverage: float = 30.0         # plafond de levier effectif
-
-    # --- Renforcement (pyramidage) ---
-    #
-    # Ajouter une position sur un actif qui MONTE DEJA, pour que la suite
-    # du mouvement porte plus de volume. C'est la demande de l'operateur :
-    # « grosse montee, plus d'investissement ».
-    #
-    # La regle qui rend la chose tenable est `pyramide_locked_r_min`. Une
-    # position ne peut etre renforcee que si son stop est DEJA au-dessus
-    # de son entree — c'est-a-dire que la premiere ne peut plus perdre.
-    # Sans cette condition, empiler trois entrees sur la meme crypto
-    # revient a tripler le risque sur un seul actif, et une meche a
-    # contre-sens les prend toutes les trois ensemble. Avec elle, le pire
-    # cas de la pyramide reste le risque du dernier etage.
-    #
-    # A zero, rien ne change : c'est le reglage par defaut, et le rejeu
-    # doit avoir tranche avant qu'il bouge.
-    pyramide_max: int = 0              # etages supplementaires autorises (0 = desarme)
-    pyramide_locked_r_min: float = 0.05    # stop de l'etage precedent, en R
-    pyramide_fraction_risque: float = 0.6  # chaque etage risque moins que le precedent
-
-    # ESPACEMENT ENTRE ETAGES, en ATR (regle Turtle : « +1 unite tous les
-    # 0,5 N »). A zero, aucune distance n'est exigee et deux etages peuvent
-    # s'ouvrir sur la meme bougie — ce qui n'est pas du renforcement, c'est
-    # une position double payee deux fois en frais.
-    pyramide_espacement_atr: float = 0.0
-
-    # --- Delai de carence apres une SORTIE, par symbole ---
-    #
-    # Mesure sur 48 h les 1er-2 septembre : 53 trades, dont DIX entrees
-    # successives sur UNIUSD (4,54 -> 4,64 -> 4,80 -> 5,00 -> ... -> 5,49)
-    # pour un gain total de 0,64 EUR. Sept sur CRVUSD, six sur FILUSD dont
-    # la plus haute a pris la perte pleine (-1,06 R).
-    #
-    # Le robot refermait une position et rouvrait la MEME crypto quelques
-    # minutes plus tard, plus haut, en repayant l'aller-retour a chaque
-    # fois. Le chiffre qui tranche : esperance BRUTE +0,135 R (les entrees
-    # sont gagnantes sur les prix) contre NETTE -0,105 R. Ce ne sont pas
-    # les entrees qui sont mauvaises, c'est la ROTATION qui les mange.
-    #
-    # CE DELAI NE TOUCHE PAS AU PYRAMIDAGE, ET C'EST LA DISTINCTION QUI
-    # COMPTE. Il ne s'applique qu'a un RACHAT apres une sortie — quand
-    # plus rien n'est ouvert sur le symbole. Ajouter un etage a une
-    # position encore ouverte passe par `peut_renforcer` et n'est jamais
-    # concerne : renforcer un gagnant en cours et racheter un actif qu'on
-    # vient de quitter sont deux gestes opposes.
-    #
-    # A zero, rien ne change : le rejeu doit trancher avant.
-    cooldown_apres_sortie_minutes: float = 0.0
 
     # --- Serie ---
     max_consecutive_losses: int = 4    # au-dela : pause forcee
@@ -273,10 +203,6 @@ class RiskManager:
         self.config = config or RiskConfig()
         self.ladder = ladder or EquityLadder()
         self.account = AccountState()
-        # Derniere SORTIE par symbole, pour le delai de carence. Distinct
-        # de `last_trade_ts` qui est global : c'est le rachat du MEME actif
-        # qui coute, pas la cadence generale.
-        self._derniere_sortie: dict[str, float] = {}
 
     # ---------------------------------------------------------------
     # Suivi du compte
@@ -290,52 +216,6 @@ class RiskManager:
         day = dt.strftime("%Y-%m-%d")
         year, week, _ = dt.isocalendar()
         wk = f"{year}-W{week:02d}"
-
-        # UN APPORT N'EST PAS UNE PERFORMANCE.
-        #
-        # Observe le 2 septembre : un depot de ~69 EUR a porte le compte de
-        # 90 a 158 EUR. L'echelle de capital (anti-martingale) y a lu +63 %
-        # de gain, est montee au cran x1,80, et le risque par trade est
-        # passe de 0,41 % a 1,08 % — au-dessus du palier « preuve » (0,6 %)
-        # que le plan de croissance impose tant que l'avantage n'est pas
-        # etabli. La perte suivante a coute 2,28 EUR la ou les precedentes
-        # coutaient 0,30 a 0,71 EUR : meme strategie, position trois fois
-        # plus grosse.
-        #
-        # L'echelle ne peut pas distinguer un virement d'une serie de gains
-        # : les deux font monter la courbe. On la lui apprend ici — un saut
-        # que les trades fermes n'expliquent pas est un mouvement de
-        # tresorerie, et la reference le suit au lieu de le recompenser.
-        #
-        # UNIQUEMENT LES SAUTS VERS LE HAUT, et l'asymetrie est deliberee.
-        #
-        # Un bond que les trades n'expliquent pas est presque toujours un
-        # depot. Une CHUTE que les trades n'expliquent pas, elle, peut etre
-        # un retrait — ou une grosse perte. Traiter une perte comme un
-        # retrait recalerait la reference vers le bas et **desarmerait le
-        # coupe-circuit de drawdown** au pire moment. Les deux erreurs ne
-        # coutent pas la meme chose : se tromper sur un depot donne des
-        # positions un peu trop petites, se tromper sur une perte retire le
-        # filet. On ne corrige donc que le sens dangereux.
-        #
-        # `peak_equity` n'est pas touche : il remonte tout seul par le
-        # `max()` juste apres, et le baisser aurait le meme effet que
-        # ci-dessus.
-        #
-        # Seuil volontairement large (5 % du capital ET 3x le realise du
-        # jour) : on recale sur un apport franc, pas sur un gros gagnant.
-        precedent = acc.equity
-        if precedent > 0 and acc.reference_equity > 0:
-            saut = equity - precedent
-            explique = abs(acc.realized_today) * 3.0 + 0.02 * precedent
-            if saut > max(explique, 0.05 * precedent):
-                acc.reference_equity += saut
-                logger.warning(
-                    "apport detecte : +%.2f %s que les trades n'expliquent "
-                    "pas. Reference %.2f -> %.2f : l'echelle de capital ne "
-                    "prend PAS ce saut pour un gain.",
-                    saut, currency, acc.reference_equity - saut,
-                    acc.reference_equity)
 
         acc.equity, acc.balance, acc.currency = equity, balance, currency
         if acc.reference_equity <= 0:
@@ -365,7 +245,6 @@ class RiskManager:
         acc.realized_this_week += trade.profit
         acc.trades_today += 1
         acc.last_trade_ts = trade.closed_at
-        self._derniere_sortie[trade.symbol] = trade.closed_at
         if trade.profit < 0:
             acc.consecutive_losses += 1
             acc.consecutive_wins = 0
@@ -419,33 +298,14 @@ class RiskManager:
         if cfg.max_daily_trades > 0 and acc.trades_today >= cfg.max_daily_trades:
             return False, f"quota de trades du jour atteint ({acc.trades_today})"
         if len(positions) >= cfg.max_positions:
-            return False, f"{PLACES_OCCUPEES} ({len(positions)})"
+            return False, f"nombre maximal de positions atteint ({len(positions)})"
         if now - acc.last_trade_ts < cfg.min_seconds_between_trades:
-            return False, DELAI_NON_ECOULE
+            return False, "delai minimal entre deux trades non ecoule"
         return True, ""
-
-    def carence_restante(self, symbol: str, now: Optional[float] = None) -> float:
-        """Minutes restantes avant de pouvoir RACHETER ce symbole.
-
-        `now` est explicite pour que le rejeu, qui avance sur l'horloge des
-        bougies et non sur celle du systeme, mesure la meme chose que le
-        robot. Sans ce parametre le delai ne s'appliquait jamais en rejeu —
-        et le banc d'essai aurait rendu un resultat identique au temoin,
-        exactement le piege decrit pour la pyramide.
-        """
-        cfg = self.config
-        if cfg.cooldown_apres_sortie_minutes <= 0:
-            return 0.0
-        sortie = self._derniere_sortie.get(symbol)
-        if not sortie:
-            return 0.0
-        ecoule = ((now or time.time()) - sortie) / 60.0
-        return max(0.0, cfg.cooldown_apres_sortie_minutes - ecoule)
 
     def check_exposure(self, instrument: Instrument, side: Side,
                        open_positions: list[Position],
-                       universe_lookup,
-                       now: Optional[float] = None) -> tuple[bool, str]:
+                       universe_lookup) -> tuple[bool, str]:
         """Verifie les regles d'exposition et de correlation.
 
         Empiler trois achats correles (or + argent + AUD par exemple)
@@ -453,83 +313,14 @@ class RiskManager:
         """
         cfg = self.config
         same_group = 0
-        sur_le_meme = [p for p in open_positions if p.symbol == instrument.symbol]
-        if sur_le_meme:
-            # Position encore ouverte : c'est une decision de PYRAMIDE.
-            # Le delai de carence ne s'applique pas ici — renforcer un
-            # gagnant en cours n'est pas racheter ce qu'on vient de quitter.
-            ok, why = self.peut_renforcer(sur_le_meme, side)
-            if not ok:
-                return False, why
-        else:
-            # Rien d'ouvert sur ce symbole : c'est un RACHAT. C'est celui-la
-            # qui a produit dix entrees sur UNIUSD en 48 h.
-            reste = self.carence_restante(instrument.symbol, now)
-            if reste > 0:
-                return False, (
-                    f"rachat de {instrument.symbol} trop tot : encore "
-                    f"{reste:.0f} min de carence sur "
-                    f"{cfg.cooldown_apres_sortie_minutes:.0f}")
         for pos in open_positions:
             if pos.symbol == instrument.symbol:
-                continue
+                return False, f"position deja ouverte sur {instrument.symbol}"
             other = universe_lookup(pos.symbol)
             if other and instrument.correlation_group and other.correlation_group == instrument.correlation_group:
                 same_group += 1
         if instrument.correlation_group and same_group >= cfg.max_per_correlation_group:
             return False, f"exposition deja prise sur le groupe correle '{instrument.correlation_group}'"
-        return True, ""
-
-    def peut_renforcer(self, sur_le_meme: list[Position],
-                       side: Side, prix: float = 0.0,
-                       atr: float = 0.0) -> tuple[bool, str]:
-        """Un etage de plus est-il permis sur un actif deja detenu ?
-
-        Trois conditions, et chacune ferme une porte differente :
-
-        1. le renforcement est arme (`pyramide_max` > 0) ;
-        2. le nombre d'etages n'est pas atteint ;
-        3. TOUS les etages ouverts ont deja leur stop au-dessus de leur
-           entree.
-
-        La troisieme est la seule qui protege vraiment. Elle transforme
-        « trois fois le risque sur une crypto » en « le risque du dernier
-        etage, les precedents ne pouvant plus perdre ». Sans elle, un
-        retournement brutal — ce qui arrive precisement apres une grosse
-        montee — encaisse toutes les pertes d'un coup.
-
-        Elle impose aussi le bon SENS de la pyramide : on ne renforce que
-        ce qui gagne. Renforcer une position perdante est une moyenne a la
-        baisse, exactement l'inverse de ce qui est demande ici.
-        """
-        cfg = self.config
-        if cfg.pyramide_max <= 0:
-            return False, f"position deja ouverte sur {sur_le_meme[0].symbol}"
-        if len(sur_le_meme) > cfg.pyramide_max:
-            return False, (f"{len(sur_le_meme)} etage(s) deja sur "
-                           f"{sur_le_meme[0].symbol}, maximum {cfg.pyramide_max}")
-        # Un renforcement a contre-sens serait une couverture, pas une
-        # pyramide : les deux positions s'annuleraient en payant deux fois
-        # les frais.
-        if any(p.side is not side for p in sur_le_meme):
-            return False, f"position de sens oppose ouverte sur {sur_le_meme[0].symbol}"
-        # Espacement Turtle : le prix doit avoir avance d'au moins
-        # `pyramide_espacement_atr` ATR depuis le DERNIER etage ouvert.
-        if cfg.pyramide_espacement_atr > 0 and prix > 0 and atr > 0:
-            dernier = max(sur_le_meme, key=lambda p: p.opened_at)
-            avance = side.sign * (prix - dernier.entry_price)
-            exige = cfg.pyramide_espacement_atr * atr
-            if avance < exige:
-                return False, (
-                    f"renforcement trop proche sur {dernier.symbol} : "
-                    f"{avance / atr:+.2f} ATR depuis le dernier etage, "
-                    f"{cfg.pyramide_espacement_atr:.2f} exiges")
-
-        retard = [p for p in sur_le_meme if p.locked_r() < cfg.pyramide_locked_r_min]
-        if retard:
-            return False, (f"renforcement refuse sur {sur_le_meme[0].symbol} : "
-                           f"un etage n'a que {min(p.locked_r() for p in retard):+.2f}R "
-                           f"verrouille pour {cfg.pyramide_locked_r_min:+.2f}R exiges")
         return True, ""
 
     def open_risk_pct(self, open_positions: list[Position],
@@ -596,7 +387,6 @@ class RiskManager:
         extra_multiplier: float = 1.0,
         spread: float = 0.0,
         available_cash: Optional[float] = None,
-        places_visees: Optional[int] = None,
     ) -> SizingDecision:
         """Calcule le volume a engager. Refuse si une regle est violee."""
         acc, cfg = self.account, self.config
@@ -614,21 +404,6 @@ class RiskManager:
 
         risk_pct, factors = self.effective_risk_pct(extra_multiplier)
 
-        # CHAQUE ETAGE DE PYRAMIDE RISQUE MOINS QUE LE PRECEDENT.
-        #
-        # Sans decroissance, un renforcement double le risque sur le meme
-        # actif ; a trois etages il le triple. La condition d'entree exige
-        # deja que les etages precedents ne puissent plus perdre, donc le
-        # pire cas reste borne — mais la CONCENTRATION, elle, ne l'est pas :
-        # a 96 EUR de capital, deux etages pleins mettent tout le compte
-        # sur une seule crypto. La decroissance geometrique garde le poids
-        # du sommet de la pyramide raisonnable.
-        etages = sum(1 for p in positions if p.symbol == instrument.symbol)
-        if etages and cfg.pyramide_max > 0:
-            attenuation = cfg.pyramide_fraction_risque ** etages
-            risk_pct *= attenuation
-            factors.append(f"etage {etages + 1} de la pyramide (x{attenuation:.2f})")
-
         # Le risque deja engage plafonne le risque du nouveau trade.
         already = self.open_risk_pct(positions, lookup)
         room = cfg.max_total_risk_pct - already
@@ -645,6 +420,21 @@ class RiskManager:
 
         raw_lots = risk_amount / (stop_distance * value_per_unit)
 
+        # SCALPING PETIT CAPITAL :
+        # Le calcul de risque peut produire un ticket trop gros par rapport
+        # au capital disponible. On plafonne donc chaque nouvelle entree a
+        # un petit notionnel proche du minimum Bitvavo. Le risque, le SL/TP,
+        # les frais et la liquidite restent controles plus bas.
+        max_scalp_notional = 5.50
+        valeur_par_lot = entry_price * instrument.contract_size
+        if valeur_par_lot > 0:
+            max_lots_scalp = max_scalp_notional / valeur_par_lot
+            if raw_lots > max_lots_scalp:
+                raw_lots = max_lots_scalp
+                factors.append(
+                    f"ticket scalping plafonne a {max_scalp_notional:.2f} {acc.currency}"
+                )
+
         # Argent reellement disponible. Au comptant, le capital total inclut
         # ce qui est deja investi : on ne peut pas acheter avec. Sans cette
         # limite, le robot proposerait des ordres que la plateforme refuserait
@@ -652,91 +442,19 @@ class RiskManager:
         if available_cash is not None and available_cash >= 0:
             valeur_unitaire = entry_price * instrument.contract_size
             if valeur_unitaire > 0:
-                # Le cash n'est pas reserve au premier arrive. Le moteur
-                # multi-entrees peut ouvrir plusieurs places dans le meme
-                # cycle : si le premier ordre consomme tout le solde, les
-                # suivants sont refuses faute de liquidites, et le robot se
-                # retrouve avec UNE position la ou la configuration en
-                # autorise douze. On repartit donc le solde entre les places
-                # encore libres.
-                #
-                # La part est bornee par le plafond d'engagement, et ce qui
-                # est deja investi en est deduit : sans cela le coussin de
-                # securite disparaitrait des la deuxieme position.
-                # Le plafond d'engagement borne ce qu'on peut ENGAGER, donc
-                # il se calcule sur le pouvoir d'achat, pas sur le capital.
-                # Au comptant les deux se confondent (max_leverage = 1).
-                levier = max(1.0, cfg.max_leverage)
-                plafond_engage = (acc.equity * levier
-                                  * cfg.max_capital_engaged_pct / 100.0)
-                deja_engage = 0.0
-                for pos in positions:
-                    inst = lookup(pos.symbol)
-                    if inst:
-                        deja_engage += abs(pos.entry_price * inst.contract_size * pos.volume)
-                # AU COMPTANT, LE CASH SE PARTAGE ENTRE LES PLACES.
-                #
-                # On achete des cryptos : chaque euro engage sort du solde.
-                # Servir la premiere position a la taille voulue par le
-                # risque la laisserait consommer la moitie du budget, et le
-                # compte tiendrait deux lignes la ou il peut en tenir six.
-                #
-                # Or six positions de 14,40 EUR risquent EXACTEMENT autant
-                # que deux de 43 EUR : le risque total vaut le notionnel
-                # total multiplie par la distance au stop, et le notionnel
-                # total est le budget dans les deux cas. Meme risque, meme
-                # esperance — l'esperance en R est normalisee par le risque —
-                # mais six instruments au lieu de deux, donc moins de
-                # variance et plus de trades.
-                #
-                # Le plancher, lui, n'est pas negociable : une part sous le
-                # ticket minimum de la plateforme ne produit aucun ordre.
-                # Mieux vaut alors moins de places, plus grandes.
-                # ON NE RESERVE PAS DE CASH POUR DES PLACES QUI N'EXISTENT PAS.
-                #
-                # Le partage divisait par TOUTES les places libres, donc
-                # par six, en pariant que six occasions se presenteraient.
-                # Le 30 aout il y en a eu DEUX de toute la journee : quatre
-                # sixiemes du compte — environ 55 EUR — ont dormi jusqu'au
-                # soir pour des places qui ne se sont jamais ouvertes, et
-                # les deux positions prises ont porte 0,25 % de risque au
-                # lieu des 0,60 % configures.
-                #
-                # `places_visees` est le nombre d'occasions que l'appelant
-                # a REELLEMENT sous la main. A defaut on retombe sur
-                # l'ancien comportement : une couche qui ne sait pas
-                # compter ses occasions ne doit pas concentrer par
-                # accident.
-                #
-                # Le budget de risque (`max_total_risk_pct`) reste la borne
-                # dure au-dessus : diviser par moins ne peut pas faire
-                # depasser le risque total, il rend seulement au capital le
-                # droit de travailler quand les occasions sont rares.
-                reste = min(available_cash, max(0.0, plafond_engage - deja_engage))
-                libres = max(1, cfg.max_positions - len(positions))
-                places = libres if places_visees is None else max(
-                    1, min(libres, int(places_visees)))
-                ticket_minimum = instrument.min_lot * valeur_unitaire
-                part = min(reste, max(reste / places, ticket_minimum))
-
-                max_lots_cash = part / valeur_unitaire
+                max_lots_cash = available_cash / valeur_unitaire
                 if max_lots_cash < instrument.min_lot:
-                    # Refus CONJONCTUREL, pas structurel : une cloture au
-                    # prochain cycle libere le cash. Le libelle evite donc
-                    # les mots qui mettent l'instrument en sommeil une heure
-                    # (voir `_execute` dans engine.py).
                     return SizingDecision(
                         False,
-                        reason=(f"budget de place insuffisant sur {instrument.symbol} : "
-                                f"{part:.2f} {acc.currency} disponibles, il en "
-                                f"faut {ticket_minimum:.2f}"),
+                        reason=(f"liquidites insuffisantes : {available_cash:.2f} "
+                                f"{acc.currency} disponible, il en faut "
+                                f"{instrument.min_lot * valeur_unitaire:.2f} pour le "
+                                f"minimum sur {instrument.symbol}"),
                         factors=factors,
                     )
                 if raw_lots > max_lots_cash:
                     raw_lots = max_lots_cash
-                    factors.append(f"part de cash : {part:.2f} {acc.currency} "
-                                   f"({places} place(s) libre(s) sur "
-                                   f"{reste:.2f} disponibles)")
+                    factors.append(f"limite par les liquidites ({available_cash:.2f} {acc.currency})")
 
         # Plafond de levier : la valeur notionnelle ne doit pas exploser.
         max_lots_leverage = None

@@ -227,6 +227,7 @@ class Backtester:
             for trade in broker.process_candle(instrument.symbol, candle):
                 result.trades.append(trade)
                 risk.record_close(trade)
+                strategy.noter_sortie_donchian(trade.symbol, trade.profit > 0)
 
             acc = broker.account()
             risk.sync_account(acc.equity, acc.balance, cfg.engine.currency, ts=candle.ts)
@@ -248,11 +249,13 @@ class Backtester:
                         if t:
                             result.trades.append(t)
                             risk.record_close(t)
+                            strategy.noter_sortie_donchian(t.symbol, t.profit > 0)
                     elif action.type is ActionType.CLOSE:
                         t = broker.close_position(pos.id, None, action.reason)
                         if t:
                             result.trades.append(t)
                             risk.record_close(t)
+                            strategy.noter_sortie_donchian(t.symbol, t.profit > 0)
 
             # --- Sortie reversion : retour dans la bande sous la SMA courante ---
             #
@@ -272,6 +275,7 @@ class Backtester:
                             if t:
                                 result.trades.append(t)
                                 risk.record_close(t)
+                            strategy.noter_sortie_donchian(t.symbol, t.profit > 0)
 
             # --- Recherche d'entree ---
             #
@@ -288,7 +292,12 @@ class Backtester:
             ouvertes = broker.positions()
             if ouvertes and cfg.risk.pyramide_max <= 0:
                 continue
-            if ouvertes and not risk.peut_renforcer(ouvertes, ouvertes[0].side)[0]:
+            # Prix et ATR transmis : sans eux la regle d'espacement Turtle
+            # (« +1 unite tous les 0,5 N ») ne peut pas s'appliquer, et deux
+            # etages s'ouvriraient sur la meme bougie.
+            _atr_now = indicators[entry_tf].atr.value or 0.0
+            if ouvertes and not risk.peut_renforcer(
+                    ouvertes, ouvertes[0].side, prix=candle.close, atr=_atr_now)[0]:
                 continue
             # LE MEME PIEGE QUE POUR LA PYRAMIDE, ET IL A DEJA MENTI UNE FOIS.
             #
