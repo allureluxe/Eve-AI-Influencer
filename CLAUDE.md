@@ -5,6 +5,82 @@ d'environ 51 EUR. Plusieurs sessions travaillent sur la même branche. Les
 décisions ci-dessous ont été prises par l'opérateur ; elles ne sont pas des
 valeurs par défaut à optimiser.
 
+## D1 « Turtle » — armé le 3 septembre, remplace le M30
+
+**Le M30 était perdant, et la mesure est certaine :** −0,158 R sur
+**3 147 trades** (±0,04). Sur 1 000 EUR de capital de rejeu, −1 643 EUR
+en six mois. Ce n'est plus une hypothèse.
+
+    strategie                 in-sample     OOS   total 6m   trades     EUR
+    D1 canal-20 (armée)          +0,104  +0,214    +0,130       450    +428
+    M30 quorum (remplacée)       -0,171  -0,138    -0,158      3147   -1643
+
+### Pourquoi la décision du 30 août était fausse
+
+Elle reposait sur **8 paires et ~30 jours** — le fournisseur de données
+plafonnait là sans le dire, quel que soit le `--bars` demandé. Et
+`comparer_famille.py` forçait `entry_tf = "M30"` depuis toujours : **le D1
+n'avait jamais été mesuré** sur des données longues aux vrais frais.
+
+Remesuré sur **70 paires** (les instruments du bot qui existent en EUR
+chez Bitvavo) et **6 mois** en walk-forward, le classement s'inverse.
+
+### Ce qui est armé
+
+| réglage | valeur | pourquoi |
+|---|---|---|
+| `strategy.famille` | **donchian** | cassure du plus-haut de 20 jours |
+| `strategy.entry_tf` | **D1** | frais 7 % du risque contre 47 % en M30 |
+| `strategy.donchian_entrees` | **[20]** | le canal 55 est mathématiquement inerte en OU |
+| `trade.tp_actif` | **false** | 9 trades sur 469 font 124 % du bénéfice ; le plafond les coupait tous à 5,77 R |
+| `trade.micro_profit_enabled` | **false** | coupait ~70 gagnants entre 1 et 2 R — le plus gros frein |
+| `trade.trail_atr_mult` | **2.2** | 3,0 et 4,0 mesurés PIRE |
+| `risk.pyramide_max` | **0** | 5 configurations testées, 5 fois l'OOS dégradé |
+| `risk.base_risk_pct` | **0.6** | palier « preuve » — pas le 1 % du Turtle |
+
+### Mesuré puis écarté — ne pas y revenir sans nouvelle mesure
+
+- **Le pyramidage.** Cinq configurations (prudente, Turtle 0,5N, ×2, ×4,
+  décroissante). Toutes améliorent l'in-sample et **dégradent l'OOS**
+  (+0,134 → −0,027). C'est du sur-ajustement, pas un réglage à trouver.
+- **Le Turtle authentique** (stop 2N, sortie canal 10 j, filtre System 1,
+  risque 1 %) : **−0,044 à −0,443 R**. Il lui manque la vente à découvert,
+  moitié du système, que le compte au comptant interdit.
+- Délai de carence après sortie, stop commun de pyramide, bande RSI
+  resserrée, regroupement des confirmations corrélées : neutres ou nuisibles.
+
+### Deux pièges rencontrés en armant
+
+**`tp_r_multiple = 99` désarmait un garde-fou.** La réussite nécessaire
+vaut `(1 + frais) / (1 + objectif)` : un objectif de 99 la fait tomber à
+2 % pour **toutes** les unités, M5 compris. Un nombre magique qui neutralise
+une barrière en silence est pire que le problème qu'il résout. D'où
+`tp_actif: bool`, et un garde-fou fondé sur le **rapport frais/risque** —
+qui protège quel que soit le mode de sortie, et refuse désormais aussi
+le M30.
+
+**Deux endroits décidaient du même réglage.** `tp_actif` n'était lu que
+dans `initial_levels` ; la stratégie reposait sa propre cible à 2 R par
+l'autre bout. L'espérance tombait de +0,130 à +0,044 R — **sans erreur,
+sans test rouge, 656 tests verts avec le bug dedans**. Trouvé en
+re-mesurant la configuration *réellement armée* au lieu de supposer
+qu'elle valait celle du banc d'essai. C'est la règle : ne jamais
+interpréter un chiffre sans avoir vérifié que la mesure mesure bien ce
+qu'on croit.
+
+### Ce que ça change au quotidien
+
+**~1 trade par jour** sur 70 paires, contre ~30 en M30. Les 40 trades de
+preuve prendront **plusieurs semaines**, pas trois jours. Et la stratégie
+ne vit que de ses rares gros trades : **9 sur 469 font 124 % du bénéfice**.
+Une semaine sans gain n'est pas un signal d'échec, c'est le régime normal.
+
+Chien de garde : **plancher 100 EUR** (pic 158), décision explicite de
+l'opérateur pour laisser respirer une stratégie qui tient ses positions
+plusieurs jours. Tolérer −37 % est un choix assumé.
+
+---
+
 ## M30 au comptant, achat seul
 
 Décision du **30 août**, prise sur le rejeu et non sur le raisonnement.
