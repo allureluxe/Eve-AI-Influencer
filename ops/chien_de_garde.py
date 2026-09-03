@@ -9,12 +9,31 @@ INDEPENDANT du bot et de toute session : il tourne via cron toutes les
 depuis le pic depasse la limite.
 
   PIC de reference : 158.00 EUR
-  LIMITE           : 58 EUR de perte  ->  plancher 100.00 EUR
+  LIMITE           : 28 EUR de perte  ->  plancher 130.00 EUR
 
-  Plancher porte a 100 EUR le 3 septembre, sur decision explicite de
-  l'operateur, pour laisser respirer le test Turtle en D1 : une strategie
-  qui tient ses positions des jours ne peut pas etre jugee avec 8 EUR de
-  marge. C'est un choix ASSUME de tolerer -37 % avant coupure.
+  PLANCHER CHOISI SUR MESURE, pas au jugement (3 septembre).
+
+  Simulation portefeuille de la strategie Turtle D1 sur 6 mois, avec les
+  contraintes reelles du robot (6 positions max, 0,6 % de risque, depart
+  159 EUR) :
+
+      capital final        267,67 EUR  (+108,67)
+      recul MEDIAN           0,00 EUR   <- le plus souvent au plus haut
+      recul 9 fois sur 10   37,88 EUR
+      recul MAXIMAL         52,03 EUR
+
+  C'est le profil d'un suiveur de tendance : beaucoup de petites pertes,
+  quelques tres gros gains, et des creux profonds entre les deux. Un
+  plancher a 150 EUR (9 EUR de marge) se declencherait sur un creux
+  parfaitement ordinaire — on n'aurait pas teste la strategie, on l'aurait
+  interrompue.
+
+  130 EUR laisse 29 EUR de marge. Ce n'est toujours pas de quoi absorber
+  le pire creux mesure (52 EUR) : c'est un compromis assume entre tester
+  et proteger, choisi par l'operateur en connaissance des chiffres.
+
+  Si le plancher devait remonter, la reponse n'est PAS le chien de garde
+  mais le risque par trade : 0,6 % -> 0,3 % divise les creux par deux.
 
   Recalibre le 2 sept. : un depot de ~69 EUR a porte le compte de 90 a
   160 EUR sans que le plancher (87.35) bouge. Le chien de garde tolerait
@@ -43,7 +62,7 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
 PIC_EUR = 158.00
-LIMITE_PERTE_EUR = 58.0
+LIMITE_PERTE_EUR = 28.0
 # Plancher = pic - limite. Surchargeable par CHIEN_PLANCHER_EUR (reglage
 # a chaud sans toucher au code, et test du declenchement).
 PLANCHER_EUR = float(os.environ.get("CHIEN_PLANCHER_EUR", PIC_EUR - LIMITE_PERTE_EUR))
