@@ -8,39 +8,25 @@ INDEPENDANT du bot et de toute session : il tourne via cron toutes les
 5 min, lit le solde reel chez Bitvavo, et coupe le service si la perte
 depuis le pic depasse la limite.
 
-  PIC de reference : 158.00 EUR
-  LIMITE           : 28 EUR de perte  ->  plancher 130.00 EUR
+  PLANCHER = reference x (1 - 24 %). La reference suit les nouveaux
+  sommets toute seule, et se recale a la main apres un mouvement d'argent.
 
-  PLANCHER CHOISI SUR MESURE, pas au jugement (3 septembre).
+  POURQUOI UN POURCENTAGE, ET PLUS UN MONTANT EN EUROS.
 
-  Simulation portefeuille de la strategie Turtle D1 sur 6 mois, avec les
-  contraintes reelles du robot (6 positions max, 0,6 % de risque, depart
-  159 EUR) :
+  Le 4 septembre l'operateur a retire ~50 EUR. L'equite est passee de
+  157 a 107, le plancher est reste a 130, et le robot a ete coupe alors
+  que les trades du jour ne faisaient que -3,17 EUR. Le chien de garde
+  n'avait pas tort : il protegeait un capital qui n'existait plus.
 
-      capital final        267,67 EUR  (+108,67)
-      recul MEDIAN           0,00 EUR   <- le plus souvent au plus haut
-      recul 9 fois sur 10   37,88 EUR
-      recul MAXIMAL         52,03 EUR
+  Un plancher en euros se perime a chaque virement. Un plancher en
+  pourcentage suit le capital. Le 24 % vient de la mesure : simulation
+  portefeuille de la strategie sur 6 mois, le recul atteint 24 % du
+  capital neuf fois sur dix (38 EUR sur 159), et 33 % au pire.
 
-  C'est le profil d'un suiveur de tendance : beaucoup de petites pertes,
-  quelques tres gros gains, et des creux profonds entre les deux. Un
-  plancher a 150 EUR (9 EUR de marge) se declencherait sur un creux
-  parfaitement ordinaire — on n'aurait pas teste la strategie, on l'aurait
-  interrompue.
-
-  130 EUR laisse 29 EUR de marge. Ce n'est toujours pas de quoi absorber
-  le pire creux mesure (52 EUR) : c'est un compromis assume entre tester
-  et proteger, choisi par l'operateur en connaissance des chiffres.
-
-  Si le plancher devait remonter, la reponse n'est PAS le chien de garde
-  mais le risque par trade : 0,6 % -> 0,3 % divise les creux par deux.
-
-  Recalibre le 2 sept. : un depot de ~69 EUR a porte le compte de 90 a
-  160 EUR sans que le plancher (87.35) bouge. Le chien de garde tolerait
-  donc 72 EUR de perte — 45 % du compte — au lieu des 10 EUR voulus.
-  UN DEPOT N'EST PAS UN GAIN : le plancher doit suivre le capital, sinon
-  la protection s'evapore silencieusement au moment ou l'on ajoute de
-  l'argent, c'est-a-dire exactement quand il y a le plus a perdre.
+  UN RETRAIT N'EST PAS RECALE AUTOMATIQUEMENT, ET C'EST VOULU. Une chute
+  brutale peut etre un virement — ou un krach qui traverse les stops. Les
+  confondre desarmerait la protection au pire moment. Le robot s'arrete
+  donc dans les deux cas, et un humain tranche avec `--recaler`.
 
 Quand il declenche : `systemctl stop robot-dual-live`, puis il pose un
 fichier temoin et NE REDEMARRE JAMAIS le bot tout seul. Retirer le
@@ -53,6 +39,7 @@ On ne coupe jamais sur une donnee manquante.
 from __future__ import annotations
 
 import datetime as _dt
+import json as _json
 import os
 import subprocess
 import sys
@@ -61,11 +48,28 @@ from dataclasses import replace
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-PIC_EUR = 158.00
-LIMITE_PERTE_EUR = 28.0
-# Plancher = pic - limite. Surchargeable par CHIEN_PLANCHER_EUR (reglage
-# a chaud sans toucher au code, et test du declenchement).
-PLANCHER_EUR = float(os.environ.get("CHIEN_PLANCHER_EUR", PIC_EUR - LIMITE_PERTE_EUR))
+PLANCHER_PCT = 0.24        # recul tolere sous la reference
+REFERENCE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         "data", "chien_de_garde_reference.json")
+
+
+def _reference(equite: float | None = None) -> float:
+    """Capital de reference : le sommet connu, ou l'equite si inconnu."""
+    try:
+        with open(REFERENCE, encoding="utf-8") as f:
+            return float(_json.load(f)["reference"])
+    except Exception:  # noqa: BLE001
+        return equite or 0.0
+
+
+def _ecrire_reference(valeur: float, motif: str) -> None:
+    try:
+        os.makedirs(os.path.dirname(REFERENCE), exist_ok=True)
+        with open(REFERENCE, "w", encoding="utf-8") as f:
+            _json.dump({"reference": round(valeur, 2), "motif": motif,
+                        "quand": _dt.datetime.now(_dt.timezone.utc).isoformat()}, f)
+    except Exception:  # noqa: BLE001
+        pass
 
 SERVICE = "robot-dual-live"
 TEMOIN = os.path.join(RACINE, "data", "CHIEN_DE_GARDE_DECLENCHE")
@@ -119,6 +123,20 @@ def _lire_equite() -> float | None:
 
 
 def main() -> int:
+    if "--recaler" in sys.argv:
+        eq = _lire_equite()
+        if eq is None:
+            print("equite illisible : rien recale")
+            return 1
+        _ecrire_reference(eq, "recalage manuel apres mouvement de tresorerie")
+        for f in (TEMOIN,):
+            if os.path.exists(f):
+                os.remove(f)
+                _log("temoin retire : le chien de garde est rearme")
+        _log(f"RECALAGE : reference -> {eq:.2f} EUR, "
+             f"plancher -> {eq * (1 - PLANCHER_PCT):.2f} EUR")
+        return 0
+
     if os.path.exists(TEMOIN):
         try:
             quand = open(TEMOIN, encoding="utf-8").read().strip()
@@ -132,12 +150,22 @@ def main() -> int:
     if equite is None:
         return 0
 
+    # La reference suit les nouveaux sommets toute seule. Elle ne DESCEND
+    # jamais sans decision humaine : une baisse peut etre un retrait comme
+    # une perte, et les confondre desarmerait la protection.
+    ref = _reference(equite)
+    if equite > ref:
+        _ecrire_reference(equite, "nouveau sommet")
+        ref = equite
+    PLANCHER_EUR = ref * (1 - PLANCHER_PCT)
     marge = equite - PLANCHER_EUR
     actif = _service_actif()
 
     if equite <= PLANCHER_EUR:
         _log(f"DECLENCHEMENT : equite {equite:.2f} EUR <= plancher "
-             f"{PLANCHER_EUR:.2f} EUR (perte {PIC_EUR - equite:.2f} depuis le pic). "
+             f"{PLANCHER_EUR:.2f} EUR (perte {ref - equite:.2f} depuis la reference "
+             f"{ref:.2f}). Si c'est un RETRAIT et non une perte : "
+             f"ops/chien_de_garde.py --recaler. "
              f"Arret de {SERVICE}.")
         try:
             r = subprocess.run(["sudo", "-n", "systemctl", "stop", SERVICE],

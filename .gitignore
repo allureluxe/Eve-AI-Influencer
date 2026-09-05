@@ -17,3 +17,4 @@ venv/
 # Images generees par le module Eve
 generated_images/
 data/bougies/
+data/chien_de_garde_reference.json
