@@ -79,7 +79,7 @@
     "pause_after_losses_minutes": 45.0,
     "min_rr": 1.6,
     "max_capital_engaged_pct": 90.0,
-    "pyramide_max": 2,
+    "pyramide_max": 0,
     "pyramide_espacement_atr": 0.5,
     "pyramide_fraction_risque": 1.0,
     "pyramide_locked_r_min": -1.0

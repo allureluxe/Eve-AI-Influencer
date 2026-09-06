@@ -49,7 +49,41 @@ class TestLaPyramideResteFermeeParDefaut:
     configuration livree qui l'arme, sur mesure et pas sur principe.
     """
 
-    def test_le_reglage_livre_est_arme_a_trois_unites(self):
+    def test_le_reglage_livre_est_desarme_tant_que_l_espacement_ne_marche_pas(self):
+        """DESARME EN URGENCE le 6 septembre 2026, 21h50 UTC.
+
+        Arme a 21h47, il a ouvert DEUX etages sur LINKUSD en 39 secondes,
+        a **0,013 ATR d'ecart** alors que l'espacement exige 0,5 ATR. Un
+        troisieme a suivi, refuse seulement par manque de cash.
+
+        Cause : `peut_renforcer(sur_le_meme, side, prix=0.0, atr=0.0)` est
+        appele SANS prix ni ATR aux deux endroits (risk.py:461 et
+        dual_scalping_engine.py:123), et le controle s'ecrit
+
+            if cfg.pyramide_espacement_atr > 0 and prix > 0 and atr > 0:
+
+        donc il ne s'execute jamais. Le reglage existait, s'affichait dans
+        la config, et ne servait a rien — la faute exacte que le CLAUDE.md
+        documente deja trois fois. Combine a `pyramide_locked_r_min` a
+        -1,0, plus RIEN ne gardait la porte.
+
+        A corriger avant de rearmer : passer prix et ATR jusqu'a
+        `peut_renforcer`, et faire echouer FERME quand ils manquent
+        (refuser le renforcement) plutot que de laisser passer.
+
+        Reste aussi a trancher : au comptant Bitvavo ne connait qu'un
+        AVOIR par actif, pas deux lignes. Le robot tient deux Position en
+        memoire sur un seul solde LINK — il faut verifier ce que devient
+        le stop de chaque etage avant de rejouer avec.
+
+        La mesure qui justifiait l'armement reste valable, elle :
+        3 unites font +35,8 % hors echantillon (Sharpe +0,53) contre
+        -10,9 % sans pyramidage. C'est le CHEMIN qui est casse, pas la
+        destination.
+        """
+        assert BotConfig.load("robot.bitvavo.json").risk.pyramide_max == 0
+
+    def _mesure_qui_justifiait_l_armement(self):
         """3 unites, pas 4 ni l'illimite : c'est ce que la mesure designe.
 
         Hors echantillon, frais doubles, 70 paires, 2,2 ans :
