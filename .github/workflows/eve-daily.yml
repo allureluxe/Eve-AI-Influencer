@@ -14,6 +14,17 @@
 name: Eve — cycle quotidien
 
 on:
+  # Déclenchement sur push de la branche de travail : c'est le seul moyen
+  # d'exécuter le workflow tant qu'il n'est pas sur la branche principale
+  # (GitHub n'expose « Run workflow » que depuis celle-ci). À retirer une
+  # fois la branche fusionnée.
+  push:
+    branches:
+      - claude/ia-influencer-agent-tiktok-7pkddf
+    paths:
+      - "eve/**"
+      - ".github/workflows/eve-daily.yml"
+
   # schedule:
   #   - cron: "30 10 * * *"   # 06:30 America/New_York (heure d'été)
   #   - cron: "0 22 * * *"    # 18:00 America/New_York
