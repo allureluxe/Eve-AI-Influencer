@@ -120,7 +120,12 @@ class MultiEntryScalpingMixin(ContinuousScalpingMixin):
             for p in positions:
                 par_symbole.setdefault(p.symbol, []).append(p)
             for symbole, etages in par_symbole.items():
-                if self.risk.peut_renforcer(etages, etages[0].side)[0]:
+                # Pre-filtre : il decide seulement si le symbole vaut la
+                # peine d'etre REGARDE. L'espacement se verifie a
+                # l'execution, ou le prix et l'ATR existent — le demander
+                # ici reviendrait a le tester avec des zeros.
+                if self.risk.peut_renforcer(etages, etages[0].side,
+                                            verifier_espacement=False)[0]:
                     renforcables.add(symbole)
         held = {p.symbol for p in positions} - renforcables
         sens = None if getattr(self.broker, "supports_short", True) else {Side.BUY}

@@ -147,6 +147,23 @@ class Position:
     broker_ref: Optional[str] = None
     comment: str = ""
 
+    # --- Pyramide -----------------------------------------------------
+    # Au comptant, un actif n'a qu'un AVOIR : un etage de plus agrandit
+    # cette position au lieu d'en creer une seconde. Le nombre d'etages et
+    # le prix de la DERNIERE unite ne se deduisent donc plus du nombre de
+    # positions ouvertes — il faut les porter ici.
+    #
+    # `derniere_entree` sert a l'espacement Turtle : la moyenne ponderee
+    # de `entry_price` reculerait a chaque ajout et laisserait empiler
+    # deux etages sur le meme mouvement.
+    etages: int = 1
+    derniere_entree: float = 0.0
+
+    @property
+    def prix_dernier_etage(self) -> float:
+        """Prix de reference pour l'espacement de la pyramide."""
+        return self.derniere_entree or self.entry_price
+
     def __post_init__(self) -> None:
         if not self.initial_stop:
             self.initial_stop = self.stop_loss

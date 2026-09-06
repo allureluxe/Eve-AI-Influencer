@@ -23,6 +23,8 @@ from helpers import *  # noqa: F401,F403 - insere la racine du projet dans sys.p
 from gold_bot.brokers.base import BrokerError
 from gold_bot.brokers.bitvavo import (ACTIFS, BitvavoBroker, BitvavoConfig,
                                       RegleMarche, formater, marche)
+from dataclasses import replace
+
 from gold_bot.core import Side
 from gold_bot.datasources import PROVIDER_CLASSES, DataRegistry
 from gold_bot.datasources.providers import (BinanceProvider, BitvavoProvider,
@@ -1205,3 +1207,90 @@ class TestArrondiDeQuantiteEtBinaire:
         trade = b.close_position("BTCUSD", reason="sortie totale")
         assert trade.partial is False
         assert "BTCUSD" not in b._positions
+
+
+# ==========================================================================
+class TestUnEtageAgranditLAvoirAuLieuDeLEcraser:
+    """Le bug du 6 septembre 2026, et il etait silencieux.
+
+    `_positions` est indexe par SYMBOLE. Un second achat sur LINKUSD
+    remplacait donc purement l'entree du premier : son volume, son prix
+    d'entree et ses frais disparaissaient, et le stop repose ne couvrait
+    plus que la derniere tranche. La premiere restait sur le compte SANS
+    PROTECTION, sans le moindre message.
+
+    Au comptant c'est la seule modelisation juste : Bitvavo ne connait
+    qu'un AVOIR par actif, jamais deux lignes. Un etage de plus agrandit
+    donc la position — volume cumule, entree en moyenne ponderee — ce qui
+    est exactement ce que le rejeu mesurait.
+    """
+
+    # En dry-run le prix d'execution est fabrique : `(stop + objectif) / 2`,
+    # faute de reseau. On pilote donc le prix d'un etage par son objectif,
+    # ce qui laisse mesurer la moyenne ponderee pour de vrai.
+    @staticmethod
+    def _avec_une_position(b, tp=700.0):
+        from gold_bot.universe import Universe
+        inst = Universe().get("LINKUSD")
+        b._instruments["LINKUSD"] = inst
+        b._account = replace(b._account, margin_free=100000.0, equity=100000.0,
+                             balance=100000.0)
+        p = b.open_position(inst, Side.BUY, 1.0, 10.44, tp)
+        return inst, p
+
+    def test_le_volume_se_cumule(self):
+        b = broker_de_test()
+        inst, p1 = self._avec_une_position(b)
+        p2 = b.open_position(inst, Side.BUY, 0.5, 10.60, 700.0)
+        assert p2 is p1, "un second achat a cree une position au lieu d'un etage"
+        assert abs(p2.volume - 1.5) < 1e-9, (
+            f"volume {p2.volume} au lieu de 1.5 : le premier etage a ete "
+            "efface et son actif reste sans stop")
+        assert len(b.positions()) == 1, "au comptant il n'y a qu'un avoir"
+
+    def test_l_entree_devient_une_moyenne_ponderee(self):
+        """La moyenne doit tomber ENTRE les deux etages, jamais sur l'un.
+
+        Le prix d'execution vient du marche : on ne le choisit pas. On
+        fixe donc le premier etage tres bas et on verifie que la moyenne
+        atterrit strictement entre les deux — ce qui est faux des que le
+        second achat ECRASE le premier au lieu de le rejoindre.
+        """
+        b = broker_de_test()
+        inst, p1 = self._avec_une_position(b)
+        p1.entry_price = 5.0                   # etage bas, volume 1.0
+        p2 = b.open_position(inst, Side.BUY, 1.0, 10.60, 900.0)
+        haut = p2.derniere_entree
+        assert 5.0 < p2.entry_price < haut, (
+            f"entree moyenne {p2.entry_price} hors de ]5.0, {haut}[ : "
+            "le second achat a efface le premier au lieu de le rejoindre")
+
+    def test_les_etages_sont_comptes(self):
+        b = broker_de_test()
+        inst, p1 = self._avec_une_position(b)
+        assert p1.etages == 1
+        b.open_position(inst, Side.BUY, 0.5, 10.60, 700.0)
+        assert b.positions()[0].etages == 2, (
+            "sans ce compteur, le plafond de pyramide n'est jamais atteint : "
+            "au comptant il n'y a qu'une ligne, donc len() rend toujours 1")
+
+    def test_la_derniere_entree_est_memorisee_pour_l_espacement(self):
+        b = broker_de_test()
+        inst, p1 = self._avec_une_position(b)
+        p1.entry_price = 5.0                   # etage bas, volume 1.0
+        p2 = b.open_position(inst, Side.BUY, 1.0, 10.60, 900.0)
+        assert p2.derniere_entree > p2.entry_price, (
+            "le prix de la derniere unite doit rester distinct de la moyenne "
+            "ponderee, sinon l'espacement se mesure depuis le mauvais point")
+
+    def test_le_stop_ne_redescend_jamais(self):
+        """Un etage pose plus haut remonte la protection de TOUT l'avoir."""
+        b = broker_de_test()
+        inst, p1 = self._avec_une_position(b)
+        haut = p1.stop_loss
+        # Volume 1.0 : sous ~0,5 lot le notionnel du stop passe sous le
+        # minimum Bitvavo de 5 EUR et l'entree est refusee avant la fusion.
+        p2 = b.open_position(inst, Side.BUY, 1.0, haut - 1.0, 900.0)
+        assert p2.stop_loss == haut, (
+            f"stop redescendu a {p2.stop_loss} : un etage ne doit jamais "
+            "affaiblir la protection de l'avoir deja constitue")

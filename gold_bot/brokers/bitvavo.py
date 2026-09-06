@@ -861,18 +861,71 @@ class BitvavoBroker(Broker):
         rempli = self._prix_moyen(reponse) or reference
         obtenu = float(reponse.get("filledAmount", quantite) or quantite)
 
+        frais_entree = self._frais_reels(reponse)
+        if frais_entree is None:
+            frais_entree = regle.arrondir_prix(rempli) * obtenu * self.config.fee_rate
+
+        existante = self._positions.get(instrument.symbol)
+        if existante is not None:
+            # UN ETAGE DE PLUS, PAS UNE SECONDE POSITION.
+            #
+            # Au comptant, Bitvavo ne connait qu'un AVOIR par actif : il
+            # n'existe pas deux lignes LINK. Le dictionnaire etant indexe
+            # par symbole, un second achat ECRASAIT purement le premier —
+            # son volume, son prix d'entree et ses frais disparaissaient,
+            # et le stop repose ne couvrait que la derniere tranche. La
+            # premiere restait sur le compte sans protection, sans que
+            # rien ne le signale. C'est ce qui est arrive sur LINKUSD le
+            # 6 septembre 2026.
+            #
+            # Le modele juste au comptant est celui du rejeu : UNE position
+            # dont le volume grossit et dont le prix d'entree devient la
+            # moyenne ponderee. La regle Turtle « tous les stops remontent
+            # sous la derniere unite » tombe alors toute seule, puisque le
+            # stop demande pour ce nouvel etage vaut deja
+            # derniere_entree - atr_stop_mult x ATR.
+            total = existante.volume + obtenu
+            moyenne = ((existante.entry_price * existante.volume
+                        + regle.arrondir_prix(rempli) * obtenu) / total
+                       if total > 0 else existante.entry_price)
+            nouveau_stop = regle.arrondir_prix(stop_loss)
+            # Le stop ne DESCEND jamais : un etage pose plus haut remonte
+            # la protection de tout l'avoir, jamais l'inverse.
+            if nouveau_stop < existante.stop_loss:
+                nouveau_stop = existante.stop_loss
+            existante.volume = total
+            existante.entry_price = regle.arrondir_prix(moyenne)
+            existante.stop_loss = nouveau_stop
+            existante.take_profit = regle.arrondir_prix(take_profit)
+            existante.etages += 1
+            # Le prix de CETTE unite, pas la moyenne : c'est lui qui sert
+            # de reference au prochain espacement de 0,5 N.
+            existante.derniere_entree = regle.arrondir_prix(rempli)
+            self._frais_entree[existante.id] = (
+                self._frais_entree.get(existante.id, 0.0) + frais_entree)
+            self._instruments[instrument.symbol] = instrument
+            logger.info(
+                "etage ajoute sur %s : volume %s -> %s, entree moyenne %s, "
+                "stop %s", code, formater(existante.volume - obtenu),
+                formater(total), formater(existante.entry_price),
+                formater(nouveau_stop))
+            # Le stop en place ne couvre que l'ancien volume : on le
+            # remplace par un stop qui couvre TOUT l'avoir.
+            self._annuler_stop(instrument.symbol)
+            self._poser_stop(existante)
+            return existante
+
         position = Position(
             id=instrument.symbol, symbol=instrument.symbol, side=Side.BUY,
             volume=obtenu, entry_price=regle.arrondir_prix(rempli),
             stop_loss=regle.arrondir_prix(stop_loss),
             take_profit=regle.arrondir_prix(take_profit),
-            opened_at=time.time(), broker_ref=str(reponse.get("orderId", "")), comment=comment)
+            opened_at=time.time(), broker_ref=str(reponse.get("orderId", "")),
+            comment=comment, etages=1,
+            derniere_entree=regle.arrondir_prix(rempli))
         self._positions[instrument.symbol] = position
         self._instruments[instrument.symbol] = instrument
-        frais_entree = self._frais_reels(reponse)
-        self._frais_entree[position.id] = (
-            frais_entree if frais_entree is not None
-            else position.entry_price * obtenu * self.config.fee_rate)
+        self._frais_entree[position.id] = frais_entree
 
         self._poser_stop(position)
         logger.info("ACHAT [%s] %s %s @ %s | SL %s TP %s (objectif suivi par le robot)",

@@ -458,7 +458,17 @@ class RiskManager:
             # Position encore ouverte : c'est une decision de PYRAMIDE.
             # Le delai de carence ne s'applique pas ici — renforcer un
             # gagnant en cours n'est pas racheter ce qu'on vient de quitter.
-            ok, why = self.peut_renforcer(sur_le_meme, side)
+            # PRE-FILTRE, PAS PORTE. `check_exposure` tourne dans la phase
+            # de selection du scanner, avant tout chargement de donnees :
+            # ni prix ni ATR n'existent encore. On verifie donc ce qui ne
+            # depend pas d'eux (armement, nombre d'etages, sens) et on
+            # laisse l'espacement a `_execute`, seul endroit ou le prix et
+            # l'ATR de l'evaluation sont connus.
+            #
+            # Sans ce partage explicite, l'espacement serait « verifie »
+            # ici avec des zeros — c'est-a-dire pas verifie du tout.
+            ok, why = self.peut_renforcer(sur_le_meme, side,
+                                          verifier_espacement=False)
             if not ok:
                 return False, why
         else:
@@ -482,7 +492,8 @@ class RiskManager:
 
     def peut_renforcer(self, sur_le_meme: list[Position],
                        side: Side, prix: float = 0.0,
-                       atr: float = 0.0) -> tuple[bool, str]:
+                       atr: float = 0.0,
+                       verifier_espacement: bool = True) -> tuple[bool, str]:
         """Un etage de plus est-il permis sur un actif deja detenu ?
 
         Trois conditions, et chacune ferme une porte differente :
@@ -505,8 +516,14 @@ class RiskManager:
         cfg = self.config
         if cfg.pyramide_max <= 0:
             return False, f"position deja ouverte sur {sur_le_meme[0].symbol}"
-        if len(sur_le_meme) > cfg.pyramide_max:
-            return False, (f"{len(sur_le_meme)} etage(s) deja sur "
+        # On compte les ETAGES, pas les lignes. Au comptant, Bitvavo ne
+        # connait qu'un avoir par actif : les trois unites d'une pyramide
+        # vivent dans UNE position dont le volume a grossi. Compter les
+        # positions y rendrait toujours 1, et le plafond ne serait jamais
+        # atteint.
+        deja = sum(getattr(p, "etages", 1) for p in sur_le_meme)
+        if deja > cfg.pyramide_max:
+            return False, (f"{deja} etage(s) deja sur "
                            f"{sur_le_meme[0].symbol}, maximum {cfg.pyramide_max}")
         # Un renforcement a contre-sens serait une couverture, pas une
         # pyramide : les deux positions s'annuleraient en payant deux fois
@@ -515,9 +532,37 @@ class RiskManager:
             return False, f"position de sens oppose ouverte sur {sur_le_meme[0].symbol}"
         # Espacement Turtle : le prix doit avoir avance d'au moins
         # `pyramide_espacement_atr` ATR depuis le DERNIER etage ouvert.
-        if cfg.pyramide_espacement_atr > 0 and prix > 0 and atr > 0:
+        #
+        # CE CONTROLE ECHOUE FERME, ET C'EST TOUTE LA CORRECTION DU
+        # 6 SEPTEMBRE 2026. Il s'ecrivait avant :
+        #
+        #     if cfg.pyramide_espacement_atr > 0 and prix > 0 and atr > 0:
+        #
+        # Les deux appelants du moteur reel n'ayant jamais passe `prix` ni
+        # `atr` (ils tournent AVANT le chargement des donnees), la
+        # condition etait toujours fausse et le controle ne s'executait
+        # JAMAIS. Le rejeu, lui, les passait — il mesurait donc une regle
+        # que le robot n'appliquait pas. Resultat en argent reel : deux
+        # etages sur LINKUSD en 39 secondes, a 0,013 ATR d'ecart pour
+        # 0,5 exige.
+        #
+        # Un garde-fou qui ne peut pas verifier doit REFUSER, jamais
+        # laisser passer. L'appelant qui n'a pas encore le prix le dit
+        # explicitement avec `verifier_espacement=False` — et celui-la
+        # n'est plus une porte, seulement un pre-filtre.
+        if verifier_espacement and cfg.pyramide_espacement_atr > 0:
+            if prix <= 0 or atr <= 0:
+                return False, (
+                    f"espacement de pyramide invérifiable sur "
+                    f"{sur_le_meme[0].symbol} (prix ou ATR absent) : "
+                    "renforcement refuse par prudence")
             dernier = max(sur_le_meme, key=lambda p: p.opened_at)
-            avance = side.sign * (prix - dernier.entry_price)
+            # `prix_dernier_etage`, pas `entry_price` : apres une fusion
+            # l'entree est une MOYENNE PONDEREE, qui recule a chaque ajout.
+            # Mesurer l'avance depuis elle laisserait empiler deux etages
+            # sur le meme mouvement.
+            reference = getattr(dernier, "prix_dernier_etage", dernier.entry_price)
+            avance = side.sign * (prix - reference)
             exige = cfg.pyramide_espacement_atr * atr
             if avance < exige:
                 return False, (

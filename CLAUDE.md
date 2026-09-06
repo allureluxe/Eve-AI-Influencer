@@ -28,6 +28,52 @@ dit 3.** Et l'illimité — demandé à un moment — est le pire des six.
 Monter `pyramide_max` n'est pas « débrider » : c'est reproduire un
 résultat mesuré à −84 %.
 
+### Armé, cassé en 3 minutes, réparé — ce que ça a appris
+
+Premier armement à 21h47 UTC : **deux étages sur LINKUSD en 39 secondes,
+à 0,013 ATR d'écart pour 0,5 exigé.** Désarmé à 21h50, réparé, réarmé.
+
+**Deux défauts, tous deux silencieux.**
+
+**1. L'espacement ne s'exécutait jamais.** Il s'écrivait :
+
+    if cfg.pyramide_espacement_atr > 0 and prix > 0 and atr > 0:
+
+et les deux appelants du moteur réel (`risk.py`, `dual_scalping_engine.py`)
+n'ont jamais passé `prix` ni `atr` — ils tournent dans la phase de
+**sélection du scanner, avant le chargement des bougies**. La condition
+était donc toujours fausse. `backtest.py`, lui, les passait : **le rejeu
+mesurait une règle que le robot n'appliquait pas.**
+
+Corrigé en deux temps : le contrôle **échoue fermé** (sans prix ni ATR il
+refuse, il ne laisse plus passer), et la vraie porte est descendue dans
+`TradingEngine._execute` — passage obligé de tout ordre, seul endroit où
+`ev.entry` et `ev.atr` existent. La phase de sélection dit explicitement
+`verifier_espacement=False` : c'est un pré-filtre, plus une porte.
+
+**2. Un second achat ÉCRASAIT le premier.** `_positions` est indexé par
+symbole. Le deuxième achat LINK remplaçait l'entrée du premier : volume,
+prix d'entrée et frais disparaissaient, et le stop reposé ne couvrait plus
+que la dernière tranche. **Le reste de l'avoir restait sur le compte sans
+protection, sans le moindre message.**
+
+Au comptant, Bitvavo ne connaît qu'un **avoir** par actif, jamais deux
+lignes. La seule modélisation juste — et c'est exactement celle du rejeu —
+est **une** position dont le volume grossit et dont l'entrée devient la
+moyenne pondérée. `Position` porte désormais `etages` et
+`derniere_entree` : sans le premier le plafond ne serait jamais atteint
+(`len()` rend toujours 1), sans le second l'espacement se mesurerait
+depuis une moyenne qui recule à chaque ajout.
+
+La règle Turtle « tous les stops remontent sous la dernière unité » tombe
+alors toute seule : le stop demandé pour le nouvel étage vaut déjà
+`dernière_entrée − atr_stop_mult × ATR`, et il s'applique à tout l'avoir.
+Il ne redescend jamais.
+
+**La leçon, et c'est la même que trois fois avant dans ce fichier :**
+vérifier qu'un réglage est *lu* ne prouve rien. Il faut vérifier qu'il
+**s'exécute**. Un garde-fou qui ne peut pas vérifier doit refuser.
+
 ### Les deux modèles de sécurité ne se mélangent pas
 
 Le pyramidage d'origine du robot n'ajoutait un étage que si les

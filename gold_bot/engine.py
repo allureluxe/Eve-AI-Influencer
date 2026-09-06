@@ -937,6 +937,31 @@ class TradingEngine:
             return
 
         positions = self.broker.positions()
+
+        # LA PORTE DU PYRAMIDAGE, ET ELLE EST ICI PARCE QU'ELLE NE PEUT
+        # ETRE NULLE PART AILLEURS.
+        #
+        # `check_exposure` s'execute dans la phase de selection du scanner,
+        # avant le chargement des bougies : le prix et l'ATR n'y existent
+        # pas. L'espacement Turtle (« +1 unite tous les 0,5 N ») y etait
+        # donc appele avec des zeros, et sa garde `and prix > 0 and atr > 0`
+        # le rendait inerte — deux etages sur LINKUSD en 39 secondes le
+        # 6 septembre 2026.
+        #
+        # `_execute` est le passage OBLIGE de tout ordre, des deux moteurs,
+        # et `ev` y porte enfin `entry` et `atr`. C'est le seul endroit ou
+        # la regle peut etre appliquee pour de vrai.
+        etages = [p for p in positions
+                  if p.symbol == ev.symbol and p.side is ev.side]
+        if etages:
+            ok, motif = self.risk.peut_renforcer(
+                etages, ev.side, prix=ev.entry, atr=ev.atr)
+            if not ok:
+                logger.info("%s : renforcement refuse — %s", ev.symbol, motif)
+                # Refus CONJONCTUREL : il suffit que le prix avance pour
+                # que l'etage devienne legitime. On ne met pas en sommeil.
+                return
+
         multiplier, why = self.objectives.risk_multiplier()
         sizing = self.risk.size_position(
             instrument, ev.side, ev.entry, ev.stop_loss, ev.take_profit,

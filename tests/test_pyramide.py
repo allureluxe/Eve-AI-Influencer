@@ -49,7 +49,7 @@ class TestLaPyramideResteFermeeParDefaut:
     configuration livree qui l'arme, sur mesure et pas sur principe.
     """
 
-    def test_le_reglage_livre_est_desarme_tant_que_l_espacement_ne_marche_pas(self):
+    def _desarmement_d_urgence_du_6_septembre(self):
         """DESARME EN URGENCE le 6 septembre 2026, 21h50 UTC.
 
         Arme a 21h47, il a ouvert DEUX etages sur LINKUSD en 39 secondes,
@@ -83,7 +83,7 @@ class TestLaPyramideResteFermeeParDefaut:
         """
         assert BotConfig.load("robot.bitvavo.json").risk.pyramide_max == 0
 
-    def _mesure_qui_justifiait_l_armement(self):
+    def test_le_reglage_livre_est_arme_a_trois_unites(self):
         """3 unites, pas 4 ni l'illimite : c'est ce que la mesure designe.
 
         Hors echantillon, frais doubles, 70 paires, 2,2 ans :
@@ -362,3 +362,93 @@ class TestLeRelevementTurtleRemonteToutePyramide:
     def test_desarme_le_defaut_du_code_ne_releve_rien(self):
         from gold_bot.trade_manager import TradeManagerConfig
         assert TradeManagerConfig().pyramide_relevement_turtle is False
+
+
+class TestLEspacementSExecuteVRAIMENT:
+    """Le bug du 6 septembre 2026 : un garde-fou qui ne s'executait jamais.
+
+    `peut_renforcer` recevait `prix=0.0, atr=0.0` de ses deux appelants du
+    moteur reel, et son controle s'ecrivait
+
+        if cfg.pyramide_espacement_atr > 0 and prix > 0 and atr > 0:
+
+    donc il ne s'executait JAMAIS. Deux etages sur LINKUSD en 39 secondes,
+    a 0,013 ATR d'ecart pour 0,5 exige. Le rejeu, lui, passait prix et ATR
+    — il mesurait une regle que le robot n'appliquait pas.
+    """
+
+    def test_sans_prix_ni_atr_le_renforcement_est_REFUSE(self):
+        """Fail-closed. C'est toute la correction.
+
+        Un garde-fou incapable de verifier doit refuser. L'ancien code
+        laissait passer, ce qui transformait une regle en decoration.
+        """
+        rm = _gestionnaire(pyramide_max=2, pyramide_espacement_atr=0.5,
+                           pyramide_locked_r_min=-1.0)
+        ok, why = rm.peut_renforcer([_position(entree=100.0)], Side.BUY)
+        assert not ok, (
+            "renforcement accepte sans prix ni ATR : le controle d'espacement "
+            "ne s'execute pas, exactement comme le 6 septembre")
+        assert "invérifiable" in why or "inverifiable" in why
+
+    def test_trop_proche_refuse(self):
+        """Le cas LINKUSD : 0,013 ATR d'ecart pour 0,5 exige."""
+        rm = _gestionnaire(pyramide_max=2, pyramide_espacement_atr=0.5,
+                           pyramide_locked_r_min=-1.0)
+        ok, why = rm.peut_renforcer([_position(entree=11.1951)], Side.BUY,
+                                    prix=11.2014, atr=0.4703)
+        assert not ok, "un etage a 0,013 ATR du precedent a ete accepte"
+        assert "trop proche" in why
+
+    def test_assez_loin_accepte(self):
+        rm = _gestionnaire(pyramide_max=2, pyramide_espacement_atr=0.5,
+                           pyramide_locked_r_min=-1.0)
+        ok, why = rm.peut_renforcer([_position(entree=11.1951)], Side.BUY,
+                                    prix=11.1951 + 0.6 * 0.4703, atr=0.4703)
+        assert ok, why
+
+    def test_le_prefiltre_ne_verifie_pas_l_espacement(self):
+        """La phase de selection tourne AVANT le chargement des donnees.
+
+        Elle n'a ni prix ni ATR, et doit le dire explicitement — sinon
+        le fail-closed la bloquerait et le symbole ne serait plus jamais
+        regarde.
+        """
+        rm = _gestionnaire(pyramide_max=2, pyramide_espacement_atr=0.5,
+                           pyramide_locked_r_min=-1.0)
+        ok, why = rm.peut_renforcer([_position(entree=100.0)], Side.BUY,
+                                    verifier_espacement=False)
+        assert ok, why
+
+    def test_l_espacement_se_mesure_depuis_la_DERNIERE_unite(self):
+        """Pas depuis la moyenne ponderee, qui recule a chaque ajout.
+
+        Position fusionnee : entree moyenne 100, derniere unite a 110.
+        Un prix de 110,5 n'est qu'a 0,1 ATR de la derniere unite : refuse.
+        Le mesurer depuis la moyenne donnerait 1,05 ATR et laisserait
+        empiler deux etages sur le meme mouvement.
+        """
+        pos = _position(entree=100.0)
+        pos.derniere_entree = 110.0
+        pos.etages = 2
+        rm = _gestionnaire(pyramide_max=3, pyramide_espacement_atr=0.5,
+                           pyramide_locked_r_min=-1.0)
+        ok, why = rm.peut_renforcer([pos], Side.BUY, prix=110.5, atr=5.0)
+        assert not ok, (
+            "espacement mesure depuis la moyenne ponderee (100) au lieu de "
+            "la derniere unite (110) : deux etages sur le meme mouvement")
+
+    def test_le_plafond_compte_les_ETAGES_pas_les_lignes(self):
+        """Au comptant, trois unites vivent dans UNE position.
+
+        Compter les positions rendrait toujours 1 et le plafond ne serait
+        jamais atteint.
+        """
+        pos = _position(entree=100.0)
+        pos.etages = 3
+        pos.derniere_entree = 100.0
+        rm = _gestionnaire(pyramide_max=2, pyramide_espacement_atr=0.0,
+                           pyramide_locked_r_min=-1.0)
+        ok, why = rm.peut_renforcer([pos], Side.BUY, prix=200.0, atr=1.0)
+        assert not ok, "4e etage accepte alors que le maximum est 3 unites"
+        assert "maximum 2" in why
