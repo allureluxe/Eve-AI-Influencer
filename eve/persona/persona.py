@@ -12,11 +12,12 @@ import yaml
 from eve.config import settings
 
 # Style photographique commun : c'est lui qui donne le rendu "ultra réaliste".
+# Court volontairement : au-delà d'un millier de caractères, le service
+# d'images renvoie une erreur serveur. Chaque mot doit donc porter.
 PHOTO_STYLE = (
-    "photorealistic candid photograph, shot on Sony A7 IV with 35mm f/1.8 lens, "
-    "natural daylight, shallow depth of field, realistic skin texture with visible pores, "
-    "subtle skin imperfections, natural film grain, true-to-life color grading, "
-    "sharp focus on the eyes, editorial lifestyle photography, 8k detail"
+    "candid unretouched photo, 35mm lens, natural window light, "
+    "visible skin pores and fine lines, slight facial asymmetry, "
+    "flyaway hairs, faint film grain, sharp eyes"
 )
 
 # Anti-prompt : évite le rendu "3D / plastique" typique des IA.

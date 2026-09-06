@@ -31,18 +31,24 @@ from eve.persona.persona import NEGATIVE_PROMPT
 # exemple). Les consignes de réalisme doivent alors être formulées
 # positivement, sinon toute la protection anti-plastique reste lettre morte
 # — c'est ce qui donne les visages de poupée lissés.
-REALISME_POSITIF = (
-    "unretouched amateur photograph, real human skin with visible pores and "
-    "fine lines, slight asymmetry in the face, natural imperfect lighting, "
-    "faint under-eye shadows, individual flyaway hairs, subtle sensor noise, "
-    "shot on a real camera, documentary photography, not a render, not an "
-    "illustration, no beauty filter, no smoothing"
-)
+# Complète `PHOTO_STYLE` sans le répéter : ce sont les seuls termes qui
+# ne peuvent pas être formulés positivement ailleurs.
+REALISME_POSITIF = "real photo, not a render, no beauty filter, no smoothing"
+
+# Le service d'images renvoie une erreur serveur sur les prompts trop
+# longs : celui-ci a fait tomber la génération en 500.
+LONGUEUR_MAX = 900
 
 
-def prompt_realiste(prompt: str) -> str:
-    """Prompt enrichi pour les providers sans paramètre négatif."""
-    return f"{prompt}, {REALISME_POSITIF}"
+def prompt_realiste(prompt: str, limite: int = LONGUEUR_MAX) -> str:
+    """Prompt enrichi pour les providers sans paramètre négatif, borné.
+
+    Le suffixe de réalisme est prioritaire : on rogne la description avant
+    de le sacrifier, sinon on retombe sur des visages lissés.
+    """
+    suffixe = f", {REALISME_POSITIF}"
+    place = max(0, limite - len(suffixe))
+    return prompt[:place].rstrip(", ") + suffixe
 
 log = logging.getLogger(__name__)
 
@@ -73,17 +79,31 @@ class PollinationsProvider(ImageProvider):
         self.model = model or "flux"
 
     def generate(self, prompt: str, out: Path, *, width: int, height: int, seed: int) -> Path:
-        # Pollinations n'expose aucun prompt négatif : on formule les
-        # consignes de réalisme positivement, sinon elles sont perdues.
-        url = self.BASE + urllib.parse.quote(prompt_realiste(prompt)[:1800], safe="")
+        # Pollinations n'expose aucun prompt négatif : les consignes de
+        # réalisme sont formulées positivement, sinon elles sont perdues.
+        url = self.BASE + urllib.parse.quote(prompt_realiste(prompt), safe="")
         params = {"width": width, "height": height, "seed": seed,
                   "model": self.model, "nologo": "true", "enhance": "false"}
-        r = requests.get(url, params=params, timeout=180)
-        r.raise_for_status()
-        if not r.content or len(r.content) < 1024:
-            raise RuntimeError("Réponse image vide de Pollinations.")
-        out.write_bytes(r.content)
-        return out
+
+        # Le service renvoie régulièrement des 5xx passagers. Un seul essai
+        # faisait basculer toute l'image sur un placeholder.
+        derniere: Exception | None = None
+        for essai in range(3):
+            try:
+                r = requests.get(url, params=params, timeout=180)
+                if r.status_code >= 500:
+                    raise RuntimeError(f"Pollinations {r.status_code} (essai {essai + 1}/3)")
+                r.raise_for_status()
+                if not r.content or len(r.content) < 1024:
+                    raise RuntimeError("Réponse image vide de Pollinations.")
+                out.write_bytes(r.content)
+                return out
+            except Exception as exc:
+                derniere = exc
+                log.warning("%s", exc)
+                if essai < 2:
+                    time.sleep(4 * (essai + 1))
+        raise RuntimeError(f"Pollinations indisponible après 3 essais : {derniere}")
 
 
 class ComfyUIProvider(ImageProvider):

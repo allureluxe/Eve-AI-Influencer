@@ -138,7 +138,9 @@ def test_les_consignes_de_realisme_atteignent_pollinations(monkeypatch, tmp_path
                                     width=512, height=512, seed=1)
     import urllib.parse
     envoye = urllib.parse.unquote(vu["url"])
-    assert "visible pores" in envoye
+    # Le service n'accepte aucun prompt négatif : ces consignes doivent donc
+    # voyager dans le prompt lui-même, sans quoi le rendu part en « poupée ».
+    assert "not a render" in envoye
     assert "no beauty filter" in envoye
 
 
@@ -147,3 +149,38 @@ def test_le_personnage_est_blond():
 
     verrou = load_persona().identity_lock.lower()
     assert "blonde" in verrou and "dark blonde" not in verrou
+
+
+def test_le_prompt_reste_sous_la_limite_du_service():
+    """Un prompt trop long fait renvoyer une erreur serveur."""
+    from eve.media.images import LONGUEUR_MAX, REALISME_POSITIF, prompt_realiste
+
+    court = prompt_realiste("une femme")
+    assert court.endswith(REALISME_POSITIF)
+
+    long = prompt_realiste("x" * 5000)
+    assert len(long) <= LONGUEUR_MAX
+    assert long.endswith(REALISME_POSITIF), "le réalisme survit à la troncature"
+
+
+def test_pollinations_reessaie_sur_erreur_serveur(monkeypatch, tmp_path):
+    from eve.media.images import PollinationsProvider
+
+    appels = []
+
+    class Reponse:
+        def __init__(self, code):
+            self.status_code = code
+            self.content = b"x" * 4096
+
+        def raise_for_status(self):
+            return None
+
+    def faux_get(url, params=None, timeout=None):
+        appels.append(1)
+        return Reponse(500 if len(appels) < 3 else 200)
+
+    monkeypatch.setattr("eve.media.images.requests.get", faux_get)
+    monkeypatch.setattr("eve.media.images.time.sleep", lambda s: None)
+    PollinationsProvider().generate("x", tmp_path / "a.png", width=512, height=512, seed=1)
+    assert len(appels) == 3, "deux 500 puis un succès"
