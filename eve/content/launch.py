@@ -6,6 +6,7 @@ character bible, donc restent cohérentes avec le contenu produit.
 """
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 from eve.config import settings
@@ -23,6 +24,27 @@ TIKTOK_BIO_LIMIT = 80
 DISCLOSURE_COURTE = "🤖 Personnage virtuel généré"
 
 
+def ligne_compteur(journal=None) -> str:
+    """Ligne « où en est le compte », calculée depuis le journal réel.
+
+    Chaîne vide tant qu'aucun compte n'est ouvert : une bio ne doit jamais
+    afficher un chiffre inventé, même pour faire joli.
+    """
+    from eve.content import story
+
+    journal = journal if journal is not None else story.load_journal()
+    if journal is None or journal.solde_actuel is None:
+        return ""
+
+    ouverture = next((e for e in journal.entrees if e.a_un_solde), None)
+    if ouverture is None:
+        return ""
+    jours = (date.fromisoformat(journal.derniere.date)
+             - date.fromisoformat(ouverture.date)).days
+    solde = f"{journal.solde_actuel:.2f}".replace(".", ",")
+    return f"Jour {jours} : {solde} €" if jours > 0 else f"Compte ouvert : {solde} €"
+
+
 def build_bios(persona: Persona) -> dict[str, str]:
     """Bios prêtes à coller, tenant dans les limites de chaque plateforme.
 
@@ -33,15 +55,22 @@ def build_bios(persona: Persona) -> dict[str, str]:
     ident = persona.raw()["identity"]
     longue = persona.disclosure["bio_line"]
 
+    capital = persona.raw().get("story", {}).get("capital_depart_eur", 100)
+    compteur = ligne_compteur()
+
+    # Le compteur passe avant le reste : c'est lui qui donne envie de revenir.
+    # Absent tant qu'aucun compte réel n'est ouvert.
     instagram = _assembler(longue, [
-        "Je code un robot de trading. 100 € en réel.",
+        f"J'ai codé un robot de trading. {capital:.0f} € dessus.",
+        compteur,
+        "Je publie tout, même les pertes",
         f"{ident['city']} ☀️",
-        "Je montre tout, même quand ça baisse",
     ], IG_BIO_LIMIT)
 
     tiktok = _assembler(DISCLOSURE_COURTE, [
-        "Je code un robot de trading · 100 € en réel",
-        "Je montre aussi les pertes",
+        f"{capital:.0f} € · mon robot · {compteur}" if compteur
+        else f"{capital:.0f} € · un robot que j'ai codé",
+        "Les pertes aussi sont publiées",
     ], TIKTOK_BIO_LIMIT)
 
     return {"instagram": instagram, "tiktok": tiktok}
@@ -52,7 +81,7 @@ def _assembler(entete: str, lignes: list[str], limite: int) -> str:
     retenues = [entete]
     total = len(entete)
     for ligne in lignes:
-        if total + len(ligne) + 1 > limite:
+        if not ligne or total + len(ligne) + 1 > limite:
             continue
         retenues.append(ligne)
         total += len(ligne) + 1
