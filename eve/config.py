@@ -73,14 +73,11 @@ class GenerationConfig:
     voice_provider: str = field(default_factory=lambda: _env("VOICE_PROVIDER", "edge-tts"))
     voice_name: str = field(default_factory=lambda: _env("VOICE_NAME", "en-US-AvaNeural"))
     voice_rate: str = field(default_factory=lambda: _env("VOICE_RATE", "+8%"))
-    # Consigne de jeu passée au TTS Gemini. C'est le levier principal :
-    # la même voix passe du spot publicitaire au message vocal selon ce texte.
-    voice_style: str = field(default_factory=lambda: _env(
-        "VOICE_STYLE",
-        "Lis ce texte comme une vidéo filmée au téléphone, pas comme une "
-        "publicité : ton naturel et détendu, débit irrégulier, quelques "
-        "hésitations, comme si tu parlais à une amie. Ne surarticule pas, "
-        "n'exagère aucune intonation, ne souris pas dans la voix."))
+    # Jeu de la voix. `VOICE_STYLE_PRESET` choisit un réglage nommé
+    # (voir eve/media/voice_styles.py) ; `VOICE_STYLE` permet d'écrire sa
+    # propre consigne et l'emporte sur le preset.
+    voice_style_preset: str = field(default_factory=lambda: _env("VOICE_STYLE_PRESET", "neutre"))
+    voice_style: str = field(default_factory=lambda: _env("VOICE_STYLE", ""))
 
     llm_provider: str = field(default_factory=lambda: _env("LLM_PROVIDER", "template"))
     llm_model: str = field(default_factory=lambda: _env("LLM_MODEL", ""))

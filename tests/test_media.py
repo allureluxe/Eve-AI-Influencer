@@ -86,3 +86,30 @@ def test_voice_without_style_sends_only_the_text(monkeypatch, tmp_path):
             {"inlineData": {"data": "AAAA", "mimeType": "audio/L16;rate=24000"}}]}}]})[1])
     voice._gemini_tts("Bonjour.", tmp_path / "v.mp3", "Leda", "")
     assert envoye["texte"] == "Bonjour."
+
+
+# --------------------------------------------------------- réglages de voix
+def test_le_preset_par_defaut_demande_de_ne_pas_jouer():
+    from eve.media.voice_styles import DEFAUT, resolve
+
+    consigne = resolve()
+    assert consigne == resolve(DEFAUT)
+    assert "ne joue pas" in consigne.lower()
+
+
+def test_le_preset_aucun_envoie_une_consigne_vide():
+    from eve.media.voice_styles import resolve
+
+    assert resolve("aucun") == ""
+
+
+def test_un_style_ecrit_a_la_main_prime_sur_le_preset():
+    from eve.media.voice_styles import resolve
+
+    assert resolve("confidence", "  Ton plat.  ") == "Ton plat."
+
+
+def test_un_preset_inconnu_retombe_sur_le_defaut():
+    from eve.media.voice_styles import DEFAUT, PRESETS, resolve
+
+    assert resolve("nexiste-pas") == PRESETS[DEFAUT]

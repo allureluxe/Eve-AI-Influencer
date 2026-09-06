@@ -13,6 +13,7 @@ import wave
 from pathlib import Path
 
 from eve.config import settings
+from eve.media import voice_styles
 
 log = logging.getLogger(__name__)
 
@@ -101,7 +102,8 @@ def synthesize(text: str, out: Path, *, expected_seconds: float = 20.0,
     if provider != "silent":
         try:
             if provider == "gemini":
-                return VoiceResult(_gemini_tts(text, out, g.voice_name, g.voice_style), "gemini")
+                consigne = voice_styles.resolve(g.voice_style_preset, g.voice_style)
+                return VoiceResult(_gemini_tts(text, out, g.voice_name, consigne), "gemini")
             if provider == "piper":
                 return VoiceResult(_piper(text, out, g.voice_name), "piper")
             return VoiceResult(_edge_tts(text, out, g.voice_name, g.voice_rate), "edge-tts")
