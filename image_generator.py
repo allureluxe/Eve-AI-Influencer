@@ -3,7 +3,10 @@ import base64
 import logging
 from typing import Optional
 
-import aiohttp
+try:
+    import aiohttp
+except ImportError:  # pragma: no cover - generation desactivee sans dependance HTTP
+    aiohttp = None
 
 from config import (
     IMAGE_API_HOST,
@@ -95,6 +98,9 @@ class ImageGenerator:
     async def _generate_with_stability(
         self, prompt: str, negative_prompt: str
     ) -> Optional[bytes]:
+        if aiohttp is None:
+            logger.error("aiohttp manquant")
+            return None
         url = f"{self.api_host}/v1/generation/{self.model}/text-to-image"
         headers = {
             "Accept": "application/json",
@@ -122,6 +128,9 @@ class ImageGenerator:
     async def _generate_with_replicate(
         self, prompt: str, negative_prompt: str
     ) -> Optional[bytes]:
+        if aiohttp is None:
+            logger.error("aiohttp manquant")
+            return None
         if not self.api_key:
             logger.error("REPLICATE_API_TOKEN manquant")
             return None
@@ -177,7 +186,7 @@ class ImageGenerator:
             return None
 
     async def _download_replicate_output(
-        self, session: aiohttp.ClientSession, prediction: dict
+        self, session, prediction: dict
     ) -> Optional[bytes]:
         output = prediction.get("output")
         image_url = output[0] if isinstance(output, list) and output else output
