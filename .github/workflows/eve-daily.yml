@@ -94,6 +94,12 @@ jobs:
           AMAZON_ASSOCIATE_TAG: ${{ vars.AMAZON_ASSOCIATE_TAG }}
         run: python -m eve.cli run --days 3 --max-publish 2
 
+      - name: Kit de lancement (bios et photo de profil)
+        if: always()
+        env:
+          IMAGE_PROVIDER: ${{ vars.IMAGE_PROVIDER || 'pollinations' }}
+        run: python -m eve.cli lancement
+
       - name: Récupérer les vidéos et le rapport
         uses: actions/upload-artifact@v4
         if: always()
@@ -101,5 +107,7 @@ jobs:
           name: eve-output-${{ github.run_number }}
           path: |
             output/videos/**/*.mp4
+            output/videos/**/legendes.txt
+            output/products/*
             output/reports/*.md
           retention-days: 14
