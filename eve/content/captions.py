@@ -10,18 +10,16 @@ from eve.persona.persona import Persona
 # moyen (découverte) et large (portée). Le tout reste crédible.
 HASHTAGS = {
     "niche": {
-        "lifestyle": ["#miamilife", "#artdevivre", "#slowluxury", "#dailyroutine"],
-        "fashion": ["#styleminimaliste", "#garderobecapsule", "#modefemme",
-                    "#qualiteavantquantite", "#stylequotidien"],
-        "travel": ["#voyagestyle", "#hotelselection", "#carnetdevoyage"],
-        "work": ["#tradingautomatise", "#algotrading", "#coulisses"],
-        "mindset": ["#discipline", "#routinematinale", "#apprendreseul"],
+        "journal": ["#buildinpublic", "#journaldebord", "#100euros"],
+        "build": ["#codeuse", "#python", "#projetperso", "#devfrancais"],
+        "apprendre": ["#apprendreacoder", "#autodidacte", "#tradingautomatise"],
+        "quotidien": ["#montpellier", "#viedecodeuse", "#routinematinale"],
+        "mindset": ["#discipline", "#patience", "#projetlongterme"],
         "qa": ["#questionsreponses", "#vosquestions"],
     },
-    "medium": ["#lifestylefrancais", "#eleganceausquotidien", "#modeetstyle",
-               "#inspirationdujour", "#quietluxury", "#minimalismechic",
-               "#viedecreatrice"],
-    "broad": ["#lifestyle", "#fashion", "#style", "#luxury", "#miami", "#outfit"],
+    "medium": ["#codingfrance", "#developpeuse", "#apprendreenligne",
+               "#projetencours", "#techfrance", "#sudfrance", "#autodidacte"],
+    "broad": ["#code", "#python", "#tech", "#trading", "#motivation", "#learning"],
 }
 
 MAX_IG = 15
@@ -31,7 +29,7 @@ MAX_TIKTOK = 6
 def build_hashtags(persona: Persona, pillar: str, platform: str = "instagram",
                    rng: random.Random | None = None) -> list[str]:
     rng = rng or random
-    niche = HASHTAGS["niche"].get(pillar, HASHTAGS["niche"]["lifestyle"])
+    niche = HASHTAGS["niche"].get(pillar, HASHTAGS["niche"]["quotidien"])
     disclosure = persona.disclosure["hashtags"]
 
     if platform == "tiktok":

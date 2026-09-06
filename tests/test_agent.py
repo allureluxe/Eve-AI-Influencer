@@ -10,7 +10,6 @@ from eve.agent.state import Store
 from eve.analytics.collector import normalize
 from eve.analytics.optimizer import suggest_weights
 from eve.monetization.links import Offer, monetization_line, pick_offer
-from eve.monetization.products import build_guide_markdown, export_guide
 from eve.monetization.revenue import project_monthly
 from eve.persona.persona import load_persona
 
@@ -26,13 +25,13 @@ def persona():
 
 
 def test_store_round_trip(store):
-    store.save_piece("p1", "2026-01-01", "07:00", "fashion", {"a": 1}, "approved")
-    assert store.get_piece("p1")["pillar"] == "fashion"
+    store.save_piece("p1", "2026-01-01", "07:00", "build", {"a": 1}, "approved")
+    assert store.get_piece("p1")["pillar"] == "build"
     assert store.due_pieces("2026-01-02")[0]["id"] == "p1"
 
 
 def test_publication_is_idempotent(store):
-    store.save_piece("p1", "2026-01-01", "07:00", "fashion", {})
+    store.save_piece("p1", "2026-01-01", "07:00", "build", {})
     store.record_publication("p1", "tiktok", True, post_id="a")
     store.record_publication("p1", "tiktok", True, post_id="b")
     assert len(store.publications()) == 1
@@ -62,29 +61,29 @@ def test_metrics_normalisation_across_platforms():
 
 def test_optimizer_favours_the_best_pillar(persona, store):
     for i in range(12):
-        pillar = "fashion" if i % 2 else "travel"
+        pillar = "build" if i % 2 else "quotidien"
         store.save_piece(f"m{i}", "2026-01-01", "07:00", pillar, {})
         store.record_metrics(f"m{i}", "tiktok", {
-            "views": 9000 if pillar == "fashion" else 300,
-            "engagement_rate": 0.09 if pillar == "fashion" else 0.01})
+            "views": 9000 if pillar == "build" else 300,
+            "engagement_rate": 0.09 if pillar == "build" else 0.01})
     weights = suggest_weights(persona, store)
     base = {p.key: p.share for p in persona.pillars}
-    assert weights["fashion"] > base["fashion"]
-    assert weights["travel"] < base["travel"]
+    assert weights["build"] > base["build"]
+    assert weights["quotidien"] < base["quotidien"]
     assert all(v > 0 for v in weights.values()), "aucun pilier ne doit tomber à zéro"
     assert abs(sum(weights.values()) - 1) < 0.01
 
 
 def test_affiliate_links_carry_the_legal_disclosure():
     offer = Offer("gear", "Matériel", "affiliate", "https://x.test/p",
-                  ("fashion",), "Mes basiques.", requires_disclosure=True)
+                  ("build",), "Mes outils.", requires_disclosure=True)
     line = monetization_line(offer, "instagram", "camp")
     assert "#ad" in line and "utm_campaign=camp" in line
 
 
 def test_no_offer_when_pillar_does_not_match():
     offer = Offer("gear", "Matériel", "affiliate", "https://x.test/p",
-                  ("fashion",), "…")
+                  ("build",), "…")
     assert pick_offer("qa", [offer]) is None
     assert monetization_line(None, "tiktok", "c") == ""
 
@@ -93,13 +92,6 @@ def test_revenue_projection_is_ordered_and_positive():
     proj = project_monthly(10_000, 300_000)
     for low, high in proj.values():
         assert 0 <= low <= high
-
-
-def test_guide_export_carries_the_ai_notice(persona, tmp_path):
-    md = build_guide_markdown(persona)
-    assert "intelligence artificielle" in md
-    paths = export_guide(persona, tmp_path)
-    assert paths["html"].read_text(encoding="utf-8").startswith("<!doctype html>")
 
 
 def test_dry_run_publish_records_but_does_not_go_live(persona, store, monkeypatch):

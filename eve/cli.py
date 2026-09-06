@@ -317,7 +317,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("doctor", help="diagnostic complet").set_defaults(func=cmd_doctor)
 
     pv = sub.add_parser("preview", help="afficher un script sans rien générer")
-    pv.add_argument("--pillar", default="fashion")
+    pv.add_argument("--pillar", default="journal")
     pv.add_argument("--slot", default="06:30")
     pv.set_defaults(func=cmd_preview)
 

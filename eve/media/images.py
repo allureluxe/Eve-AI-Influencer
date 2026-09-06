@@ -208,7 +208,9 @@ class GeminiProvider(ImageProvider):
             return out
 
         # Modèles « gemini-*-image » : le ratio se demande dans le prompt.
-        data = gemini.post(model, "generateContent", {
+        envoi = gemini.post if self.model else (
+            lambda _m, meth, payload: gemini.post_with_fallback("image", meth, payload))
+        data = envoi(model, "generateContent", {
             "contents": [{"role": "user", "parts": [
                 {"text": f"{prompt[:4000]}\n\nVertical {ratio} aspect ratio photograph."}]}],
             "generationConfig": {"responseModalities": ["IMAGE"],

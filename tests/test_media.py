@@ -64,13 +64,12 @@ def test_voice_style_is_prefixed_to_the_text(monkeypatch, tmp_path):
 
     envoye = {}
 
-    def faux_post(model, method, payload):
+    def faux_post(task, method, payload):
         envoye["texte"] = payload["contents"][0]["parts"][0]["text"]
         return {"candidates": [{"content": {"parts": [
             {"inlineData": {"data": "AAAA", "mimeType": "audio/L16;rate=24000"}}]}}]}
 
-    monkeypatch.setattr(gemini, "pick_model", lambda task: "modele-test")
-    monkeypatch.setattr(gemini, "post", faux_post)
+    monkeypatch.setattr(gemini, "post_with_fallback", faux_post)
     voice._gemini_tts("Bonjour.", tmp_path / "v.mp3", "Leda", "Ton détendu, pas publicitaire.")
 
     assert envoye["texte"].startswith("Ton détendu, pas publicitaire.")
@@ -81,8 +80,7 @@ def test_voice_without_style_sends_only_the_text(monkeypatch, tmp_path):
     from eve.media import gemini, voice
 
     envoye = {}
-    monkeypatch.setattr(gemini, "pick_model", lambda task: "modele-test")
-    monkeypatch.setattr(gemini, "post", lambda m, me, p: (
+    monkeypatch.setattr(gemini, "post_with_fallback", lambda task, me, p: (
         envoye.update(texte=p["contents"][0]["parts"][0]["text"]),
         {"candidates": [{"content": {"parts": [
             {"inlineData": {"data": "AAAA", "mimeType": "audio/L16;rate=24000"}}]}}]})[1])

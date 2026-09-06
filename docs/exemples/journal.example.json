@@ -1,0 +1,36 @@
+{
+  "_lisez_moi": "Copier vers data/trading/journal.json. C'est TOI qui remplis ce fichier au fur et à mesure du vrai projet. Eve ne peut raconter que les étapes présentes ici — elle ne peut jamais te devancer. Une date dans le futur est refusée.",
+  "capital_depart_eur": 100,
+  "entrees": [
+    {
+      "date": "2026-07-23",
+      "etape": "premieres_lignes",
+      "solde_eur": null,
+      "note": "Première version du programme, 200 lignes. Ça ne fait encore rien de bien."
+    },
+    {
+      "date": "2026-08-06",
+      "etape": "backtest",
+      "solde_eur": null,
+      "note": "Backtest sur deux ans. Résultat moyen, mais ça tourne sans planter."
+    },
+    {
+      "date": "2026-08-17",
+      "etape": "demo",
+      "solde_eur": null,
+      "note": "Deux semaines en démo. Trois bugs corrigés, dont un qui doublait les positions."
+    },
+    {
+      "date": "2026-08-25",
+      "etape": "cent_euros",
+      "solde_eur": 100.0,
+      "note": "Compte réel ouvert avec 100 €. De l'argent que je peux perdre."
+    },
+    {
+      "date": "2026-09-01",
+      "etape": "premiere_semaine",
+      "solde_eur": 97.4,
+      "note": "Première semaine : -2,60 €. Quatre trades, deux perdants."
+    }
+  ]
+}

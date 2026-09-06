@@ -142,7 +142,8 @@ class Persona:
         pillars = ", ".join(p["label"] for p in d["expertise"]["pillars"])
         return (
             f"Tu écris à la place de {d['identity']['full_name']} ({d['identity']['age']} ans), "
-            f"créatrice virtuelle lifestyle basée à {d['identity']['city']}, {d['identity']['state']}. "
+            f"basée à {d['identity']['city']}"
+            f"{', ' + d['identity']['region'] if d['identity'].get('region') else ''}. "
             f"Positionnement : {d['expertise']['positioning']} "
             f"Ton : {d['voice']['tone']}. "
             f"Piliers de contenu : {pillars}. "

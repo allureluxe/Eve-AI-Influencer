@@ -83,7 +83,7 @@ BODY_SHAMING_PATTERNS = [
 ]
 
 # Contenu qui exige explicitement le disclaimer santé.
-DISCLAIMER_REQUIRED_PILLARS = {"work"}
+DISCLAIMER_REQUIRED_PILLARS = {"journal", "apprendre"}
 
 
 @dataclass

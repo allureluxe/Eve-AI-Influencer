@@ -74,12 +74,78 @@ def test_un_post_chiffre_passe_la_conformite(tmp_path, monkeypatch):
     persona = load_persona()
     # On force la branche chiffrée en épuisant les seeds jusqu'à l'obtenir.
     for jour in range(1, 28):
-        piece = build_piece(persona, day=date(2026, 5, jour), slot="18:00", pillar="work")
+        piece = build_piece(persona, day=date(2026, 5, jour), slot="18:00", pillar="journal")
         if piece.title.startswith("Les chiffres"):
             texte = piece.voiceover_text.lower()
             assert "drawdown" in texte
             assert "conseil en investissement" in texte
-            _, res = review_post(persona, caption=piece.full_caption(), pillar="work")
+            _, res = review_post(persona, caption=piece.full_caption(), pillar="journal")
             assert res.ok, res.report()
             return
     pytest.skip("aucun post chiffré tiré sur la fenêtre testée")
+
+
+# ---------------------------------------------------------------- journal
+def test_sans_journal_aucun_episode_ne_souvre_sauf_le_premier():
+    from eve.content.story import episodes_disponibles, prochaine_etape
+
+    persona = load_persona()
+    ouverts = episodes_disponibles(persona, None)
+    assert [e["key"] for e in ouverts] == ["pourquoi"]
+    assert prochaine_etape(persona, None)["key"] == "premieres_lignes"
+
+
+def test_le_recit_ne_peut_pas_devancer_le_reel(tmp_path):
+    import json
+    from datetime import date, timedelta
+
+    from eve.content.story import JournalError, load_journal
+
+    demain = (date.today() + timedelta(days=3)).isoformat()
+    chemin = tmp_path / "journal.json"
+    chemin.write_text(json.dumps({
+        "capital_depart_eur": 100,
+        "entrees": [{"date": demain, "etape": "cent_euros", "solde_eur": 140}],
+    }), encoding="utf-8")
+    with pytest.raises(JournalError, match="futur"):
+        load_journal(chemin)
+
+
+def _journal(tmp_path, entrees) -> "object":
+    import json
+
+    chemin = tmp_path / "journal.json"
+    chemin.write_text(json.dumps({"capital_depart_eur": 100, "entrees": entrees}),
+                      encoding="utf-8")
+    return chemin
+
+
+def test_le_resume_montre_toujours_la_baisse(tmp_path):
+    from datetime import date, timedelta
+
+    from eve.content.story import load_journal
+
+    hier = (date.today() - timedelta(days=1)).isoformat()
+    avant = (date.today() - timedelta(days=10)).isoformat()
+    journal = load_journal(_journal(tmp_path, [
+        {"date": avant, "etape": "cent_euros", "solde_eur": 100},
+        {"date": hier, "etape": "premiere_semaine", "solde_eur": 88.5},
+    ]))
+    resume = journal.resume_chiffre()
+    assert "88.50" in resume and "-11.5 %" in resume
+    assert "plus bas" in resume, "une baisse doit toujours être dite"
+    assert journal.variation_eur == -11.5
+
+
+def test_les_etapes_franchies_ouvrent_les_episodes(tmp_path):
+    from datetime import date, timedelta
+
+    from eve.content.story import episodes_disponibles, load_journal
+
+    hier = (date.today() - timedelta(days=1)).isoformat()
+    journal = load_journal(_journal(tmp_path, [
+        {"date": hier, "etape": "premieres_lignes", "solde_eur": None},
+    ]))
+    ouverts = {e["key"] for e in episodes_disponibles(load_persona(), journal)}
+    assert ouverts == {"pourquoi", "premieres_lignes"}
+    assert "cent_euros" not in ouverts

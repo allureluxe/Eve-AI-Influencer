@@ -51,20 +51,47 @@ def list_models() -> tuple[dict, ...]:
     return tuple(r.json().get("models", []))
 
 
-def pick_model(task: str) -> str:
-    """Nom du modèle à utiliser pour « image » ou « tts »."""
+def candidate_models(task: str) -> list[str]:
+    """Modèles utilisables pour la tâche, du plus souhaitable au repli.
+
+    Les quotas du palier gratuit sont **par modèle** : quand le plus récent
+    est épuisé pour la journée, un modèle plus ancien répond encore. D'où
+    une liste, et non un choix unique.
+    """
     noms = [m.get("name", "").removeprefix("models/") for m in list_models()]
+    ordonnes: list[str] = []
     for motif in PREFERENCES[task]:
-        candidats = sorted(n for n in noms if motif in n)
-        if candidats:
-            # Le plus court d'abord : « imagen-4.0-generate-001 » plutôt
-            # qu'une variante expérimentale à rallonge.
-            choisi = min(candidats, key=len)
-            log.info("Modèle Gemini retenu pour %s : %s", task, choisi)
-            return choisi
+        # Le plus court d'abord : « imagen-4.0-generate-001 » plutôt qu'une
+        # variante expérimentale à rallonge.
+        for nom in sorted((n for n in noms if motif in n), key=len):
+            if nom not in ordonnes:
+                ordonnes.append(nom)
+    if not ordonnes:
+        raise GeminiError(
+            f"Aucun modèle {task} disponible sur cette clé. "
+            f"Modèles vus : {', '.join(noms[:12])}…")
+    return ordonnes
+
+
+def pick_model(task: str) -> str:
+    choisi = candidate_models(task)[0]
+    log.info("Modèle Gemini retenu pour %s : %s", task, choisi)
+    return choisi
+
+
+def post_with_fallback(task: str, method: str, payload: dict) -> dict:
+    """Essaie chaque modèle de la tâche, passe au suivant sur quota épuisé."""
+    erreurs: list[str] = []
+    for modele in candidate_models(task):
+        try:
+            return post(modele, method, payload)
+        except GeminiError as exc:
+            if "429" not in str(exc):
+                raise
+            log.warning("Quota épuisé sur %s, essai du modèle suivant.", modele)
+            erreurs.append(modele)
     raise GeminiError(
-        f"Aucun modèle {task} disponible sur cette clé. "
-        f"Modèles vus : {', '.join(noms[:12])}…")
+        f"Quota épuisé sur tous les modèles {task} disponibles : {', '.join(erreurs)}.")
 
 
 def post(model: str, method: str, payload: dict) -> dict:

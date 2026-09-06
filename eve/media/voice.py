@@ -55,9 +55,8 @@ def _gemini_tts(text: str, out: Path, voice: str, style: str = "") -> Path:
     """
     from eve.media import gemini
 
-    model = gemini.pick_model("tts")
     consigne = f"{style.strip()}\n\n{text}" if style.strip() else text
-    data = gemini.post(model, "generateContent", {
+    data = gemini.post_with_fallback("tts", "generateContent", {
         "contents": [{"role": "user", "parts": [{"text": consigne}]}],
         "generationConfig": {
             "responseModalities": ["AUDIO"],

@@ -24,7 +24,7 @@ def test_unknown_command_exits_cleanly():
 
 
 def test_preview_runs_without_touching_the_network_or_disk(capsys):
-    assert main(["preview", "--pillar", "fashion"]) == 0
+    assert main(["preview", "--pillar", "build"]) == 0
     out = capsys.readouterr().out
     assert "Légende tiktok" in out and "Légende instagram" in out
 
