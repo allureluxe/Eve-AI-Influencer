@@ -1,0 +1,577 @@
+#!/usr/bin/env python3
+"""Compare plusieurs strategies sur l'historique, et les classe.
+
+POURQUOI CET OUTIL EXISTE
+
+Pendant deux jours, les reglages ont ete essayes EN ARGENT REEL : chaque
+essai coutait des euros, prenait des heures, et ne donnait qu'un seul
+echantillon. Le 28 aout au soir : 72 trades, 2,8 % de reussite, aucune
+position fermee en positif.
+
+Le moteur de rejeu du projet permet de faire l'inverse — essayer vingt
+configurations en quelques minutes, sur des annees d'historique, sans
+engager un centime. C'est la seule facon honnete de repondre a « est-ce
+que ce systeme fonctionne ? ».
+
+CE QUE CET OUTIL DIT, ET CE QU'IL NE DIT PAS
+
+Il mesure ce qu'une configuration AURAIT fait sur le passe. Il ne promet
+rien sur l'avenir. Un backtest ne reproduit ni les elargissements de
+spread sur annonce, ni le glissement reel, ni les ordres refuses — il est
+donc toujours un peu plus optimiste que la realite.
+
+Une regle a ne pas oublier : sous 30 trades, un resultat ne veut rien
+dire. L'outil le signale au lieu de laisser croire a une decouverte.
+
+    python3 comparer.py                       les variantes livrees
+    python3 comparer.py --bars 2000           plus d'historique
+    python3 comparer.py --symbols BTCUSD,ETHUSD,SOLUSD
+"""
+from __future__ import annotations
+
+import argparse
+import copy
+import logging
+import os
+import sys
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from gold_bot.env import charger_env
+from gold_bot.settings import BotConfig
+
+# Les cles des sources de prix (TWELVEDATA_API_KEY, etc.) et la devise de
+# cotation vivent dans le .env : sans lui, le rejeu tourne sur les seules
+# sources gratuites et ne mesure pas la meme chose que le robot.
+charger_env()
+
+from gold_bot.backtest import Backtester  # noqa: E402
+
+# Les cryptos les plus liquides de l'univers : spreads les plus serres,
+# donc le terrain le PLUS favorable. Ce qui echoue ici echouera partout.
+SYMBOLES = ["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "ADAUSD",
+            "AVAXUSD", "LINKUSD", "DOTUSD"]
+
+MINUTES = {"M5": 5, "M15": 15, "M30": 30, "H1": 60, "H4": 240, "D1": 1440}
+
+
+def variante(nom: str, **reglages) -> tuple[str, dict]:
+    return nom, reglages
+
+
+# --------------------------------------------------------------------------
+# LES CANDIDATES
+# --------------------------------------------------------------------------
+# Deux familles, et une raison de les opposer.
+#
+# 1. SUIVI DE TENDANCE LENT. C'est la seule approche crypto qui dispose de
+#    preuves publiees serieuses : le momentum de serie temporelle. La
+#    litterature converge sur des horizons LONGS — un travail de reference
+#    trouve son optimum a 28 jours de lecture pour 5 jours de detention,
+#    avec un Sharpe de 1,51 contre 0,84 pour l'achat simple. Traduit ici :
+#    entree en D1 ou H4, tendance ponderee lourd, pas de contre-tendance,
+#    accord entre unites de temps exige, stop large, objectif lointain.
+#
+#    Le tarif Bitvavo pousse dans le meme sens : a 0,60 % l'aller-retour,
+#    les frais valent 33 % du risque en H1 et 10 % en D1. Les deux
+#    raisonnements — la preuve et l'arithmetique — designent le meme
+#    endroit, ce qui est rare et vaut d'etre teste.
+#
+# 2. RAPIDE ET NOMBREUX. Ce que l'operateur veut : beaucoup de trades. On
+#    ne l'ecarte pas par principe, on le MESURE. Si le H1 ou le M30 tient
+#    face aux frais sur l'historique, tant mieux ; s'il perd, le rejeu le
+#    dira en quelques minutes au lieu de plusieurs jours d'argent reel.
+#
+# La question n'est pas « laquelle est la meilleure en theorie » mais
+# « laquelle a une esperance positive APRES frais, sur assez de trades
+# pour que ca veuille dire quelque chose ».
+
+TENDANCE = dict(
+    mode="quorum", min_confirmations=3, require_candle_confirmation=False,
+    require_mtf_alignment=True, allow_counter_trend=False,
+    min_adx=20.0, min_rr=1.8,
+    w_trend=0.30, w_momentum=0.24, w_candles=0.10, w_chart=0.08,
+    w_divergence=0.06, w_zones=0.06, w_volume=0.06, w_macro=0.05, w_news=0.05,
+)
+
+D1 = dict(entry_tf="D1", trigger_tf="H4", context_tf="D1", bias_tf="D1")
+H4 = dict(entry_tf="H4", trigger_tf="H1", context_tf="D1", bias_tf="D1")
+H1 = dict(entry_tf="H1", trigger_tf="M15", context_tf="H4", bias_tf="H4")
+M30 = dict(entry_tf="M30", trigger_tf="M15", context_tf="H1", bias_tf="H4")
+
+VARIANTES = [
+    # --- Famille 1 : suivi de tendance, du plus lent au plus rapide ---
+    variante("D1 tendance — objectif 3R", **D1, **TENDANCE,
+             plafond_cout=15.0, atr_stop_mult=1.5, tp_r_multiple=3.0),
+    variante("D1 tendance — objectif 2R", **D1, **TENDANCE,
+             plafond_cout=15.0, atr_stop_mult=1.5, tp_r_multiple=2.0),
+    variante("H4 tendance — objectif 3R", **H4, **TENDANCE,
+             plafond_cout=20.0, atr_stop_mult=1.5, tp_r_multiple=3.0),
+    variante("H4 tendance — objectif 2R", **H4, **TENDANCE,
+             plafond_cout=20.0, atr_stop_mult=1.5, tp_r_multiple=2.0),
+    variante("H1 tendance — objectif 2R", **H1, **TENDANCE,
+             plafond_cout=35.0, atr_stop_mult=1.6, tp_r_multiple=2.0),
+
+    # --- Famille 2 : rapide et nombreux, ce que l'operateur demande ---
+    # Sans aucun override : cette ligne suit la configuration EN SERVICE,
+    # quelle qu'elle soit. Elle s'appelait « H1 en service » et est restee
+    # ainsi apres le passage au M30 : elle affichait alors des resultats
+    # identiques a la variante M30, ce qui ressemblait a un bug alors que
+    # c'etait le meme reglage teste deux fois. Un libelle qui nomme un
+    # reglage plutot que son role finit toujours par mentir.
+    variante("configuration en service (temoin)"),
+    variante("H1 — contre-tendance permise", **H1, allow_counter_trend=True,
+             require_mtf_alignment=False, min_confirmations=2),
+    variante("H1 — objectif court 1,3R", **H1, tp_r_multiple=1.3, min_rr=1.2),
+    variante("M30 — plafond desserre a 50 %", **M30, plafond_cout=50.0,
+             atr_stop_mult=1.6, tp_r_multiple=2.0),
+
+    # --- Le seuil de score : c'est lui qui ecarte le plus de candidats ---
+    # Observe en production : BTCUSD a 0,139, ETHUSD a 0,140, VETUSD a
+    # 0,164, pour un seuil a 0,35 — alors que le quorum passait partout
+    # (6 ou 7 confirmations sur 11 pour un minimum de 4). Le desserrer au
+    # jugé est exactement ce qui a produit les 72 trades a 2,8 % du
+    # 28 aout ; on le MESURE.
+    variante("score 0,25 (plus permissif)", min_score=0.25),
+    variante("score 0,30", min_score=0.30),
+    variante("score 0,45 (plus exigeant)", min_score=0.45),
+
+    # --- Le plancher de volatilite, change sans avoir ete remesure ---
+    # Il est passe de 0,0015 a 0,0075 pour cesser d'evaluer des
+    # instruments que le plafond de cout refusait ensuite. La mesure de
+    # reference (+0,352 R) date d'AVANT ce changement.
+    variante("plancher de volatilite 0,0015 (avant correction)",
+             min_atr_price_ratio=0.0015),
+    variante("plancher de volatilite 0,0050", min_atr_price_ratio=0.0050),
+
+    # --- Temoins : est-ce que chaque barriere sert a quelque chose ? ---
+    # Une barriere qui n'ameliore rien coute des trades pour rien ; une
+    # barriere dont le retrait ameliore le resultat n'etait pas une
+    # protection, c'etait un frein.
+    variante("H4 tendance SANS accord multi-unites", **H4, **{
+        **TENDANCE, "require_mtf_alignment": False},
+        plafond_cout=20.0, atr_stop_mult=1.5, tp_r_multiple=3.0),
+    variante("H4 tendance SANS filtre ADX", **H4, **{
+        **TENDANCE, "min_adx": 0.0},
+        plafond_cout=20.0, atr_stop_mult=1.5, tp_r_multiple=3.0),
+    variante("H4 tendance — stop large 2,2 ATR", **H4, **TENDANCE,
+             plafond_cout=20.0, atr_stop_mult=2.2, tp_r_multiple=3.0),
+
+    # --- Famille 3 : LAISSER COURIR LES GROSSES MONTEES ---
+    #
+    # Ce que la configuration en service fait aujourd'hui, calcule :
+    #
+    #     objectif initial            2,00 R
+    #     extension #1 des 1,60 R  -> 2,44 R
+    #     extension #2 des 1,95 R  -> 2,88 R
+    #     extension #3 des 2,30 R  -> 3,31 R   <- max_extensions = 3
+    #
+    # Le TP monte donc bien, mais il s'arrete a 3,3 R. Sur une crypto qui
+    # fait x2, le robot sort a 3,3 R et regarde le reste passer. Trois
+    # reglages ferment la porte, et ils ne se valent pas :
+    #
+    #   max_extensions = 3      le plafond dur ;
+    #   trail_atr_mult = 0,9    0,56 R sous le plus haut — un repli
+    #                           ordinaire suffit a sortir avant meme
+    #                           d'atteindre le plafond ;
+    #   partial 30 % a 1 R      un tiers du volume ne verra jamais la
+    #                           suite du mouvement.
+    #
+    # ATTENTION AU RAISONNEMENT QUI SEMBLE EVIDENT. Elargir le stop
+    # suiveur pour « laisser respirer » rend TOUS les trades plus chers :
+    # on redonne 1,1 R au lieu de 0,56 R sur chacun des perdants, pour
+    # capturer quelques rares gagnants. C'est un echange, pas un gain, et
+    # son signe ne se devine pas — le meme raisonnement « evident » a
+    # produit les ordres limite, qui ont fait perdre 37 % de profit.
+    #
+    # On mesure donc les trois SEPAREMENT avant de les combiner, faute de
+    # quoi un resultat favorable ne dirait pas lequel des trois a paye.
+    variante("laisser courir — plafond 8 extensions", max_extensions=8),
+    variante("laisser courir — stop suiveur large (1,8 ATR)", trail_atr_mult=1.8),
+    variante("laisser courir — sans prise partielle", partial_enabled=False),
+    variante("laisser courir — les trois ensemble", max_extensions=8,
+             trail_atr_mult=1.8, partial_enabled=False),
+    variante("laisser courir — objectif lointain 4R d'emblee", tp_r_multiple=4.0),
+    # Le contraire exact, pour savoir de quel cote penche l'avantage : si
+    # ENCAISSER VITE fait mieux, la question des grosses montees est
+    # tranchee dans l'autre sens, et il vaut mieux le savoir.
+    variante("encaisser vite — objectif 1,3R, sans extension",
+             tp_r_multiple=1.3, min_rr=1.2, extend_enabled=False),
+
+    # --- Famille 4 : RENFORCER LES MONTEES (pyramidage) ---
+    #
+    # « Si le bot voit que ca continue de monter, il ouvre une 2e, puis
+    # une 3e, et elles se ferment toutes au stop suiveur en benefice. »
+    #
+    # Un etage ne s'ouvre que si TOUS les etages deja en place ont leur
+    # stop au-dessus de leur entree : la pyramide ne peut donc jamais
+    # perdre plus que son dernier etage. Chaque etage risque aussi moins
+    # que le precedent (x0,6), sans quoi trois entrees sur la meme crypto
+    # concentreraient tout le compte sur un seul actif.
+    #
+    # Ce que la mesure doit trancher, et qui ne se devine pas : les etages
+    # superieurs entrent PLUS HAUT, donc leur stop suiveur est plus proche
+    # du prix en valeur absolue. Ils sortent les premiers sur le moindre
+    # repli, et ils paient chacun l'aller-retour complet — 47 % du risque
+    # en frais au M30. Une pyramide qui se fait sortir a +0,3R sur ses
+    # deux etages hauts peut tres bien rendre MOINS qu'une position simple
+    # laissee courir, tout en payant trois fois les frais.
+    variante("pyramide — 1 renfort", pyramide_max=1),
+    variante("pyramide — 2 renforts", pyramide_max=2),
+    variante("pyramide — 3 renforts", pyramide_max=3),
+    # La combinaison que l'operateur decrit vraiment : renforcer ET
+    # laisser courir. C'est elle qu'il faut comparer au temoin.
+    variante("pyramide 2 renforts + laisser courir", pyramide_max=2,
+             max_extensions=8, trail_atr_mult=1.8, partial_enabled=False),
+]
+
+
+def config_pour(base: BotConfig, reglages: dict) -> BotConfig:
+    cfg = copy.deepcopy(base)
+    for cle, valeur in reglages.items():
+        # Le plafond de cout vit dans trois sections et doit rester
+        # coherent : le desaccorder ferait filtrer a un endroit ce qu'un
+        # autre laisse passer.
+        if cle == "plafond_cout":
+            cfg.risk.max_cost_ratio_pct = valeur
+            cfg.strategy.max_cost_ratio_pct = valeur
+            cfg.trade.max_cost_ratio_pct = valeur
+            continue
+        if cle == "risque_pct":
+            cfg.risk.base_risk_pct = valeur
+            continue
+        # `min_rr` existe dans DEUX sections et les deux comptent : la
+        # strategie s'en sert pour filtrer, le dimensionnement pour
+        # refuser. N'en regler qu'une laissait passer au second ce que le
+        # premier venait d'ecarter.
+        if cle == "min_rr":
+            cfg.strategy.min_rr = valeur
+            cfg.risk.min_rr = valeur
+            continue
+        if cle.startswith("pyramide_"):
+            setattr(cfg.risk, cle, valeur)
+            continue
+        cible = cfg.trade if hasattr(cfg.trade, cle) else cfg.strategy
+        setattr(cible, cle, valeur)
+
+    # Le stop temporel doit suivre l'unite de temps, sinon on compare une
+    # strategie D1 a qui on laisse douze heures pour se former. La variante
+    # garde la main si elle l'a fixe explicitement.
+    if "time_stop_minutes" not in reglages:
+        depart = MINUTES.get(base.strategy.entry_tf, 60)
+        arrivee = MINUTES.get(cfg.strategy.entry_tf, depart)
+        cfg.trade.time_stop_minutes = base.trade.time_stop_minutes / depart * arrivee
+
+    # L'objectif ne peut pas etre sous le ratio minimal exige : la
+    # configuration serait rejetee, et la variante ne mesurerait rien.
+    if cfg.trade.tp_r_multiple < cfg.risk.min_rr:
+        cfg.risk.min_rr = cfg.strategy.min_rr = cfg.trade.tp_r_multiple
+
+    # Meme regle de coherence que dans BotConfig.validate() : un filtre de
+    # spread plus permissif que le plafond de cout laisserait entrer ce que
+    # le dimensionnement refusera ensuite, et la variante compterait des
+    # occasions qu'elle ne peut pas prendre.
+    plafond_en_r = cfg.risk.max_cost_ratio_pct / 100.0
+    cfg.strategy.max_spread_atr_ratio = min(
+        cfg.strategy.max_spread_atr_ratio, plafond_en_r * cfg.trade.atr_stop_mult)
+    return cfg
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--config", default="robot.bitvavo.json")
+    ap.add_argument("--bars", type=int, default=1500)
+    ap.add_argument("--symbols", default="")
+    ap.add_argument("--capital", type=float, default=186.0)
+    ap.add_argument("--spread-x", type=float, default=1.0,
+                    help="multiplie le spread suppose : 1 = modele, 3 = pessimiste")
+    ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--univers-complet", action="store_true", dest="univers_complet",
+                    help="mesurer TOUS les instruments que le robot peut "
+                         "trader, pas seulement les 8 plus liquides")
+    ap.add_argument("--toutes-variantes", action="store_true", dest="toutes_variantes",
+                    help="avec --univers-complet : garder les 17 variantes "
+                         "(compter plusieurs heures)")
+    ap.add_argument("--entree-limite", action="store_true", dest="entree_limite",
+                    help="entrees en ordre limite post-only : tarif maker a "
+                         "l'entree (0,15 %%), mais les trades non servis sont "
+                         "perdus")
+    ap.add_argument("--long-seulement", action="store_true", dest="long_seulement",
+                    help="ignorer les ventes a decouvert : ce que donnerait "
+                         "la strategie sur un compte au comptant")
+    ap.add_argument("--hors-ligne", action="store_true", dest="hors_ligne",
+                    help="donnees SYNTHETIQUES : verifie que le banc d'essai "
+                         "tourne, ne dit rien d'une strategie")
+    args = ap.parse_args()
+
+    logging.basicConfig(level=logging.WARNING,
+                        format="%(levelname)s %(name)s %(message)s")
+    if not args.verbose:
+        logging.getLogger("gold_bot").setLevel(logging.ERROR)
+
+    # LE SPREAD EST LE POINT FAIBLE DU REJEU.
+    #
+    # Le modele suppose 0,05 % du prix pour toutes les cryptos. Les
+    # journaux du 28 aout montrent des spreads reels de 2 a 20 % de l'ATR,
+    # soit 0,06 a 1,2 % du prix selon l'instrument : le modele est juste
+    # sur les plus liquides et beaucoup trop optimiste ailleurs.
+    #
+    # Un avantage qui disparait quand on double le spread n'est pas un
+    # avantage, c'est une hypothese. Ce reglage permet de le verifier.
+    if args.spread_x != 1.0:
+        import gold_bot.backtest as _bt
+        _origine = _bt.spread_estime
+        _bt.spread_estime = lambda inst, prix: _origine(inst, prix) * args.spread_x
+
+    base = BotConfig.load(args.config)
+    symboles = ([s.strip().upper() for s in args.symbols.split(",") if s.strip()]
+                or SYMBOLES)
+
+    # L'ECART QUE CE MODE FERME.
+    #
+    # Les 8 symboles par defaut sont les plus liquides du catalogue :
+    # spreads les plus serres, donc le terrain le PLUS favorable. C'est le
+    # bon choix pour ELIMINER une strategie — ce qui echoue la echouera
+    # partout — mais pas pour la valider sur les 62 autres, ou les spreads
+    # sont plus larges et la liquidite plus mince.
+    #
+    # Constate le 30 aout : le premier trade reel est parti sur UNIUSD, qui
+    # ne fait pas partie des 8. La mesure de reference ne disait rien de lui.
+    variantes = VARIANTES
+    if args.univers_complet:
+        from gold_bot.universe import Universe
+        symboles = [i.symbol for i in Universe() if i.asset_class == "crypto"]
+        if not args.toutes_variantes:
+            # 17 variantes x 85 instruments prendrait des heures. On ne
+            # garde que la configuration en service : la question ici n'est
+            # pas « quelle strategie » mais « sur quels instruments ».
+            variantes = [(nom, rg) for nom, rg in VARIANTES
+                         if nom.startswith("configuration en service")]
+
+    registre = None
+    if args.hors_ligne:
+        # On passe par registre_pour() et non par le constructeur de bas
+        # niveau : c'est le point de construction UNIQUE du projet, celui
+        # qui porte le verrou de devise. Il a deja ete contourne deux fois,
+        # et chaque oubli donnait des prix en dollars pour des ordres en
+        # euros, sans la moindre erreur. Le mode hors ligne se demande donc
+        # par la configuration, pas par un appel direct.
+        from gold_bot.engine import registre_pour
+        hors_ligne = copy.deepcopy(base)
+        hors_ligne.engine.offline = True
+        registre = registre_pour(hors_ligne)
+        print("\n  !! DONNEES SYNTHETIQUES !!  Ce mode verifie que le banc")
+        print("     d'essai fonctionne. Les resultats ne disent RIEN d'une")
+        print("     strategie : le hasard n'a pas de tendance a suivre.\n")
+
+    print("=" * 78)
+    print(f"  COMPARAISON DE STRATEGIES — {len(symboles)} instruments, "
+          f"{args.bars} bougies, capital {args.capital:.0f} EUR")
+    print("=" * 78)
+    print(f"  Frais supposes : {base.risk.commission_pct*100:.2f} % par cote "
+          f"(tarif normal, hors promotion)")
+    print(f"  Spread suppose : modele x{args.spread_x:g}"
+          + ("   <- test de robustesse" if args.spread_x != 1.0 else ""))
+    print(f"  Sens autorises : "
+          + ("ACHAT SEUL (compte au comptant)" if args.long_seulement
+             else "achat ET vente a decouvert (compte de marge)"))
+    if args.entree_limite:
+        print("  Entrees       : ORDRE LIMITE post-only — tarif maker a "
+              "l'entree, mais")
+        print("                  un trade non servi est PERDU (le prix est "
+              "parti sans nous)")
+    print("  Chaque variante ne change qu'une chose par rapport a la config en service.")
+    print(f"  Instruments : {', '.join(symboles)}\n")
+
+    resultats = []
+    par_instrument: dict[str, dict] = {}
+    for nom, reglages in variantes:
+        cfg = config_pour(base, reglages)
+        if args.entree_limite:
+            # `execution_cost` applique commission_pct aux DEUX cotes. Une
+            # entree maker (0,15 %) suivie d'une sortie taker (0,25 %) fait
+            # donc 0,20 % en moyenne par cote. Modeliser 0,15 % des deux
+            # cotes surestimerait le gain : la sortie reste au marche, le
+            # stop et l'objectif ne peuvent pas attendre dans le carnet.
+            from gold_bot.brokers.bitvavo import FRAIS_MAKER, FRAIS_TAKER
+            cfg.risk.commission_pct = (FRAIS_MAKER + FRAIS_TAKER) / 2.0
+        debut = time.time()
+        trades, gagnants, somme_r, profit, dd = 0, 0, 0.0, 0.0, 0.0
+        echecs = []
+        for sym in symboles:
+            try:
+                res = Backtester(
+                    cfg, registry=registre,
+                    autorise_vente=(None if not args.long_seulement else False),
+                    entree_limite=args.entree_limite,
+                ).run(sym, bars=args.bars, start_balance=args.capital)
+            except Exception as exc:  # noqa: BLE001
+                echecs.append(f"{sym}: {str(exc)[:40]}")
+                continue
+            reels = [t for t in res.trades if not t.partial]
+            trades += len(reels)
+            gagnants += sum(1 for t in reels if t.profit > 0)
+            somme_r += sum(t.r_multiple for t in reels)
+            profit += res.end_balance - res.start_balance
+            dd = max(dd, res.stats().get("drawdown_max", 0.0) or 0.0)
+
+            if args.univers_complet and reels:
+                par_instrument[sym] = {
+                    "trades": len(reels),
+                    "gagnants": sum(1 for t in reels if t.profit > 0),
+                    "somme_r": sum(t.r_multiple for t in reels),
+                    "profit": res.end_balance - res.start_balance,
+                }
+        resultats.append({
+            "nom": nom, "trades": trades, "gagnants": gagnants,
+            "reussite": gagnants / trades * 100 if trades else 0.0,
+            "esperance": somme_r / trades if trades else 0.0,
+            "profit": profit, "drawdown": dd,
+            "secondes": time.time() - debut, "echecs": echecs,
+        })
+        etat = f"{trades:>4} trades" if trades else " aucun trade"
+        print(f"  {nom:<34} {etat}   {time.time()-debut:>5.0f}s")
+
+    resultats.sort(key=lambda r: (r["esperance"], r["profit"]), reverse=True)
+
+    print("\n" + "=" * 78)
+    print("  CLASSEMENT — par esperance en R (le seul chiffre qui se compare)")
+    print("=" * 78)
+    print(f"  {'variante':<34}{'trades':>7}{'reussite':>10}"
+          f"{'esperance':>11}{'profit':>10}{'recul':>9}")
+    for r in resultats:
+        fiable = "" if r["trades"] >= 30 else "  (trop peu)"
+        print(f"  {r['nom']:<34}{r['trades']:>7}{r['reussite']:>9.1f}%"
+              f"{r['esperance']:>+11.3f}{r['profit']:>+10.2f}"
+              f"{-r['drawdown']:>9.2f}{fiable}")
+
+    solides = [r for r in resultats if r["trades"] >= 30]
+    print("\n" + "-" * 78)
+    if not solides:
+        print("  Aucune variante n'atteint 30 trades : rien de concluant.")
+        print("  Relance avec --bars 4000, ou avec plus d'instruments.")
+    else:
+        best = solides[0]
+        print(f"  Meilleure sur {best['trades']} trades : {best['nom']}")
+        print(f"     esperance {best['esperance']:+.3f} R par trade, "
+              f"reussite {best['reussite']:.1f} %")
+        if best["esperance"] <= 0:
+            print("\n  AUCUNE VARIANTE N'EST GAGNANTE SUR L'HISTORIQUE.")
+            print("  Ce n'est pas un reglage a corriger : c'est la strategie")
+            print("  elle-meme qui ne trouve pas d'avantage sur ces marches.")
+            print("  NE PAS armer en reel. Relancer avec --bars 4000 et plus")
+            print("  d'instruments avant de conclure, puis s'arreter la.")
+        else:
+            # La gagnante est ECRITE, pas seulement affichee : recopier des
+            # reglages a la main depuis un tableau est exactement la facon
+            # dont une configuration testee devient une configuration
+            # differente de celle qu'on a testee.
+            reglages = next(rg for nom, rg in VARIANTES if nom == best["nom"])
+            ecrire_candidate(config_pour(base, reglages), best, args)
+
+    if par_instrument:
+        _detail_par_instrument(par_instrument, len(symboles))
+
+    for r in resultats:
+        if r["echecs"]:
+            print(f"\n  {r['nom']} — donnees manquantes : {'; '.join(r['echecs'][:3])}")
+    print("=" * 78)
+    return 0
+
+
+def _detail_par_instrument(par_instrument: dict, total: int) -> None:
+    """Ou l'avantage se trouve reellement, instrument par instrument.
+
+    Un chiffre global peut cacher deux situations opposees : un avantage
+    reparti sur tout l'univers, ou trois instruments qui portent tout le
+    resultat pendant que les autres perdent. La decision n'est pas la meme.
+
+    ATTENTION a ce qu'on en fait : restreindre l'univers aux gagnants de
+    l'historique est une facon connue de sur-ajuster. Ce tableau sert a
+    COMPRENDRE la dispersion, pas a selectionner.
+    """
+    lignes = []
+    for sym, d in par_instrument.items():
+        esp = d["somme_r"] / d["trades"] if d["trades"] else 0.0
+        lignes.append((esp, sym, d))
+    lignes.sort(reverse=True)
+
+    print("\n" + "=" * 78)
+    print(f"  DETAIL PAR INSTRUMENT — {len(lignes)} instruments ont produit "
+          f"des trades sur {total}")
+    print("=" * 78)
+    print(f"  {'instrument':<12}{'trades':>8}{'reussite':>10}{'esperance':>11}{'profit':>10}")
+
+    for esp, sym, d in lignes[:15]:
+        reussite = d["gagnants"] / d["trades"] * 100 if d["trades"] else 0.0
+        print(f"  {sym:<12}{d['trades']:>8}{reussite:>9.1f}%{esp:>+11.3f}"
+              f"{d['profit']:>+10.2f}")
+    if len(lignes) > 20:
+        print(f"  {'…':<12}{'':>8}{'':>10}{'':>11}{'':>10}")
+    for esp, sym, d in lignes[-5:] if len(lignes) > 20 else []:
+        reussite = d["gagnants"] / d["trades"] * 100 if d["trades"] else 0.0
+        print(f"  {sym:<12}{d['trades']:>8}{reussite:>9.1f}%{esp:>+11.3f}"
+              f"{d['profit']:>+10.2f}")
+
+    gagnants = [l for l in lignes if l[0] > 0]
+    solides = [l for l in lignes if l[2]["trades"] >= 10]
+    print(f"\n  {len(gagnants)} instrument(s) a esperance positive sur {len(lignes)}")
+    print(f"  {len(solides)} instrument(s) avec au moins 10 trades")
+    if lignes:
+        total_profit = sum(d["profit"] for _, _, d in lignes)
+        top3 = sum(d["profit"] for _, _, d in lignes[:3])
+        if total_profit > 0:
+            print(f"  les 3 meilleurs portent {top3 / total_profit * 100:.0f} % du profit")
+            print("  (au-dela de 60 %, l'avantage tient a une poignee "
+                  "d'instruments — donc a la chance)")
+
+
+def ecrire_candidate(cfg: BotConfig, best: dict, args) -> None:
+    """Enregistre la variante gagnante en configuration prete a relire.
+
+    Elle n'est PAS armee : `dry_run` reste vrai. Un rejeu gagnant est une
+    raison de regarder de plus pres, jamais une raison d'engager de
+    l'argent — le rejeu ignore les elargissements de spread sur annonce,
+    le glissement reel et les ordres refuses.
+    """
+    import dataclasses
+    import json
+
+    cfg.engine.dry_run = True
+    sections = {}
+    for nom in ("engine", "strategy", "risk", "trade", "objectives"):
+        section = getattr(cfg, nom, None)
+        if section is None:
+            continue
+        # `vars()` ne marche pas ici : ces sections sont des dataclasses
+        # declarees avec slots=True, donc sans __dict__. C'est justement ce
+        # qui les rend compactes et sures — on passe donc par les champs
+        # declares, seule facon fiable de les enumerer.
+        sections[nom] = {champ.name: getattr(section, champ.name)
+                         for champ in dataclasses.fields(section)
+                         if not champ.name.startswith("_")}
+    sections["promotion"] = dict(getattr(cfg, "promotion", {}) or {})
+    sections["_note"] = (
+        f"Gagnante du rejeu du {time.strftime('%Y-%m-%d')} : « {best['nom']} » — "
+        f"{best['trades']} trades, esperance {best['esperance']:+.3f} R, "
+        f"reussite {best['reussite']:.1f} %, spread x{args.spread_x:g}. "
+        "NON ARMEE : dry_run reste vrai. Verifier en simulation avant "
+        "d'engager quoi que ce soit.")
+
+    # Ancre a la racine du depot, comme BotConfig.load() : ecrire dans le
+    # repertoire courant produirait un fichier que le chargeur ne trouverait
+    # pas si le rejeu a ete lance d'ailleurs.
+    from gold_bot.settings import RACINE
+    chemin = os.path.join(RACINE, "robot.candidat.json")
+    with open(chemin, "w", encoding="utf-8") as f:
+        # `default=str` : un champ non serialisable ne doit pas faire perdre
+        # le resultat d'un rejeu de dix minutes.
+        json.dump(sections, f, indent=2, ensure_ascii=False, default=str)
+    print(f"\n  Configuration gagnante ecrite dans {chemin} (dry_run = true).")
+    print(f"  Pour l'essayer sans engager d'argent :")
+    print(f"     python3 run_dual_scalping.py --config {chemin}")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

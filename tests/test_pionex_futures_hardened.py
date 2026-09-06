@@ -6,7 +6,8 @@ from gold_bot.brokers.base import BrokerError
 # `gold_bot.brokers.PionexFuturesBroker` est un alias vers la classe durcie :
 # c'est elle qui part en live. Pour tester la recuperation apres un 404, il
 # faut la classe parente, celle dont l'override attrape l'erreur.
-from gold_bot.brokers.pionex_futures import PionexFuturesBroker as BasePionexFuturesBroker
+from gold_bot.brokers.pionex_futures import (
+    PionexFuturesBroker as BasePionexFuturesBroker)
 from gold_bot.brokers.pionex_futures_hardened import HardenedPionexFuturesBroker
 from gold_bot.core import Side
 
@@ -27,6 +28,9 @@ class TestPionexFuturesHardened(unittest.TestCase):
         self.assertEqual(seen["params"], {"symbol": "BTC_USDT_PERP"})
 
     def test_live_alias_points_to_hardened_class(self):
+        # Le nom du test dit ce qu'on veut : l'alias exporte DOIT etre la
+        # classe durcie. L'assertion exigeait l'inverse et echouait donc sur
+        # un code correct.
         self.assertIs(PionexFuturesBroker, HardenedPionexFuturesBroker)
         broker = HardenedPionexFuturesBroker(PionexFuturesConfig(dry_run=True))
         self.assertTrue(broker.is_live)
@@ -72,9 +76,15 @@ class TestPionexFuturesHardened(unittest.TestCase):
         broker = HardenedPionexFuturesBroker(PionexFuturesConfig(dry_run=False))
         # Un volume constant ne prouverait rien : la recuperation cherche une
         # VARIATION de position. Premiere lecture avant l'ordre (rien ouvert),
-        # lectures suivantes apres le 404 (la position est bien passee).
+        # lectures suivantes apres le 404 (la position est bien passee). On
+        # laisse ainsi `_confirm_position_delta` s'executer pour de vrai,
+        # plutot que de le remplacer par une constante.
         lectures = iter([0.0])
         broker._position_volume = lambda symbol, position_side: next(lectures, 0.10)
+        # C'est le POST de la classe PARENTE qui renvoie 404 : le durcissement
+        # l'appelle par super(). Simuler l'alias exporte remplacerait la
+        # methode meme qu'on veut eprouver, et le test ne pourrait jamais
+        # passer.
         with patch.object(
             BasePionexFuturesBroker,
             "_order",

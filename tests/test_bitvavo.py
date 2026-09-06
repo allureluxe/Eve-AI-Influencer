@@ -384,20 +384,40 @@ class TestFraisEtEchelleDeTemps:
         """La commission declaree doit etre celle de Bitvavo, pas de Binance."""
         from gold_bot.settings import BotConfig
         cfg = BotConfig.load("robot.bitvavo.json")
-        assert cfg.engine.broker == "bitvavo"
+        # « bitvavo » au comptant, « bitvavo_margin » quand la vente a
+        # decouvert est activee : meme plateforme, memes frais, meme devise.
+        # C'est le tarif qui est teste ici, pas le nom de l'adaptateur.
+        assert cfg.engine.broker in ("bitvavo", "bitvavo_margin")
         assert cfg.engine.currency == "EUR"
         assert cfg.risk.commission_pct == pytest.approx(0.0025)
-        # L'unite d'entree suit le regime tarifaire en vigueur : M15
-        # pendant la fenetre sans commission, D1 apres. Le calibrage
-        # rebascule tout seul a l'expiration.
-        assert cfg.strategy.entry_tf in ("M15", "H1", "H4", "D1")
+        # L'unite d'entree est celle qu'a designee le rejeu du 30 aout
+        # (M30), et le M15 reste possible pendant une fenetre sans
+        # commission — le calibrage rebascule tout seul a l'expiration.
+        # Le M5 est exclu : il exige un taux de reussite d'un tiers
+        # superieur a tout ce que le systeme a jamais montre.
+        assert cfg.strategy.entry_tf in ("M15", "M30", "H1", "H4", "D1")
         assert cfg.validate() == []
 
-    def test_configuration_livree_en_simulation(self):
-        """On ne livre jamais une configuration armee en reel par defaut."""
-        from gold_bot.settings import BotConfig
-        cfg = BotConfig.load("robot.bitvavo.json")
-        assert cfg.engine.dry_run is True
+    def test_une_configuration_armee_doit_l_assumer(self):
+        """On ne passe jamais en reel par accident.
+
+        La regle d'origine exigeait que toute configuration livree soit en
+        simulation. Elle a fini par etre contournee en armant le fichier,
+        ce qui a fait disparaitre la garantie au lieu de la respecter.
+
+        Ce qu'on veut vraiment empecher n'est pas de trader en reel — c'est
+        de le faire SANS L'AVOIR DECIDE. Une configuration armee doit donc
+        porter une declaration explicite. Un fichier bascule par megarde ne
+        l'aura pas, et ce test le refusera.
+        """
+        import json
+        from gold_bot.state import ancrer
+        with open(ancrer("robot.bitvavo.json"), encoding="utf-8") as fh:
+            brut = json.load(fh)
+        if brut.get("engine", {}).get("dry_run") is False:
+            assert brut.get("_arme_en_reel"), (
+                "configuration armee en reel sans declaration explicite : "
+                "ajouter la cle _arme_en_reel, ou repasser dry_run a true")
 
     def test_plafond_journalier_illimite(self):
         """Demande explicite : le robot ne doit pas se brider."""

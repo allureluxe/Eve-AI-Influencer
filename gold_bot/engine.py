@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from .apprentissage import PoidsAdaptatifs, alimenter_depuis_journal
-from .calibrage import calibrer
+from .calibrage import calibrer, duree_stop_temporel
 from .promotion import Promotion
 from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker,
                       BitvavoBroker, BitvavoConfig, Broker,
@@ -63,7 +63,7 @@ def _devise_du_lieu_d_execution(broker: str) -> str:
     Une chaine vide signifie « aucune contrainte » : les lieux d'execution
     en dollars gardent le jeu complet des sources de secours.
     """
-    if broker == "bitvavo":
+    if broker in ("bitvavo", "bitvavo_margin"):
         return BitvavoConfig.from_env().quote_asset
     if broker == "okx":
         return OkxConfig.from_env().quote_asset
@@ -142,6 +142,13 @@ class TradingEngine:
         self.macro = MacroEngine(self.registry)
         self.news = NewsFilter()
         self.trade_manager = TradeManager(cfg.trade)
+        # Reference du stop temporel, figee ici et jamais recalculee : c'est
+        # le couple (unite d'entree, delai) tel que la configuration l'a
+        # ecrit, avant que le calibrage ne touche a l'unite. Le relire plus
+        # tard reviendrait a transposer depuis une valeur deja transposee,
+        # et le delai deriverait a chaque cycle.
+        self._stop_temporel_reference: Optional[tuple[str, float]] = (
+            cfg.strategy.entry_tf, cfg.trade.time_stop_minutes)
         # Ce que le robot a reellement gagne ou perdu, relu au demarrage.
         # C'est la seule source de verite disponible pour apprendre : les
         # trades fermes. Sans journal, la ponderation reste neutre.
@@ -152,6 +159,14 @@ class TradingEngine:
                                self.news, cfg.strategy.history,
                                max_workers=cfg.engine.scan_workers)
         self.risk = RiskManager(cfg.risk)
+        # Le risque VOULU par le fichier, garde avant que le calibrage ou le
+        # palier de croissance ne le rabaissent. Sans cette reference, un
+        # plafond applique une fois deviendrait definitif : le robot ne
+        # saurait plus a quoi revenir une fois l'avantage etabli.
+        self._risque_configure = float(cfg.risk.base_risk_pct)
+        # Plancher impose par le ticket minimum de la plateforme, rempli par
+        # le calibrage. Le palier ne descend jamais en dessous.
+        self._risque_plancher = 0.0
         self.objectives = ObjectiveTracker(cfg.objectives)
         # Le lieu d'execution nomme l'instance : deux robots sur deux
         # plateformes tiennent ainsi des comptes separes, sans quoi leurs
@@ -162,11 +177,41 @@ class TradingEngine:
         # Le journal existe enfin : c'est seulement ici qu'on peut nourrir
         # la ponderation avec les trades reellement fermes.
         alimenter_depuis_journal(self.poids, self.journal.path)
+        # Date du dernier changement de reglage decisif : tout ce qui juge
+        # la performance compte a partir de la, sans quoi une strategie
+        # neuve herite des pertes de celle qu'elle remplace.
+        from .version_strategie import marqueur
+        self._strategie_depuis, strategie_changee = marqueur(cfg, instance)
+        if strategie_changee:
+            # LE RESULTAT DE LA SEMAINE APPARTIENT A LA STRATEGIE QUI L'A FAIT.
+            #
+            # Observe sur le premier trade du M30 : « semaine negative
+            # (-159 % de l'objectif) : risque reduit », donc position
+            # divisee par deux. Ces -5,79 EUR venaient de la configuration
+            # precedente. La nouvelle n'avait rien perdu et se voyait
+            # penalisee pour les pertes d'une autre.
+            ancien = self.objectives.state.realized_this_week
+            if abs(ancien) > 1e-9:
+                logger.warning(
+                    "STRATEGIE MODIFIEE : resultat hebdomadaire remis a zero "
+                    "(%.2f %s appartenaient a la configuration precedente)",
+                    ancien, cfg.engine.currency)
+                self.objectives.state.realized_this_week = 0.0
+                self.objectives.state.trades_this_week = 0
+                self.objectives.state.achieved_this_week = False
+                self.objectives.save()
         self.broker: Broker = self._build_broker()
 
         self._running = False
+        # Dernier niveau de stop ANNONCE dans le journal, par position.
+        self._stop_journalise: dict[str, float] = {}
         self._stop_requested = False
         self._consecutive_errors = 0
+        # Symbole dont le DERNIER _execute s'est solde par un refus du
+        # courtier. Le moteur scalping reveille sinon tout symbole apres
+        # _execute ; sur un refus qui se reproduira a l'identique, ce
+        # reveil relance une boucle d'ERROR toutes les ~10 s.
+        self._dernier_refus_courtier = ""
         self._last_heartbeat = 0.0
         self._last_report_day = ""
 
@@ -259,6 +304,56 @@ class TradingEngine:
         return ecartes
 
     # ---------------------------------------------------------------
+    def _appliquer_palier_de_croissance(self) -> None:
+        """Plafonne le risque par trade tant que l'avantage n'est pas prouve.
+
+        Un compte grandit par `risque x esperance`. Monter le risque avant
+        de connaitre le signe de l'esperance ne fait pas grandir plus vite :
+        ca amplifie ce qui est la. Le 28 aout, 72 trades a -0,406 R — doubler
+        le risque aurait divise le temps de survie par deux.
+
+        Le plafond suit donc l'echantillon reel du journal, et il ne peut
+        que RESTREINDRE ce que la configuration demande : un fichier qui
+        reclame 1,5 % n'obtient 1,5 % qu'une fois l'avantage etabli.
+        """
+        from .croissance import diagnostiquer
+
+        try:
+            # UNIQUEMENT les trades de la strategie EN COURS. Le journal est
+            # cumulatif : compter tout l'historique verrouillerait le palier
+            # sur les pertes d'une configuration remplacee depuis, et ferait
+            # lire « 0 % de reussite » a l'operateur pour une strategie qui
+            # n'a pas encore trade.
+            stats = self.journal.stats(since=self._strategie_depuis)
+        except Exception as exc:  # noqa: BLE001 - jamais bloquant
+            logger.debug("palier de croissance : journal illisible (%s)", exc)
+            return
+
+        diag = diagnostiquer(self.risk.account.equity, 0.0, stats, 0.0)
+        demande = float(self._risque_configure)
+        plancher = float(self._risque_plancher)
+        retenu = max(min(demande, diag.palier.risque_pct), plancher)
+        if abs(self.risk.config.base_risk_pct - retenu) < 1e-9:
+            return
+
+        self.risk.config.base_risk_pct = retenu
+        if retenu < demande:
+            logger.warning(
+                "PALIER « %s » : risque ramene a %.2f %% (la configuration "
+                "demande %.2f %%) — %d trade(s), esperance %+.3f R. Manque : %s",
+                diag.palier.nom, retenu, demande, diag.trades, diag.esperance_r,
+                "; ".join(diag.manques) or "conditions du palier suivant non remplies")
+        elif plancher > diag.palier.risque_pct:
+            logger.warning(
+                "PALIER « %s » releve a %.2f %% : le ticket minimum de la "
+                "plateforme l'impose. En dessous, aucun trade n'est "
+                "dimensionnable.", diag.palier.nom, retenu)
+        else:
+            logger.info("PALIER « %s » : risque a %.2f %% par trade, "
+                        "avantage etabli sur %d trade(s) (%+.3f R)",
+                        diag.palier.nom, retenu, diag.trades, diag.esperance_r)
+
+    # ---------------------------------------------------------------
     def _calibrer_sur_le_capital(self) -> None:
         """Aligne la strategie sur ce que le capital permet reellement.
 
@@ -312,9 +407,36 @@ class TradingEngine:
             plafond_cout_pct=cfg.risk.max_cost_ratio_pct,
             plafond_positions=cfg.risk.max_positions,
             part_engageable_pct=cfg.risk.max_capital_engaged_pct,
+            # Le stop REELLEMENT configure, et non celui qu'une table
+            # supposait. Sans lui, une configuration a 1,60 ATR voyait son
+            # M30 evalue a 1,10 % au lieu de 1,28 %, tombait sous le seuil,
+            # et le calibrage basculait sur H1 : le robot tournait une
+            # strategie differente de celle mesuree au rejeu.
+            atr_stop_mult=cfg.trade.atr_stop_mult,
         )
         self.calibrage = cal
         self._ticket_minimum = ticket
+
+        # Le plancher de volatilite doit suivre le plafond de cout, sinon le
+        # robot evalue en boucle des instruments que le dimensionnement
+        # refusera. Ce n'est pas dangereux — le filtre de cout protege — donc
+        # on avertit sans bloquer.
+        atr_utile = self.config.atr_minimal_utile()
+        if atr_utile > 0 and cfg.strategy.min_atr_price_ratio < atr_utile * 0.95:
+            logger.warning(
+                "PLANCHER DE VOLATILITE INCOHERENT : %.4f accepte des ATR que "
+                "le plafond de cout (%.0f %%) refusera au dimensionnement. Avec "
+                "un stop de %.2f ATR il faut au moins %.4f. Le robot va evaluer "
+                "puis rejeter les memes instruments a chaque cycle.",
+                cfg.strategy.min_atr_price_ratio, cfg.risk.max_cost_ratio_pct,
+                cfg.trade.atr_stop_mult, atr_utile)
+        # Un palier de croissance que le plafond dur rabote en silence rend
+        # le plan de croissance faux au moment ou il compte le plus.
+        for probleme in self.config.paliers_inatteignables():
+            logger.warning("PALIER DE CROISSANCE INATTEIGNABLE : %s. Le journal "
+                           "annoncera le palier, le risque reel restera au "
+                           "plafond, et la projection sera fausse d'autant.",
+                           probleme)
         self._promo_en_cours = self.promotion.en_cours()
         for ligne in cal.resume():
             logger.info("calibrage : %s", ligne)
@@ -322,21 +444,64 @@ class TradingEngine:
         if not cal.viable:
             self.notifier.warning(
                 "Capital insuffisant pour cette plateforme", "\n".join(cal.resume()))
+        else:
+            if cal.risk_pct > cfg.risk.base_risk_pct:
+                logger.warning("risque par trade porte a %.3f %% (ticket minimum "
+                               "de %.2f a atteindre)", cal.risk_pct, cal.ticket_minimum)
+                cfg.risk.base_risk_pct = cal.risk_pct
+                # PLANCHER, et non preference : en dessous, le lot minimum de
+                # la plateforme est inatteignable et plus aucun trade ne peut
+                # etre dimensionne. Le palier de croissance plafonne le risque
+                # choisi, jamais celui que l'arithmetique impose — sinon il
+                # figerait le robot en croyant le proteger.
+                self._risque_plancher = cal.risk_pct
+
+            # L'unite d'entree suit ce que le capital autorise, sauf si la
+            # configuration en demande deja une plus lente — on ne descend
+            # jamais vers une unite que les frais rendent perdante.
+            if cal.unite_conseillee and cfg.strategy.entry_tf not in cal.unites:
+                logger.warning("unite d'entree %s hors de portee a ce capital, "
+                               "bascule sur %s", cfg.strategy.entry_tf,
+                               cal.unite_conseillee)
+                cfg.strategy.entry_tf = cal.unite_conseillee
+                self.strategy.config.entry_tf = cal.unite_conseillee
+
+        # Hors du « si viable » a dessein : le delai doit suivre l'unite
+        # reellement utilisee dans tous les cas. Une sortie anticipee qui
+        # sauterait cette ligne laisserait un delai calibre pour une autre
+        # unite de temps — precisement le defaut qu'on corrige ici.
+        self._transposer_le_stop_temporel()
+
+    def _transposer_le_stop_temporel(self) -> None:
+        """Reporte le stop temporel sur l'unite de temps reellement utilisee.
+
+        Le calibrage change l'unite d'entree quand les frais l'imposent. Tout
+        le reste de la gestion est exprime en R ou en ATR et suit ce
+        changement tout seul ; le stop temporel, lui, est en minutes et ne
+        suivait rien.
+
+        Sans cette transposition, la bascule automatique du 30 aout — M15
+        vers D1 quand la fenetre sans commission se ferme — laissait un delai
+        de quatre heures sur des mouvements qui mettent des jours a se
+        former. Presque chaque position aurait ete fermee avant d'avoir eu sa
+        chance, et l'aller-retour paye a chaque fois. Silencieusement : le
+        robot aurait fait exactement ce qu'on lui avait dit.
+
+        La reference est figee au premier calibrage. Transposer a partir de
+        la valeur courante ferait deriver le delai a chaque recalibrage —
+        et il y en a un par cycle tant que le regime tarifaire peut changer.
+        """
+        trade = self.config.trade
+        unite_ref, minutes_ref = self._stop_temporel_reference
+        unite = self.config.strategy.entry_tf
+        minutes = duree_stop_temporel(unite_ref, minutes_ref, unite)
+        if abs(minutes - trade.time_stop_minutes) < 0.01:
             return
-
-        if cal.risk_pct > cfg.risk.base_risk_pct:
-            logger.warning("risque par trade porte a %.3f %% (ticket minimum "
-                           "de %.2f a atteindre)", cal.risk_pct, cal.ticket_minimum)
-            cfg.risk.base_risk_pct = cal.risk_pct
-
-        # L'unite d'entree suit ce que le capital autorise, sauf si la
-        # configuration en demande deja une plus lente — on ne descend
-        # jamais vers une unite que les frais rendent perdante.
-        if cal.unite_conseillee and cfg.strategy.entry_tf not in cal.unites:
-            logger.warning("unite d'entree %s hors de portee a ce capital, "
-                           "bascule sur %s", cfg.strategy.entry_tf, cal.unite_conseillee)
-            cfg.strategy.entry_tf = cal.unite_conseillee
-            self.strategy.config.entry_tf = cal.unite_conseillee
+        logger.warning("stop temporel transpose de %s sur %s : %.0f min -> "
+                       "%.0f min (%.1f jour(s))", unite_ref, unite,
+                       trade.time_stop_minutes, minutes, minutes / 1440.0)
+        trade.time_stop_minutes = minutes
+        self.trade_manager.config.time_stop_minutes = minutes
 
     # ---------------------------------------------------------------
     # Demarrage
@@ -361,20 +526,40 @@ class TradingEngine:
                     "Les ordres engagent de l'argent veritable. "
                     "OKX_DRY_RUN=1 revient a la simulation.")
 
-        if cfg.broker == "bitvavo" and not cfg.dry_run:
-            self.notifier.warning(
-                "Bitvavo en mode REEL",
-                "Les ordres engagent de l'argent veritable. "
-                "BITVAVO_DRY_RUN=1 revient a la simulation.")
+        if cfg.broker in ("bitvavo", "bitvavo_margin") and not cfg.dry_run:
+            detail = ("Les ordres engagent de l'argent veritable. "
+                      "BITVAVO_DRY_RUN=1 revient a la simulation.")
+            if cfg.broker == "bitvavo_margin":
+                detail += (" VENTE A DECOUVERT ACTIVE : une position vendeuse "
+                           "emprunte l'actif et paie un interet journalier "
+                           "tant qu'elle reste ouverte.")
+            self.notifier.warning("Bitvavo en mode REEL", detail)
 
         if cfg.broker == "moonx" and cfg.offline:
             self.notifier.critical("Demarrage refuse",
                                    "execution reelle demandee avec des donnees synthetiques")
             return False
 
-        if not self.broker.connect():
-            self.notifier.critical("Connexion au broker impossible",
-                                   f"broker={cfg.broker} — verifier la configuration")
+        # Un broker signale une connexion impossible de DEUX facons : en
+        # rendant False, ou en levant une BrokerError qui, elle, porte la
+        # cause exacte. Seule la premiere etait traitee : une passerelle IBKR
+        # eteinte faisait remonter une trace de pile jusqu'au superviseur,
+        # qui relancait le processus sans que personne ne lise jamais la
+        # phrase utile. On rattrape donc les deux, et on garde le motif.
+        try:
+            connecte = self.broker.connect()
+            motif = f"broker={cfg.broker} — verifier la configuration"
+        except BrokerError as exc:
+            connecte, motif = False, str(exc)
+        if not connecte:
+            logger.error("connexion impossible : %s", motif)
+            self.notifier.critical("Connexion au broker impossible", motif)
+            if cfg.broker == "ibkr":
+                # IBKR ne s'ouvre pas avec une cle : il faut une passerelle
+                # authentifiee, second facteur compris. Le journal doit le
+                # dire, sinon on cherche du cote de la configuration.
+                from .ibkr_readiness import etat_passerelle
+                logger.error("%s", etat_passerelle().resume())
             return False
 
         # Les contraintes de la plateforme font foi sur celles declarees par
@@ -519,6 +704,9 @@ class TradingEngine:
         palier = self.capital_tier()
         self.risk.config.max_positions = palier["positions_simultanees"]
 
+        # Le risque par trade ne monte qu'apres PREUVE, jamais par impatience.
+        self._appliquer_palier_de_croissance()
+
         # 2. Gestion des positions ouvertes (priorite absolue)
         self._manage_positions(positions)
 
@@ -539,6 +727,9 @@ class TradingEngine:
     # ---------------------------------------------------------------
     def _manage_positions(self, positions: list[Position]) -> None:
         """Applique le trailing, les extensions d'objectif et les sorties."""
+        vivantes = {p.id for p in positions}
+        for ferme in [i for i in self._stop_journalise if i not in vivantes]:
+            self._stop_journalise.pop(ferme, None)
         for pos in positions:
             instrument = self.universe.get(pos.symbol)
             if instrument is None:
@@ -569,18 +760,61 @@ class TradingEngine:
             window = self.news.check(instrument.asset_class, pos.symbol)
 
             actions = self.trade_manager.manage(
-                pos, tick, ind, chart=chart, news=window, digits=instrument.digits)
+                pos, tick, ind, chart=chart, news=window, digits=instrument.digits,
+                etages=positions)
             for action in actions:
                 self._apply_action(pos, action, instrument)
 
             self.store.remember_position(pos)
 
+    def _stop_sur_la_plateforme(self, symbol: str) -> Optional[float]:
+        """Stop reellement en carnet, pour les brokers qui en deposent un.
+
+        None quand le broker n'en depose pas (simulateur) : l'appelant se
+        rabat alors sur le seul changement de niveau.
+        """
+        lire = getattr(self.broker, "stop_depose", None)
+        return lire(symbol) if callable(lire) else None
+
     def _apply_action(self, pos: Position, action: TradeAction, instrument: Instrument) -> None:
         """Transmet une action de gestion au broker."""
         try:
             if action.type is ActionType.MODIFY_STOP:
+                # POURQUOI CE FILTRE D'AFFICHAGE.
+                #
+                # Le stop suiveur est un chandelier : max_favorable - k x ATR.
+                # Les deux termes bougent a chaque cycle, donc le niveau
+                # remonte par increments minuscules — arrondis a
+                # instrument.digits, soit 1e-8 sur les cryptos. Chacun est
+                # une hausse REELLE, la section 5 du gestionnaire a raison
+                # de l'emettre, et le broker a raison de ne pas reposer
+                # l'ordre pour si peu (stop_move_threshold_r).
+                #
+                # Mais la ligne de journal, elle, s'affiche a 1e-5 : le 30
+                # aout, UNIUSD a repete « stop -> 4.32703 (+1.15R -> +1.15R
+                # verrouille) » toutes les dix secondes pendant quatre
+                # minutes. Trente lignes identiques annoncant un
+                # deplacement qui n'avait pas eu lieu chez Bitvavo : le
+                # journal disait le contraire de la verite, et noyait les
+                # vrais paliers.
+                #
+                # On n'annonce donc que ce qui se voit : un niveau different
+                # a l'affichage, ou un ordre reellement repose.
+                pose_avant = self._stop_sur_la_plateforme(pos.symbol)
                 if self.broker.modify_position(pos.id, stop_loss=action.price):
-                    logger.info("%s : stop -> %.5f (%s)", pos.symbol, action.price, action.reason)
+                    pose_apres = self._stop_sur_la_plateforme(pos.symbol)
+                    repose = pose_apres is not None and pose_apres != pose_avant
+                    precedent = self._stop_journalise.get(pos.id)
+                    visible = precedent is None or round(action.price, 5) != round(precedent, 5)
+                    self._stop_journalise[pos.id] = action.price
+                    if repose or visible:
+                        logger.info("%s : stop -> %.5f (%s)%s", pos.symbol, action.price,
+                                    action.reason,
+                                    "" if pose_apres is None else
+                                    (" [ordre repose]" if repose else " [interne, ordre inchange]"))
+                    else:
+                        logger.debug("%s : stop interne -> %.8f (%s)",
+                                     pos.symbol, action.price, action.reason)
 
             elif action.type is ActionType.MODIFY_TARGET:
                 if self.broker.modify_position(pos.id, take_profit=action.price):
@@ -689,8 +923,15 @@ class TradingEngine:
             return
         self._execute(result.best)
 
-    def _execute(self, ev: Evaluation) -> None:
-        """Dimensionne et envoie l'ordre. Aucune validation manuelle."""
+    def _execute(self, ev: Evaluation, places_visees: Optional[int] = None) -> None:
+        """Dimensionne et envoie l'ordre. Aucune validation manuelle.
+
+        `places_visees` : nombre d'occasions reellement disponibles ce
+        cycle. Sans lui, le partage du cash reserve une part pour chacune
+        des six places libres — y compris celles qu'aucune occasion ne
+        viendra remplir.
+        """
+        self._dernier_refus_courtier = ""
         instrument = self.universe.get(ev.symbol)
         if instrument is None or ev.side is None:
             return
@@ -701,7 +942,8 @@ class TradingEngine:
             instrument, ev.side, ev.entry, ev.stop_loss, ev.take_profit,
             open_positions=positions, universe_lookup=self.universe.get,
             extra_multiplier=multiplier, spread=ev.spread,
-            available_cash=self.broker.account().margin_free)
+            available_cash=self.broker.account().margin_free,
+            places_visees=places_visees)
 
         if not sizing.allowed:
             logger.info("%s ecarte au dimensionnement : %s", ev.symbol, sizing.reason)
@@ -723,6 +965,15 @@ class TradingEngine:
             logger.error("ordre refuse sur %s : %s", ev.symbol, exc)
             self.notifier.warning(f"Ordre refuse — {ev.symbol}", str(exc))
             self.store.state.errors += 1
+            # Un refus du courtier se reproduit a l'identique au cycle
+            # suivant tant que la cause n'a pas bouge (cash pris par une
+            # autre position, notionnel sous le minimum). Sans mise en
+            # sommeil, l'instrument est repropose toutes les ~10 s et
+            # inonde le journal d'ERROR. On le met de cote ; il repassera
+            # quand une position se sera fermee. Le drapeau empeche le
+            # moteur scalping de le reveiller aussitot (voir son _execute).
+            self._dernier_refus_courtier = ev.symbol
+            self.scanner.sleep_symbol(ev.symbol, 900.0, "ordre refuse par le courtier")
             return
 
         pos.initial_risk = abs(pos.entry_price - pos.stop_loss) or sizing.stop_distance

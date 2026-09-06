@@ -307,6 +307,21 @@ class Scanner:
             lines.append(f"  {ev.explain()}")
             if verbose:
                 lines.extend(f"  {l}" for l in ev.detail_lines())
+        # Les instruments en sommeil sont RESUMES, jamais enumeres.
+        #
+        # Mesure du 30 aout : 70 endormis sur le spread, re-annonces a
+        # chaque cycle, cadence de 3 secondes — 1 400 lignes par minute
+        # disant toutes la meme chose. La ligne qui compte, « aucune
+        # opportunite (volatilite x7) », etait noyee dedans et personne ne
+        # pouvait la voir. Le sommeil est deja annonce a la mise de cote,
+        # avec sa duree : le repeter n'apprend rien.
+        dormants: dict[str, int] = {}
         for sym, err in result.errors.items():
+            if err.startswith("en sommeil : "):
+                dormants[err[len("en sommeil : "):]] = dormants.get(
+                    err[len("en sommeil : "):], 0) + 1
+                continue
             lines.append(f"  {sym} : {err}")
+        for motif, combien in dormants.items():
+            lines.append(f"  {combien} instrument(s) en sommeil : {motif}")
         return lines

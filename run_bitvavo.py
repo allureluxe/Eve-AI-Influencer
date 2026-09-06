@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Point d'entrée Bitvavo marge / compte leveraged."""
+"""Point d'entrée Bitvavo : scalping continu avec risque plafonne."""
 from __future__ import annotations
 
 import logging
@@ -8,7 +8,7 @@ import time
 
 import gold_bot.engine as engine_module
 from gold_bot.brokers import BitvavoConfig, BitvavoMarginBroker
-from gold_bot.engine import TradingEngine
+from gold_bot.scalping_engine import ContinuousScalpingEngine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,8 +26,8 @@ def _bitvavo_quote_currency(broker: str) -> str:
 engine_module._devise_du_lieu_d_execution = _bitvavo_quote_currency
 
 
-class BitvavoTradingEngine(TradingEngine):
-    """Moteur Bitvavo marge : long + short, sans contourner les garde-fous."""
+class BitvavoTradingEngine(ContinuousScalpingEngine):
+    """Moteur Bitvavo : scalping continu + multi-positions + pyramiding confirme."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -54,10 +54,16 @@ class BitvavoTradingEngine(TradingEngine):
     def _build_broker(self):
         bv = BitvavoConfig.from_env()
         bv.dry_run = bool(self.config.engine.dry_run)
+        # Le compte reste sans levier par defaut : la configuration de risque
+        # est la source de verite et ne peut pas etre contredite par un
+        # defaut d'environnement a 10x.
+        if hasattr(bv, "leverage"):
+            bv.leverage = min(float(getattr(bv, "leverage", 1.0) or 1.0),
+                              float(self.config.risk.max_leverage))
         broker = BitvavoMarginBroker(bv)
         if not broker.connect():
             raise RuntimeError(
-                "préflight Bitvavo marge impossible : "
+                "préflight Bitvavo impossible : "
                 + (getattr(broker, "_last_error", "connexion refusée") or "connexion refusée")
             )
         self._filtrer_univers_sur_le_broker(broker)
@@ -76,29 +82,6 @@ class BitvavoTradingEngine(TradingEngine):
             len(positions), getattr(self.broker, "mode", "inconnu"),
         )
 
-        self.broker.sync()
-        account = self.broker.account()
-        self.risk.sync_account(account.equity, account.balance, account.currency)
-        positions = self.broker.positions()
-        allowed, why = self.risk.can_trade(positions)
-        objective_stop, objective_why = self.objectives.should_stop_trading()
-        if not allowed:
-            logger.info(
-                "ENTREE BLOQUEE — raison=%s — capital %.2f %s — positions %d — trades_jour %d — pnl_jour %.2f%% — pnl_semaine %.2f%%",
-                why, account.equity, account.currency, len(positions),
-                self.risk.account.trades_today,
-                self.risk.account.daily_pnl_pct(),
-                self.risk.account.weekly_pnl_pct(),
-            )
-        elif objective_stop:
-            logger.info("ENTREE BLOQUEE — objectif : %s", objective_why)
-        else:
-            logger.info(
-                "ENTREE AUTORISEE — scanner %d instrument(s) — objectif %.2f — réalisé %.2f",
-                len(self.universe), self.objectives.target,
-                self.objectives.state.realized_this_week,
-            )
-
         super().run_cycle()
         logger.info(
             "CYCLE END #%d — durée %.1fs — positions %d — trades ouverts %d",
@@ -110,10 +93,13 @@ class BitvavoTradingEngine(TradingEngine):
 def main() -> int:
     os.environ["GB_ENGINE_BROKER"] = "bitvavo"
     os.environ["GB_ENGINE_OFFLINE"] = "0"
-    os.environ["GB_ENGINE_IDLE_POLL_SECONDS"] = "20"
-    os.environ["GB_ENGINE_POLL_SECONDS"] = "20"
+    os.environ["GB_ENGINE_IDLE_POLL_SECONDS"] = "5"
+    os.environ["GB_ENGINE_POLL_SECONDS"] = "5"
+    # Ne plus imposer 10x ici : le risque du fichier de configuration reste
+    # souverain. L'environnement peut toujours choisir explicitement un mode
+    # compatible avec la configuration sans que ce launcher le surcharge.
     os.environ.setdefault("BITVAVO_MARGIN_ENABLED", "1")
-    os.environ.setdefault("BITVAVO_MARGIN_LEVERAGE", "10")
+    os.environ.setdefault("BITVAVO_MARGIN_LEVERAGE", "1")
     BitvavoTradingEngine().run()
     return 0
 

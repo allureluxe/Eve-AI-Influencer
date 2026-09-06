@@ -124,6 +124,10 @@ class Evaluation:
             return False
         if self.mode == "quorum":
             return self.confirmed >= self.required
+        if self.mode == "reversion":
+            # Le declencheur est mecanique : les portes suffisent, il n'y a
+            # ni quorum ni score a franchir.
+            return True
         return self.score >= self.threshold
 
     def failed_gates(self) -> list[Gate]:
@@ -205,9 +209,88 @@ class StrategyConfig:
     require_candle_confirmation: bool = True   # la lecture des bougies est obligatoire
     confirmation_margin: int = 1        # avance minimale sur le sens oppose
 
+    # --- Bande RSI de la confirmation « oscillateur » ---
+    #
+    # Mesure du 2 septembre sur 2772 signaux valides : l'oscillateur est
+    # vrai 99,7 % du temps. La bande 45-78 a l'achat est si large qu'elle
+    # est toujours satisfaite — ce n'est plus une confirmation, c'est un
+    # point gratuit ajoute a chaque comptage. En le retirant entierement,
+    # 100 % des signaux passent encore le quorum.
+    #
+    # La litterature sur le RSI en tendance va dans le meme sens : en
+    # hausse confirmee le RSI reste au-dessus de 65 pendant des semaines,
+    # et les zones utiles se deplacent vers 80/40 plutot que 70/30.
+    #
+    # Reglable pour etre MESURE, defaut = comportement actuel.
+    rsi_achat_min: float = 45.0
+    rsi_achat_max: float = 78.0
+    rsi_vente_min: float = 22.0
+    rsi_vente_max: float = 55.0
+
+    # --- Regroupement des confirmations correlees ---
+    #
+    # `tendance`, `supertrend`, `vwap` et `oscillateur` sont quatre facons
+    # de lire « le prix monte ». Mesure : elles sortent ensemble sur 38 %
+    # des signaux, et supertrend+tendance co-occurrent 1277 fois pour 1006
+    # attendues si elles etaient independantes (+27 %).
+    #
+    # Le comptage les traite pourtant comme des preuves separees — le
+    # commentaire de `confirmations()` affirme meme leur independance.
+    # « 7 confirmations sur 11 » n'est donc pas sept preuves : c'est deux
+    # ou trois faits comptes plusieurs fois. C'est de la multicolinearite,
+    # et elle est maximale au SOMMET d'une montee, quand les quatre sont
+    # vraies en meme temps — la ou le robot achete le plus mal.
+    #
+    # Arme, la famille compte pour UNE confirmation (vraie si la majorite
+    # de ses membres le sont). Le quorum redevient alors un compte de
+    # familles d'information distinctes, ce qu'il pretendait etre.
+    grouper_confirmations_correlees: bool = False
+
     # --- Seuil de validation ---
     min_score: float = 0.55       # score de confluence minimal
     min_score_counter_trend: float = 0.75   # exigence relevee a contre-tendance
+
+    # --- Famille de strategie ---
+    #
+    # "tendance"  : le comportement historique — on achete la force (prix qui
+    #               suit sa moyenne, ADX, quorum de confirmations).
+    # "reversion" : on achete quand le prix DECROCHE nettement sous sa MA,
+    #               mesure en multiples d'ATR, et on sort au retour vers la
+    #               MA (bande), sans objectif fixe. Achat seul (comptant).
+    #               Les filtres de tendance, de regime et d'accord multi-
+    #               unites sont desactives : ils contrediraient le scenario.
+    #
+    # A backtester avant tout armement. Defaut "tendance" : rien ne change.
+    famille: str = "tendance"
+
+    # --- Famille « donchian » (Turtle, Dennis 1983) ---
+    #
+    # Horizons de cassure a l'entree, en bougies. Les Turtles utilisaient
+    # 20 et 55 ; le papier crypto de 2025 en agrege plusieurs pour capter
+    # des tendances de durees differentes. La cassure vaut si le prix
+    # depasse le plus-haut d'AU MOINS UN de ces horizons.
+    donchian_entrees: tuple[int, ...] = (20, 55)
+    donchian_sortie: int = 10       # canal bas de sortie (regle d'origine)
+
+    # LE FILTRE DU SYSTEM 1, et c'est le coeur de la regle.
+    #
+    # Si la cassure PRECEDENTE sur ce marche a ete gagnante, on SAUTE la
+    # suivante. Seule une cassure perdante redonne le droit d'entrer.
+    #
+    # Contre-intuitif, et c'est justement pour ca qu'il marche : les
+    # cassures arrivent en grappes, et apres une reussite le marche a deja
+    # fait son mouvement. Sauter l'une sur deux evite d'acheter la fin
+    # d'une tendance — exactement le defaut observe en reel sur UNI et FIL,
+    # ou le robot rachetait de plus en plus haut jusqu'a prendre la perte
+    # pleine sur la derniere.
+    #
+    # Les Turtles gardaient System 2 (55 j) SANS ce filtre, comme filet :
+    # si S1 saute la cassure qui devient la grande tendance de l'annee,
+    # S2 la reprend. On ne modelise ici que S1.
+    donchian_filtre_precedent: bool = False
+    reversion_ma_periode: int = 50       # periode de la SMA de reference (dediee)
+    reversion_entree_atr: float = 2.0    # ecart MA-prix minimal, en ATR, pour entrer
+    reversion_sortie_atr: float = 0.5    # sortie quand MA-prix repasse sous ce seuil, en ATR
 
     # --- Filtres eliminatoires ---
     max_spread_atr_ratio: float = 0.22    # spread max en fraction d'ATR
@@ -255,6 +338,14 @@ class Strategy:
         # Ponderation apprise sur les trades reellement fermes. Neutre par
         # defaut : sans historique, elle ne change rien.
         self.poids = poids or PoidsAdaptatifs()
+        # Par symbole : la derniere cassure Donchian a-t-elle ete gagnante ?
+        # Renseigne a chaque cloture (`noter_sortie_donchian`). Absent = on
+        # ne sait pas encore, donc on prend la cassure.
+        self._donchian_dernier_gagnant: dict[str, bool] = {}
+
+    def noter_sortie_donchian(self, symbol: str, gagnant: bool) -> None:
+        """Memorise l'issue d'une cassure, pour le filtre du System 1."""
+        self._donchian_dernier_gagnant[symbol] = bool(gagnant)
 
     # ---------------------------------------------------------------
     ORDRE_TF = {"M1": 1, "M3": 3, "M5": 5, "M15": 15,
@@ -367,9 +458,28 @@ class Strategy:
         atr_ratio = atr / price if price else 0.0
         vol_ok = (cfg.min_atr_percentile <= pct <= cfg.max_atr_percentile
                   and atr_ratio >= cfg.min_atr_price_ratio)
-        ev.gates.append(Gate(
-            "volatilite", vol_ok,
-            f"ATR {atr:.5f} ({atr_ratio * 100:.3f}% du prix), percentile {pct:.2f}"))
+        # Le motif doit NOMMER le critere qui refuse. Les deux se lisent sur
+        # des echelles differentes — un percentile est relatif a l'histoire
+        # de l'instrument, un ratio ATR/prix est absolu — et afficher les
+        # deux valeurs sans dire laquelle mord laisse chercher du mauvais
+        # cote. Le 30 aout, sept cryptos etaient refusees sur le plancher
+        # ABSOLU (0,40 % d'ATR pour 0,75 % exiges) pendant que le journal
+        # mettait le percentile en avant.
+        if not vol_ok:
+            if atr_ratio < cfg.min_atr_price_ratio:
+                pourquoi = (f"marche trop calme : ATR {atr_ratio * 100:.3f}% du prix "
+                            f"pour {cfg.min_atr_price_ratio * 100:.3f}% exiges "
+                            f"(sous ce seuil les frais depassent le plafond de cout)")
+            elif pct < cfg.min_atr_percentile:
+                pourquoi = (f"volatilite au plus bas de son historique : "
+                            f"percentile {pct:.2f} pour {cfg.min_atr_percentile:.2f} exiges")
+            else:
+                pourquoi = (f"volatilite extreme : percentile {pct:.2f} "
+                            f"au-dessus de {cfg.max_atr_percentile:.2f}")
+        else:
+            pourquoi = (f"ATR {atr:.5f} ({atr_ratio * 100:.3f}% du prix), "
+                        f"percentile {pct:.2f}")
+        ev.gates.append(Gate("volatilite", vol_ok, pourquoi))
         if not vol_ok:
             return ev
 
@@ -379,6 +489,14 @@ class Strategy:
                              news.reason if (news and news.reason) else "aucune annonce bloquante"))
         if not news_ok:
             return ev
+
+        # ---------- Branche reversion : achat sur decrochage sous la MA ----------
+        if cfg.famille == "reversion":
+            return self._finish_reversion(ev, instrument, entry_ind, price, atr, tick)
+
+        # ---------- Branche donchian : cassure de canal (Turtle) ----------
+        if cfg.famille == "donchian":
+            return self._finish_donchian(ev, instrument, entry_ind, price, atr, tick)
 
         # ---------- Branche rapide : mode quorum ----------
         if cfg.mode == "quorum":
@@ -553,10 +671,11 @@ class Strategy:
         osc_ok, detail_o = False, "RSI non pret"
         if entry.rsi.ready and entry.rsi.value is not None:
             r = entry.rsi.value
+            cfg_s = self.config
             if haussier:
-                osc_ok = 45.0 <= r <= 78.0
+                osc_ok = cfg_s.rsi_achat_min <= r <= cfg_s.rsi_achat_max
             else:
-                osc_ok = 22.0 <= r <= 55.0
+                osc_ok = cfg_s.rsi_vente_min <= r <= cfg_s.rsi_vente_max
             detail_o = f"RSI {r:.0f}"
             if entry.stoch.ready and (
                     (entry.stoch.cross_up() and haussier) or (entry.stoch.cross_down() and not haussier)):
@@ -621,7 +740,182 @@ class Strategy:
             out.append(Confirmation("carnet", False,
                                     "tailles du carnet indisponibles", applicable=False))
 
+        if self.config.grouper_confirmations_correlees:
+            out = self._grouper_correlees(out)
         return out
+
+    # Les quatre lectures de « le prix monte ». Mesurees ensemble sur 38 %
+    # des signaux ; supertrend+tendance +27 % au-dessus de l'independance.
+    FAMILLE_TENDANCE = ("tendance", "supertrend", "vwap", "oscillateur")
+
+    @classmethod
+    def _grouper_correlees(cls, out: list[Confirmation]) -> list[Confirmation]:
+        """Fait compter la famille « le prix monte » pour UNE confirmation.
+
+        Additionner quatre mesures du meme phenomene ne prouve pas quatre
+        fois plus : ca gonfle la conviction exactement quand toutes sont
+        vraies, c'est-a-dire au sommet d'un mouvement.
+        """
+        membres = [c for c in out if c.name in cls.FAMILLE_TENDANCE]
+        if len(membres) < 2:
+            return out
+        passes = [c for c in membres if c.passed]
+        groupe = Confirmation(
+            "direction", len(passes) * 2 >= len(membres),
+            f"{len(passes)}/{len(membres)} lectures de tendance "
+            f"({', '.join(c.name for c in passes) or 'aucune'})")
+        autres = [c for c in out if c.name not in cls.FAMILLE_TENDANCE]
+        return [groupe, *autres]
+
+    def _finish_reversion(
+        self,
+        ev: Evaluation,
+        instrument: Instrument,
+        entry: IndicatorSet,
+        price: float,
+        atr: float,
+        tick: Tick,
+    ) -> Evaluation:
+        """Famille « reversion » : achat seul quand le prix decroche sous sa
+        SMA d'au moins `reversion_entree_atr` x ATR.
+
+        Ni tendance, ni regime, ni accord multi-unites, ni score : le
+        declencheur est une distance a la moyenne, mesuree en ATR. Le stop
+        reste le stop ATR habituel. La cible affichee est la bande
+        `SMA - reversion_sortie_atr x ATR` ; la sortie reelle est geree
+        bougie par bougie contre la SMA COURANTE (voir le rejeu), donc sans
+        objectif fixe.
+        """
+        cfg = self.config
+        ev.mode = "reversion"
+        n = int(cfg.reversion_ma_periode)
+        closes = [c.close for c in entry.candles]
+        if len(closes) < n or atr <= 0:
+            ev.gates.append(Gate("reversion", False,
+                                 f"historique insuffisant ({len(closes)}/{n} bougies)"))
+            return ev
+
+        sma = sum(closes[-n:]) / n
+        ecart = sma - price
+        seuil = cfg.reversion_entree_atr * atr
+        declenche = ecart >= seuil
+        ev.gates.append(Gate(
+            "reversion", declenche,
+            f"ecart MA{n}-prix = {ecart / atr:.2f} ATR "
+            f"(entree a partir de {cfg.reversion_entree_atr:.2f} ATR)"))
+        if not declenche:
+            return ev
+
+        ev.side = Side.BUY
+        ev.setup = "reversion_ecart"
+        sl, _ = self.trade_manager.initial_levels(
+            Side.BUY, price, atr, spread=tick.spread,
+            structure_stop=None, digits=instrument.digits)
+        ev.stop_loss = sl
+        ev.take_profit = round(sma - cfg.reversion_sortie_atr * atr, instrument.digits)
+        risque = abs(price - sl)
+        ev.rr = (ev.take_profit - price) / risque if risque > 0 else 0.0
+        return ev
+
+    def _finish_donchian(
+        self,
+        ev: Evaluation,
+        instrument: Instrument,
+        entry: IndicatorSet,
+        price: float,
+        atr: float,
+        tick: Tick,
+    ) -> Evaluation:
+        """Famille « donchian » : achat a la cassure d'un plus-haut de N jours.
+
+        LE SYSTEME PUBLIC LE PLUS VERIFIE QUI EXISTE. Richard Dennis l'a
+        enseigne en 1983 a vingt-trois debutants — les « Turtles » — qui
+        ont degage 175 millions de dollars en cinq ans. Les regles sont
+        publiees depuis, et elles tiennent sur plusieurs decennies et
+        plusieurs classes d'actifs.
+
+        Regle d'origine : acheter quand le prix depasse le plus haut des
+        20 (ou 55) dernieres bougies, sortir quand il casse le plus bas
+        des 10 dernieres. Pas de prediction, pas d'indicateur avance :
+        une cassure de canal et un stop.
+
+        POURQUOI ELLE COLLE ICI. Elle est LONG-ONLY compatible (le compte
+        est au comptant), elle vit en D1 — ou les frais valent 7 % du
+        risque contre 47 % en M30 — et sa sortie n'est pas un objectif fixe
+        mais un canal qui suit : c'est « laisser courir » sous sa forme
+        d'origine, celle qui a fait ses preuves avant qu'on la reinvente.
+
+        Un travail de 2025 sur TOUTES les cryptos cotees depuis 2015, sans
+        biais du survivant et NET DE FRAIS, applique exactement ca : un
+        ensemble de canaux de Donchian a plusieurs horizons, taille par la
+        volatilite, en rotation sur les vingt paires les plus liquides.
+        Sharpe 1,58, CAGR 30 %, alpha +14 % contre le bitcoin.
+
+        ENSEMBLE : la cassure est validee si le prix depasse le plus haut
+        d'AU MOINS UN des horizons configures. Un seul horizon est un pari
+        sur une periodicite ; plusieurs captent des tendances de durees
+        differentes, ce qui est precisement ce que le papier ajoute aux
+        regles d'origine.
+        """
+        cfg = self.config
+        ev.mode = "donchian"
+        bougies = list(entry.candles)
+        horizons = sorted({int(x) for x in cfg.donchian_entrees if int(x) > 1})
+        besoin = max(horizons) + 1 if horizons else 0
+        if not horizons or len(bougies) < besoin or atr <= 0:
+            ev.gates.append(Gate("donchian", False,
+                                 f"historique insuffisant ({len(bougies)}/{besoin})"))
+            return ev
+
+        # `[:-1]` : la cassure se juge contre les bougies PRECEDENTES. Sans
+        # cette exclusion le plus-haut contient la bougie courante, qui le
+        # depasse toujours — le signal serait vrai en permanence.
+        casses = []
+        for n in horizons:
+            plus_haut = max(c.high for c in bougies[-(n + 1):-1])
+            if price > plus_haut:
+                casses.append(f"{n}j>{plus_haut:.6g}")
+        ev.gates.append(Gate(
+            "donchian", bool(casses),
+            f"cassure sur {len(casses)}/{len(horizons)} horizons "
+            f"({', '.join(casses) or 'aucune'})"))
+        if not casses:
+            return ev
+
+        # Filtre System 1 : la cassure precedente etait-elle gagnante ?
+        # `_donchian_dernier_gagnant` est renseigne par le moteur/rejeu a
+        # chaque cloture. Inconnu = on prend (comme au demarrage reel).
+        if cfg.donchian_filtre_precedent:
+            precedent = self._donchian_dernier_gagnant.get(instrument.symbol)
+            if precedent is True:
+                ev.gates.append(Gate(
+                    "donchian_filtre", False,
+                    "cassure precedente GAGNANTE : on saute celle-ci "
+                    "(regle System 1)"))
+                return ev
+
+        ev.side = Side.BUY
+        ev.setup = "donchian_cassure"
+        sl, _ = self.trade_manager.initial_levels(
+            Side.BUY, price, atr, spread=tick.spread,
+            structure_stop=None, digits=instrument.digits)
+        ev.stop_loss = sl
+        # La sortie reelle est le canal bas de `donchian_sortie` bougies,
+        # gere par le stop suiveur. L'objectif affiche n'est la que pour
+        # satisfaire le controle de ratio : un systeme de cassure n'a pas
+        # de cible fixe, c'est tout son interet.
+        risque = max(price - sl, 1e-12)
+        # `tp_actif` doit etre respecte ICI AUSSI. Il ne suffit pas de le
+        # lire dans `initial_levels` : c'est la strategie qui pose la cible
+        # de l'evaluation, et elle la reimposait a 2 R par l'autre bout.
+        # Mesure : le plafond revenait en silence et l'esperance tombait de
+        # +0,130 a +0,044 R. Deux endroits decident du meme reglage — celui
+        # qu'on oublie est celui qui gagne.
+        tm = self.trade_manager.config
+        cible_r = tm.tp_r_multiple if tm.tp_actif else 1000.0
+        ev.take_profit = round(price + cible_r * risque, instrument.digits)
+        ev.rr = cible_r
+        return ev
 
     def _finish_quorum(
         self,
@@ -690,11 +984,27 @@ class Strategy:
             return ev
 
         ev.setup = "quorum"
-        # Le score reste calcule pour le journal et le classement entre
-        # instruments, mais il ne conditionne plus l'entree.
         ev.components = self._score_components(side, entry, ctx, bias, chart, None, None, "quorum")
         ev.score = round(sum(c.value for c in ev.components), 4)
-        ev.threshold = 0.0
+
+        # LE SCORE REDEVIENT UNE BARRIERE, MEME EN QUORUM.
+        #
+        # Il avait ete rendu purement indicatif ici, le seuil force a zero.
+        # Un compte de confirmations ne dit pas la meme chose qu'une force
+        # de signal : cinq confirmations faibles restent cinq confirmations.
+        # Observe en production le 28 aout, un achat XRP reel ouvert sur un
+        # score de 0,24 — tendance +0,01, momentum +0,18, bougies +0,14 —
+        # autant dire un tirage a pile ou face, alors que la configuration
+        # portait min_score a 0,55. Le reglage existait, s'affichait, et ne
+        # servait a rien.
+        #
+        # Le bonus d'objectif n'est PAS ajoute ici : en quorum il releve
+        # deja le nombre de confirmations exigees, et le compter deux fois
+        # penaliserait deux fois la meme situation.
+        ev.threshold = round(cfg.min_score, 4)
+        ev.gates.append(Gate("score", ev.score >= ev.threshold,
+                             f"{ev.score:.3f} (seuil {ev.threshold:.3f})"))
+
         evaluables = sum(1 for c in confirmations if c.applicable)
         ev.gates.append(Gate("quorum", compte >= ev.required,
                              f"{compte} confirmations sur {evaluables} evaluables "

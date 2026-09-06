@@ -1,0 +1,2 @@
+# Optional dependency for the IBKR Gateway/TWS adapter
+ib_async>=2.0,<3

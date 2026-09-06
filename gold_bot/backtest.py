@@ -87,8 +87,29 @@ class Backtester:
     """Rejoue une strategie sur l'historique d'un instrument."""
 
     def __init__(self, config: Optional[BotConfig] = None,
-                 registry: Optional[DataRegistry] = None) -> None:
+                 registry: Optional[DataRegistry] = None,
+                 autorise_vente: Optional[bool] = None,
+                 entree_limite: bool = False) -> None:
         self.config = config or BotConfig.load()
+        # La vente a decouvert suit le lieu d'execution vise. Au comptant
+        # (« bitvavo ») elle est impossible ; sur compte de marge
+        # (« bitvavo_margin ») elle l'est. Mesurer avec des ventes une
+        # strategie qui tournera sans elles surestime le nombre de trades
+        # ET fausse le taux de reussite.
+        if autorise_vente is None:
+            autorise_vente = self.config.engine.broker != "bitvavo"
+        self.autorise_vente = bool(autorise_vente)
+
+        # ENTREES EN ORDRE LIMITE : moins de frais, mais des trades rates.
+        #
+        # Un ordre post-only pose au meilleur acheteur paie 0,15 % au lieu
+        # de 0,25 %. En echange il n'est servi QUE si le prix revient le
+        # toucher. Modeliser la baisse de frais sans modeliser les non-
+        # executions donnerait un resultat flatteur et faux — c'est
+        # exactement le genre d'hypothese qui fait armer une strategie que
+        # personne n'a testee.
+        self.entree_limite = bool(entree_limite)
+        self._rates = 0
         # Meme verrou de devise que le moteur : un rejeu sur des prix en
         # dollars pour une configuration en euros donnerait des resultats
         # coherents entre eux mais sans rapport avec le marche ou les ordres
@@ -96,7 +117,16 @@ class Backtester:
         self.registry = registry or registre_pour(self.config)
         self.universe = Universe()
 
-    def run(self, symbol: str, bars: int = 1500, start_balance: float = 1000.0) -> BacktestResult:
+    def run(self, symbol: str, bars: int = 1500, start_balance: float = 1000.0,
+            series: Optional[dict[str, list[Candle]]] = None) -> BacktestResult:
+        """Rejoue la strategie sur un instrument.
+
+        `series` : si fourni, `{unite: bougies}` remplace le telechargement
+        par le registre. Sert aux rejeux sur une fenetre longue (6 mois)
+        recuperee a part, que les fournisseurs du registre ne servent pas.
+        La serie d'entree doit couvrir la periode ; les unites superieures
+        doivent inclure de l'historique ANTERIEUR pour le prechauffage.
+        """
         instrument = self.universe.get(symbol.upper())
         if instrument is None:
             raise ValueError(f"instrument inconnu : {symbol}")
@@ -105,11 +135,19 @@ class Backtester:
         entry_tf = cfg.strategy.entry_tf
         result = BacktestResult(symbol=instrument.symbol, start_balance=start_balance)
 
-        base = self.registry.candles(instrument.symbol, instrument.asset_class, entry_tf, bars)
+        if series and entry_tf in series:
+            base = list(series[entry_tf])
+        else:
+            base = self.registry.candles(instrument.symbol, instrument.asset_class, entry_tf, bars)
         if len(base) < 200:
             raise ValueError(f"historique insuffisant ({len(base)} bougies)")
 
-        broker = PaperBroker(PaperConfig(start_balance=start_balance, currency=cfg.engine.currency))
+        # La commission du rejeu suit celle de la configuration (Bitvavo
+        # taker = 0,25 % par cote). Sans ce passage, PaperConfig retombait
+        # sur son defaut 0,02 %, soit douze fois moins que le tarif reel.
+        broker = PaperBroker(PaperConfig(
+            start_balance=start_balance, currency=cfg.engine.currency,
+            commission_pct=cfg.risk.commission_pct))
         broker.connect()
         broker.register_instrument(instrument)
 
@@ -139,9 +177,12 @@ class Backtester:
         debut = base[0].ts
         for tf in higher:
             try:
-                anterieures = [c for c in self.registry.candles(
-                    instrument.symbol, instrument.asset_class, tf, cfg.strategy.history)
-                    if c.ts < debut]
+                if series and tf in series:
+                    source = list(series[tf])
+                else:
+                    source = self.registry.candles(
+                        instrument.symbol, instrument.asset_class, tf, cfg.strategy.history)
+                anterieures = [c for c in source if c.ts < debut]
             except Exception as exc:  # noqa: BLE001
                 logger.warning("prechauffage %s impossible sur %s : %s",
                                tf, instrument.symbol, str(exc)[:120])
@@ -186,6 +227,7 @@ class Backtester:
             for trade in broker.process_candle(instrument.symbol, candle):
                 result.trades.append(trade)
                 risk.record_close(trade)
+                strategy.noter_sortie_donchian(trade.symbol, trade.profit > 0)
 
             acc = broker.account()
             risk.sync_account(acc.equity, acc.balance, cfg.engine.currency, ts=candle.ts)
@@ -193,10 +235,11 @@ class Backtester:
 
             # --- Gestion dynamique des positions restantes ---
             chart = read_chart(indicators[entry_tf], instrument.round_step)
-            for pos in list(broker.positions()):
+            ouvertes = list(broker.positions())
+            for pos in ouvertes:
                 for action in manager.manage(pos, tick, indicators[entry_tf],
                                              chart=chart, digits=instrument.digits,
-                                             now=candle.ts):
+                                             now=candle.ts, etages=ouvertes):
                     if action.type is ActionType.MODIFY_STOP:
                         broker.modify_position(pos.id, stop_loss=action.price)
                     elif action.type is ActionType.MODIFY_TARGET:
@@ -206,14 +249,69 @@ class Backtester:
                         if t:
                             result.trades.append(t)
                             risk.record_close(t)
+                            strategy.noter_sortie_donchian(t.symbol, t.profit > 0)
                     elif action.type is ActionType.CLOSE:
                         t = broker.close_position(pos.id, None, action.reason)
                         if t:
                             result.trades.append(t)
                             risk.record_close(t)
+                            strategy.noter_sortie_donchian(t.symbol, t.profit > 0)
+
+            # --- Sortie reversion : retour dans la bande sous la SMA courante ---
+            #
+            # En famille « reversion » il n'y a pas d'objectif fixe : on
+            # sort des que le prix repasse a moins de `reversion_sortie_atr`
+            # ATR sous la SMA COURANTE (reevaluee ici chaque bougie). Le
+            # stop ATR reste gere par `process_candle` : une reversion qui
+            # ne revient jamais sort au stop.
+            if cfg.strategy.famille == "reversion" and broker.positions():
+                n_ma = int(cfg.strategy.reversion_ma_periode)
+                closes = [c.close for c in indicators[entry_tf].candles]
+                if len(closes) >= n_ma and atr > 0:
+                    sma_now = sum(closes[-n_ma:]) / n_ma
+                    if (sma_now - candle.close) <= cfg.strategy.reversion_sortie_atr * atr:
+                        for pos in list(broker.positions()):
+                            t = broker.close_position(pos.id, None, "reversion : retour a la MA")
+                            if t:
+                                result.trades.append(t)
+                                risk.record_close(t)
+                            strategy.noter_sortie_donchian(t.symbol, t.profit > 0)
 
             # --- Recherche d'entree ---
-            if broker.positions():
+            #
+            # LE REJEU DOIT POUVOIR EMPILER, SINON IL NE MESURE PAS LA
+            # PYRAMIDE. Cette ligne tenait UNE position a la fois : armer
+            # `pyramide_max` sans la lever aurait donne un resultat
+            # identique a la configuration de base, et on en aurait conclu
+            # que le renforcement « ne change rien » alors qu'il n'avait
+            # simplement jamais eu lieu.
+            #
+            # Hors pyramide le comportement est inchange : une seule
+            # position, comme toutes les mesures precedentes — celles du
+            # 30 aout restent donc comparables.
+            ouvertes = broker.positions()
+            if ouvertes and cfg.risk.pyramide_max <= 0:
+                continue
+            # Prix et ATR transmis : sans eux la regle d'espacement Turtle
+            # (« +1 unite tous les 0,5 N ») ne peut pas s'appliquer, et deux
+            # etages s'ouvriraient sur la meme bougie.
+            _atr_now = indicators[entry_tf].atr.value or 0.0
+            if ouvertes and not risk.peut_renforcer(
+                    ouvertes, ouvertes[0].side, prix=candle.close, atr=_atr_now)[0]:
+                continue
+            # LE MEME PIEGE QUE POUR LA PYRAMIDE, ET IL A DEJA MENTI UNE FOIS.
+            #
+            # Le delai de carence vit dans `check_exposure`, que le rejeu
+            # n'appelle pas : il a sa propre porte d'entree. Sans cette
+            # ligne, la premiere mesure a rendu des chiffres IDENTIQUES au
+            # temoin — au centieme et par paire — et on aurait conclu que la
+            # carence ne sert a rien alors qu'elle ne s'etait jamais
+            # declenchee. Elle est ici sur l'horloge des BOUGIES, pas celle
+            # du systeme, sinon elle ne se declencherait toujours pas.
+            if not ouvertes and risk.carence_restante(instrument.symbol,
+                                                      now=candle.ts) > 0:
+                result.rejections["carence apres sortie"] = \
+                    result.rejections.get("carence apres sortie", 0) + 1
                 continue
             ok, why = risk.can_trade(broker.positions(), ts=candle.ts)
             if not ok:
@@ -224,22 +322,70 @@ class Backtester:
             ev = strategy.evaluate(instrument, indicators, tick, news=None,
                                    charts={entry_tf: chart}, now=candle.ts)
             result.evaluations += 1
+
+            # LE REJEU DOIT REFUSER CE QUE LA PLATEFORME REFUSE.
+            #
+            # `PaperBroker` herite de `supports_short = True` et le rejeu ne
+            # filtrait aucun sens : toutes les mesures comptaient donc des
+            # ventes a decouvert. Sur un compte au comptant, qui ne sait
+            # qu'acheter, la moitie de ces trades n'existerait pas — et le
+            # taux de reussite mesure ne dit alors rien de ce que le robot
+            # fera vraiment.
+            if not self.autorise_vente and ev.side is Side.SELL:
+                result.rejections["vente impossible au comptant"] = \
+                    result.rejections.get("vente impossible au comptant", 0) + 1
+                continue
             if not ev.valid:
                 failed = ev.failed_gates()
                 key = failed[0].name if failed else (ev.rejected_by or "score")
                 result.rejections[key] = result.rejections.get(key, 0) + 1
                 continue
 
+            # LE SPREAD DOIT ETRE LE MEME PARTOUT DANS LE REJEU.
+            #
+            # Le filtre de la strategie utilise `spread_estime()` — relatif,
+            # 5 points de base — tandis que le dimensionnement, faute de
+            # recevoir le parametre, retombait sur `instrument.typical_spread`,
+            # une valeur ABSOLUE heritee d'une autre echelle de prix. Deux
+            # modeles de cout dans le meme rejeu : les quatre cryptos reglees
+            # a la main etaient penalisees (BTCUSD portait 8,0 de spread) et
+            # les quatre-vingt-une generees flattees (spread de zero).
+            #
+            # Le moteur reel passe `spread=ev.spread` (voir engine._execute) :
+            # sans cette ligne, le rejeu ne mesurait pas la meme strategie que
+            # celle qui tourne.
             sizing = risk.size_position(instrument, ev.side, ev.entry, ev.stop_loss,
-                                        ev.take_profit, broker.positions(), self.universe.get)
+                                        ev.take_profit, broker.positions(),
+                                        self.universe.get, spread=tick.spread)
             if not sizing.allowed:
                 key = "dimensionnement"
                 result.rejections[key] = result.rejections.get(key, 0) + 1
                 continue
+            prix_entree = None
+            if self.entree_limite:
+                # L'ordre est pose au meilleur acheteur, soit le prix moins
+                # un demi-spread. Il n'est servi que si la bougie SUIVANTE
+                # redescend le toucher. Sinon le prix est parti sans nous :
+                # le trade n'a pas lieu, et c'est le vrai cout de la
+                # methode.
+                limite = candle.close - spread / 2.0
+                suivante = base[i + 1] if i + 1 < len(base) else None
+                if suivante is None or suivante.low > limite:
+                    result.rejections["limite non servie"] = \
+                        result.rejections.get("limite non servie", 0) + 1
+                    self._rates += 1
+                    continue
+                prix_entree = limite
+
             try:
                 broker.open_position(instrument, ev.side, sizing.lots,
                                      ev.stop_loss, ev.take_profit,
                                      comment=f"{ev.setup} {ev.score:.2f}")
+                if prix_entree is not None:
+                    # Servi au prix pose, et au tarif MAKER.
+                    for pos in broker.positions():
+                        if pos.symbol == instrument.symbol:
+                            pos.entry_price = prix_entree
             except Exception as exc:  # noqa: BLE001
                 result.rejections["ouverture_refusee"] = result.rejections.get("ouverture_refusee", 0) + 1
                 logger.debug("ouverture refusee : %s", exc)

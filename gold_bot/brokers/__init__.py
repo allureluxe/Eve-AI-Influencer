@@ -7,6 +7,7 @@ from .pionex import PionexBroker as PionexSpotBroker, PionexConfig as PionexSpot
 from .pionex_futures import PionexFuturesConfig, PionexFuturesRule
 from .pionex_futures_hardened import HardenedPionexFuturesBroker
 from .paper import PaperBroker, PaperConfig
+from .ibkr import IBKRBroker
 
 harden_bitvavo(BitvavoBroker, RegleMarche)
 
@@ -22,31 +23,20 @@ class _ObsoleteBroker(Broker):
     is_live = False
 
     def __init__(self, *args, **kwargs):
-        raise BrokerError("Ce broker a ete retire. Utilisez Bitvavo ou Pionex.")
+        raise BrokerError("Ce broker a ete retire. Utilisez Bitvavo, IBKR ou Pionex.")
 
-    def connect(self):
-        return False
-
-    def account(self):
-        raise BrokerError("Broker obsolete.")
-
-    def positions(self):
-        return []
-
-    def open_position(self, *args, **kwargs):
-        raise BrokerError("Broker obsolete.")
-
-    def modify_position(self, *args, **kwargs):
-        raise BrokerError("Broker obsolete.")
-
-    def close_position(self, *args, **kwargs):
-        raise BrokerError("Broker obsolete.")
+    def connect(self): return False
+    def account(self): raise BrokerError("Broker obsolete.")
+    def positions(self): return []
+    def open_position(self, *args, **kwargs): raise BrokerError("Broker obsolete.")
+    def modify_position(self, *args, **kwargs): raise BrokerError("Broker obsolete.")
+    def close_position(self, *args, **kwargs): raise BrokerError("Broker obsolete.")
 
 
 class _ObsoleteConfig:
     @classmethod
     def from_env(cls):
-        raise BrokerError("Configuration obsolete. Utilisez Bitvavo ou Pionex.")
+        raise BrokerError("Configuration obsolete. Utilisez Bitvavo, IBKR ou Pionex.")
 
 
 BinanceBroker = BinanceSpotBroker = MoonXBroker = OkxBroker = _ObsoleteBroker
@@ -56,6 +46,7 @@ __all__ = [
     "Broker", "BrokerError", "AccountInfo",
     "PaperBroker", "PaperConfig",
     "BitvavoBroker", "BitvavoMarginBroker", "BitvavoConfig", "RegleMarche",
+    "IBKRBroker",
     "PionexBroker", "PionexConfig", "PionexMarketRule",
     "PionexFuturesBroker", "PionexFuturesConfig", "PionexFuturesRule",
     "PionexSpotBroker", "PionexSpotConfig", "PionexSpotMarketRule",
