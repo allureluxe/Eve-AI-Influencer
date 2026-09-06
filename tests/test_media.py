@@ -56,3 +56,35 @@ def test_video_render_produces_a_playable_file(piece, tmp_path):
                     width=270, height=480)
     assert result.path.exists() and result.path.stat().st_size > 10_000
     assert result.duration_s > 5
+
+
+def test_voice_style_is_prefixed_to_the_text(monkeypatch, tmp_path):
+    """La consigne de jeu doit atteindre le modèle, sinon le ton reste « pub »."""
+    from eve.media import gemini, voice
+
+    envoye = {}
+
+    def faux_post(model, method, payload):
+        envoye["texte"] = payload["contents"][0]["parts"][0]["text"]
+        return {"candidates": [{"content": {"parts": [
+            {"inlineData": {"data": "AAAA", "mimeType": "audio/L16;rate=24000"}}]}}]}
+
+    monkeypatch.setattr(gemini, "pick_model", lambda task: "modele-test")
+    monkeypatch.setattr(gemini, "post", faux_post)
+    voice._gemini_tts("Bonjour.", tmp_path / "v.mp3", "Leda", "Ton détendu, pas publicitaire.")
+
+    assert envoye["texte"].startswith("Ton détendu, pas publicitaire.")
+    assert envoye["texte"].endswith("Bonjour.")
+
+
+def test_voice_without_style_sends_only_the_text(monkeypatch, tmp_path):
+    from eve.media import gemini, voice
+
+    envoye = {}
+    monkeypatch.setattr(gemini, "pick_model", lambda task: "modele-test")
+    monkeypatch.setattr(gemini, "post", lambda m, me, p: (
+        envoye.update(texte=p["contents"][0]["parts"][0]["text"]),
+        {"candidates": [{"content": {"parts": [
+            {"inlineData": {"data": "AAAA", "mimeType": "audio/L16;rate=24000"}}]}}]})[1])
+    voice._gemini_tts("Bonjour.", tmp_path / "v.mp3", "Leda", "")
+    assert envoye["texte"] == "Bonjour."

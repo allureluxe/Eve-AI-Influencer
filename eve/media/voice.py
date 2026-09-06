@@ -47,7 +47,7 @@ def _piper(text: str, out: Path, model: str) -> Path:
     return wav
 
 
-def _gemini_tts(text: str, out: Path, voice: str) -> Path:
+def _gemini_tts(text: str, out: Path, voice: str, style: str = "") -> Path:
     """Google AI Studio : voix neuronales, palier gratuit.
 
     Le modèle renvoie du PCM brut (16 bits, mono) ; on l'emballe dans un
@@ -56,8 +56,9 @@ def _gemini_tts(text: str, out: Path, voice: str) -> Path:
     from eve.media import gemini
 
     model = gemini.pick_model("tts")
+    consigne = f"{style.strip()}\n\n{text}" if style.strip() else text
     data = gemini.post(model, "generateContent", {
-        "contents": [{"role": "user", "parts": [{"text": text}]}],
+        "contents": [{"role": "user", "parts": [{"text": consigne}]}],
         "generationConfig": {
             "responseModalities": ["AUDIO"],
             "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {
@@ -101,7 +102,7 @@ def synthesize(text: str, out: Path, *, expected_seconds: float = 20.0,
     if provider != "silent":
         try:
             if provider == "gemini":
-                return VoiceResult(_gemini_tts(text, out, g.voice_name), "gemini")
+                return VoiceResult(_gemini_tts(text, out, g.voice_name, g.voice_style), "gemini")
             if provider == "piper":
                 return VoiceResult(_piper(text, out, g.voice_name), "piper")
             return VoiceResult(_edge_tts(text, out, g.voice_name, g.voice_rate), "edge-tts")
