@@ -74,6 +74,18 @@ class Reglages:
     trail_atr: float = 2.2
     trail_depart_r: float = 1.1
     stop_temporel_jours: int = 12
+    # --- Sortie sur STAGNATION (et non sur duree) ---
+    #
+    # Demande de l'operateur : une position qui avance ne se ferme JAMAIS
+    # sur le temps, meme apres 20 jours — seul le stop suiveur la sort.
+    # Ce qui se ferme, c'est ce qui ne va nulle part.
+    #
+    # La difference tient au R qu'on regarde. L'ancienne regle lisait le R
+    # COURANT : une position montee a +3 R puis redescendue a +0,2 R etait
+    # coupee comme si elle avait stagne. On lit donc le MEILLEUR R atteint.
+    # A 0, la regle est desarmee.
+    stagnation_jours: float = 0.0
+    stagnation_max_r: float = 0.5
     # Sortie par canal, a la Turtle. A 0 le stop suiveur ATR fait le
     # travail ; au-dessus de 0 il est desactive et c'est la casse du
     # plus-bas de N jours qui ferme. Les deux ne cohabitent pas : on
@@ -152,6 +164,14 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
                 # Sortie a la Turtle : on ne rend pas une distance fixe, on
                 # attend que la tendance casse pour de bon.
                 sortie, motif = b.close, f"canal {r.sortie_canal_jours} j"
+            elif r.stagnation_jours > 0:
+                # Stagnation : le MEILLEUR parcours n'a rien donne.
+                age = (t - pos.ouvert_le) / 86400
+                if age >= r.stagnation_jours and pos.risque_initial > 0:
+                    meilleur_r = ((pos.plus_haut - pos.entree) * pos.lots
+                                  / pos.risque_initial)
+                    if meilleur_r < r.stagnation_max_r:
+                        sortie, motif = b.close, "stagnation"
             elif (t - pos.ouvert_le) / 86400 >= r.stop_temporel_jours and \
                     b.close <= pos.entree:
                 sortie, motif = b.close, "stop temporel"
