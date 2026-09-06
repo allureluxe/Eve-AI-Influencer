@@ -5,6 +5,46 @@ d'environ 51 EUR. Plusieurs sessions travaillent sur la même branche. Les
 décisions ci-dessous ont été prises par l'opérateur ; elles ne sont pas des
 valeurs par défaut à optimiser.
 
+## Sortie sur STAGNATION, pas sur durée — armée le 6 septembre
+
+Décision de l'opérateur : « aucune limite de temps tant que la position
+évolue, même si elle monte pendant 20 jours — on la laisse faire son
+chemin. Si elle fait pratiquement peu de mouvement en 5 jours, là elle
+se ferme. »
+
+**Ce qui change n'est pas le nombre de jours, c'est le R qu'on regarde.**
+L'ancienne règle lisait `r_now`, le R **courant** : une position montée à
++3 R puis redescendue à +0,2 R était fermée comme si elle avait stagné,
+alors que c'est au stop suiveur de décider de son sort. On lit désormais
+le **meilleur parcours atteint** (`max_favorable`).
+
+70 paires, 7,5 ans, coupe au 7 juin 2024, frais **doublés**, hors
+échantillon, avec le pyramidage Turtle armé :
+
+    regle                       rendement   Sharpe   recul
+    ancienne, 12 j sur R courant   +35,8 %    0,53   35,4 %
+    aucune limite du tout          +31,8 %    0,50   35,6 %
+    stagnation 5 j / 0,5 R         +73,1 %    0,79   34,0 %   <- armé
+
+**Les trois conditions du critère battues à la fois** — rendement, Sharpe
+et recul. C'est le premier réglage de la session à y arriver proprement.
+
+**Le détail qui compte, et qui contredit l'intuition :** retirer toute
+limite est **pire** que l'ancienne règle (+31,8 % contre +35,8 %). Ce
+n'est pas « laisser courir » qui paie, c'est « couper ce qui ne va nulle
+part ». Les deux moitiés de la décision ne se valent pas : la seconde
+porte tout le gain. Les positions les plus longues durent **32 jours** et
+la règle ne les touche pas.
+
+Seuil : 0,8 R fait mieux en apprentissage (+757 %) et **moins bien** hors
+échantillon (+59,5 %) — sur-ajustement classique. 0,5 R est retenu.
+
+`stagnation_jours` et `time_stop_minutes` ne tournent **jamais** ensemble
+(`elif`, verrouillé par un test) : deux règles qui décident de la même
+sortie, c'est le piège documenté plus bas.
+
+---
+
 ## Pyramidage Turtle — armé le 6 septembre, et le plafond de 6 retiré
 
 Décision de l'opérateur, sur mesure. **C'est le seul réglage testé cette

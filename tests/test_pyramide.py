@@ -452,3 +452,90 @@ class TestLEspacementSExecuteVRAIMENT:
         ok, why = rm.peut_renforcer([pos], Side.BUY, prix=200.0, atr=1.0)
         assert not ok, "4e etage accepte alors que le maximum est 3 unites"
         assert "maximum 2" in why
+
+
+class TestUnePositionQuiAvanceNeSortJamaisSurLeTemps:
+    """Decision de l'operateur du 6 septembre 2026.
+
+    « Aucune limite de temps tant que la position evolue, meme si elle
+    monte pendant 20 jours. Si elle fait pratiquement peu de mouvement en
+    5 jours, la elle se ferme. »
+
+    Ce qui change n'est pas le nombre de jours, c'est LE R QU'ON REGARDE.
+    L'ancienne regle lisait le R COURANT : une position montee a +3 R puis
+    redescendue a +0,2 R etait fermee comme si elle avait stagne, alors
+    que c'est au stop suiveur de decider. On lit le MEILLEUR parcours.
+
+    Mesure hors echantillon, frais doubles, 70 paires, 2,2 ans :
+        ancienne regle 12 j     +35,8 %   Sharpe 0,53   recul 35,4 %
+        aucune limite du tout   +31,8 %   Sharpe 0,50   recul 35,6 %
+        stagnation 5 j / 0,5 R  +73,1 %   Sharpe 0,79   recul 34,0 %
+    """
+
+    @staticmethod
+    def _tm():
+        from gold_bot.trade_manager import TradeManager, TradeManagerConfig
+        return TradeManager(TradeManagerConfig(stagnation_jours=5.0,
+                                               stagnation_max_r=0.5))
+
+    @staticmethod
+    def _pos(meilleur: float, jours: float):
+        """Position ouverte il y a `jours`, dont le sommet vaut `meilleur` R."""
+        p = _position(entree=100.0, stop=98.0)          # 1R = 2.0
+        p.initial_risk = 2.0
+        p.opened_at = time.time() - jours * 86400
+        p.max_favorable = 100.0 + meilleur * 2.0
+        return p
+
+    def _sortie(self, pos):
+        from gold_bot.trade_manager import Momentum
+        return self._tm()._safety_exits(
+            pos, price=pos.entry_price, r_now=0.0,
+            momentum=Momentum(score=0.0), now=time.time())
+
+    def test_vingt_jours_de_hausse_ne_se_ferment_PAS(self):
+        """Le coeur de la demande : on laisse courir."""
+        action = self._sortie(self._pos(meilleur=3.0, jours=20))
+        assert action is None, (
+            f"position fermee apres 20 jours alors qu'elle a fait +3 R : "
+            f"{action.reason if action else ''} — seul le stop suiveur "
+            "doit la sortir")
+
+    def test_cinq_jours_sans_bouger_se_ferment(self):
+        action = self._sortie(self._pos(meilleur=0.1, jours=5.5))
+        assert action is not None, "position immobile depuis 5 jours non fermee"
+        assert "stagnation" in action.reason
+
+    def test_avant_cinq_jours_on_laisse_le_temps(self):
+        action = self._sortie(self._pos(meilleur=0.1, jours=3))
+        assert action is None, "ferme avant les 5 jours accordes"
+
+    def test_le_sommet_compte_PAS_le_prix_du_moment(self):
+        """La regression que l'ancienne regle produisait.
+
+        Position montee a +3 R, retombee a l'entree, ouverte depuis
+        10 jours. L'ancienne regle la fermait (R courant nul). La nouvelle
+        la garde : elle a bouge, donc c'est au stop suiveur de trancher.
+        """
+        pos = self._pos(meilleur=3.0, jours=10)
+        assert self._sortie(pos) is None, (
+            "fermee alors que son meilleur parcours vaut +3 R : la regle "
+            "lit encore le prix du moment au lieu du sommet")
+
+    def test_desarme_le_defaut_du_code_garde_l_ancienne_regle(self):
+        from gold_bot.trade_manager import TradeManagerConfig
+        assert TradeManagerConfig().stagnation_jours == 0.0
+
+    def test_les_deux_regles_ne_tournent_jamais_ensemble(self):
+        """Deux regles pour une meme sortie : le piege du CLAUDE.md."""
+        import inspect
+        from gold_bot.trade_manager import TradeManager
+        src = inspect.getsource(TradeManager._safety_exits)
+        assert "elif age_min >= cfg.time_stop_minutes" in src, (
+            "le stop temporel n'est plus dans un `elif` : il peut fermer "
+            "une position que la regle de stagnation venait d'epargner")
+
+    def test_le_reglage_livre_est_arme_a_cinq_jours(self):
+        cfg = BotConfig.load("robot.bitvavo.json")
+        assert cfg.trade.stagnation_jours == 5.0
+        assert cfg.trade.stagnation_max_r == 0.5

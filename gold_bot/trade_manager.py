@@ -81,6 +81,18 @@ class TradeManagerConfig:
     micro_profit_at_r: float = 0.90
     micro_profit_min_momentum: float = 0.20
     time_stop_minutes: float = 240.0
+
+    # --- Sortie sur STAGNATION (remplace le stop temporel quand armee) ---
+    #
+    # A 0, desarmee : c'est `time_stop_minutes` qui s'applique. Au-dessus
+    # de 0, elle le REMPLACE — les deux ne tournent jamais ensemble.
+    #
+    # Une position qui a progresse ne sort JAMAIS sur le temps, quelle que
+    # soit sa duree : c'est le stop suiveur qui decide. Seule celle qui n'a
+    # rien fait en `stagnation_jours` sort, et « rien fait » se mesure sur
+    # le MEILLEUR parcours atteint, pas sur le prix du moment.
+    stagnation_jours: float = 0.0
+    stagnation_max_r: float = 0.5
     time_stop_min_r: float = 0.25
     reversal_exit_r: float = 0.5
     news_tighten_atr_mult: float = 0.9
@@ -448,7 +460,51 @@ class TradeManager:
                 reason=(f"retournement confirme a {r_now:+.2f}R (dynamique {momentum.score:+.2f} : "
                         f"{momentum.reasons[0] if momentum.reasons else ''})"))
         age_min = (now - position.opened_at) / 60.0
-        if age_min >= cfg.time_stop_minutes and r_now < cfg.time_stop_min_r:
+
+        # --- SORTIE SUR STAGNATION, ET NON SUR DUREE --------------------
+        #
+        # Decision de l'operateur, 6 septembre 2026 : « aucune limite de
+        # temps tant que la position evolue, meme si elle monte pendant
+        # 20 jours — on la laisse faire son chemin. Si elle fait
+        # pratiquement peu de mouvement en 5 jours, la elle se ferme. »
+        #
+        # CE QUI CHANGE VRAIMENT, C'EST LE R QU'ON REGARDE. L'ancienne
+        # regle lisait `r_now`, le R COURANT : une position montee a +3 R
+        # puis redescendue a +0,2 R etait fermee comme si elle avait
+        # stagne, alors que c'est au stop suiveur de decider de son sort.
+        # On lit donc le MEILLEUR parcours atteint. Une position qui a
+        # bouge ne sort jamais sur le temps ; seule celle qui n'est allee
+        # nulle part sort.
+        #
+        # Mesure, 70 paires, 7,5 ans, coupe au 7 juin 2024, frais doubles,
+        # hors echantillon (avec le pyramidage Turtle arme) :
+        #
+        #     ancienne regle 12 j     +35,8 %   Sharpe 0,53   recul 35,4 %
+        #     aucune limite du tout   +31,8 %   Sharpe 0,50   recul 35,6 %
+        #     stagnation 5 j / 0,5 R  +73,1 %   Sharpe 0,79   recul 34,0 %
+        #
+        # Les trois conditions du critere sont battues a la fois. Et le
+        # detail qui compte : RETIRER toute limite est PIRE que l'ancienne
+        # regle. Ce n'est pas « laisser courir » qui paie, c'est « couper
+        # ce qui ne va nulle part ». Les positions les plus longues durent
+        # 32 jours, la regle ne les coupe pas.
+        #
+        # Seuil : 0,8 R fait mieux en apprentissage (+757 %) et moins bien
+        # hors echantillon (+59,5 %) — le signe classique du sur-ajustement.
+        # 0,5 R est retenu : meilleur hors echantillon, sans renversement.
+        if cfg.stagnation_jours > 0:
+            age_j = (now - position.opened_at) / 86400.0
+            meilleur_r = position.r_multiple(position.max_favorable) \
+                if position.max_favorable else 0.0
+            if age_j >= cfg.stagnation_jours and meilleur_r < cfg.stagnation_max_r:
+                return TradeAction(ActionType.CLOSE, position.id,
+                    reason=(f"stagnation : {age_j:.1f} j sans aller nulle part "
+                            f"(meilleur parcours {meilleur_r:+.2f}R, "
+                            f"{cfg.stagnation_max_r:.2f} attendus)"))
+        elif age_min >= cfg.time_stop_minutes and r_now < cfg.time_stop_min_r:
+            # Ancienne regle, conservee tant que la stagnation est desarmee.
+            # Les deux ne cohabitent JAMAIS : deux regles qui decident de la
+            # meme sortie, c'est le piege documente dans le CLAUDE.md.
             return TradeAction(ActionType.CLOSE, position.id,
                 reason=f"stop temporel : {age_min:.0f} min sans progression ({r_now:+.2f}R)")
         if r_now <= -cfg.max_adverse_r * 1.5:
