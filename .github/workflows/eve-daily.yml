@@ -100,6 +100,23 @@ jobs:
           IMAGE_PROVIDER: ${{ vars.IMAGE_PROVIDER || 'pollinations' }}
         run: python -m eve.cli lancement
 
+      # La photo de profil est le seul média qu'on suit dans le dépôt : elle
+      # est petite, elle se relit d'une session à l'autre, et c'est celle
+      # qu'on retouche par itérations. Le chemin est hors des `paths` du
+      # déclencheur, donc ce commit ne relance pas le workflow.
+      - name: Publier la photo de profil dans le dépôt
+        if: always()
+        run: |
+          mkdir -p assets/generated
+          cp -f output/products/photo-de-profil.png assets/generated/ 2>/dev/null || exit 0
+          cp -f output/products/kit-lancement.md assets/generated/ 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/generated
+          git diff --cached --quiet && exit 0
+          git commit -m "Photo de profil générée le $(date -u +%Y-%m-%d)"
+          git push origin HEAD:${{ github.ref_name }}
+
       - name: Récupérer les vidéos et le rapport
         uses: actions/upload-artifact@v4
         if: always()

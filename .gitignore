@@ -11,4 +11,5 @@ data/
 assets/music/*
 !assets/music/.gitkeep
 assets/reference/*
+!assets/generated/
 !assets/reference/.gitkeep
