@@ -1,5 +1,6 @@
 import json
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -111,3 +112,29 @@ def test_dry_run_publish_records_but_does_not_go_live(persona, store, monkeypatc
     assert results and all("DRY-RUN" in r for r in results)
     assert json.loads(store.get_piece(piece.id)["payload"])
     assert store.publications(only_live=True) == []
+
+
+def test_placeholder_images_are_never_published_live(persona, store, monkeypatch, tmp_path):
+    from eve.config import settings
+
+    monkeypatch.setattr(settings, "dry_run", False)
+    agent = EveAgent(persona=persona, store=store)
+    piece = agent.plan(start=date(2026, 3, 1), days=1)[0]
+    piece.assets = {"video": str(tmp_path / "v.mp4"), "placeholder_images": 4}
+    results = agent.publish(piece)
+    assert results and all("BLOQUÉ" in r for r in results)
+    assert store.publications(only_live=True) == []
+
+
+def test_captions_file_is_written_next_to_the_video(persona, store, tmp_path, monkeypatch):
+    from eve.config import settings
+
+    monkeypatch.setattr(settings.generation, "image_provider", "placeholder")
+    monkeypatch.setattr(settings.paths, "videos", tmp_path / "videos")
+    monkeypatch.setattr(settings.paths, "images", tmp_path / "images")
+    monkeypatch.setattr(settings.paths, "audio", tmp_path / "audio")
+    agent = EveAgent(persona=persona, store=store)
+    piece = agent.produce(agent.plan(start=date(2026, 4, 1), days=1)[0])
+    texte = Path(piece.assets["captions"]).read_text(encoding="utf-8")
+    assert "TIKTOK" in texte and "INSTAGRAM" in texte
+    assert persona.disclosure["caption_tag"] in texte

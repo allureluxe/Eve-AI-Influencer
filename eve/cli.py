@@ -24,6 +24,7 @@ from datetime import date as Date
 from eve.agent.orchestrator import EveAgent, _piece_from_row
 from eve.agent.state import Store
 from eve.config import settings
+from eve.content.launch import build_bios, build_launch_kit
 from eve.content.scripts import build_piece
 from eve.media.video import ffmpeg_available
 from eve.monetization.products import build_media_kit, export_program
@@ -265,23 +266,38 @@ def cmd_go(args) -> int:
 
     produit = export_program(persona)
     kit = build_media_kit(persona, {})
+    lancement = build_launch_kit(persona)
 
     print(f"\n{'═' * 58}\n  CE QUE TU AS MAINTENANT\n{'═' * 58}")
     if faits:
-        print(f"  🎬 {len(faits)} vidéo(s) prête(s) dans  output/videos/")
-    print(f"  📄 Programme à vendre        {produit['html']}")
-    print(f"  📊 Media kit pour les marques {kit}")
+        print(f"  🎬 {len(faits)} vidéo(s) dans  output/videos/")
+        print("       (la légende à copier-coller est dans legendes.txt, à côté)")
+    print(f"  🚀 Kit de lancement des comptes {lancement['html']}")
+    print(f"  📄 Programme à vendre           {produit['html']}")
+    print(f"  📊 Media kit pour les marques   {kit}")
     print(f"\n{'═' * 58}\n  LA SUITE, DANS L'ORDRE\n{'═' * 58}")
     print("""  1. Regarde les vidéos produites. Si le rendu te plaît, continue.
-  2. Crée les comptes TikTok et Instagram (Instagram en compte
-     Professionnel), mets la mention IA dans la bio :
-       « 🤖 AI-generated fitness coach · virtual creator »
-  3. Publie les MP4 à la main pendant une à deux semaines. C'est le
-     moyen le plus rapide de voir ce qui accroche, sans aucune clé d'API.
+  2. Ouvre le kit de lancement : pseudo, photo de profil, bios prêtes
+     à coller, et la liste de contrôle des comptes.
+  3. Publie les MP4 à la main pendant une à deux semaines. La légende
+     de chaque vidéo est dans son legendes.txt — copier, coller, publier.
   4. Quand le rythme est pris : docs/SETUP.md pour connecter les API,
      puis DRY_RUN=0 dans .env pour laisser l'agent publier seul.
   5. Pour produire la suite :  python -m eve.cli go""")
     print(f"\n  Tout est en dry-run : {WARN}rien n'a été publié.\n")
+    return 0
+
+
+def cmd_lancement(args) -> int:
+    persona = load_persona()
+    kit = build_launch_kit(persona)
+    bios = build_bios(persona)
+    print(f"\n{OK} Kit de lancement : {kit['html']}")
+    print(f"{OK} Photo de profil   : {kit['photo']}\n")
+    for plateforme, bio in bios.items():
+        print(f"── Bio {plateforme} " + "─" * 38)
+        print(bio)
+        print()
     return 0
 
 
@@ -294,6 +310,9 @@ def build_parser() -> argparse.ArgumentParser:
     go.add_argument("--days", type=int, default=3, help="jours de contenu à planifier")
     go.add_argument("--videos", type=int, default=1, help="vidéos à produire maintenant")
     go.set_defaults(func=cmd_go)
+
+    sub.add_parser("lancement", help="kit pour créer les comptes (bio, photo, checklist)"
+                   ).set_defaults(func=cmd_lancement)
 
     sub.add_parser("doctor", help="diagnostic complet").set_defaults(func=cmd_doctor)
 

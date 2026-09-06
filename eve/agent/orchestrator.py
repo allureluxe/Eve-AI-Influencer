@@ -130,6 +130,7 @@ class EveAgent:
             image_paths.append(result.path)
             placeholders += int(result.placeholder)
         piece.assets["images"] = [str(p) for p in image_paths]
+        piece.assets["placeholder_images"] = placeholders
         if placeholders:
             piece.assets["warning"] = (
                 f"{placeholders}/{len(image_paths)} images sont des placeholders "
@@ -160,16 +161,54 @@ class EveAgent:
             piece.assets["video_error"] = str(exc)
             log.warning("Vidéo non montée : %s", exc)
 
+        # Légendes écrites à côté du MP4 : c'est ce qui rend la publication
+        # manuelle possible sans ouvrir la base ni le code.
+        piece.assets["captions"] = str(self._write_captions(piece, out_dir))
+
         piece.status = "ready" if piece.assets.get("video") else piece.status
         self.store.save_piece(piece.id, piece.date, piece.slot, piece.pillar,
                               piece.to_dict(), piece.status)
         return piece
+
+    def captions(self, piece: ContentPiece) -> dict[str, str]:
+        """Légende finale par plateforme, offre de monétisation incluse."""
+        offers = build_offers()
+        offer = pick_offer(piece.pillar, offers)
+        out: dict[str, str] = {}
+        for platform in piece.platforms:
+            money = monetization_line(offer, platform, campaign=f"{piece.date}-{piece.pillar}")
+            caption, _ = review_post(self.persona,
+                                     caption=caption_for(piece, self.persona, platform, money),
+                                     visual_prompts=piece.shot_prompts, pillar=piece.pillar)
+            out[platform] = caption
+        return out
+
+    def _write_captions(self, piece: ContentPiece, out_dir: Path) -> Path:
+        blocks = [f"{piece.title}", f"({piece.pillar} · {piece.duration_s:.0f} s)", ""]
+        for platform, caption in self.captions(piece).items():
+            blocks += [f"{'═' * 58}", f"  {platform.upper()} — à copier-coller",
+                       f"{'═' * 58}", "", caption, ""]
+        blocks += [f"{'═' * 58}", "  RAPPEL", f"{'═' * 58}",
+                   "  Activer le label IA au moment de publier :",
+                   "    Instagram → « AI info »",
+                   "    TikTok    → « contenu généré par IA »"]
+        path = out_dir / "legendes.txt"
+        path.write_text("\n".join(blocks), encoding="utf-8")
+        return path
 
     # ---------------------------------------------------------- 3. publish
     def publish(self, piece: ContentPiece, platforms: list[str] | None = None) -> list[str]:
         platforms = platforms or piece.platforms
         offers = build_offers()
         results: list[str] = []
+
+        # Une image placeholder sur un vrai compte, c'est un post grillé.
+        # En dry-run on laisse passer : c'est justement le mode d'essai.
+        if not settings.dry_run and piece.assets.get("placeholder_images"):
+            self.store.set_status(piece.id, "blocked")
+            return [f"{p} · BLOQUÉ · {piece.assets['placeholder_images']} image(s) placeholder : "
+                    "relancer la production quand le générateur d'images répond."
+                    for p in platforms]
 
         for platform in platforms:
             publisher = self.publishers.get(platform)

@@ -32,3 +32,19 @@ def test_preview_runs_without_touching_the_network_or_disk(capsys):
 def test_revenue_projection_is_printed(capsys):
     assert main(["revenue", "--followers", "5000", "--views", "100000"]) == 0
     assert "Projection mensuelle" in capsys.readouterr().out
+
+
+def test_bios_respect_platform_limits():
+    from eve.content.launch import IG_BIO_LIMIT, TIKTOK_BIO_LIMIT, build_bios
+    from eve.persona.persona import load_persona
+
+    persona = load_persona()
+    bios = build_bios(persona)
+    assert len(bios["instagram"]) <= IG_BIO_LIMIT
+    assert len(bios["tiktok"]) <= TIKTOK_BIO_LIMIT
+    for bio in bios.values():
+        assert bio.splitlines()[0].startswith("🤖"), "la mention IA doit ouvrir la bio"
+
+
+def test_launch_kit_command_is_registered():
+    assert build_parser().parse_args(["lancement"]).func.__name__ == "cmd_lancement"
