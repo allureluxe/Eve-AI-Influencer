@@ -105,7 +105,7 @@ class GeminiLLM(BaseLLM):
 
     def __init__(self, api_key: str, model: str):
         self.api_key = api_key
-        self.model = model or "gemini-2.0-flash"
+        self.model = model or "gemini-3.6-flash"
 
     def complete(self, system: str, user: str, *, max_tokens: int = 700) -> str:
         r = requests.post(

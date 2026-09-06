@@ -20,8 +20,11 @@ TIMEOUT = 180
 
 # Préférences par ordre décroissant. Le premier motif trouvé gagne.
 PREFERENCES = {
-    "image": ("imagen-4", "imagen-3", "flash-image", "image-generation"),
-    "tts": ("flash-preview-tts", "pro-preview-tts", "-tts"),
+    # Imagen d'abord s'il est accessible (ratio d'image explicite), sinon les
+    # modèles Gemini Image du plus capable au plus léger.
+    "image": ("imagen-4", "imagen-3", "-pro-image", "3.1-flash-image",
+              "flash-image", "image"),
+    "tts": ("3.1-flash-tts", "flash-preview-tts", "pro-preview-tts", "-tts"),
 }
 
 
