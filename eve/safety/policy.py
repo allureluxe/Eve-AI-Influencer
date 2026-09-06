@@ -32,6 +32,32 @@ BLOCKED_VISUAL_TERMS = [
 # contrefaçon. Liste extensible côté projet.
 BLOCKED_LIKENESS = ["celebrity", "lookalike of", "resembling ", "deepfake"]
 
+# Attribution du train de vie à un gain financier. C'est LA règle qui sépare
+# un compte lifestyle d'un faux témoignage : Eve n'existe pas, elle n'a aucun
+# revenu, son décor ne peut donc rien prouver.
+LIFESTYLE_ATTRIBUTION_PATTERNS = [
+    r"\bgr[âa]ce (à|a) (mon|le|ce) (robot|syst[èe]me|algo|bot|trading)\b",
+    r"\b(mon|le|ce) (robot|syst[èe]me|algo|bot) (m'a|ma|m a) (pay|offert|permis|rendu)",
+    r"\bje (gagne|me fais|touche) \d",
+    r"\b(tout )?[çc]a,? c'est (le|mon) (robot|trading|syst[èe]me)\b",
+    r"\bthanks to (my|the) (bot|system|algo)\b",
+    r"\b(paid for by|funded by) (my|the) (bot|trading)\b",
+    r"\bma vie (a chang|change) gr[âa]ce\b",
+]
+
+# Sollicitation autour d'un produit financier : hors sujet pour ce compte.
+FINANCIAL_SOLICITATION_PATTERNS = [
+    r"\b(rejoins|rejoignez|inscris-toi|inscrivez-vous) .{0,30}(groupe|canal|signaux|telegram|discord)\b",
+    r"\b(dm|mp|message priv[ée]) pour (?:recevoir |obtenir |avoir )?(?:le |la |mon |ma |les )?"
+    r"(robot|syst[èe]me|algo|acc[èe]s|signaux)\b",
+    r"\bplaces? limit[ée]es?\b",
+    r"\b(copie|copiez) mes (trades|positions)\b",
+    r"\bcapital garanti\b",
+]
+
+# Chiffres de performance : uniquement via data/trading/results.json.
+PERFORMANCE_FIGURE_PATTERN = r"([+-]?\d+[\.,]?\d*)\s?%\s?(de |en )?(rendement|profit|gain|retour|par mois|mensuel)"
+
 # --- interdits durs sur les textes ----------------------------------------
 MEDICAL_CLAIM_PATTERNS = [
     r"\bcure[sd]?\b", r"\bheals?\b", r"\btreats?\b", r"\bdiagnos",
@@ -57,7 +83,7 @@ BODY_SHAMING_PATTERNS = [
 ]
 
 # Contenu qui exige explicitement le disclaimer santé.
-DISCLAIMER_REQUIRED_PILLARS = {"nutrition", "form_check", "quick_workout"}
+DISCLAIMER_REQUIRED_PILLARS = {"work"}
 
 
 @dataclass
@@ -140,6 +166,25 @@ def check_caption(caption: str, persona: Persona, *, pillar: str = "") -> Review
             res.ok = False
             res.blocking.append(f"Formulation culpabilisante interdite (motif : {pattern}).")
 
+    for pattern in LIFESTYLE_ATTRIBUTION_PATTERNS:
+        if re.search(pattern, low):
+            res.ok = False
+            res.blocking.append(
+                "Le train de vie ne peut pas être présenté comme le produit d'un gain "
+                f"financier : le personnage est généré, il n'a aucun revenu (motif : {pattern}).")
+
+    for pattern in FINANCIAL_SOLICITATION_PATTERNS:
+        if re.search(pattern, low):
+            res.ok = False
+            res.blocking.append(f"Sollicitation autour d'un produit financier interdite (motif : {pattern}).")
+
+    if re.search(PERFORMANCE_FIGURE_PATTERN, low) and not _figures_autorisees(caption):
+        res.ok = False
+        res.blocking.append(
+            "Chiffre de performance sans les mentions obligatoires. Un post chiffré doit "
+            "citer le drawdown, la période, et rappeler « résultats passés / pas un conseil ». "
+            "Les chiffres doivent venir de data/trading/results.json.")
+
     tag = persona.disclosure["caption_tag"].lower()
     ai_hashtags = [h.lower() for h in persona.disclosure["hashtags"]]
     has_disclosure = tag in low or any(h in low for h in ai_hashtags)
@@ -148,16 +193,26 @@ def check_caption(caption: str, persona: Persona, *, pillar: str = "") -> Review
         res.blocking.append("Divulgation IA absente de la légende (obligatoire : FTC / AI Act / Meta / TikTok).")
 
     if pillar in DISCLAIMER_REQUIRED_PILLARS:
-        markers = ("pas médecin", "not a doctor", "avis médical", "medical advice",
-                   "informational", "informatif")
+        markers = ("pas un conseil", "not investment advice", "résultats passés",
+                   "past performance", "perte en capital", "risque")
         if not any(m in low for m in markers):
-            res.warnings.append("Disclaimer santé recommandé pour ce pilier de contenu.")
+            res.warnings.append(
+                "Avertissement de risque recommandé dès qu'on parle du système.")
 
     if len(caption) > 2200:
         res.ok = False
         res.blocking.append("Légende > 2200 caractères : rejetée par Instagram.")
 
     return res
+
+
+def _figures_autorisees(caption: str) -> bool:
+    """Un chiffre de performance n'est publiable qu'entouré de son contexte."""
+    low = caption.lower()
+    a_le_risque = "drawdown" in low or "perte en capital" in low
+    a_le_cadre = ("résultats passés" in low or "past performance" in low
+                  or "pas un conseil" in low or "not investment advice" in low)
+    return a_le_risque and a_le_cadre
 
 
 def ensure_disclosure(caption: str, persona: Persona) -> tuple[str, list[str]]:

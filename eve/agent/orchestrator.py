@@ -34,7 +34,7 @@ from eve.persona.persona import Persona, load_persona
 from eve.publishing.base import PublishRequest
 from eve.publishing.instagram import InstagramPublisher
 from eve.publishing.tiktok import TikTokPublisher
-from eve.safety.policy import PolicyError, enforce, review_post
+from eve.safety.policy import PolicyError, check_persona, enforce, review_post
 
 log = logging.getLogger(__name__)
 
@@ -94,10 +94,14 @@ class EveAgent:
                 continue  # déjà planifié : on ne régénère jamais un contenu existant
             piece = build_piece(self.persona, day=slot.day, slot=slot.time,
                                 pillar=slot.pillar, llm=self.llm)
-            caption, review = review_post(self.persona, caption=piece.caption,
+            # On contrôle la légende telle qu'elle sera publiée, pas le corps
+            # brut : c'est la version assemblée qui part sur les plateformes.
+            review = check_persona(self.persona)
+            for finale in self.captions(piece).values():
+                _, controle = review_post(self.persona, caption=finale,
                                           visual_prompts=piece.shot_prompts,
                                           pillar=piece.pillar)
-            piece.caption = caption
+                review = review.merge(controle)
             status = "blocked" if not review.ok else (
                 "draft" if settings.require_human_review else "approved")
             piece.status = status

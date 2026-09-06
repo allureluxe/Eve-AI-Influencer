@@ -15,7 +15,7 @@ def persona():
 
 
 @pytest.mark.parametrize("pillar",
-                         ["form_check", "quick_workout", "nutrition", "motivation", "lifestyle", "qa"])
+                         ["lifestyle", "fashion", "travel", "work", "mindset", "qa"])
 def test_every_pillar_produces_a_usable_piece(persona, pillar):
     piece = build_piece(persona, day=date(2026, 1, 5), slot="07:00", pillar=pillar)
     assert len(piece.beats) >= 3
@@ -25,26 +25,26 @@ def test_every_pillar_produces_a_usable_piece(persona, pillar):
 
 
 def test_generation_is_deterministic(persona):
-    a = build_piece(persona, day=date(2026, 1, 5), slot="07:00", pillar="nutrition")
-    b = build_piece(persona, day=date(2026, 1, 5), slot="07:00", pillar="nutrition")
+    a = build_piece(persona, day=date(2026, 1, 5), slot="07:00", pillar="fashion")
+    b = build_piece(persona, day=date(2026, 1, 5), slot="07:00", pillar="fashion")
     assert a.to_json() == b.to_json()
 
 
 def test_all_shot_prompts_pass_the_visual_policy(persona):
-    for pillar in ["form_check", "quick_workout", "lifestyle"]:
+    for pillar in ["fashion", "travel", "lifestyle"]:
         piece = build_piece(persona, day=date(2026, 3, 3), slot="18:00", pillar=pillar)
         for prompt in piece.shot_prompts:
             assert check_visual_prompt(prompt).ok, prompt
 
 
 def test_identity_lock_present_in_every_shot(persona):
-    piece = build_piece(persona, day=date(2026, 3, 3), slot="18:00", pillar="form_check")
+    piece = build_piece(persona, day=date(2026, 3, 3), slot="18:00", pillar="fashion")
     for prompt in piece.shot_prompts:
         assert prompt.startswith(persona.identity_lock[:40])
 
 
 def test_platform_captions_stay_within_limits(persona):
-    piece = build_piece(persona, day=date(2026, 3, 3), slot="18:00", pillar="quick_workout")
+    piece = build_piece(persona, day=date(2026, 3, 3), slot="18:00", pillar="travel")
     for platform in ("tiktok", "instagram"):
         caption = caption_for(piece, persona, platform)
         assert len(caption) <= 2200
@@ -54,7 +54,7 @@ def test_platform_captions_stay_within_limits(persona):
 
 def test_hashtags_include_ai_disclosure(persona):
     for platform in ("tiktok", "instagram"):
-        tags = build_hashtags(persona, "nutrition", platform)
+        tags = build_hashtags(persona, "fashion", platform)
         assert any(t in persona.disclosure["hashtags"] for t in tags)
         assert len(tags) == len(set(t.lower() for t in tags))
 

@@ -13,58 +13,56 @@ from dataclasses import asdict, dataclass, field
 from datetime import date as Date
 
 from eve.content import library as lib
+from eve.content import trading
 from eve.content.llm import BaseLLM, try_complete
 from eve.persona.persona import Persona
 
-# Formules de hook qui marchent sur des vidéos courtes fitness.
+# Formules de hook, une par pilier éditorial.
 HOOK_TEMPLATES = {
-    "form_check": [
-        "Tu fais {exo} comme ça ? Arrête deux secondes.",
-        "L'erreur n°1 sur {exo}, et elle est partout en salle.",
-        "Personne ne t'a jamais expliqué {exo} correctement.",
-        "3 détails qui changent tout sur {exo}.",
-    ],
-    "quick_workout": [
-        "{minutes} minutes, zéro matériel, on commence maintenant.",
-        "Si tu n'as que {minutes} minutes aujourd'hui, fais exactement ça.",
-        "Séance {focus} en {minutes} minutes — suis-moi.",
-        "Enregistre ça : {minutes} minutes pour les jours sans temps.",
-    ],
-    "nutrition": [
-        "{topic} — la réponse courte.",
-        "Arrête de compliquer : {topic}.",
-        "On m'a posé la question 40 fois cette semaine : {topic}",
-    ],
-    "motivation": [
-        "{topic}. Écoute ça avant d'abandonner.",
-        "La seule règle que je n'ai jamais cassée : {topic}",
-        "Si tu recommences pour la cinquième fois, c'est pour toi.",
-    ],
     "lifestyle": [
+        "{topic}.",
+        "On me demande souvent : {topic}",
+        "Personne ne montre ça, alors : {topic}",
+    ],
+    "fashion": [
+        "{topic} — en une minute.",
+        "La question qui revient le plus : {topic}",
+        "Si tu ne retiens qu'une chose sur le style : {topic}",
+    ],
+    "travel": [
         "{topic}",
-        "Ce que je fais vraiment tous les jours : {topic}",
+        "Avant de réserver quoi que ce soit : {topic}",
+    ],
+    "work": [
+        "{topic}",
+        "La partie de mon travail que je montre le moins : {topic}",
+        "Sans filtre : {topic}",
+    ],
+    "mindset": [
+        "{topic}",
+        "Ce que j'aurais aimé qu'on me dise : {topic}",
     ],
     "qa": [
-        "Question du jour : {topic}",
-        "Vous êtes nombreuses à demander : {topic}",
+        "Vous êtes nombreux à demander : {topic}",
+        "Question directe : {topic}",
     ],
 }
 
 CTA_LIBRARY = [
-    "Enregistre ce post pour ta prochaine séance.",
-    "Dis-moi en commentaire où tu bloques, je réponds à tout.",
-    "Partage-le à celle qui commence lundi (encore).",
-    "Programme complet en bio si tu veux la version 4 semaines.",
-    "Abonne-toi, une séance courte chaque matin.",
+    "Enregistre si tu veux t'en souvenir au moment d'acheter.",
+    "Dis-moi en commentaire ce que tu ferais différemment.",
+    "Abonne-toi, je publie ce genre de chose chaque matin.",
+    "Tu veux la version détaillée ? Demande en commentaire.",
+    "Partage-le à la personne qui hésite depuis trois semaines.",
 ]
 
-# Plans "b-roll" génériques réutilisables.
+# Plans « b-roll » sans visage, utiles pour aérer un montage.
 BROLL_SCENES = [
-    "tying her sneakers before a workout, close-up hands, morning light",
-    "filling a water bottle in a bright kitchen, natural light",
-    "checking her smartwatch after a set, slightly out of breath, smiling",
-    "walking on the boardwalk with a gym bag over the shoulder, golden hour",
-    "rolling out a yoga mat in a bright home studio",
+    "close-up of hands pouring coffee into a ceramic cup, morning light",
+    "walking away from camera down a sunlit street, tote bag over the shoulder",
+    "a notebook and a pen on a marble table, handwriting visible",
+    "a city skyline at golden hour seen from a terrace, no people in frame",
+    "folded clothes stacked on a bed, soft natural light",
 ]
 
 
@@ -166,63 +164,61 @@ def _pace(lines: list[tuple[str, str, str]], start: float = 0.0) -> list[Beat]:
 
 
 # --------------------------------------------------------------- générateurs
-def _form_check(persona: Persona, rng: random.Random) -> tuple[str, str, list[tuple[str, str, str]]]:
-    exo = rng.choice(lib.EXERCISES)
-    hook = rng.choice(HOOK_TEMPLATES["form_check"]).format(exo=exo.name_fr.lower())
-    lines = [(hook, exo.name_fr.upper(), persona.image_prompt(
-        "talking directly to the camera in a gym, confident and friendly, medium shot", rng=rng))]
-    mistake = rng.choice(exo.mistakes)
-    lines.append((f"L'erreur : {mistake}.", f"❌ {mistake}",
-                  persona.image_prompt(exo.scene, rng=rng)))
-    for cue in exo.cues[:3]:
-        lines.append((cue.capitalize() + ".", f"✅ {cue}",
-                      persona.image_prompt(exo.scene, rng=rng)))
-    lines.append((f"Refais une série en pensant à ça. {exo.target.capitalize()}, tu vas les sentir.",
-                  "À TOI 💪", persona.image_prompt(
-                      "smiling at the camera after a set, thumbs up, gym background", rng=rng)))
-    return f"Technique : {exo.name_fr}", hook, lines
+def _scene(pillar: str, rng: random.Random) -> str:
+    return rng.choice(lib.PILLAR_SCENES.get(pillar, lib.PILLAR_SCENES["lifestyle"]))
 
 
-def _quick_workout(persona: Persona, rng: random.Random) -> tuple[str, str, list[tuple[str, str, str]]]:
-    wo = rng.choice(lib.WORKOUTS)
-    hook = rng.choice(HOOK_TEMPLATES["quick_workout"]).format(
-        minutes=wo.duration_min, focus=wo.focus)
-    lines = [(hook, f"{wo.duration_min} MIN · {wo.focus.upper()}", persona.image_prompt(
-        "talking to the camera before starting a workout, hands on hips, energetic", rng=rng))]
-    for key, fmt in wo.blocks:
-        exo = lib.EXERCISES_BY_KEY[key]
-        lines.append((f"{exo.name_fr}, {fmt}.", f"{exo.name_fr} — {fmt}",
-                      persona.image_prompt(exo.scene, rng=rng)))
-    lines.append(("Deux tours si tu as le temps. Sinon un seul, ça compte quand même.",
-                  "1 à 2 TOURS", persona.image_prompt(
-                      "wiping her forehead with a towel after a workout, satisfied smile", rng=rng)))
-    return wo.title_fr, hook, lines
+def _tenue(pillar: str) -> str:
+    """Registre vestimentaire cohérent avec le sujet."""
+    return {"travel": "resort", "work": "work", "lifestyle": "day",
+            "fashion": "day", "mindset": "day", "qa": "day"}.get(pillar, "day")
 
 
-def _from_topic_bank(persona: Persona, pillar: str, rng: random.Random) -> tuple[str, str, list[tuple[str, str, str]]]:
-    topic, answer, points = rng.choice(lib.TOPIC_BANK[pillar])
+def _depuis_banque(persona: Persona, pillar: str, rng: random.Random,
+                   sujet: tuple[str, str, list[str]] | None = None
+                   ) -> tuple[str, str, list[tuple[str, str, str]]]:
+    """Trame commune : un hook, une réponse courte, puis les points."""
+    topic, reponse, points = sujet or rng.choice(lib.TOPIC_BANK[pillar])
     hook = rng.choice(HOOK_TEMPLATES[pillar]).format(topic=topic)
-    scene_pool = {
-        "nutrition": "preparing a simple high-protein meal in a bright kitchen, natural light",
-        "motivation": "sitting on a gym bench talking to the camera, calm and sincere",
-        "lifestyle": rng.choice(BROLL_SCENES),
-        "qa": "talking to the camera in a home studio, relaxed posture",
-    }[pillar]
-    lines = [(hook, _screen(topic.upper()), persona.image_prompt(scene_pool, rng=rng)),
-             (answer, _screen(answer), persona.image_prompt(scene_pool, rng=rng))]
+    categorie = _tenue(pillar)
+
+    def plan(scene: str) -> str:
+        return persona.image_prompt(scene, outfit=persona.outfit(categorie, rng=rng), rng=rng)
+
+    lignes = [(hook, _screen(topic.upper()), plan(_scene(pillar, rng))),
+              (reponse, _screen(reponse), plan(_scene(pillar, rng)))]
     for point in points:
-        lines.append((point.capitalize() + ".", _screen(f"• {point}"),
-                      persona.image_prompt(rng.choice(BROLL_SCENES), rng=rng)))
-    return topic, hook, lines
+        lignes.append((point.capitalize() + ".", _screen(f"• {point}"),
+                       plan(rng.choice(lib.PILLAR_SCENES.get(pillar, []) + BROLL_SCENES))))
+    return topic, hook, lignes
+
+
+def _travail(persona: Persona, rng: random.Random) -> tuple[str, str, list[tuple[str, str, str]]]:
+    """Pilier `work` : chiffres réels si le fichier existe, méthode sinon.
+
+    Aucun nombre n'est écrit ici : ils viennent tous de
+    `data/trading/results.json` via `eve/content/trading.py`.
+    """
+    resultats = trading.load_results()
+    sujet = trading.build_work_content(resultats, rng)
+    topic, hook, lignes = _depuis_banque(persona, "work", rng, sujet=sujet)
+    if resultats is not None and topic.startswith("Les chiffres"):
+        # Un post chiffré se termine toujours sur le risque, jamais sur le gain.
+        lignes.append(("Résultats passés, sur un système personnel. "
+                       "Rien de tout ça n'est un conseil en investissement.",
+                       _screen("Résultats passés · pas un conseil"),
+                       persona.image_prompt(_scene("work", rng),
+                                            outfit=persona.outfit("work", rng=rng), rng=rng)))
+    return topic, hook, lignes
 
 
 GENERATORS = {
-    "form_check": _form_check,
-    "quick_workout": _quick_workout,
-    "nutrition": lambda p, r: _from_topic_bank(p, "nutrition", r),
-    "motivation": lambda p, r: _from_topic_bank(p, "motivation", r),
-    "lifestyle": lambda p, r: _from_topic_bank(p, "lifestyle", r),
-    "qa": lambda p, r: _from_topic_bank(p, "qa", r),
+    "lifestyle": lambda p, r: _depuis_banque(p, "lifestyle", r),
+    "fashion": lambda p, r: _depuis_banque(p, "fashion", r),
+    "travel": lambda p, r: _depuis_banque(p, "travel", r),
+    "mindset": lambda p, r: _depuis_banque(p, "mindset", r),
+    "qa": lambda p, r: _depuis_banque(p, "qa", r),
+    "work": _travail,
 }
 
 
@@ -237,12 +233,12 @@ def build_piece(
 ) -> ContentPiece:
     piece_id = _piece_id(day, slot, pillar)
     rng = _rng_for(piece_id)
-    generator = GENERATORS.get(pillar, GENERATORS["motivation"])
+    generator = GENERATORS.get(pillar, GENERATORS["lifestyle"])
     title, hook, lines = generator(persona, rng)
 
     beats = _pace(lines)
     cta = rng.choice(CTA_LIBRARY)
-    caption = _build_caption(persona, title, hook, beats, cta, llm)
+    caption = _build_caption(persona, title, hook, beats, llm)
 
     return ContentPiece(
         id=piece_id,
@@ -256,7 +252,7 @@ def build_piece(
         cta=cta,
         caption=caption,
         hashtags=hashtags or [],
-        disclaimer=persona.disclaimer if pillar in {"nutrition", "form_check", "quick_workout"} else "",
+        disclaimer=persona.disclaimer if pillar == "work" else "",
     )
 
 
@@ -265,21 +261,24 @@ def _build_caption(
     title: str,
     hook: str,
     beats: list[Beat],
-    cta: str,
     llm: BaseLLM | None,
 ) -> str:
+    """Corps de la légende, sans appel à l'action, sans hashtag, sans mention.
+
+    Tout ce qui est ajouté par plateforme (CTA, offre, divulgation, hashtags)
+    est assemblé dans `captions.caption_for` — un seul endroit, pas deux.
+    """
     bullets = "\n".join(f"• {b.voiceover}" for b in beats[1:-1][:4])
-    fallback = f"{title}\n\n{bullets}\n\n{cta}"
+    fallback = f"{title}\n\n{bullets}"
     if llm is None:
         return fallback
     prompt = (
         f"Écris la légende Instagram/TikTok de cette vidéo.\n"
         f"Titre : {title}\nHook : {hook}\n"
-        f"Contenu : {' '.join(b.voiceover for b in beats)}\n"
-        f"Appel à l'action à conserver : {cta}\n\n"
+        f"Contenu : {' '.join(b.voiceover for b in beats)}\n\n"
         "Contraintes : français, 60 à 110 mots, 2 à 4 phrases courtes puis une liste à puces, "
-        "un seul emoji maximum par ligne, aucun hashtag (ils sont ajoutés ailleurs), "
-        "aucune promesse de résultat."
+        "un seul emoji maximum par ligne, aucun hashtag et aucun appel à l'action "
+        "(ils sont ajoutés ailleurs), aucune promesse de gain, aucun chiffre inventé."
     )
     out = try_complete(llm, persona.system_prompt(), prompt, max_tokens=400)
     return (out or fallback).strip()

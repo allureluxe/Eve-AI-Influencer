@@ -1,8 +1,8 @@
-"""Produits numériques : le premier revenu qui ne dépend d'aucune plateforme.
+"""Aimant à audience : le guide de style, et le media kit pour les marques.
 
-Génère un programme 4 semaines (Markdown + HTML imprimable en PDF) et un
-media kit pour démarcher les marques. Zéro dépendance externe : le HTML
-s'imprime en PDF depuis n'importe quel navigateur.
+Le guide est gratuit et sert un objectif précis — construire la liste et
+l'habitude d'achat *avant* l'ouverture du site de vêtements. Rien n'est
+vendu ici, et rien ne concerne le système de trading.
 """
 from __future__ import annotations
 
@@ -15,60 +15,91 @@ from eve.config import settings
 from eve.content import library as lib
 from eve.persona.persona import Persona
 
-# Progression classique : volume croissant sur 3 semaines, décharge en S4.
-WEEK_PLAN = [
-    ("Semaine 1 — Prise de repères", ["full_body_10", "core_5", "glutes_15"],
-     "Objectif : trois rendez-vous tenus. La charge n'a aucune importance cette semaine."),
-    ("Semaine 2 — On ajoute une série", ["full_body_10", "gym_upper", "glutes_15", "core_5"],
-     "Même mouvements, une série de plus. On note les répétitions."),
-    ("Semaine 3 — Point haut", ["gym_upper", "gym_lower", "full_body_10", "core_5"],
-     "La semaine la plus chargée. Si une séance saute, ce n'est pas grave : on ne saute jamais deux fois."),
-    ("Semaine 4 — Décharge et bilan", ["full_body_10", "glutes_15", "core_5"],
-     "Volume réduit de moitié. On compare les répétitions de la semaine 1."),
+# La garde-robe de trente pièces : la trame du guide.
+GARDE_ROBE = [
+    ("Hauts", 9, ["3 t-shirts en coton dense (blanc, noir, gris)",
+                  "2 chemises (une blanche, une rayée)",
+                  "2 pulls fins (laine mérinos ou cachemire deux fils)",
+                  "1 col roulé noir",
+                  "1 débardeur en soie ou modal"]),
+    ("Bas", 6, ["1 jean brut coupe droite", "1 jean noir",
+                "2 pantalons tailleur (camel, noir)",
+                "1 jupe midi", "1 short en lin (l'été)"]),
+    ("Robes", 3, ["1 robe noire simple", "1 robe midi imprimée discrète",
+                  "1 robe longue en lin"]),
+    ("Vestes", 4, ["1 blazer bien coupé", "1 trench",
+                   "1 veste en jean", "1 manteau en laine"]),
+    ("Chaussures", 5, ["1 paire de baskets blanches minimalistes",
+                       "1 paire de mules ou escarpins bas",
+                       "1 paire de bottines en cuir",
+                       "1 paire de sandales en cuir",
+                       "1 paire de mocassins"]),
+    ("Sacs", 3, ["1 cabas structuré pour le jour",
+                 "1 petit sac bandoulière", "1 pochette pour le soir"]),
+]
+
+REGLES_ACHAT = [
+    ("Regarde l'envers avant l'endroit",
+     "Coutures droites et denses, doublure propre, finitions nettes. C'est là que se voit le prix réel."),
+    ("Froisse le tissu dans la main",
+     "S'il garde le pli trois secondes après ouverture, il le gardera sur toi toute la journée."),
+    ("Lis la composition, pas l'étiquette de marque",
+     "Au-delà de trente pour cent de polyester dans une maille, la pièce boulochera en une saison."),
+    ("Vérifie l'entretien",
+     "« Nettoyage à sec uniquement » est un coût récurrent que personne ne calcule à l'achat."),
+    ("Trois couleurs, pas plus",
+     "Une palette restreinte multiplie les combinaisons et divise les achats."),
+    ("Compte le coût par port",
+     "Une pièce à 300 € portée cent fois coûte 3 €. Une pièce à 40 € portée deux fois en coûte 20."),
+    ("Achète en fin de saison",
+     "Les pièces intemporelles ne se démodent pas entre deux soldes."),
+    ("Fais retoucher",
+     "Vingt euros de retouche transforment une pièce correcte en pièce qui semble faite pour toi."),
 ]
 
 
-def _workout_markdown(key: str) -> str:
-    wo = lib.WORKOUTS_BY_KEY[key]
-    lines = [f"#### {wo.title_fr} · {wo.duration_min} min · matériel : {wo.equipment}"]
-    for exo_key, fmt in wo.blocks:
-        exo = lib.EXERCISES_BY_KEY[exo_key]
-        cue = exo.cues[0] if exo.cues else ""
-        lines.append(f"- **{exo.name_fr}** — {fmt} · _{cue}_")
-    return "\n".join(lines)
-
-
-def build_program_markdown(persona: Persona, title: str = "Reset 4 semaines") -> str:
+def build_guide_markdown(persona: Persona, title: str = "La garde-robe de 30 pièces") -> str:
+    ident = persona.raw()["identity"]
     parts = [
         f"# {title}",
-        f"### par {persona.raw()['identity']['full_name']} — coach virtuelle, {persona.raw()['identity']['city']}",
+        f"### par {ident['full_name']} — {ident['city']}",
         "",
         f"> {persona.disclosure['caption_tag']}. "
-        f"{persona.raw()['identity']['full_name']} est un personnage généré par intelligence artificielle.",
+        f"{ident['full_name']} est un personnage créé par intelligence artificielle.",
         "",
-        f"**Avertissement.** {persona.disclaimer}",
+        "Trente pièces couvrent une année entière si elles sont choisies pour aller",
+        "ensemble. Ce guide donne la liste, les règles d'achat, et l'ordre dans lequel",
+        "constituer la garde-robe sans tout acheter d'un coup.",
         "",
-        "## Comment utiliser ce programme",
-        "- 3 à 4 séances par semaine, jamais deux jours de repos consécutifs.",
-        "- On note les répétitions à chaque séance : c'est la seule mesure de progrès qui compte.",
-        "- Échauffement : 5 minutes de marche rapide + 10 squats à vide avant chaque séance.",
-        "- Une douleur articulaire arrête la série. Une courbature, non.",
+        "## La liste",
         "",
     ]
-    for week_title, workouts, note in WEEK_PLAN:
-        parts += [f"## {week_title}", f"_{note}_", ""]
-        parts += [_workout_markdown(k) for k in workouts]
+    total = 0
+    for categorie, nombre, pieces in GARDE_ROBE:
+        total += nombre
+        parts.append(f"### {categorie} — {nombre} pièces")
+        parts += [f"- {piece}" for piece in pieces]
+        parts.append("")
+    parts += [f"**Total : {total} pièces.** Deux ou trois de plus ne changent rien ; "
+              "quinze de plus changent tout.", "",
+              "## Les huit règles d'achat", ""]
+    for i, (regle, explication) in enumerate(REGLES_ACHAT, start=1):
+        parts.append(f"**{i}. {regle}** — {explication}")
         parts.append("")
 
-    parts += ["## Fiche technique — les points à ne pas rater", ""]
-    for exo in lib.EXERCISES:
-        parts.append(f"**{exo.name_fr}** ({exo.target}) — "
-                     + " ; ".join(exo.cues[:2])
-                     + f". Erreur fréquente : {exo.mistakes[0]}.")
-    parts += ["", "## Suivi", "",
-              "| Semaine | Séances faites | Sensation (1-5) | Note |",
-              "|---|---|---|---|"]
-    parts += [f"| {i} |  |  |  |" for i in range(1, 5)]
+    parts += ["## Dans quel ordre construire", "",
+              "| Mois | Priorité | Pourquoi |",
+              "|---|---|---|",
+              "| 1 | Chaussures et manteau | Ce qu'on porte tous les jours, et ce qui se voit le plus |",
+              "| 2 | Bas (jeans, pantalons) | La base de toutes les tenues |",
+              "| 3 | Hauts neutres | Ils s'associent à tout ce qui précède |",
+              "| 4 | Blazer et pièces d'assemblage | Ils transforment l'existant |",
+              "| 5 | Sacs et accessoires | En dernier : ils ne dépannent jamais |",
+              "",
+              "## À retenir", ""]
+    for topic, reponse, _ in lib.FASHION_TOPICS[:4]:
+        parts.append(f"**{topic}** — {reponse}")
+        parts.append("")
     return "\n".join(parts)
 
 
@@ -136,12 +167,12 @@ def _inline(text: str) -> str:
     return text.replace("  \n", "<br>")
 
 
-def export_program(persona: Persona, out_dir: Path | None = None,
-                   title: str = "Reset 4 semaines") -> dict[str, Path]:
+def export_guide(persona: Persona, out_dir: Path | None = None,
+                 title: str = "La garde-robe de 30 pièces") -> dict[str, Path]:
     out_dir = out_dir or settings.paths.products
     out_dir.mkdir(parents=True, exist_ok=True)
-    md = build_program_markdown(persona, title)
-    slug = title.lower().replace(" ", "-")
+    md = build_guide_markdown(persona, title)
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
     md_path = out_dir / f"{slug}.md"
     html_path = out_dir / f"{slug}.html"
     md_path.write_text(md, encoding="utf-8")
@@ -158,7 +189,7 @@ def build_media_kit(persona: Persona, stats: dict, out_dir: Path | None = None) 
 
     md = f"""# Media kit — {ident['full_name']} (@{ident['handle']})
 
-**Créatrice virtuelle générée par IA** · {ident['city']}, {ident['state']} · coach sportive
+**Créatrice virtuelle générée par IA** · {ident['city']}, {ident['state']} · lifestyle & style
 
 > Transparence : {ident['full_name']} est un personnage créé par intelligence artificielle.
 > Chaque publication porte la mention IA exigée par les plateformes et la FTC.
@@ -176,14 +207,16 @@ def build_media_kit(persona: Persona, stats: dict, out_dir: Path | None = None) 
 | Taux d'engagement | {stats.get('instagram_engagement', '—')} | {stats.get('tiktok_engagement', '—')} |
 
 ## Formats proposés
-- Vidéo intégrée (30-60 s) dans une séance ou une démonstration technique.
-- Série de 3 vidéos sur une semaine, avec code promo suivi.
-- Story / carrousel pédagogique avec le produit en usage réel.
+- Vidéo intégrée (30-60 s) : le produit dans une tenue ou une routine réelle.
+- Série de 3 vidéos sur une semaine, avec lien suivi.
+- Story ou carrousel pédagogique : matière, coupe, entretien.
 
 ## Ce que je ne fais pas
-- Aucune allégation santé, aucune promesse de perte de poids chiffrée.
-- Aucun complément alimentaire non certifié.
+- Aucun produit financier, aucune promesse de gain, aucun parrainage de plateforme.
+- Aucune contrefaçon, aucun revendeur non autorisé.
 - Aucun partenariat sans mention #ad visible.
+- Aucune affirmation que mon train de vie provient d'un revenu quelconque :
+  le personnage est généré par IA et n'en a aucun.
 
 ## Contact
 {m.business_email or 'à renseigner (BUSINESS_EMAIL)'}

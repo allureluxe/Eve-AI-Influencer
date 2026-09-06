@@ -16,7 +16,7 @@ PHOTO_STYLE = (
     "photorealistic candid photograph, shot on Sony A7 IV with 35mm f/1.8 lens, "
     "natural daylight, shallow depth of field, realistic skin texture with visible pores, "
     "subtle skin imperfections, natural film grain, true-to-life color grading, "
-    "sharp focus on the eyes, editorial fitness photography, 8k detail"
+    "sharp focus on the eyes, editorial lifestyle photography, 8k detail"
 )
 
 # Anti-prompt : évite le rendu "3D / plastique" typique des IA.
@@ -96,9 +96,15 @@ class Persona:
         return self._d
 
     # ------------------------------------------------------------- prompts
-    def outfit(self, category: str = "training", rng: random.Random | None = None) -> str:
+    def outfit(self, category: str = "", rng: random.Random | None = None) -> str:
+        """Tenue tirée d'une catégorie de la garde-robe.
+
+        Catégorie inconnue ou absente : on retombe sur la première déclarée,
+        pour qu'un renommage dans le character bible ne casse rien.
+        """
         rng = rng or random
-        options = self._d["wardrobe"].get(category) or self._d["wardrobe"]["training"]
+        wardrobe = self._d["wardrobe"]
+        options = wardrobe.get(category) or next(iter(wardrobe.values()))
         return rng.choice(options)
 
     def location(self, rng: random.Random | None = None) -> str:
@@ -136,14 +142,15 @@ class Persona:
         pillars = ", ".join(p["label"] for p in d["expertise"]["pillars"])
         return (
             f"Tu écris à la place de {d['identity']['full_name']} ({d['identity']['age']} ans), "
-            f"coach sportive virtuelle basée à {d['identity']['city']}, {d['identity']['state']}. "
+            f"créatrice virtuelle lifestyle basée à {d['identity']['city']}, {d['identity']['state']}. "
             f"Positionnement : {d['expertise']['positioning']} "
             f"Ton : {d['voice']['tone']}. "
             f"Piliers de contenu : {pillars}. "
             f"Audience : {d['audience']['primary']}. "
             f"Valeurs : {', '.join(d['voice']['values'])}. "
-            "Règles absolues : jamais de promesse de résultat chiffrée ou garantie, "
-            "jamais de conseil médical, jamais de langage culpabilisant sur le corps, "
+            "Règles absolues : jamais de promesse de gain, jamais de conseil en "
+            "investissement, jamais de lien entre son train de vie et un revenu "
+            "quelconque, aucun chiffre de performance inventé, "
             f"n'utilise jamais ces expressions : {', '.join(d['voice']['banned_phrases'])}. "
             "Écris court, concret, parlé, sans jargon marketing."
         )

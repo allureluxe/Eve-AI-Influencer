@@ -27,7 +27,7 @@ from eve.config import settings
 from eve.content.launch import build_bios, build_launch_kit
 from eve.content.scripts import build_piece
 from eve.media.video import ffmpeg_available
-from eve.monetization.products import build_media_kit, export_program
+from eve.monetization.products import build_media_kit, export_guide
 from eve.monetization.revenue import milestones, project_monthly, summarize, RevenueEntry
 from eve.persona.persona import load_persona
 from eve.safety.policy import check_persona
@@ -185,9 +185,9 @@ def cmd_metrics(args) -> int:
 
 def cmd_product(args) -> int:
     persona = load_persona()
-    paths = export_program(persona, title=args.title)
+    paths = export_guide(persona, title=args.title)
     kit = build_media_kit(persona, {})
-    print(f"{OK} Programme : {paths['markdown']}")
+    print(f"{OK} Guide : {paths['markdown']}")
     print(f"{OK} Version imprimable (PDF via le navigateur) : {paths['html']}")
     print(f"{OK} Media kit : {kit}")
     return 0
@@ -264,7 +264,7 @@ def cmd_go(args) -> int:
         if piece.assets.get("warning"):
             print(f"   {WARN}{piece.assets['warning']}")
 
-    produit = export_program(persona)
+    produit = export_guide(persona)
     kit = build_media_kit(persona, {})
     lancement = build_launch_kit(persona)
 
@@ -273,7 +273,7 @@ def cmd_go(args) -> int:
         print(f"  🎬 {len(faits)} vidéo(s) dans  output/videos/")
         print("       (la légende à copier-coller est dans legendes.txt, à côté)")
     print(f"  🚀 Kit de lancement des comptes {lancement['html']}")
-    print(f"  📄 Programme à vendre           {produit['html']}")
+    print(f"  📄 Guide de style (aimant)      {produit['html']}")
     print(f"  📊 Media kit pour les marques   {kit}")
     print(f"\n{'═' * 58}\n  LA SUITE, DANS L'ORDRE\n{'═' * 58}")
     print("""  1. Regarde les vidéos produites. Si le rendu te plaît, continue.
@@ -317,7 +317,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("doctor", help="diagnostic complet").set_defaults(func=cmd_doctor)
 
     pv = sub.add_parser("preview", help="afficher un script sans rien générer")
-    pv.add_argument("--pillar", default="quick_workout")
+    pv.add_argument("--pillar", default="fashion")
     pv.add_argument("--slot", default="06:30")
     pv.set_defaults(func=cmd_preview)
 
@@ -355,8 +355,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("metrics", help="collecter les stats et ré-optimiser").set_defaults(func=cmd_metrics)
 
-    pd = sub.add_parser("product", help="générer le programme PDF et le media kit")
-    pd.add_argument("--title", default="Reset 4 semaines")
+    pd = sub.add_parser("product", help="générer le guide de style et le media kit")
+    pd.add_argument("--title", default="La garde-robe de 30 pièces")
     pd.set_defaults(func=cmd_product)
 
     rv = sub.add_parser("revenue", help="suivi et projection de revenus")

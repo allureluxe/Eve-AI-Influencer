@@ -1,4 +1,4 @@
-# Eve — influenceuse fitness IA, autonome et monétisable
+# Eve — créatrice lifestyle IA, autonome
 
 Agent complet qui crée, produit, contrôle, publie et optimise le contenu d'une
 créatrice virtuelle sur **TikTok** et **Instagram**. Conçu pour démarrer à
@@ -14,9 +14,13 @@ sont tous gratuits.
 ## Le personnage
 
 **Eve Carter**, 26 ans, Miami (Floride). Blonde, 1 m 60, yeux noisette,
-silhouette athlétique. Coach sportive : séances courtes, technique de
-mouvement, nutrition simple, mindset. Public visé : femmes 18-34 débutantes à
-intermédiaires.
+silhouette élégante. Créatrice lifestyle : style et matières, art de vivre,
+voyages, et les coulisses d'un travail sur les systèmes de trading
+automatisés — présenté comme un métier technique, jamais comme une promesse
+d'argent.
+
+Le pilier **mode** est le deuxième en volume, délibérément : c'est lui qui
+construit l'audience du futur site de vêtements.
 
 Tout le personnage tient dans un seul fichier — [`eve/persona/eve.yaml`](eve/persona/eve.yaml) —
 qui pilote la génération d'images, le ton des textes et les garde-fous. Modifie
@@ -46,6 +50,7 @@ python3 -m eve.cli go --videos 3     # produire le contenu suivant
 | Étape | Module | Détail |
 |---|---|---|
 | Planifier | `content/planner.py` | Calendrier pondéré par pilier, sans répétition |
+| Chiffrer | `content/trading.py` | Résultats réels uniquement, jamais générés |
 | Écrire | `content/scripts.py` | Hook, plans minutés, textes à l'écran, appel à l'action |
 | Illustrer | `media/images.py` | Un prompt par plan, verrou d'identité + seed fixe |
 | Sonoriser | `media/voice.py` | Voix off neuronale gratuite (`edge-tts`) |
@@ -82,19 +87,35 @@ Trois leviers cumulés, détaillés dans [docs/RENDU-REALISTE.md](docs/RENDU-REA
 Pour le niveau supérieur (visage strictement identique), passe à ComfyUI en
 local avec une LoRA de visage : `IMAGE_PROVIDER=comfyui`.
 
+## Trois règles inscrites dans le code
+
+Ce ne sont pas des consignes de rédaction : le contrôle de conformité refuse
+de publier ce qui les enfreint, et les tests le vérifient.
+
+1. **Le train de vie ne prouve rien.** Aucune légende ne peut relier le décor
+   d'Eve à un gain financier. Elle est générée, elle n'a aucun revenu.
+2. **Aucun chiffre inventé.** Les performances viennent exclusivement de
+   `data/trading/results.json`. Pas de fichier, pas de chiffre — voir
+   [docs/RESULTATS-TRADING.md](docs/RESULTATS-TRADING.md).
+3. **Rien n'est vendu autour du système.** Pas de formation, pas de signaux,
+   pas de « DM pour recevoir », pas de groupe privé.
+
+```bash
+python3 -m eve.cli preview --pillar work    # voir ce que ça donne
+```
+
 ## Monétisation
 
-Détail complet et chiffré dans [docs/MONETISATION.md](docs/MONETISATION.md).
-Résumé de l'ordre à suivre :
+Le compte ne vend rien pour l'instant. La séquence prévue :
 
-1. **Produit numérique** (jour 1) — `python3 -m eve.cli product` génère un
-   programme 4 semaines vendable et un media kit. Aucun seuil d'abonnés requis.
-2. **Affiliation** (dès les premiers abonnés) — matériel de sport, liens
-   suivis en UTM, mention `#ad` ajoutée automatiquement.
-3. **Programmes plateformes** — TikTok Creator Rewards à 10 000 abonnés et
-   100 000 vues sur 30 jours, vidéos de plus d'une minute.
-4. **Partenariats de marque** — le vrai revenu ; le media kit annonce
-   explicitement la nature IA du compte, c'est ce que les marques exigent.
+1. **Audience** — publication régulière, piliers mode et art de vivre en tête.
+2. **Guide de style gratuit** — `python3 -m eve.cli product` génère « La
+   garde-robe de 30 pièces ». C'est un aimant : il construit la liste et
+   l'habitude avant l'ouverture de la boutique.
+3. **Partenariats de marque** — media kit généré, nature IA annoncée d'emblée.
+   Tarif usuel : 1 à 2 % du nombre d'abonnés par publication.
+4. **Le site de vêtements** — la vraie destination. Tout le contenu mode qui
+   précède sert à ça.
 
 ```bash
 python3 -m eve.cli revenue --followers 12000 --views 400000
@@ -105,8 +126,8 @@ python3 -m eve.cli revenue --followers 12000 --views 400000
 Une créatrice virtuelle **doit** être déclarée comme telle : FTC aux
 États-Unis, article 50 de l'AI Act en Europe, règles AIGC de Meta et de TikTok.
 Le module `safety/policy.py` refuse de publier une légende sans mention IA,
-avec une allégation santé, une promesse de résultat chiffrée ou un visuel
-suggestif. Ce n'est pas décoratif : c'est ce qui garde le compte monétisable.
+avec une promesse de gain, un chiffre de performance sans son risque, une
+sollicitation financière ou un visuel suggestif. Ce n'est pas décoratif : c'est ce qui garde le compte monétisable.
 Voir [docs/CONFORMITE.md](docs/CONFORMITE.md).
 
 Les publications passent par les **API officielles**. Les bibliothèques
@@ -123,7 +144,7 @@ font bannir le compte — elles ont été retirées du projet.
 ## Tests
 
 ```bash
-python3 -m pytest tests -q     # 54 tests, dont toute la politique de conformité
+python3 -m pytest tests -q     # 69 tests, dont toute la politique de conformité
 ```
 
 ## Documentation
@@ -131,5 +152,6 @@ python3 -m pytest tests -q     # 54 tests, dont toute la politique de conformit�
 - [DEMARRAGE.md](DEMARRAGE.md) — **commence par là** : 3 étapes, une page
 - [docs/SETUP.md](docs/SETUP.md) — créer les comptes et obtenir les jetons API
 - [docs/RENDU-REALISTE.md](docs/RENDU-REALISTE.md) — qualité d'image et cohérence du visage
+- [docs/RESULTATS-TRADING.md](docs/RESULTATS-TRADING.md) — publier des chiffres réels, et rien d'autre
 - [docs/MONETISATION.md](docs/MONETISATION.md) — sources de revenus, seuils, chiffres
 - [docs/CONFORMITE.md](docs/CONFORMITE.md) — obligations légales et règles plateformes

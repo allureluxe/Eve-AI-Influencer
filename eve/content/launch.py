@@ -34,14 +34,14 @@ def build_bios(persona: Persona) -> dict[str, str]:
     longue = persona.disclosure["bio_line"]
 
     instagram = _assembler(longue, [
-        "Séances courtes · technique · nutrition simple",
-        f"{ident['city']}, FL 🌴 débutantes bienvenues",
-        "↓ Programme 4 semaines",
+        "Style, art de vivre et coulisses d'un métier technique",
+        f"{ident['city']}, FL 🌴",
+        "↓ Le guide garde-robe, gratuit",
     ], IG_BIO_LIMIT)
 
     tiktok = _assembler(DISCLOSURE_COURTE, [
-        "Séances de 10 min pour débutantes 💪",
-        "Coach virtuelle · Floride",
+        "Style & art de vivre · Miami 🌴",
+        "Créatrice virtuelle",
     ], TIKTOK_BIO_LIMIT)
 
     return {"instagram": instagram, "tiktok": tiktok}
@@ -66,8 +66,8 @@ def profile_picture(persona: Persona, out_dir: Path | None = None) -> Path:
     prompt = persona.image_prompt(
         "smiling warmly at the camera, head and shoulders portrait, "
         "relaxed and approachable, soft natural light",
-        outfit="fitted white training tank top",
-        location="a bright gym with a blurred background",
+        outfit="a fine cream knit sweater with a delicate gold necklace",
+        location="a bright room with a softly blurred neutral background",
     )
     return generate_image(prompt, out_dir / "photo-de-profil.png",
                           seed=persona.seed, width=1080, height=1080).path

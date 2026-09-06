@@ -1,0 +1,31 @@
+{
+  "_lisez_moi": "Copier ce fichier vers data/trading/results.json et le remplir avec les chiffres RÉELS du système. Sans ce fichier, Eve ne publie aucun chiffre — elle parle uniquement méthode. C'est le comportement voulu.",
+
+  "system_name": "Nom de ton système",
+  "account_currency": "EUR",
+
+  "period": {
+    "start": "2026-01-01",
+    "end": "2026-07-31"
+  },
+
+  "verified_by": "Myfxbook",
+  "verification_url": "https://www.myfxbook.com/…",
+
+  "metrics": {
+    "return_pct": 12.4,
+    "max_drawdown_pct": 8.1,
+    "trades": 412,
+    "profit_factor": 1.32,
+    "win_rate_pct": 54.2,
+    "sharpe": 0.9
+  },
+
+  "monthly": [
+    { "month": "2026-01", "return_pct": 1.8 },
+    { "month": "2026-02", "return_pct": -2.1 },
+    { "month": "2026-03", "return_pct": 3.4 }
+  ],
+
+  "notes": "Compte réel, exécution automatique, aucun ajustement manuel sur la période."
+}

@@ -24,14 +24,42 @@ Ce que fait l'agent :
 À faire manuellement une fois : activer le label « AI info » sur le compte
 Instagram et le commutateur AIGC dans l'application TikTok.
 
-## Allégations santé — interdites
+## Intégrité financière — le cœur du dispositif
 
-Une coach virtuelle n'est ni médecin ni diététicienne. Sont bloqués : « soigne »,
-« guérit », « traite », « detox », « prévient le diabète », toute promesse de
-perte de poids chiffrée, tout résultat « garanti ».
+Eve parle d'un système de trading. Elle n'existe pas, elle n'a aucun revenu,
+et rien n'est vendu autour de ce système. Trois règles sont appliquées par le
+code, pas par la bonne volonté du rédacteur.
 
-Un avertissement est ajouté aux contenus nutrition, technique et séance :
-*contenu informatif, demander un avis médical avant de commencer.*
+### 1. Le train de vie ne prouve rien
+
+`LIFESTYLE_ATTRIBUTION_PATTERNS` bloque toute légende reliant le décor d'Eve à
+un gain : « grâce à mon robot », « mon système m'a payé », « je gagne 8000 »,
+« ma vie a changé grâce à ». C'est exactement la construction qui transforme
+un compte lifestyle en faux témoignage financier.
+
+### 2. Aucun chiffre inventé
+
+Les performances viennent uniquement de `data/trading/results.json`. Le
+générateur n'écrit aucun nombre lui-même. Sans fichier, le pilier `work`
+produit du contenu de méthode, sans aucun chiffre. Voir
+[RESULTATS-TRADING.md](RESULTATS-TRADING.md).
+
+### 3. Un chiffre ne sort jamais seul
+
+Toute légende contenant un pourcentage de performance doit citer le drawdown
+**et** rappeler « résultats passés / pas un conseil ». Sinon la publication est
+bloquée. Le drawdown maximal est également obligatoire dans le fichier de
+données : un rendement sans son risque est trompeur même quand il est exact.
+
+### Sollicitation financière — interdite
+
+`FINANCIAL_SOLICITATION_PATTERNS` bloque « rejoins mon canal », « DM pour
+recevoir le robot », « places limitées », « capital garanti », « copie mes
+trades ». Rien n'est vendu, loué, copié ni recruté autour du système.
+
+Un avertissement de risque est ajouté à tout contenu du pilier `work` :
+*rien de ceci n'est un conseil en investissement, le trading comporte un
+risque de perte en capital.*
 
 ## Contenu démonétisant — bloqué en amont
 
@@ -43,8 +71,8 @@ sont refusés avant même la génération d'image. Deux raisons :
    programmes créateurs ni les deals de marque.
 2. Les partenariats sportifs sérieux ne signent pas avec ce type de compte.
 
-La garde-robe du character bible ne contient que des tenues de sport
-couvrantes, ce qui est aussi la norme du secteur fitness.
+La garde-robe du character bible ne contient que des tenues couvrantes et
+élégantes, ce qui est aussi la norme des partenariats mode.
 
 ## Personnage adulte — verrouillé
 
@@ -69,5 +97,5 @@ retirées de ce projet au profit de l'API Graph et de la Content Posting API.
 
 - Il ne répond pas aux commentaires ni aux messages privés (interaction humaine).
 - Il n'achète pas d'abonnés ni d'engagement.
-- Il ne publie pas de contenu médical individualisé.
+- Il ne publie aucun conseil en investissement, ni personnalisé ni général.
 - Il ne prétend jamais qu'Eve est une personne réelle, en aucun contexte.

@@ -73,16 +73,16 @@ Pour de la vraie vidéo, deux options à brancher sur `media/video.py` :
 - **AnimateDiff / LTX-Video** dans ComfyUI — gratuit, local, GPU requis.
 - **Kling, Runway, Hailuo** — payants, meilleurs mouvements humains.
 
-Pour des démonstrations d'exercices, l'image animée reste souvent plus lisible
-qu'une vidéo générée : un mouvement mal rendu se voit immédiatement sur un
-contenu sportif.
+Pour du contenu mode et art de vivre, l'image animée reste souvent plus
+flatteuse qu'une vidéo générée : une démarche ou un tissu mal rendus se
+repèrent immédiatement, une belle photo qui glisse lentement non.
 
 ## Format et cadrage
 
 | Réglage | Valeur | Pourquoi |
 |---|---|---|
 | Ratio | 9:16 (1080×1920) | Plein écran TikTok et Reels |
-| Durée | 20 à 60 s | > 60 s requis pour TikTok Creator Rewards |
+| Durée | 20 à 60 s | > 60 s requis pour les programmes de rémunération TikTok |
 | Sous-titres | incrustés | La majorité des vues sont sans le son |
 | Zone sûre | 15 % en haut, 20 % en bas | L'interface recouvre les bords |
 

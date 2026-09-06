@@ -38,37 +38,36 @@ def _utm(url: str, campaign: str, source: str) -> str:
 
 
 def build_offers() -> list[Offer]:
-    """Catalogue construit depuis la config — n'expose que ce qui est renseigné."""
+    """Catalogue construit depuis la config — n'expose que ce qui est renseigné.
+
+    Aucune offre financière ici, par construction : rien concernant le
+    système de trading n'est vendu, promu ou recruté.
+    """
     m = settings.monetization
     offers: list[Offer] = []
 
     if m.linkinbio_url:
         offers.append(Offer(
-            "linkinbio", "Tous mes programmes", "service", m.linkinbio_url,
-            ("motivation", "quick_workout", "qa"),
-            "Programmes, guides et liens : tout est dans le lien en bio."))
+            "linkinbio", "Tous mes liens", "service", m.linkinbio_url,
+            ("lifestyle", "qa", "mindset"),
+            "Les adresses et les pièces dont je parle sont dans le lien en bio."))
     if m.shop_url:
         offers.append(Offer(
-            "shop", "Boutique", "product", m.shop_url,
-            ("lifestyle", "motivation"),
-            "Mes essentiels d'entraînement sont en boutique."))
-    if m.stripe_payment_link:
-        offers.append(Offer(
-            "program_4w", "Programme 4 semaines (PDF)", "product", m.stripe_payment_link,
-            ("quick_workout", "form_check", "motivation"),
-            "Le programme complet 4 semaines en PDF est dispo."))
+            "shop", "La boutique", "product", m.shop_url,
+            ("fashion", "lifestyle"),
+            "Les pièces de la sélection sont en boutique."))
     if m.amazon_tag:
         offers.append(Offer(
-            "gear", "Matériel de base", "affiliate",
-            f"https://www.amazon.com/s?k=resistance+bands&tag={m.amazon_tag}",
-            ("quick_workout", "form_check"),
-            "Les élastiques que j'utilise (moins de 20 $).",
+            "selection", "Ma sélection", "affiliate",
+            f"https://www.amazon.com/s?k=capsule+wardrobe+essentials&tag={m.amazon_tag}",
+            ("fashion", "travel"),
+            "Les basiques que j'utilise vraiment.",
             requires_disclosure=True))
     if m.paypal_me:
         offers.append(Offer(
-            "tip", "Soutenir la chaîne", "tip", m.paypal_me,
-            ("motivation", "lifestyle"),
-            "Si le contenu t'aide, tu peux m'offrir un café."))
+            "tip", "Soutenir le compte", "tip", m.paypal_me,
+            ("lifestyle", "mindset"),
+            "Si le contenu te plaît, tu peux m'offrir un café."))
     return offers
 
 

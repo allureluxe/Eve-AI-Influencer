@@ -10,16 +10,18 @@ from eve.persona.persona import Persona
 # moyen (découverte) et large (portée). Le tout reste crédible.
 HASHTAGS = {
     "niche": {
-        "form_check": ["#techniquemusculation", "#formcheck", "#debutantemusculation", "#salledesport"],
-        "quick_workout": ["#seanceexpress", "#workoutmaison", "#homeworkout", "#15minworkout"],
-        "nutrition": ["#nutritionsimple", "#proteines", "#mealprepfacile", "#assietteequilibree"],
-        "motivation": ["#motivationsport", "#disciplinesport", "#routinesportive"],
-        "lifestyle": ["#morningroutine", "#floridalife", "#gymgirl"],
-        "qa": ["#questionsport", "#coachsportif", "#conseilsport"],
+        "lifestyle": ["#miamilife", "#artdevivre", "#slowluxury", "#dailyroutine"],
+        "fashion": ["#styleminimaliste", "#garderobecapsule", "#modefemme",
+                    "#qualiteavantquantite", "#stylequotidien"],
+        "travel": ["#voyagestyle", "#hotelselection", "#carnetdevoyage"],
+        "work": ["#tradingautomatise", "#algotrading", "#coulisses"],
+        "mindset": ["#discipline", "#routinematinale", "#apprendreseul"],
+        "qa": ["#questionsreponses", "#vosquestions"],
     },
-    "medium": ["#fitnessfeminin", "#musculationfemme", "#remiseenforme", "#sportsante",
-               "#fitgirlfrance", "#objectifforme", "#fitnessmotivationfr"],
-    "broad": ["#fitness", "#workout", "#gym", "#fitgirl", "#health", "#training"],
+    "medium": ["#lifestylefrancais", "#eleganceausquotidien", "#modeetstyle",
+               "#inspirationdujour", "#quietluxury", "#minimalismechic",
+               "#viedecreatrice"],
+    "broad": ["#lifestyle", "#fashion", "#style", "#luxury", "#miami", "#outfit"],
 }
 
 MAX_IG = 15
@@ -29,7 +31,7 @@ MAX_TIKTOK = 6
 def build_hashtags(persona: Persona, pillar: str, platform: str = "instagram",
                    rng: random.Random | None = None) -> list[str]:
     rng = rng or random
-    niche = HASHTAGS["niche"].get(pillar, HASHTAGS["niche"]["motivation"])
+    niche = HASHTAGS["niche"].get(pillar, HASHTAGS["niche"]["lifestyle"])
     disclosure = persona.disclosure["hashtags"]
 
     if platform == "tiktok":

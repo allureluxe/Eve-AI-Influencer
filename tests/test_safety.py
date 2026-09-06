@@ -26,8 +26,8 @@ def test_minor_coded_prompt_is_blocked():
     assert not check_visual_prompt("cute teen girl in a gym").ok
 
 
-def test_normal_fitness_prompt_passes(persona):
-    prompt = persona.image_prompt("demonstrating a squat with good form in a gym")
+def test_normal_lifestyle_prompt_passes(persona):
+    prompt = persona.image_prompt("having morning coffee on a sunlit terrace")
     assert check_visual_prompt(prompt).ok
 
 
@@ -62,3 +62,43 @@ def test_enforce_raises_on_blocking(persona):
 def test_caption_length_limit(persona):
     _, res = review_post(persona, caption="a" * 2300)
     assert not res.ok
+
+
+def test_lifestyle_never_attributed_to_trading(persona):
+    for texte in [
+        "Nouvelle voiture, tout ça grâce à mon robot de trading",
+        "Mon système m'a payé ce voyage",
+        "Je gagne 8000 par mois",
+        "Ma vie a changé grâce à ce système",
+        "Thanks to my bot I could afford this",
+    ]:
+        _, res = review_post(persona, caption=texte)
+        assert not res.ok, texte
+
+
+def test_financial_solicitation_is_blocked(persona):
+    for texte in [
+        "Rejoins mon canal Telegram privé",
+        "DM pour recevoir le robot",
+        "Places limitées, capital garanti",
+        "Copie mes trades en direct",
+    ]:
+        _, res = review_post(persona, caption=texte)
+        assert not res.ok, texte
+
+
+def test_performance_figures_need_risk_and_framing(persona):
+    _, nu = review_post(persona, caption="+12,4 % de rendement ce semestre 🚀")
+    assert not nu.ok
+
+    _, encadre = review_post(
+        persona,
+        caption="+12,4 % sur la période, drawdown maximal 8,1 %. "
+                "Résultats passés, ce n'est pas un conseil en investissement.")
+    assert encadre.ok, encadre.report()
+
+
+def test_ordinary_lifestyle_caption_passes(persona):
+    _, res = review_post(persona, caption="Comment reconnaître un bon vêtement en trente secondes 🤍",
+                         pillar="fashion")
+    assert res.ok, res.report()

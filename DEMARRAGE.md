@@ -33,8 +33,9 @@ Tout arrive dans le dossier `output/` :
 |---|---|
 | `output/videos/…/….mp4` | La vidéo verticale, sous-titrée, prête à publier |
 | `output/videos/…/cover.jpg` | La miniature |
-| `output/products/reset-4-semaines.html` | Le programme à vendre (ouvre-le, imprime en PDF) |
+| `output/products/la-garde-robe-de-30-pi-ces.html` | Le guide de style gratuit (aimant à abonnés) |
 | `output/products/media-kit.md` | Le dossier pour démarcher les marques |
+| `output/products/kit-lancement.html` | Pseudo, photo de profil, bios prêtes à coller |
 
 Pour en produire d'autres :
 
@@ -50,7 +51,7 @@ configuration, et tu vois tout de suite ce qui accroche.
 
 Deux choses à faire une seule fois, sur chaque compte :
 
-- Mettre dans la bio : `🤖 AI-generated fitness coach · virtual creator`
+- Mettre dans la bio : `🤖 AI-generated creator · créatrice virtuelle`
 - Activer le label IA (« AI info » sur Instagram, « contenu généré par IA » sur
   TikTok) au moment de publier.
 
@@ -93,6 +94,10 @@ décors, son ton, ses sujets. Tu modifies, tu relances `go`, tout suit.
 | Vidéo sans voix | `pip install edge-tts` |
 | Pas de fichier `.mp4` | Installer ffmpeg (tableau plus haut) |
 | `Publication bloquée : …` | Le message nomme la règle : corrige et relance |
+
+**Pour parler du système de trading**, un seul document :
+[docs/RESULTATS-TRADING.md](docs/RESULTATS-TRADING.md). Sans fichier de
+résultats réels, Eve ne publie aucun chiffre — c'est voulu.
 
 Le reste de la documentation ne sert que si tu veux aller plus loin :
 [rendu réaliste](docs/RENDU-REALISTE.md) · [monétisation](docs/MONETISATION.md) ·

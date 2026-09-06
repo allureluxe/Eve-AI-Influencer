@@ -10,7 +10,7 @@ from eve.agent.state import Store
 from eve.analytics.collector import normalize
 from eve.analytics.optimizer import suggest_weights
 from eve.monetization.links import Offer, monetization_line, pick_offer
-from eve.monetization.products import build_program_markdown, export_program
+from eve.monetization.products import build_guide_markdown, export_guide
 from eve.monetization.revenue import project_monthly
 from eve.persona.persona import load_persona
 
@@ -26,13 +26,13 @@ def persona():
 
 
 def test_store_round_trip(store):
-    store.save_piece("p1", "2026-01-01", "07:00", "nutrition", {"a": 1}, "approved")
-    assert store.get_piece("p1")["pillar"] == "nutrition"
+    store.save_piece("p1", "2026-01-01", "07:00", "fashion", {"a": 1}, "approved")
+    assert store.get_piece("p1")["pillar"] == "fashion"
     assert store.due_pieces("2026-01-02")[0]["id"] == "p1"
 
 
 def test_publication_is_idempotent(store):
-    store.save_piece("p1", "2026-01-01", "07:00", "nutrition", {})
+    store.save_piece("p1", "2026-01-01", "07:00", "fashion", {})
     store.record_publication("p1", "tiktok", True, post_id="a")
     store.record_publication("p1", "tiktok", True, post_id="b")
     assert len(store.publications()) == 1
@@ -62,29 +62,29 @@ def test_metrics_normalisation_across_platforms():
 
 def test_optimizer_favours_the_best_pillar(persona, store):
     for i in range(12):
-        pillar = "quick_workout" if i % 2 else "lifestyle"
+        pillar = "fashion" if i % 2 else "travel"
         store.save_piece(f"m{i}", "2026-01-01", "07:00", pillar, {})
         store.record_metrics(f"m{i}", "tiktok", {
-            "views": 9000 if pillar == "quick_workout" else 300,
-            "engagement_rate": 0.09 if pillar == "quick_workout" else 0.01})
+            "views": 9000 if pillar == "fashion" else 300,
+            "engagement_rate": 0.09 if pillar == "fashion" else 0.01})
     weights = suggest_weights(persona, store)
     base = {p.key: p.share for p in persona.pillars}
-    assert weights["quick_workout"] > base["quick_workout"]
-    assert weights["lifestyle"] < base["lifestyle"]
+    assert weights["fashion"] > base["fashion"]
+    assert weights["travel"] < base["travel"]
     assert all(v > 0 for v in weights.values()), "aucun pilier ne doit tomber à zéro"
     assert abs(sum(weights.values()) - 1) < 0.01
 
 
 def test_affiliate_links_carry_the_legal_disclosure():
     offer = Offer("gear", "Matériel", "affiliate", "https://x.test/p",
-                  ("quick_workout",), "Mes élastiques.", requires_disclosure=True)
+                  ("fashion",), "Mes basiques.", requires_disclosure=True)
     line = monetization_line(offer, "instagram", "camp")
     assert "#ad" in line and "utm_campaign=camp" in line
 
 
 def test_no_offer_when_pillar_does_not_match():
     offer = Offer("gear", "Matériel", "affiliate", "https://x.test/p",
-                  ("quick_workout",), "…")
+                  ("fashion",), "…")
     assert pick_offer("qa", [offer]) is None
     assert monetization_line(None, "tiktok", "c") == ""
 
@@ -95,11 +95,10 @@ def test_revenue_projection_is_ordered_and_positive():
         assert 0 <= low <= high
 
 
-def test_program_export_contains_disclaimer_and_ai_notice(persona, tmp_path):
-    md = build_program_markdown(persona)
+def test_guide_export_carries_the_ai_notice(persona, tmp_path):
+    md = build_guide_markdown(persona)
     assert "intelligence artificielle" in md
-    assert "avis médical" in md
-    paths = export_program(persona, tmp_path)
+    paths = export_guide(persona, tmp_path)
     assert paths["html"].read_text(encoding="utf-8").startswith("<!doctype html>")
 
 
