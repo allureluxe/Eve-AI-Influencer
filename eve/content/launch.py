@@ -20,7 +20,7 @@ TIKTOK_BIO_LIMIT = 80
 
 # La mention IA doit tenir dans la bio ; TikTok est trop court pour la forme
 # longue, d'où une variante compacte qui dit la même chose.
-DISCLOSURE_COURTE = "🤖 IA · créatrice virtuelle"
+DISCLOSURE_COURTE = "🤖 Personnage virtuel généré"
 
 
 def build_bios(persona: Persona) -> dict[str, str]:
@@ -34,14 +34,14 @@ def build_bios(persona: Persona) -> dict[str, str]:
     longue = persona.disclosure["bio_line"]
 
     instagram = _assembler(longue, [
-        "Style, art de vivre et coulisses d'un métier technique",
-        f"{ident['city']}, FL 🌴",
-        "↓ Le guide garde-robe, gratuit",
+        "Je code un robot de trading. 100 € en réel.",
+        f"{ident['city']} ☀️",
+        "Je montre tout, même quand ça baisse",
     ], IG_BIO_LIMIT)
 
     tiktok = _assembler(DISCLOSURE_COURTE, [
-        "Style & art de vivre · Miami 🌴",
-        "Créatrice virtuelle",
+        "Je code un robot de trading · 100 € en réel",
+        "Je montre aussi les pertes",
     ], TIKTOK_BIO_LIMIT)
 
     return {"instagram": instagram, "tiktok": tiktok}
@@ -64,10 +64,10 @@ def profile_picture(persona: Persona, out_dir: Path | None = None) -> Path:
     out_dir = out_dir or settings.paths.products
     out_dir.mkdir(parents=True, exist_ok=True)
     prompt = persona.image_prompt(
-        "smiling warmly at the camera, head and shoulders portrait, "
-        "relaxed and approachable, soft natural light",
-        outfit="a fine cream knit sweater with a delicate gold necklace",
-        location="a bright room with a softly blurred neutral background",
+        "looking at the camera without posing, head and shoulders, "
+        "slight natural smile, unposed, soft daylight from a window",
+        outfit="a plain grey sweatshirt, hair tied up loosely",
+        location="a small flat with a softly blurred desk behind her",
     )
     return generate_image(prompt, out_dir / "photo-de-profil.png",
                           seed=persona.seed, width=1080, height=1080).path
@@ -124,22 +124,26 @@ obligation légale et une règle des deux plateformes.
 - [ ] Lien en bio configuré (Beacons, Linktree ou Stan Store — tous gratuits)
 - [ ] Adresse e-mail dédiée pour les marques
 
-## 5. Les 7 premiers jours
+## 5. L'ordre de publication
 
-Publie **une vidéo par jour, à heure fixe**. Prends les MP4 dans
-`output/videos/`, la légende est dans le fichier `legendes.txt` posé à côté de
-chacun.
+Le récit a un début. Ne publie pas le journal du compte avant d'avoir raconté
+pourquoi elle s'y est mise — sinon personne ne comprend de quoi il s'agit.
 
-Ne change rien avant 7 jours : sans données, toute modification est une
-supposition. Au bout d'une semaine, regarde quelle vidéo a le plus de vues et
-fais-en trois variantes.
+1. **Épisode 1** : pourquoi elle a commencé (aucune donnée requise)
+2. Puis les épisodes de construction, au rythme de ton avancée réelle
+3. Le point sur le compte de 100 € **seulement** une fois le compte ouvert
 
-## 6. Ce qui compte vraiment la première semaine
+Les épisodes s'ouvrent tout seuls au fur et à mesure que tu remplis
+`data/trading/journal.json`. L'agent refuse de raconter une étape que tu n'as
+pas franchie.
+
+## 6. Ce qui compte vraiment les premières semaines
 
 1. **Publier tous les jours** — la régularité prime sur la qualité au départ.
-2. **Répondre à tous les commentaires** — c'est manuel, c'est le plus rentable.
-3. **Regarder le taux de rétention à 3 secondes** — s'il est bas, le problème
-   est le hook, pas la vidéo.
+2. **Répondre à tous les commentaires** — manuel, et c'est le plus rentable.
+3. **Montrer une mauvaise semaine dès qu'il y en a une** — c'est ce qui rendra
+   les bonnes crédibles. C'est le cœur de la promesse du compte.
+4. **Ne rien vendre.** Si on te demande le programme, la réponse est non.
 """
     md_path = out_dir / "kit-lancement.md"
     md_path.write_text(md, encoding="utf-8")
