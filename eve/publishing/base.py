@@ -8,6 +8,9 @@ from pathlib import Path
 @dataclass
 class PublishRequest:
     caption: str
+    # "reel" | "story" | "photo" — la Story a son propre type côté Graph API,
+    # ne porte pas de légende et disparaît au bout de 24 h.
+    kind: str = "reel"
     video_path: Path | None = None
     image_path: Path | None = None
     cover_path: Path | None = None

@@ -68,14 +68,23 @@ class InstagramPublisher(Publisher):
     def publish(self, req: PublishRequest) -> PublishResult:
         if settings.dry_run:
             return PublishResult(self.platform, True, dry_run=True,
-                                 detail=f"dry-run · {len(req.caption)} car. · "
-                                        f"{'reel' if (req.video_url or req.video_path) else 'photo'}")
+                                 detail=f"dry-run · {req.kind} · {len(req.caption)} car.")
         if not self.configured:
             return PublishResult(self.platform, False,
                                  detail="IG_USER_ID / IG_ACCESS_TOKEN manquants.")
 
         try:
-            if req.video_url:
+            if req.kind == "story":
+                # Une Story ne prend ni légende ni couverture : le texte doit
+                # être incrusté dans l'image ou la vidéo elle-même.
+                if req.video_url:
+                    payload = {"media_type": "STORIES", "video_url": req.video_url}
+                elif req.image_url:
+                    payload = {"media_type": "STORIES", "image_url": req.image_url}
+                else:
+                    return PublishResult(self.platform, False,
+                                         detail="Story : URL publique manquante.")
+            elif req.video_url:
                 payload = {"media_type": "REELS", "video_url": req.video_url,
                            "caption": req.caption, "share_to_feed": "true"}
                 if req.cover_url:

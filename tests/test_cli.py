@@ -52,11 +52,13 @@ def test_launch_kit_command_is_registered():
 
 def test_pas_de_compteur_dans_la_bio_sans_compte_reel(monkeypatch, tmp_path):
     """Une bio ne doit jamais afficher un chiffre inventé."""
-    from eve.content import story
+    from eve.content import robot_bridge, story
     from eve.content.launch import build_bios, ligne_compteur
     from eve.persona.persona import load_persona
 
+    # Aucune des deux sources : ni journal manuel, ni journal du robot.
     monkeypatch.setattr(story, "JOURNAL_PATH", tmp_path / "absent.json")
+    monkeypatch.setattr(robot_bridge, "chemin_trades", lambda: None)
     assert ligne_compteur() == ""
     bio = build_bios(load_persona())["instagram"]
     assert "Jour" not in bio and "€" in bio

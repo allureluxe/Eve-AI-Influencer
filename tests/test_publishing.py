@@ -137,3 +137,25 @@ def test_le_mode_brouillon_passe_par_la_boite_de_reception(tmp_path, monkeypatch
     resultat = pub.publish(PublishRequest(caption="x", video_path=video))
     assert resultat.ok and appels == ["inbox", "upload"]
     assert "valider dans l'application" in resultat.detail
+
+
+def test_une_story_instagram_utilise_son_propre_type(monkeypatch):
+    from eve.config import settings
+    from eve.publishing.instagram import InstagramPublisher
+
+    monkeypatch.setattr(settings, "dry_run", False)
+    pub = InstagramPublisher(user_id="1", token="t")
+    envoye = {}
+
+    def faux_post(path, data):
+        envoye.update(data)
+        return {"id": "container"}
+
+    monkeypatch.setattr(pub, "_post", faux_post)
+    monkeypatch.setattr(pub, "_wait_container", lambda cid: None)
+    monkeypatch.setattr(pub, "_get", lambda p, params: {"permalink": "http://x"})
+
+    pub.publish(PublishRequest(caption="ignorée", kind="story",
+                               video_url="https://x/v.mp4"))
+    assert envoye["media_type"] == "STORIES"
+    assert "caption" not in envoye, "une Story ne porte pas de légende"
