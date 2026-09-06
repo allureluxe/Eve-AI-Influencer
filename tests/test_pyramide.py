@@ -535,7 +535,48 @@ class TestUnePositionQuiAvanceNeSortJamaisSurLeTemps:
             "le stop temporel n'est plus dans un `elif` : il peut fermer "
             "une position que la regle de stagnation venait d'epargner")
 
-    def test_le_reglage_livre_est_arme_a_cinq_jours(self):
+    def test_le_reglage_livre_coupe_a_CINQ_JOURS(self):
+        """5 jours, et sur le R COURANT — pas sur le pic.
+
+        L'operateur a demande « pas de limite tant que ca evolue, sortie
+        a 5 jours si ca stagne ». J'ai d'abord arme la version « pic »,
+        puis il a demande : « si la position monte a +3 R avec un bon
+        stop suiveur, elle sera coupee avant de toucher 0,2 R, non ? »
+
+        Oui. 1 R = 1,6 ATR, le suiveur lache 2,2 ATR sous le plus-haut
+        (1,375 R) : un pic a +3 R sort a +1,62 R. Le cas que le critere
+        « pic » protege n'existe pas — il ne fait qu'epargner les
+        positions dont le pic est reste entre 0,5 et 1,1 R, trop faible
+        pour armer le suiveur, et qui meurent ensuite.
+
+        Mesure 2x2, hors echantillon, frais doubles :
+
+            A  12 j / R courant   +46,0 %   Sharpe 0,61   <- ancien
+            B   5 j / R courant   +94,5 %   Sharpe 0,91   <- arme
+            C  12 j / pic         +34,7 %   Sharpe 0,52
+            D   5 j / pic         +73,1 %   Sharpe 0,79
+
+        Tout le gain vient du DELAI. Le critere « pic » degrade des deux
+        cotes. La demande de fond est respectee : a +3 R au 20e jour,
+        r_now vaut 3 — bien au-dessus de 0,4 — donc rien ne la ferme.
+        """
         cfg = BotConfig.load("robot.bitvavo.json")
-        assert cfg.trade.stagnation_jours == 5.0
-        assert cfg.trade.stagnation_max_r == 0.5
+        assert cfg.trade.time_stop_minutes == 7200.0, "5 jours = 7200 minutes"
+        assert cfg.trade.time_stop_min_r == 0.4
+        assert cfg.trade.stagnation_jours == 0.0, (
+            "le critere « pic » est mesure PIRE que le R courant : "
+            "+73,1 % contre +94,5 % hors echantillon")
+
+    def test_une_hausse_longue_n_est_pas_coupee_par_le_stop_temporel(self):
+        """La demande de fond, verifiee sur la regle REELLEMENT armee."""
+        from gold_bot.trade_manager import TradeManager, TradeManagerConfig, Momentum
+        tm = TradeManager(TradeManagerConfig(time_stop_minutes=7200.0,
+                                             time_stop_min_r=0.4))
+        p = _position(entree=100.0, stop=98.0)
+        p.initial_risk = 2.0
+        p.opened_at = time.time() - 20 * 86400        # 20 jours
+        action = tm._safety_exits(p, price=106.0, r_now=3.0,
+                                  momentum=Momentum(score=0.0), now=time.time())
+        assert action is None, (
+            f"position a +3 R fermee apres 20 jours : "
+            f"{action.reason if action else ''}")

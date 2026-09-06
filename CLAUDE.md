@@ -5,43 +5,64 @@ d'environ 51 EUR. Plusieurs sessions travaillent sur la même branche. Les
 décisions ci-dessous ont été prises par l'opérateur ; elles ne sont pas des
 valeurs par défaut à optimiser.
 
-## Sortie sur STAGNATION, pas sur durée — armée le 6 septembre
+## Le stop temporel passe de 12 jours à 5 — armé le 6 septembre
 
 Décision de l'opérateur : « aucune limite de temps tant que la position
 évolue, même si elle monte pendant 20 jours — on la laisse faire son
 chemin. Si elle fait pratiquement peu de mouvement en 5 jours, là elle
 se ferme. »
 
-**Ce qui change n'est pas le nombre de jours, c'est le R qu'on regarde.**
-L'ancienne règle lisait `r_now`, le R **courant** : une position montée à
-+3 R puis redescendue à +0,2 R était fermée comme si elle avait stagné,
-alors que c'est au stop suiveur de décider de son sort. On lit désormais
-le **meilleur parcours atteint** (`max_favorable`).
+La règle armée est l'ancienne, **avec un seul chiffre changé** :
+`time_stop_minutes` **17 280 → 7 200** (12 jours → 5). Le robot ferme au
+5e jour une position dont le R **courant** est sous 0,4. Une position à
++3 R au 20e jour a `r_now = 3` : rien ne la ferme, seul le stop suiveur
+décidera. La demande est donc satisfaite telle quelle.
 
-70 paires, 7,5 ans, coupe au 7 juin 2024, frais **doublés**, hors
-échantillon, avec le pyramidage Turtle armé :
+### Ce qui a failli être armé à la place, et pourquoi c'était faux
 
-    regle                       rendement   Sharpe   recul
-    ancienne, 12 j sur R courant   +35,8 %    0,53   35,4 %
-    aucune limite du tout          +31,8 %    0,50   35,6 %
-    stagnation 5 j / 0,5 R         +73,1 %    0,79   34,0 %   <- armé
+J'avais d'abord codé une règle « stagnation » lisant le **meilleur
+parcours atteint** au lieu du R courant, en justifiant : « une position
+montée à +3 R puis redescendue à +0,2 R serait fermée à tort ».
 
-**Les trois conditions du critère battues à la fois** — rendement, Sharpe
-et recul. C'est le premier réglage de la session à y arriver proprement.
+**L'opérateur a demandé : « si elle monte à +3 R avec un bon stop
+suiveur, elle sera coupée avant de toucher 0,2 R, non ? »**
 
-**Le détail qui compte, et qui contredit l'intuition :** retirer toute
-limite est **pire** que l'ancienne règle (+31,8 % contre +35,8 %). Ce
-n'est pas « laisser courir » qui paie, c'est « couper ce qui ne va nulle
-part ». Les deux moitiés de la décision ne se valent pas : la seconde
-porte tout le gain. Les positions les plus longues durent **32 jours** et
-la règle ne les touche pas.
+Oui. 1 R = 1,6 ATR, le suiveur lâche 2,2 ATR sous le plus-haut, soit
+1,375 R :
 
-Seuil : 0,8 R fait mieux en apprentissage (+757 %) et **moins bien** hors
-échantillon (+59,5 %) — sur-ajustement classique. 0,5 R est retenu.
+    pic +0,5 R  ->  suiveur PAS actif (démarre à 1,1 R)
+    pic +1,5 R  ->  sortie à +0,12 R
+    pic +3,0 R  ->  sortie à +1,62 R
 
-`stagnation_jours` et `time_stop_minutes` ne tournent **jamais** ensemble
-(`elif`, verrouillé par un test) : deux règles qui décident de la même
-sortie, c'est le piège documenté plus bas.
+**Le cas que mon raffinement protégeait n'existe pas.** Ce qu'il faisait
+réellement, c'était épargner les positions dont le pic est resté entre
+0,5 et 1,1 R — trop faible pour armer le suiveur — et les garder ouvertes
+pendant qu'elles mouraient.
+
+Ma première mesure changeait **deux choses à la fois** (le délai ET le
+critère) et je n'aurais pas dû en tirer une conclusion. Le 2×2, hors
+échantillon, frais doublés :
+
+    A  12 j / R courant   +46,0 %   Sharpe 0,61   <- ancien
+    B   5 j / R courant   +94,5 %   Sharpe 0,91   <- armé
+    C  12 j / pic         +34,7 %   Sharpe 0,52
+    D   5 j / pic         +73,1 %   Sharpe 0,79   <- ce que j'allais armer
+
+**Tout le gain vient du délai** (A → B). Le critère « pic » dégrade des
+deux côtés (A → C et B → D). J'allais armer la moins bonne des deux
+variantes qui marchent, sur une mesure qui confondait deux variables.
+
+Le code de la stagnation reste en place, testé et **désarmé**
+(`stagnation_jours: 0.0`), pour que personne ne le recode en croyant
+l'inventer. `time_stop_minutes` et `stagnation_jours` ne tournent jamais
+ensemble (`elif`, verrouillé par un test).
+
+### La leçon
+
+Un raffinement qui « corrige » un cas doit d'abord prouver que le cas
+**se produit**. Celui-ci était impossible sous le stop suiveur armé — il
+suffisait de faire la division. Et une mesure qui bouge deux variables
+ne dit rien sur aucune des deux.
 
 ---
 

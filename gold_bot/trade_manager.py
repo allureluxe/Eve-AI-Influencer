@@ -82,15 +82,31 @@ class TradeManagerConfig:
     micro_profit_min_momentum: float = 0.20
     time_stop_minutes: float = 240.0
 
-    # --- Sortie sur STAGNATION (remplace le stop temporel quand armee) ---
+    # --- Sortie sur STAGNATION : CODEE, MESUREE, DESARMEE ---------------
     #
-    # A 0, desarmee : c'est `time_stop_minutes` qui s'applique. Au-dessus
-    # de 0, elle le REMPLACE — les deux ne tournent jamais ensemble.
+    # Elle lit le MEILLEUR parcours atteint au lieu du R courant, pour
+    # qu'une position ayant deja bouge ne sorte jamais sur le temps.
+    # L'intention etait juste ; la mesure dit que le raffinement NUIT.
     #
-    # Une position qui a progresse ne sort JAMAIS sur le temps, quelle que
-    # soit sa duree : c'est le stop suiveur qui decide. Seule celle qui n'a
-    # rien fait en `stagnation_jours` sort, et « rien fait » se mesure sur
-    # le MEILLEUR parcours atteint, pas sur le prix du moment.
+    # L'operateur a pose la bonne question : « si la position monte a +3 R
+    # avec un bon stop suiveur, elle sera coupee avant de retomber a
+    # +0,2 R, non ? » Oui. 1 R = 1,6 ATR, le suiveur lache 2,2 ATR sous le
+    # plus-haut, soit 1,375 R : un pic a +3 R sort a +1,62 R. Le cas que
+    # ce raffinement protege N'EXISTE PAS.
+    #
+    # Ce qu'il fait vraiment, c'est epargner les positions dont le pic est
+    # reste entre 0,5 et 1,1 R — trop faible pour armer le suiveur — et
+    # les garder ouvertes alors qu'elles meurent. Mesure 2x2, hors
+    # echantillon, frais doubles :
+    #
+    #     A  12 j / R courant   +46,0 %   Sharpe 0,61   <- ancien
+    #     B   5 j / R courant   +94,5 %   Sharpe 0,91   <- ARME
+    #     C  12 j / pic         +34,7 %   Sharpe 0,52
+    #     D   5 j / pic         +73,1 %   Sharpe 0,79
+    #
+    # TOUT le gain vient du DELAI (A -> B). Le critere « pic » degrade des
+    # deux cotes (A -> C et B -> D). Le code reste ici, teste, pour que
+    # personne ne le recode en croyant l'inventer.
     stagnation_jours: float = 0.0
     stagnation_max_r: float = 0.5
     time_stop_min_r: float = 0.25
