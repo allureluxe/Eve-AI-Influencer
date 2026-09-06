@@ -184,3 +184,61 @@ def test_pollinations_reessaie_sur_erreur_serveur(monkeypatch, tmp_path):
     monkeypatch.setattr("eve.media.images.time.sleep", lambda s: None)
     PollinationsProvider().generate("x", tmp_path / "a.png", width=512, height=512, seed=1)
     assert len(appels) == 3, "deux 500 puis un succès"
+
+
+# ------------------------------------------------- accès gratuits à FLUX
+def test_flux_choisit_le_provider_gratuit_disponible(monkeypatch):
+    from eve.config import settings
+    from eve.media.images import get_provider
+
+    monkeypatch.setattr(settings.generation, "together_api_key", "x")
+    monkeypatch.setattr(settings.generation, "huggingface_api_key", "")
+    assert get_provider("flux").name == "together"
+
+    monkeypatch.setattr(settings.generation, "together_api_key", "")
+    monkeypatch.setattr(settings.generation, "huggingface_api_key", "x")
+    assert get_provider("hf").name == "huggingface"
+
+
+def test_sans_cle_on_ne_casse_pas(monkeypatch):
+    from eve.config import settings
+    from eve.media.images import get_provider
+
+    monkeypatch.setattr(settings.generation, "together_api_key", "")
+    monkeypatch.setattr(settings.generation, "huggingface_api_key", "")
+    # Repli sur le provider sans clé plutôt qu'une erreur au démarrage.
+    assert get_provider("flux").name == "pollinations"
+
+
+def test_flux_exige_des_dimensions_multiples_de_16():
+    from eve.media.images import _multiple_de_16
+
+    for valeur in (1080, 1350, 1920, 100):
+        assert _multiple_de_16(valeur) % 16 == 0
+    assert _multiple_de_16(10) == 256, "on ne descend pas sous une taille utile"
+
+
+def test_together_reessaie_quand_le_quota_gratuit_sature(monkeypatch, tmp_path):
+    import base64
+
+    from eve.media.images import TogetherProvider
+
+    appels = []
+
+    class Reponse:
+        def __init__(self, code):
+            self.status_code = code
+            self.text = ""
+
+        def json(self):
+            return {"data": [{"b64_json": base64.b64encode(b"x" * 4096).decode()}]}
+
+    def faux_post(url, headers=None, json=None, timeout=None):
+        appels.append(1)
+        return Reponse(429 if len(appels) < 3 else 200)
+
+    monkeypatch.setattr("eve.media.images.requests.post", faux_post)
+    monkeypatch.setattr("eve.media.images.time.sleep", lambda s: None)
+    TogetherProvider("cle").generate("x", tmp_path / "a.png",
+                                     width=512, height=512, seed=1)
+    assert len(appels) == 3, "le palier gratuit sature : il faut réessayer"

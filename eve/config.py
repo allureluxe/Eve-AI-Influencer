@@ -69,6 +69,9 @@ class GenerationConfig:
     comfyui_url: str = field(default_factory=lambda: _env("COMFYUI_URL", "http://127.0.0.1:8188"))
     stability_api_key: str = field(default_factory=lambda: _env("STABILITY_API_KEY"))
     replicate_api_token: str = field(default_factory=lambda: _env("REPLICATE_API_TOKEN"))
+    # Deux accès gratuits à FLUX, le seul modèle qui tienne un visage.
+    together_api_key: str = field(default_factory=lambda: _env("TOGETHER_API_KEY"))
+    huggingface_api_key: str = field(default_factory=lambda: _env("HUGGINGFACE_API_KEY"))
 
     voice_provider: str = field(default_factory=lambda: _env("VOICE_PROVIDER", "edge-tts"))
     voice_name: str = field(default_factory=lambda: _env("VOICE_NAME", "en-US-AvaNeural"))

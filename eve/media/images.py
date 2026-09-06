@@ -1,7 +1,10 @@
 """Génération d'images photoréalistes, avec repli en cascade.
 
 Providers, du plus gratuit au plus cher :
-  pollinations : gratuit, sans clé, modèle Flux — le défaut du projet.
+  pollinations : gratuit, sans clé, mais un seul modèle (« sana »), qui
+                 rend du semi-illustré : inutilisable pour un visage.
+  replicate    : payant (~0,04 $/image), accès à FLUX 1.1 Pro — le seul
+                 qui tienne le photoréalisme sur un visage.
   gemini       : Google AI Studio, palier gratuit, Imagen ou Gemini Image.
   comfyui      : local (GPU), gratuit, contrôle total + LoRA de visage.
   stability    : payant, qualité stable.
@@ -177,89 +180,166 @@ class StabilityProvider(ImageProvider):
 
 
 class ReplicateProvider(ImageProvider):
-    name = "replicate"
+    """Replicate — accès aux modèles FLUX, dont le photoréalisme est le seul
+    à tenir sur des visages.
 
-    def __init__(self, token: str, model: str = "black-forest-labs/flux-schnell"):
+    FLUX n'accepte **pas** de prompt négatif : c'est un modèle distillé sur
+    la guidance. Toutes les consignes de réalisme doivent donc être
+    formulées positivement, ce dont `prompt_realiste` se charge.
+    """
+
+    name = "replicate"
+    DEFAUT = "black-forest-labs/flux-1.1-pro"
+
+    # Ratios acceptés par FLUX. On choisit le plus proche du format demandé
+    # plutôt que d'imposer un recadrage.
+    RATIOS = {(9, 16): "9:16", (4, 5): "4:5", (1, 1): "1:1",
+              (3, 4): "3:4", (16, 9): "16:9", (4, 3): "4:3"}
+
+    def __init__(self, token: str, model: str = ""):
         self.token = token
-        self.model = model
+        self.model = model or self.DEFAUT
+
+    def _ratio(self, width: int, height: int) -> str:
+        cible = width / height
+        return min(self.RATIOS.items(), key=lambda kv: abs(kv[0][0] / kv[0][1] - cible))[1]
 
     def generate(self, prompt: str, out: Path, *, width: int, height: int, seed: int) -> Path:
         headers = {"Authorization": f"Bearer {self.token}", "Prefer": "wait"}
+        entree = {
+            "prompt": prompt_realiste(prompt, limite=2000),
+            "aspect_ratio": self._ratio(width, height),
+            "output_format": "png",
+            "seed": seed,
+            # 2 = tolérance par défaut de Replicate ; on ne la relâche pas.
+            "safety_tolerance": 2,
+            # L'enrichissement automatique réécrit le prompt et fait dériver
+            # le visage d'une image à l'autre : à laisser désactivé.
+            "prompt_upsampling": False,
+        }
         r = requests.post(
             f"https://api.replicate.com/v1/models/{self.model}/predictions",
-            headers=headers,
-            json={"input": {"prompt": prompt[:2000], "seed": seed,
-                            "aspect_ratio": "9:16" if height > width else "1:1",
-                            "output_format": "png"}},
-            timeout=180,
-        )
-        r.raise_for_status()
+            headers=headers, json={"input": entree}, timeout=300)
+        if r.status_code >= 400:
+            raise RuntimeError(f"Replicate {r.status_code} : {r.text[:300]}")
+
         data = r.json()
-        for _ in range(60):
+        for _ in range(90):
             if data.get("status") in {"succeeded", "failed", "canceled"}:
                 break
             time.sleep(2)
-            data = requests.get(data["urls"]["get"], headers=headers, timeout=30).json()
+            data = requests.get(data["urls"]["get"], headers=headers, timeout=60).json()
+
         if data.get("status") != "succeeded":
-            raise RuntimeError(f"Replicate : statut {data.get('status')}")
-        url = data["output"][0] if isinstance(data["output"], list) else data["output"]
-        out.write_bytes(requests.get(url, timeout=120).content)
+            raise RuntimeError(f"Replicate : {data.get('status')} — "
+                               f"{str(data.get('error'))[:200]}")
+
+        sortie = data["output"]
+        url = sortie[0] if isinstance(sortie, list) else sortie
+        contenu = requests.get(url, timeout=180).content
+        if len(contenu) < 1024:
+            raise RuntimeError("Replicate a renvoyé une image vide.")
+        out.write_bytes(contenu)
         return out
 
 
-class GeminiProvider(ImageProvider):
-    """Google AI Studio : Imagen si disponible, sinon Gemini Image.
+class TogetherProvider(ImageProvider):
+    """Together AI — FLUX.1 schnell, palier **gratuit** et sans carte.
 
-    Imagen accepte un ratio d'image explicite, ce qui compte pour du 9:16 ;
-    les modèles Gemini Image passent par `generateContent` et suivent le
-    ratio décrit dans le prompt.
+    Le modèle « -Free » est bridé en débit mais ne coûte rien. FLUX rend un
+    visage sans commune mesure avec « sana » : c'est le meilleur
+    photoréalisme accessible sans payer.
+
+    FLUX n'accepte pas de prompt négatif — modèle distillé sur la guidance.
+    Les consignes de réalisme passent donc par le prompt positif.
     """
 
-    name = "gemini"
+    name = "together"
+    DEFAUT = "black-forest-labs/FLUX.1-schnell-Free"
+    URL = "https://api.together.xyz/v1/images/generations"
 
-    def __init__(self, model: str = ""):
-        self.model = model
-
-    def _ratio(self, width: int, height: int) -> str:
-        if height > width:
-            return "9:16"
-        if width > height:
-            return "16:9"
-        return "1:1"
+    def __init__(self, api_key: str, model: str = ""):
+        self.api_key = api_key
+        self.model = model or self.DEFAUT
 
     def generate(self, prompt: str, out: Path, *, width: int, height: int, seed: int) -> Path:
-        from eve.media import gemini
+        import base64
 
-        model = self.model or gemini.pick_model("image")
-        ratio = self._ratio(width, height)
+        # FLUX schnell est distillé en 4 étapes : au-delà, on paie du temps
+        # sans gagner en qualité.
+        corps = {"model": self.model, "prompt": prompt_realiste(prompt, limite=2000),
+                 "width": _multiple_de_16(width), "height": _multiple_de_16(height),
+                 "steps": 4, "n": 1, "seed": seed, "response_format": "b64_json"}
 
-        if model.startswith("imagen"):
-            data = gemini.post(model, "predict", {
-                "instances": [{"prompt": prompt[:4000]}],
-                "parameters": {"sampleCount": 1, "aspectRatio": ratio,
-                               "personGeneration": "allow_adult"},
-            })
-            predictions = data.get("predictions") or []
-            if not predictions or not predictions[0].get("bytesBase64Encoded"):
-                raise RuntimeError(f"Imagen n'a rien renvoyé : {str(data)[:300]}")
-            import base64
-            out.write_bytes(base64.b64decode(predictions[0]["bytesBase64Encoded"]))
-            return out
+        derniere: Exception | None = None
+        for essai in range(3):
+            try:
+                r = requests.post(self.URL, headers={"Authorization": f"Bearer {self.api_key}"},
+                                  json=corps, timeout=180)
+                if r.status_code == 429 or r.status_code >= 500:
+                    raise RuntimeError(f"Together {r.status_code} (essai {essai + 1}/3)")
+                if r.status_code >= 400:
+                    raise RuntimeError(f"Together {r.status_code} : {r.text[:250]}")
+                donnees = r.json()["data"][0]
+                brut = (base64.b64decode(donnees["b64_json"]) if donnees.get("b64_json")
+                        else requests.get(donnees["url"], timeout=120).content)
+                if len(brut) < 1024:
+                    raise RuntimeError("Together a renvoyé une image vide.")
+                out.write_bytes(brut)
+                return out
+            except Exception as exc:
+                derniere = exc
+                log.warning("%s", exc)
+                if essai < 2:
+                    time.sleep(6 * (essai + 1))
+        raise RuntimeError(f"Together indisponible après 3 essais : {derniere}")
 
-        # Modèles « gemini-*-image » : le ratio se demande dans le prompt.
-        envoi = gemini.post if self.model else (
-            lambda _m, meth, payload: gemini.post_with_fallback("image", meth, payload))
-        data = envoi(model, "generateContent", {
-            "contents": [{"role": "user", "parts": [
-                {"text": f"{prompt_realiste(prompt)[:4000]}\n\n"
-                         f"Vertical {ratio} aspect ratio photograph. "
-                         f"Avoid: {NEGATIVE_PROMPT}"}]}],
-            "generationConfig": {"responseModalities": ["IMAGE"],
-                                 "imageConfig": {"aspectRatio": ratio}},
-        })
-        blob, _ = gemini.first_inline_data(data)
-        out.write_bytes(blob)
-        return out
+
+class HuggingFaceProvider(ImageProvider):
+    """Hugging Face — FLUX.1 schnell, palier gratuit lui aussi.
+
+    Le premier appel réveille le modèle et peut renvoyer un 503 : c'est
+    normal, on patiente et on relance.
+    """
+
+    name = "huggingface"
+    DEFAUT = "black-forest-labs/FLUX.1-schnell"
+
+    def __init__(self, api_key: str, model: str = ""):
+        self.api_key = api_key
+        self.model = model or self.DEFAUT
+
+    def generate(self, prompt: str, out: Path, *, width: int, height: int, seed: int) -> Path:
+        url = f"https://api-inference.huggingface.co/models/{self.model}"
+        corps = {"inputs": prompt_realiste(prompt, limite=2000),
+                 "parameters": {"width": _multiple_de_16(width),
+                                "height": _multiple_de_16(height),
+                                "num_inference_steps": 4, "seed": seed}}
+
+        derniere: Exception | None = None
+        for essai in range(4):
+            try:
+                r = requests.post(url, headers={"Authorization": f"Bearer {self.api_key}"},
+                                  json=corps, timeout=180)
+                if r.status_code in (429, 503) or r.status_code >= 500:
+                    raise RuntimeError(f"Hugging Face {r.status_code} (essai {essai + 1}/4)")
+                if r.status_code >= 400:
+                    raise RuntimeError(f"Hugging Face {r.status_code} : {r.text[:250]}")
+                if len(r.content) < 1024:
+                    raise RuntimeError("Hugging Face a renvoyé une image vide.")
+                out.write_bytes(r.content)
+                return out
+            except Exception as exc:
+                derniere = exc
+                log.warning("%s", exc)
+                if essai < 3:
+                    time.sleep(10 * (essai + 1))
+        raise RuntimeError(f"Hugging Face indisponible après 4 essais : {derniere}")
+
+
+def _multiple_de_16(valeur: int) -> int:
+    """FLUX exige des dimensions multiples de 16."""
+    return max(256, round(valeur / 16) * 16)
 
 
 class PlaceholderProvider(ImageProvider):
@@ -307,10 +387,18 @@ def get_provider(name: str | None = None) -> ImageProvider:
         return ComfyUIProvider(g.comfyui_url)
     if name == "stability" and g.stability_api_key:
         return StabilityProvider(g.stability_api_key)
-    if name == "replicate" and g.replicate_api_token:
-        return ReplicateProvider(g.replicate_api_token)
+    if name in {"replicate", "flux"} and g.replicate_api_token:
+        # « flux » est un alias : c'est le modèle que l'on veut, Replicate
+        # n'est que le chemin pour y accéder.
+        return ReplicateProvider(g.replicate_api_token,
+                                 g.image_model if "/" in g.image_model else "")
     if name == "gemini":
         return GeminiProvider(g.image_model if g.image_model != "flux" else "")
+    if name in {"together", "flux"} and g.together_api_key:
+        return TogetherProvider(g.together_api_key, g.image_model if "/" in g.image_model else "")
+    if name in {"huggingface", "hf"} and g.huggingface_api_key:
+        return HuggingFaceProvider(g.huggingface_api_key,
+                                   g.image_model if "/" in g.image_model else "")
     if name == "placeholder":
         return PlaceholderProvider()
     return PollinationsProvider(g.image_model)
