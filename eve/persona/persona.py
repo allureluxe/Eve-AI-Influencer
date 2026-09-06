@@ -14,10 +14,21 @@ from eve.config import settings
 # Style photographique commun : c'est lui qui donne le rendu "ultra réaliste".
 # Court volontairement : au-delà d'un millier de caractères, le service
 # d'images renvoie une erreur serveur. Chaque mot doit donc porter.
+# Le vocabulaire du téléphone plutôt que celui du studio : « iPhone photo »
+# et « snapshot » ancrent la génération dans la photographie amateur, là où
+# « portrait » ou « editorial » la ramènent vers l'illustration. C'est le
+# terme d'ouverture qui décide du médium.
 PHOTO_STYLE = (
-    "raw candid photograph, unretouched, 35mm lens, natural window light, "
-    "visible skin pores and fine lines, slight facial asymmetry, "
-    "flyaway hairs, faint film grain, sharp eyes"
+    "iPhone photo, candid snapshot, natural sunlight, shallow depth of field, "
+    "real skin texture with visible pores and light shine on the forehead, "
+    "loose flyaway hair strands, slightly off-centre framing, no retouching"
+)
+
+# Pour la photo de profil : un selfie, pas une séance photo.
+SELFIE_STYLE = (
+    "front-facing phone selfie held at arm's length, natural daylight from a "
+    "window, real skin texture with visible pores, loose flyaway hair strands, "
+    "casual and unposed, no retouching, no studio lighting"
 )
 
 # Anti-prompt : évite le rendu "3D / plastique" typique des IA.
