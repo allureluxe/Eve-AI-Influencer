@@ -32,6 +32,8 @@ from eve.media import voice as voice_mod
 from eve.monetization.links import build_offers, monetization_line, pick_offer
 from eve.persona.persona import Persona, load_persona
 from eve.publishing.base import PublishRequest
+from eve.publishing.hosting import GitHubReleaseHost, HostingError
+from eve.publishing import tokens
 from eve.publishing.instagram import InstagramPublisher
 from eve.publishing.tiktok import TikTokPublisher
 from eve.safety.policy import PolicyError, check_persona, enforce, review_post
@@ -237,12 +239,12 @@ class EveAgent:
                 continue
 
             video_path = Path(piece.assets["video"]) if piece.assets.get("video") else None
-            base_url = settings.publishing.public_media_base_url.rstrip("/")
+            video_url = self._url_publique(piece, video_path) if platform == "instagram" else ""
             req = PublishRequest(
                 caption=caption,
                 video_path=video_path,
                 cover_path=Path(piece.assets["cover"]) if piece.assets.get("cover") else None,
-                video_url=f"{base_url}/{piece.id}.mp4" if base_url and video_path else "",
+                video_url=video_url,
                 is_ai_generated=True,
                 metadata={"pillar": piece.pillar, "offer": offer.key if offer else ""},
             )
@@ -255,7 +257,48 @@ class EveAgent:
             self.store.set_status(piece.id, "published")
         return results
 
+    def _url_publique(self, piece: ContentPiece, video: Path | None) -> str:
+        """URL depuis laquelle Instagram téléchargera la vidéo.
+
+        Priorité à un hébergement déjà configuré ; à défaut, dépôt en asset
+        de release GitHub. L'URL est mémorisée : on ne téléverse pas deux
+        fois le même fichier.
+        """
+        if video is None or settings.dry_run:
+            return ""
+        base = settings.publishing.public_media_base_url.rstrip("/")
+        if base:
+            return f"{base}/{video.name}"
+        if piece.assets.get("video_url"):
+            return piece.assets["video_url"]
+
+        host = GitHubReleaseHost()
+        if not host.configured:
+            return ""
+        try:
+            hebergee = host.upload(video, name=f"{piece.id}.mp4")
+        except HostingError as exc:
+            log.error("Hébergement de la vidéo impossible : %s", exc)
+            return ""
+        piece.assets["video_url"] = hebergee.url
+        self.store.save_piece(piece.id, piece.date, piece.slot, piece.pillar,
+                              piece.to_dict(), piece.status)
+        return hebergee.url
+
     # ------------------------------------------------------- 4. apprendre
+    def refresh_tokens(self) -> list[str]:
+        """Renouvelle les jetons et retourne les alertes à faire remonter."""
+        etats = tokens.refresh_all(self.store)
+        for plateforme, etat in etats.items():
+            publisher = self.publishers.get(plateforme)
+            if publisher is None or not etat.valeur:
+                continue
+            if plateforme == "instagram":
+                publisher.token = etat.valeur
+            else:
+                publisher.token = etat.valeur
+        return tokens.alertes(etats)
+
     def learn(self) -> tuple[int, dict]:
         collected = collector.collect(self.store)
         weights = optimizer.suggest_weights(self.persona, self.store)
@@ -266,6 +309,11 @@ class EveAgent:
     def daily_run(self, *, days_ahead: int = 3, max_publish: int = 2,
                   produce_limit: int = 4) -> RunReport:
         report = RunReport(started_at=datetime.now().isoformat(timespec="seconds"))
+
+        try:
+            report.notes.extend(self.refresh_tokens())
+        except Exception as exc:
+            report.errors.append(f"renouvellement des jetons : {exc}")
 
         try:
             report.metrics_collected, report.weights = self.learn()

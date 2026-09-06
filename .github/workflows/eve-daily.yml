@@ -27,6 +27,9 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
+    permissions:
+      # `write` est nécessaire pour déposer les MP4 en assets de release.
+      contents: write
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -54,6 +57,10 @@ jobs:
 
       - name: Cycle quotidien
         env:
+          # Fournis automatiquement par Actions : ils servent à héberger les
+          # MP4 en assets de release, seule URL publique dont Instagram a besoin.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           DRY_RUN: ${{ inputs.dry_run || '1' }}
           REQUIRE_HUMAN_REVIEW: "0"
           IMAGE_PROVIDER: ${{ vars.IMAGE_PROVIDER || 'pollinations' }}
@@ -62,6 +69,15 @@ jobs:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          TIKTOK_REFRESH_TOKEN: ${{ secrets.TIKTOK_REFRESH_TOKEN }}
+          TIKTOK_DRAFT_MODE: ${{ vars.TIKTOK_DRAFT_MODE || '1' }}
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VOICE_PROVIDER: ${{ vars.VOICE_PROVIDER || 'gemini' }}
+          VOICE_STYLE_PRESET: ${{ vars.VOICE_STYLE_PRESET || 'neutre' }}
           PUBLIC_MEDIA_BASE_URL: ${{ vars.PUBLIC_MEDIA_BASE_URL }}
           LINKINBIO_URL: ${{ vars.LINKINBIO_URL }}
           AMAZON_ASSOCIATE_TAG: ${{ vars.AMAZON_ASSOCIATE_TAG }}

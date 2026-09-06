@@ -136,6 +136,18 @@ font bannir le compte — elles ont été retirées du projet.
 
 ## Automatisation
 
+Trois pièces rendent le fonctionnement autonome — détail dans
+[docs/AUTONOMIE.md](docs/AUTONOMIE.md) :
+
+1. **Hébergement des vidéos** — le MP4 est déposé en asset de release GitHub,
+   seule URL publique dont Instagram a besoin. Gratuit, aucun serveur.
+2. **Renouvellement des jetons** — Instagram expire à 60 jours, TikTok à 24 h.
+   Sans renouvellement, l'agent s'arrête sans rien dire.
+3. **Mode brouillon TikTok** — publication publique possible avant l'audit de
+   l'app : l'API dépose, tu valides d'un geste.
+
+Résultat : Instagram entièrement automatique, TikTok un geste par vidéo.
+
 - En local : `python3 -m eve.cli loop --hours 12`
 - Sur serveur : `0 6,18 * * * cd /chemin/eve && python3 -m eve.cli run`
 - Sur GitHub Actions : [`.github/workflows/eve-daily.yml`](.github/workflows/eve-daily.yml)
@@ -144,7 +156,7 @@ font bannir le compte — elles ont été retirées du projet.
 ## Tests
 
 ```bash
-python3 -m pytest tests -q     # 69 tests, dont toute la politique de conformité
+python3 -m pytest tests -q     # 86 tests, dont toute la politique de conformité
 ```
 
 ## Documentation
@@ -152,6 +164,7 @@ python3 -m pytest tests -q     # 69 tests, dont toute la politique de conformit�
 - [DEMARRAGE.md](DEMARRAGE.md) — **commence par là** : 3 étapes, une page
 - [docs/SETUP.md](docs/SETUP.md) — créer les comptes et obtenir les jetons API
 - [docs/RENDU-REALISTE.md](docs/RENDU-REALISTE.md) — qualité d'image et cohérence du visage
+- [docs/AUTONOMIE.md](docs/AUTONOMIE.md) — faire tourner l'agent sans personne derrière
 - [docs/RESULTATS-TRADING.md](docs/RESULTATS-TRADING.md) — publier des chiffres réels, et rien d'autre
 - [docs/MONETISATION.md](docs/MONETISATION.md) — sources de revenus, seuils, chiffres
 - [docs/CONFORMITE.md](docs/CONFORMITE.md) — obligations légales et règles plateformes

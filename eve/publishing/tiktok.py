@@ -11,6 +11,13 @@ Deux points qui bloquent tout le monde au démarrage :
   · tant que l'application n'a pas passé l'audit TikTok, les publications
     sont limitées à `SELF_ONLY` (visible par la créatrice uniquement) ;
   · le champ `is_aigc` déclare le contenu généré par IA — obligatoire ici.
+
+Deux modes de publication :
+  · `TIKTOK_DRAFT_MODE=1` (défaut) : la vidéo est déposée en brouillon dans
+    l'application, à valider d'un geste. Seul moyen de publier en public
+    tant que l'app n'est pas auditée.
+  · `TIKTOK_DRAFT_MODE=0` : publication directe, limitée à `SELF_ONLY`
+    avant l'audit.
 """
 from __future__ import annotations
 
@@ -49,6 +56,28 @@ class TikTokPublisher(Publisher):
                           headers=self._headers, timeout=60)
         r.raise_for_status()
         return r.json().get("data", {})
+
+    def _init_inbox(self, path: Path) -> tuple[str, str]:
+        """Dépose la vidéo en brouillon dans l'application TikTok.
+
+        C'est le seul moyen d'obtenir une publication **publique** tant que
+        l'app n'a pas passé l'audit TikTok : l'API dépose, la créatrice
+        valide d'un geste dans l'application. Le titre et les réglages se
+        saisissent alors dans l'éditeur TikTok.
+        """
+        size = path.stat().st_size
+        chunk = min(CHUNK, size)
+        body = {"source_info": {"source": "FILE_UPLOAD", "video_size": size,
+                                "chunk_size": chunk,
+                                "total_chunk_count": max(1, size // chunk)}}
+        r = requests.post(f"{API}/post/publish/inbox/video/init/", headers=self._headers,
+                          json=body, timeout=120)
+        if r.status_code >= 400:
+            raise RuntimeError(f"init inbox {r.status_code} : {r.text[:400]}")
+        data = r.json().get("data", {})
+        if not data.get("upload_url"):
+            raise RuntimeError(f"Réponse inbox inattendue : {r.text[:400]}")
+        return data["publish_id"], data["upload_url"]
 
     def _init_upload(self, path: Path, req: PublishRequest, privacy: str) -> tuple[str, str]:
         size = path.stat().st_size
@@ -125,6 +154,21 @@ class TikTokPublisher(Publisher):
             return PublishResult(self.platform, False, detail="TIKTOK_ACCESS_TOKEN manquant.")
         if not req.video_path or not req.video_path.exists():
             return PublishResult(self.platform, False, detail="Fichier vidéo introuvable.")
+
+        # Mode brouillon : la vidéo arrive dans l'application, la créatrice
+        # valide en un geste. Pas de restriction SELF_ONLY.
+        if settings.publishing.tiktok_draft_mode:
+            try:
+                publish_id, upload_url = self._init_inbox(req.video_path)
+                self._upload(req.video_path, upload_url)
+                status = self._wait_publish(publish_id)
+                return PublishResult(
+                    self.platform, True, post_id=publish_id,
+                    detail=f"brouillon déposé ({status.get('status')}) — "
+                           "à valider dans l'application TikTok")
+            except Exception as exc:
+                log.error("Dépôt du brouillon TikTok échoué : %s", exc)
+                return PublishResult(self.platform, False, detail=str(exc)[:300])
 
         try:
             privacy = req.privacy

@@ -96,6 +96,13 @@ class PublishingConfig:
     tiktok_access_token: str = field(default_factory=lambda: _env("TIKTOK_ACCESS_TOKEN"))
     tiktok_client_key: str = field(default_factory=lambda: _env("TIKTOK_CLIENT_KEY"))
     tiktok_client_secret: str = field(default_factory=lambda: _env("TIKTOK_CLIENT_SECRET"))
+    tiktok_refresh_token: str = field(default_factory=lambda: _env("TIKTOK_REFRESH_TOKEN"))
+    # Identifiants de l'app Meta : requis pour renouveler le jeton Instagram.
+    meta_app_id: str = field(default_factory=lambda: _env("META_APP_ID"))
+    meta_app_secret: str = field(default_factory=lambda: _env("META_APP_SECRET"))
+    # Dépose TikTok en brouillon dans l'application au lieu de publier :
+    # seul mode public possible tant que l'app n'est pas auditée.
+    tiktok_draft_mode: bool = field(default_factory=lambda: _flag("TIKTOK_DRAFT_MODE", True))
     # TikTok exige un upload direct (FILE_UPLOAD) ou une URL publique vérifiée.
     public_media_base_url: str = field(default_factory=lambda: _env("PUBLIC_MEDIA_BASE_URL"))
 
