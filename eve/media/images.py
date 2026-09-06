@@ -27,6 +27,23 @@ import requests
 from eve.config import settings
 from eve.persona.persona import NEGATIVE_PROMPT
 
+# Certains services n'acceptent aucun prompt négatif (Pollinations, par
+# exemple). Les consignes de réalisme doivent alors être formulées
+# positivement, sinon toute la protection anti-plastique reste lettre morte
+# — c'est ce qui donne les visages de poupée lissés.
+REALISME_POSITIF = (
+    "unretouched amateur photograph, real human skin with visible pores and "
+    "fine lines, slight asymmetry in the face, natural imperfect lighting, "
+    "faint under-eye shadows, individual flyaway hairs, subtle sensor noise, "
+    "shot on a real camera, documentary photography, not a render, not an "
+    "illustration, no beauty filter, no smoothing"
+)
+
+
+def prompt_realiste(prompt: str) -> str:
+    """Prompt enrichi pour les providers sans paramètre négatif."""
+    return f"{prompt}, {REALISME_POSITIF}"
+
 log = logging.getLogger(__name__)
 
 
@@ -56,7 +73,9 @@ class PollinationsProvider(ImageProvider):
         self.model = model or "flux"
 
     def generate(self, prompt: str, out: Path, *, width: int, height: int, seed: int) -> Path:
-        url = self.BASE + urllib.parse.quote(prompt[:1800], safe="")
+        # Pollinations n'expose aucun prompt négatif : on formule les
+        # consignes de réalisme positivement, sinon elles sont perdues.
+        url = self.BASE + urllib.parse.quote(prompt_realiste(prompt)[:1800], safe="")
         params = {"width": width, "height": height, "seed": seed,
                   "model": self.model, "nologo": "true", "enhance": "false"}
         r = requests.get(url, params=params, timeout=180)
@@ -212,7 +231,9 @@ class GeminiProvider(ImageProvider):
             lambda _m, meth, payload: gemini.post_with_fallback("image", meth, payload))
         data = envoi(model, "generateContent", {
             "contents": [{"role": "user", "parts": [
-                {"text": f"{prompt[:4000]}\n\nVertical {ratio} aspect ratio photograph."}]}],
+                {"text": f"{prompt_realiste(prompt)[:4000]}\n\n"
+                         f"Vertical {ratio} aspect ratio photograph. "
+                         f"Avoid: {NEGATIVE_PROMPT}"}]}],
             "generationConfig": {"responseModalities": ["IMAGE"],
                                  "imageConfig": {"aspectRatio": ratio}},
         })

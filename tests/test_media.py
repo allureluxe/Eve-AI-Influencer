@@ -113,3 +113,37 @@ def test_un_preset_inconnu_retombe_sur_le_defaut():
     from eve.media.voice_styles import DEFAUT, PRESETS, resolve
 
     assert resolve("nexiste-pas") == PRESETS[DEFAUT]
+
+
+def test_les_consignes_de_realisme_atteignent_pollinations(monkeypatch, tmp_path):
+    """Sans prompt négatif possible, elles doivent passer positivement."""
+    from eve.media.images import PollinationsProvider
+
+    vu = {}
+
+    class Reponse:
+        status_code = 200
+        content = b"x" * 4096
+
+        @staticmethod
+        def raise_for_status():
+            return None
+
+    def faux_get(url, params=None, timeout=None):
+        vu["url"] = url
+        return Reponse()
+
+    monkeypatch.setattr("eve.media.images.requests.get", faux_get)
+    PollinationsProvider().generate("une femme", tmp_path / "a.png",
+                                    width=512, height=512, seed=1)
+    import urllib.parse
+    envoye = urllib.parse.unquote(vu["url"])
+    assert "visible pores" in envoye
+    assert "no beauty filter" in envoye
+
+
+def test_le_personnage_est_blond():
+    from eve.persona.persona import load_persona
+
+    verrou = load_persona().identity_lock.lower()
+    assert "blonde" in verrou and "dark blonde" not in verrou
