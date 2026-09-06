@@ -21,6 +21,8 @@ from pathlib import Path
 from eve.agent.state import Store
 from eve.analytics import collector, optimizer
 from eve.config import settings
+from eve.content import episodes as episodes_mod
+from eve.content import story
 from eve.content.captions import caption_for
 from eve.content.llm import get_llm
 from eve.content.planner import plan_days
@@ -207,6 +209,17 @@ class EveAgent:
         platforms = platforms or piece.platforms
         offers = build_offers()
         results: list[str] = []
+
+        # Un épisode ne sort que si son étape a vraiment eu lieu. C'est le
+        # même principe que les chiffres : le récit ne devance pas le réel.
+        cle_episode = piece.assets.get("episode")
+        if cle_episode:
+            prets = {e.cle for e in episodes_mod.prets_a_publier(
+                self.persona, story.load_journal())}
+            if cle_episode not in prets:
+                return [f"{p} · BLOQUÉ · épisode « {cle_episode} » : l'étape n'est pas "
+                        "encore franchie dans data/trading/journal.json."
+                        for p in platforms]
 
         # Une image placeholder sur un vrai compte, c'est un post grillé.
         # En dry-run on laisse passer : c'est justement le mode d'essai.

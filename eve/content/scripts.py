@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date as Date
 
 from eve.content import library as lib
+from eve.content import episodes as episodes_mod
 from eve.content import story
 from eve.content import trading
 from eve.content.llm import BaseLLM, try_complete
@@ -290,6 +291,61 @@ def build_piece(
         hashtags=hashtags or [],
         disclaimer=persona.disclaimer if pillar in {"journal", "apprendre"} else "",
     )
+
+
+def build_episode(
+    persona: Persona,
+    episode: "episodes_mod.Episode",
+    *,
+    day: Date,
+    slot: str,
+    llm: BaseLLM | None = None,
+) -> ContentPiece:
+    """Un épisode du récit, produit comme n'importe quel contenu.
+
+    L'identifiant porte le numéro : le fil narratif reste lisible dans les
+    dossiers de sortie et dans la base.
+    """
+    piece_id = f"{day.isoformat()}_ep{episode.numero:02d}_{episode.cle}"
+    rng = _rng_for(piece_id)
+    journal = story.load_journal()
+    _, ouverture, points = episodes_mod.sujet(episode, journal)
+    tenue = persona.outfit("quotidien", rng=rng)
+
+    def plan(scene: str) -> str:
+        return persona.image_prompt(scene, outfit=tenue, rng=rng)
+
+    decors = lib.PILLAR_SCENES["journal"] + lib.PILLAR_SCENES["build"] + BROLL_SCENES
+    lignes = [(episode.hook, episode.ecran_final or _screen(episode.titre.upper()),
+               plan(_scene("journal", rng))),
+              (ouverture, _screen(ouverture), plan(_scene("build", rng)))]
+    for point in points:
+        lignes.append((_phrase(point), _screen(f"• {point}"), plan(rng.choice(decors))))
+    lignes.append((
+        "Et je le redis : c'est mon test perso, pas un conseil en investissement.",
+        _screen("Pas un conseil · je peux tout perdre"),
+        plan(_scene("journal", rng))))
+
+    hook = episode.hook
+    beats = _pace(lignes)
+
+    cta = rng.choice(CTA_LIBRARY)
+    piece = ContentPiece(
+        id=piece_id,
+        date=day.isoformat(),
+        slot=slot,
+        pillar="journal",
+        fmt="reel",
+        title=f"Épisode {episode.numero} — {episode.titre}",
+        hook=hook,
+        beats=beats,
+        cta=cta,
+        caption=_build_caption(persona, episode.titre, hook, beats, llm),
+        disclaimer=persona.disclaimer,
+    )
+    piece.assets["episode"] = episode.cle
+    piece.assets["episode_numero"] = episode.numero
+    return piece
 
 
 def _build_caption(
