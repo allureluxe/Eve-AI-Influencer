@@ -1,4 +1,13 @@
 # ==========================================================================
+#  Luna — compagne virtuelle IA (messages, appel, visio)
+# ==========================================================================
+# Aucune dependance : Python 3.11+ et un navigateur suffisent. Le serveur
+# est en http.server, les appels API en urllib, la voix et l'avatar sont
+# dans le navigateur.
+#
+#   python3 luna.py app
+
+# ==========================================================================
 #  Eve AI — bot d'influence (Instagram / TikTok)
 # ==========================================================================
 instagrapi==2.0.0

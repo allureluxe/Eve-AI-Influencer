@@ -3,6 +3,9 @@ from unittest.mock import patch
 
 from gold_bot.brokers import PionexFuturesBroker, PionexFuturesConfig
 from gold_bot.brokers.base import BrokerError
+# `gold_bot.brokers.PionexFuturesBroker` est un alias vers la classe durcie :
+# c'est elle qui part en live. Pour tester la recuperation apres un 404, il
+# faut la classe parente, celle dont l'override attrape l'erreur.
 from gold_bot.brokers.pionex_futures import (
     PionexFuturesBroker as BasePionexFuturesBroker)
 from gold_bot.brokers.pionex_futures_hardened import HardenedPionexFuturesBroker
@@ -71,9 +74,13 @@ class TestPionexFuturesHardened(unittest.TestCase):
 
     def test_http_404_after_post_does_not_trigger_blind_retry(self):
         broker = HardenedPionexFuturesBroker(PionexFuturesConfig(dry_run=False))
-        broker._position_volume = lambda symbol, position_side: 0.10
-        broker._confirm_position_delta = (
-            lambda symbol, position_side, before, size, opening: 0.10)
+        # Un volume constant ne prouverait rien : la recuperation cherche une
+        # VARIATION de position. Premiere lecture avant l'ordre (rien ouvert),
+        # lectures suivantes apres le 404 (la position est bien passee). On
+        # laisse ainsi `_confirm_position_delta` s'executer pour de vrai,
+        # plutot que de le remplacer par une constante.
+        lectures = iter([0.0])
+        broker._position_volume = lambda symbol, position_side: next(lectures, 0.10)
         # C'est le POST de la classe PARENTE qui renvoie 404 : le durcissement
         # l'appelle par super(). Simuler l'alias exporte remplacerait la
         # methode meme qu'on veut eprouver, et le test ne pourrait jamais
