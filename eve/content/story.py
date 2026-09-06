@@ -88,9 +88,17 @@ class Journal:
 
 
 def load_journal(path: Path | None = None) -> Journal | None:
-    """Charge le journal. None si le projet n'a encore rien à raconter."""
+    """Charge le journal. None si le projet n'a encore rien à raconter.
+
+    Sans fichier manuel, on se rabat sur le journal du robot lui-même
+    (`data/trades.jsonl`) : les chiffres viennent alors directement de la
+    source, sans aucune saisie.
+    """
     src = path or JOURNAL_PATH
     if not src.exists():
+        if path is None:
+            from eve.content import robot_bridge
+            return robot_bridge.journal_depuis_robot()
         return None
     try:
         data = json.loads(src.read_text(encoding="utf-8"))
