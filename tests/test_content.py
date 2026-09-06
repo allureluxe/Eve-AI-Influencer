@@ -38,9 +38,17 @@ def test_all_shot_prompts_pass_the_visual_policy(persona):
 
 
 def test_identity_lock_present_in_every_shot(persona):
+    """Le verrou d'identité garde le même visage d'une vidéo à l'autre.
+
+    Il n'ouvre plus le prompt — le médium passe devant, sans quoi le rendu
+    part en illustration — mais il ne peut jamais manquer.
+    """
+    from eve.persona.persona import PHOTO_STYLE
+
     piece = build_piece(persona, day=date(2026, 3, 3), slot="18:00", pillar="build")
     for prompt in piece.shot_prompts:
-        assert prompt.startswith(persona.identity_lock[:40])
+        assert prompt.startswith(PHOTO_STYLE[:30]), "le médium ouvre le prompt"
+        assert persona.identity_lock[:60] in prompt
 
 
 def test_platform_captions_stay_within_limits(persona):

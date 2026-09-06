@@ -15,7 +15,7 @@ from eve.config import settings
 # Court volontairement : au-delà d'un millier de caractères, le service
 # d'images renvoie une erreur serveur. Chaque mot doit donc porter.
 PHOTO_STYLE = (
-    "candid unretouched photo, 35mm lens, natural window light, "
+    "raw candid photograph, unretouched, 35mm lens, natural window light, "
     "visible skin pores and fine lines, slight facial asymmetry, "
     "flyaway hairs, faint film grain, sharp eyes"
 )
@@ -128,12 +128,16 @@ class Persona:
         rng = rng or random
         outfit = outfit or self.outfit(rng=rng)
         location = location or self.location(rng=rng)
+        # Le médium ouvre le prompt : les modèles pondèrent fortement les
+        # premiers termes. Placé en fin de phrase, « photo » se faisait
+        # écraser par la description du personnage et le rendu partait en
+        # illustration.
         parts = [
-            self.identity_lock,
+            PHOTO_STYLE,
+            "of a " + self.identity_lock.lstrip(),
             f"wearing {outfit}",
             scene.strip().rstrip("."),
             f"at {location}",
-            PHOTO_STYLE,
         ]
         return ", ".join(p for p in parts if p)
 

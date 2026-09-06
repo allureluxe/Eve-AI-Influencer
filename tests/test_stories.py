@@ -58,4 +58,4 @@ def test_chaque_story_porte_un_texte_court_et_une_scene(persona):
             assert story.texte_ecran
             plus_longue = max(len(l) for l in story.texte_ecran.splitlines())
             assert plus_longue <= 30, f"{story.cle} : ligne trop longue pour une Story"
-        assert stories.prompt_image(persona, story).startswith(persona.identity_lock[:30])
+        assert persona.identity_lock[:60] in stories.prompt_image(persona, story)

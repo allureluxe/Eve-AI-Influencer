@@ -94,10 +94,18 @@ jobs:
           AMAZON_ASSOCIATE_TAG: ${{ vars.AMAZON_ASSOCIATE_TAG }}
         run: python -m eve.cli run --days 3 --max-publish 2
 
+      # Le rendu part en illustration : cette liste dit quels modèles le
+      # service propose réellement, plutôt que de deviner.
+      - name: Modèles d'images disponibles
+        if: always()
+        continue-on-error: true
+        run: curl -sS --max-time 30 https://image.pollinations.ai/models || true
+
       - name: Kit de lancement (bios et photo de profil)
         if: always()
         env:
           IMAGE_PROVIDER: ${{ vars.IMAGE_PROVIDER || 'pollinations' }}
+          IMAGE_MODEL: ${{ vars.IMAGE_MODEL || 'flux' }}
         run: python -m eve.cli lancement
 
       # La photo de profil est le seul média qu'on suit dans le dépôt : elle
