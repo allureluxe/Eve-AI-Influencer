@@ -17,6 +17,7 @@
   // Choix courants de la visio : changer l'ambiance ne doit pas rhabiller
   // Luna, et changer de tenue ne doit pas rallumer la lumiere du jour.
   var choixVisio = { tenue: "", ambiance: "" };
+  var derniereScene = "";
 
   function $(s) { return document.querySelector(s); }
   function $$(s) { return Array.prototype.slice.call(document.querySelectorAll(s)); }
@@ -216,7 +217,7 @@
       rendrePastilles($("#liste-scenes"),
         e.scenes.map(function (s) {
           return { cle: s.cle, nom: s.titre + (s.registre !== "tendre" ? " 🔞" : "") };
-        }), "", function (item) { demanderPhoto(item.cle); });
+        }), "", function (item) { demanderPhoto(item.cle, false); });
 
       rendrePastilles($("#liste-tenues"),
         e.tenues.map(function (t) {
@@ -237,10 +238,11 @@
     });
   }
 
-  function demanderPhoto(scene) {
+  function demanderPhoto(scene, regenerer) {
+    derniereScene = scene;
     var zone = $("#photo-resultat");
     zone.innerHTML = "<div class='note'>Generation…</div>";
-    api("/api/photo", { scene: scene }).then(function (r) {
+    api("/api/photo", { scene: scene, regenerer: !!regenerer }).then(function (r) {
       if (r.erreur === "acces_refuse") { zone.innerHTML = ""; ouvrirPorte("sensuel"); return; }
       if (r.erreur) { zone.innerHTML = "<div class='note'>" + r.message + "</div>"; return; }
       zone.innerHTML = "<div class='note'>" + (r.legende || "") + "</div>" +
@@ -273,6 +275,28 @@
         habillerEnPhoto(s.tenue.scene);
         return s;
       });
+  }
+
+  // Toute la serie d'un coup, une scene apres l'autre. En serie et non en
+  // parallele : la plupart des fournisseurs limitent les requetes
+  // simultanees, et rien ne presse — les images sont mises en cache.
+  function genererToute() {
+    if (!etat || !etat.scenes.length) return;
+    var scenes = etat.scenes.map(function (s) { return s.cle; });
+    var progression = $("#photo-progression");
+    var i = 0;
+    function suivante() {
+      if (i >= scenes.length) {
+        progression.textContent = "Serie complete (" + scenes.length + " photos).";
+        return;
+      }
+      progression.textContent = "Generation " + (i + 1) + "/" + scenes.length +
+        " : " + scenes[i] + "…";
+      api("/api/photo", { scene: scenes[i] }).then(function () {
+        i += 1; suivante();
+      }).catch(function () { i += 1; suivante(); });
+    }
+    suivante();
   }
 
   // Quand un generateur d'images est configure, la visio montre Luna en
@@ -311,6 +335,10 @@
       api("/api/registre", { registre: "tendre" }).then(function () {
         $("#porte").hidden = true; rafraichirEtat();
       });
+    };
+    $("#tout-generer").onclick = genererToute;
+    $("#refaire-photo").onclick = function () {
+      if (derniereScene) demanderPhoto(derniereScene, true);
     };
     $("#ouvrir-porte").onclick = function () { ouvrirPorte("sensuel"); };
     $("#revoquer").onclick = function () {

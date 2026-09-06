@@ -108,7 +108,15 @@ contenu adulte ; il faut un acquéreur spécialisé).
 ```bash
 python3 luna.py photo             # la liste des scènes
 python3 luna.py photo restaurant  # le prompt, et l'image si une clé est configurée
+python3 luna.py studio            # toute la série d'un coup
+python3 luna.py studio --refaire  # en régénérant celles déjà présentes
 ```
+
+Dans l'application, l'onglet **Réglages** fait la même chose en un bouton
+(« Générer toute la série »), et **la visio affiche la photo au lieu du
+dessin** dès qu'une clé est configurée : chaque tenue pointe vers sa scène.
+Les images sont mises en cache dans `data/luna/photos/` — changer trois
+fois de tenue ne relance pas trois générations payantes.
 
 Chaque prompt recopie **l'ancre d'apparence** et la **graine fixe**
 (`luna/persona.py`) : c'est ce qui fait que c'est toujours le même visage,
@@ -117,7 +125,16 @@ du selfie du matin à la tenue de soirée. Chaque prompt porte aussi
 conserver telles quelles, y compris si tu changes de générateur.
 
 `STABILITY_API_KEY` suffit ; `LUNA_IMAGE_URL` pointe ailleurs (ta propre
-instance Stable Diffusion / ComfyUI, ou un autre service).
+instance Stable Diffusion / ComfyUI / Flux, ou un autre service).
+
+**Le modèle compte plus que le prompt.** Le défaut est SDXL
+(`stable-diffusion-xl-1024-v1-0`), pas la v1.6 héritée du module Eve : sur
+un portrait réaliste, l'écart entre les deux est exactement ce qui sépare
+une image « générée par IA » d'une photo crédible. Le cadrage par défaut est
+vertical (832 × 1216), 40 pas, cfg 6 — une contrainte plus lâche et un
+échantillonnage plus long donnent une peau moins lissée et des mains plus
+sûres. Pour aller au-delà, vise Flux ou un SDXL avec un LoRA de portrait
+via `LUNA_IMAGE_URL`.
 
 ---
 

@@ -261,8 +261,9 @@ class TestPhotoDansLaVisio(unittest.TestCase):
             def __init__(self):
                 self.appels = 0
 
-            def generer(self, prompt, negatif="", graine=0):
+            def generer(self, prompt, negatif="", graine=0, format="portrait"):
                 self.appels += 1
+                self.dernier_format = format
                 return b"\x89PNG\r\n\x1a\n-fausse-image"
 
         app.images = GenerateurFactice()
@@ -272,6 +273,7 @@ class TestPhotoDansLaVisio(unittest.TestCase):
         self.assertEqual(premier["image"], second["image"])
         self.assertEqual(app.images.appels, 1, "la seconde demande doit venir du cache")
         self.assertTrue(second["cache"])
+        self.assertEqual(app.images.dernier_format, "portrait")
 
     def test_regenerer_force_une_nouvelle_image(self):
         from luna import serveur
@@ -283,7 +285,7 @@ class TestPhotoDansLaVisio(unittest.TestCase):
             disponible = True
             appels = 0
 
-            def generer(self, prompt, negatif="", graine=0):
+            def generer(self, prompt, negatif="", graine=0, format="portrait"):
                 type(self).appels += 1
                 return b"image"
 
@@ -291,6 +293,20 @@ class TestPhotoDansLaVisio(unittest.TestCase):
         app.photo({"scene": "bureau"})
         app.photo({"scene": "bureau", "regenerer": True})
         self.assertEqual(GenerateurFactice.appels, 2)
+
+
+class TestGenerateurImages(unittest.TestCase):
+    def test_le_modele_par_defaut_est_sdxl(self):
+        from luna.moteurs import GenerateurImages
+        # v1.6 ne tient pas sur un portrait realiste : le defaut doit etre SDXL.
+        self.assertEqual(GenerateurImages(modele="").MODELE_DEFAUT,
+                         "stable-diffusion-xl-1024-v1-0")
+
+    def test_le_format_portrait_est_vertical_et_accepte_par_sdxl(self):
+        from luna.moteurs import FORMATS
+        largeur, hauteur = FORMATS["portrait"]
+        self.assertLess(largeur, hauteur)
+        self.assertEqual((largeur * hauteur) % 64, 0)
 
 
 class TestPrompt(unittest.TestCase):

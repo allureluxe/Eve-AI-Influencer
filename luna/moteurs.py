@@ -207,18 +207,33 @@ def choisir_moteur() -> Moteur:
 
 
 # --------------------------------------------------------------------------
+# Formats acceptes par SDXL. Le portrait est le defaut : Luna est un
+# personnage, pas un paysage, et un cadrage vertical rend mieux une
+# silhouette entiere comme un plan rapproche.
+FORMATS = {
+    "portrait": (832, 1216),
+    "carre": (1024, 1024),
+    "paysage": (1216, 832),
+}
+
+
 class GenerateurImages:
     """Generation d'images, endpoint configurable.
 
-    Par defaut Stability (deja utilise par le module Eve de ce depot).
+    Par defaut Stability en SDXL — pas la v1.6 heritee du module Eve : sur
+    des portraits realistes, l'ecart de qualite entre les deux est ce qui
+    separe une image « generee par IA » d'une photo credible.
+
     LUNA_IMAGE_URL permet de pointer ailleurs : ta propre instance
-    Stable Diffusion / ComfyUI, ou un service specialise. Le corps envoye
-    reste le format Stability ; adapte-le si ton endpoint differe.
+    Stable Diffusion / ComfyUI / Flux, ou un service specialise. Le corps
+    envoye reste le format Stability ; adapte-le si ton endpoint differe.
     """
+
+    MODELE_DEFAUT = "stable-diffusion-xl-1024-v1-0"
 
     def __init__(self, cle: str = "", url: str = "", modele: str = ""):
         self.cle = cle or os.getenv("STABILITY_API_KEY", "") or os.getenv("LUNA_IMAGE_KEY", "")
-        self.modele = modele or os.getenv("LUNA_IMAGE_MODELE", "stable-diffusion-v1-6")
+        self.modele = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT)
         self.url = url or os.getenv("LUNA_IMAGE_URL", "") or (
             f"https://api.stability.ai/v1/generation/{self.modele}/text-to-image")
 
@@ -226,14 +241,19 @@ class GenerateurImages:
     def disponible(self) -> bool:
         return bool(self.cle and self.url)
 
-    def generer(self, prompt: str, negatif: str = "", graine: int = 0) -> bytes:
+    def generer(self, prompt: str, negatif: str = "", graine: int = 0,
+                format: str = "portrait") -> bytes:
         if not self.disponible:
             raise ErreurMoteur("aucune cle d'images configuree")
+        largeur, hauteur = FORMATS.get(format, FORMATS["portrait"])
         textes = [{"text": prompt, "weight": 1}]
         if negatif:
             textes.append({"text": negatif, "weight": -1})
-        corps = {"text_prompts": textes, "cfg_scale": 7, "height": 1024,
-                 "width": 1024, "samples": 1, "steps": 30}
+        # cfg 6 plutot que 7, et 40 pas plutot que 30 : sur un portrait, une
+        # contrainte un peu plus lache et un echantillonnage plus long
+        # donnent une peau moins lissee et des mains plus sures.
+        corps = {"text_prompts": textes, "cfg_scale": 6, "height": hauteur,
+                 "width": largeur, "samples": 1, "steps": 40}
         if graine:
             corps["seed"] = graine
         requete = urllib.request.Request(

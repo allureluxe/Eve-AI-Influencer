@@ -176,7 +176,8 @@ class Application:
             return demande
         try:
             brut = self.images.generer(demande["prompt"], demande["negatif"],
-                                       demande["graine"])
+                                       demande["graine"],
+                                       str(corps.get("format", "portrait")))
         except ErreurMoteur as e:
             demande["image"] = ""
             demande["message"] = f"Generation impossible : {e}"

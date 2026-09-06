@@ -4,6 +4,7 @@
     python3 luna.py chat                conversation dans le terminal
     python3 luna.py dis "coucou"        un seul message
     python3 luna.py photo lingerie      le prompt (et l'image si configuree)
+    python3 luna.py studio              genere toute la serie photo d'un coup
     python3 luna.py profil              qui elle est, ce qu'elle sait de toi
     python3 luna.py oublier             efface sa memoire
     python3 luna.py check               ce qui est configure, ce qui manque
@@ -18,7 +19,7 @@ from .chat import Luna
 from .memoire import Memoire
 from .moteurs import ErreurMoteur, GenerateurImages, choisir_moteur
 from .persona import LUNA
-from .photos import SCENES, prompt_photo
+from .photos import SCENES, prompt_photo, scenes_autorisees
 from .serveur import DOSSIER_DONNEES, lancer
 
 
@@ -92,6 +93,45 @@ def commande_photo(scene: str) -> int:
     return 0
 
 
+def commande_studio(refaire: bool = False) -> int:
+    """Genere toute la serie photo d'un coup.
+
+    Meme visage, meme graine, une image par scene : de quoi remplir
+    l'application en une commande le jour ou une cle est branchee.
+    """
+    luna = _luna()
+    registre = luna.registre_effectif("console")
+    images = GenerateurImages()
+    scenes = scenes_autorisees(registre)
+    print(f"Registre : {registre} — {len(scenes)} scenes")
+    if not images.disponible:
+        print("Aucun generateur d'images configure.\n"
+              "  Ajoute STABILITY_API_KEY (ou LUNA_IMAGE_URL) dans .env.")
+        return 1
+    print(f"Modele   : {images.modele}\n")
+    os.makedirs("generated_images", exist_ok=True)
+    faits, echecs = 0, 0
+    for scene in scenes:
+        chemin = os.path.join("generated_images", f"luna_{scene.cle}.png")
+        if os.path.exists(chemin) and not refaire:
+            print(f"  = {scene.cle:<12} deja la ({chemin})")
+            continue
+        demande = prompt_photo(scene.cle, registre)
+        try:
+            brut = images.generer(demande["prompt"], demande["negatif"],
+                                  demande["graine"])
+        except ErreurMoteur as e:
+            print(f"  ! {scene.cle:<12} {e}")
+            echecs += 1
+            continue
+        with open(chemin, "wb") as f:
+            f.write(brut)
+        print(f"  + {scene.cle:<12} {chemin}")
+        faits += 1
+    print(f"\n{faits} generee(s), {echecs} echec(s).")
+    return 1 if echecs else 0
+
+
 def commande_profil() -> int:
     luna = _luna()
     print(LUNA.presentation())
@@ -150,6 +190,8 @@ def main(argv: list[str] | None = None) -> int:
         return commande_dis(" ".join(reste))
     if commande == "photo":
         return commande_photo(reste[0] if reste else "")
+    if commande == "studio":
+        return commande_studio("--refaire" in reste)
     if commande == "profil":
         return commande_profil()
     if commande == "oublier":
