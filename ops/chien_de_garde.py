@@ -48,7 +48,28 @@ from dataclasses import replace
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-PLANCHER_PCT = 0.24        # recul tolere sous la reference
+# Recul tolere sous la reference.
+#
+# Passe de 0,24 a 0,40 le 6 septembre 2026, sur decision de l'operateur,
+# parce que 0,24 etait PLUS SERRE QUE LE FONCTIONNEMENT NORMAL de la
+# strategie. Mesure sur 70 paires, 2,2 ans hors echantillon, frais
+# doubles :
+#
+#     configuration armee avant le 6 sept.   recul max  26,9 %
+#     avec le pyramidage Turtle (3 unites)   recul max  35,4 %
+#
+# A 24 %, le chien de garde coupait donc sur un creux ordinaire et non
+# sur une avarie — et une strategie de tendance, qui vit de ses rares
+# gros trades, ne se refait jamais si on l'arrete a chaque creux.
+#
+# 0,40 laisse 4,6 points de marge au-dessus du recul mesure. Ce n'est pas
+# un desserrage de confort : c'est le seuil qui distingue « la strategie
+# respire » de « quelque chose ne va pas ». Le vrai recul depasse
+# toujours un peu le recul rejoue, d'ou la marge.
+#
+# NE PAS le remonter pour « laisser une chance » a une serie perdante :
+# au-dela, on ne protege plus rien.
+PLANCHER_PCT = 0.40
 REFERENCE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                          "data", "chien_de_garde_reference.json")
 

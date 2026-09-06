@@ -69,7 +69,7 @@
     "weekly_loss_limit_pct": 8.0,
     "max_drawdown_pct": 25.0,
     "daily_profit_target_pct": 0.0,
-    "max_positions": 6,
+    "max_positions": 99,
     "max_per_correlation_group": 2,
     "max_total_risk_pct": 3.5,
     "max_daily_trades": 0,
@@ -79,7 +79,10 @@
     "pause_after_losses_minutes": 45.0,
     "min_rr": 1.6,
     "max_capital_engaged_pct": 90.0,
-    "pyramide_max": 0
+    "pyramide_max": 2,
+    "pyramide_espacement_atr": 0.5,
+    "pyramide_fraction_risque": 1.0,
+    "pyramide_locked_r_min": -1.0
   },
   "trade": {
     "atr_stop_mult": 1.6,
@@ -111,7 +114,9 @@
     "news_tighten_atr_mult": 0.6,
     "max_adverse_r": 1.0,
     "micro_profit_enabled": false,
-    "tp_actif": false
+    "tp_actif": false,
+    "pyramide_stop_commun": true,
+    "pyramide_relevement_turtle": true
   },
   "objectives": {
     "base_target": 4.0,

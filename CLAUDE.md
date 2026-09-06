@@ -5,6 +5,72 @@ d'environ 51 EUR. Plusieurs sessions travaillent sur la même branche. Les
 décisions ci-dessous ont été prises par l'opérateur ; elles ne sont pas des
 valeurs par défaut à optimiser.
 
+## Pyramidage Turtle — armé le 6 septembre, et le plafond de 6 retiré
+
+Décision de l'opérateur, sur mesure. **C'est le seul réglage testé cette
+session-là qui passe le walk-forward** — tous les autres (stop suiveur
+desserré, sortie canal, budget de risque relevé) ont été mesurés puis
+écartés.
+
+70 paires, 7,5 ans, coupe au 7 juin 2024, frais **doublés**, hors
+échantillon (2,2 ans) :
+
+    unites          rendement   Sharpe   recul
+    sans pyramidage    -10,9 %   -0,17   26,9 %
+    2 unites            -0,3 %   +0,14   30,8 %
+    3 unites           +35,8 %   +0,53   35,4 %   <- armé
+    4 unites           +23,9 %   +0,42   41,3 %
+    6 unites           -40,8 %   +0,05   76,6 %
+    ILLIMITE           -84,4 %   -0,57   95,3 %
+
+**Le manuel Turtle dit 4 unités ; sur ces marchés et ces frais la mesure
+dit 3.** Et l'illimité — demandé à un moment — est le pire des six.
+Monter `pyramide_max` n'est pas « débrider » : c'est reproduire un
+résultat mesuré à −84 %.
+
+### Les deux modèles de sécurité ne se mélangent pas
+
+Le pyramidage d'origine du robot n'ajoutait un étage que si les
+précédents **ne pouvaient plus perdre** (`pyramide_locked_r_min`). La
+Turtle fait l'inverse : elle ajoute tôt, tous les 0,5 N, et **remonte le
+stop de toute la pyramide** sous la dernière unité.
+
+Desserrer le premier sans armer le second laisse trois risques pleins sur
+une crypto **sans aucun filet**. D'où `trade.pyramide_relevement_turtle`,
+et `TradeManager.plancher_turtle()` qui le calcule.
+`tests/test_pyramide.py::TestLeRelevementTurtleRemonteToutePyramide`
+verrouille le comportement, et un autre test refuse que
+`pyramide_locked_r_min` soit desserré sans son remplaçant.
+
+### `max_positions` est passé de 6 à 99, et ça ne change presque rien
+
+Mesuré : retirer le plafond **seul** donne un résultat identique à la
+décimale. Le robot butait sur `max_total_risk_pct` (3,5 % ÷ 0,6 % ≈ 5
+lignes), pas sur le compteur — 6 lignes n'arrivaient que 2 % du temps,
+5 lignes 35 %. Le plafond était décoratif ; il fallait quand même le
+retirer, car **chaque étage de pyramide compte comme une position**.
+
+**Un vrai bug est sorti de là :** le partage du cash divisait par
+`max_positions - positions ouvertes`. À 99, chaque part tombait à 0,88 EUR
+— sous le ticket minimum — et le robot **aurait refusé chaque trade en
+croyant partager**. Le diviseur vient désormais du budget de risque
+(`max_total_risk_pct // base_risk_pct`), qui est la vraie borne.
+
+### Ce que ça change, et qui n'a PAS été mesuré
+
+Le rejeu ne contraignait les ajouts que par le cash. Le moteur réel, lui,
+fait passer chaque étage par `max_total_risk_pct` : à 0,6 % par unité et
+3,5 % au total, **trois étages sur une crypto consomment 1,8 %** et il
+reste peu pour le reste. Le robot pyramidera donc **moins** que le rejeu
+ne le montrait. C'est plus prudent, pas plus risqué — mais ce n'est pas
+exactement la configuration mesurée, et il faut le savoir avant de lire
+les premiers résultats.
+
+`pyramide_fraction_risque` est à **1.0** (étages de même taille), décision
+explicite de l'opérateur et valeur mesurée. Le défaut du code reste 0,6.
+
+---
+
 ## D1 « Turtle » — armé le 3 septembre, remplace le M30
 
 **Le M30 était perdant, et la mesure est certaine :** −0,158 R sur

@@ -41,10 +41,48 @@ def _gestionnaire(**reglages) -> RiskManager:
 
 
 class TestLaPyramideResteFermeeParDefaut:
-    """Le renforcement ne s'arme pas tout seul : le rejeu tranche avant."""
+    """Le renforcement ne s'arme pas tout seul : le rejeu tranche avant.
 
-    def test_le_reglage_livre_est_desarme(self):
-        assert BotConfig.load("robot.bitvavo.json").risk.pyramide_max == 0
+    Il a tranche le 6 septembre 2026, et POUR une fois en faveur du
+    renforcement — c'est le seul reglage teste cette session-la qui passe
+    le walk-forward. Le defaut du CODE reste desarme ; c'est la
+    configuration livree qui l'arme, sur mesure et pas sur principe.
+    """
+
+    def test_le_reglage_livre_est_arme_a_trois_unites(self):
+        """3 unites, pas 4 ni l'illimite : c'est ce que la mesure designe.
+
+        Hors echantillon, frais doubles, 70 paires, 2,2 ans :
+
+            sans pyramidage   -10,9 %   Sharpe -0,17   recul 26,9 %
+            2 unites           -0,3 %   Sharpe +0,14   recul 30,8 %
+            3 unites          +35,8 %   Sharpe +0,53   recul 35,4 %   <- arme
+            4 unites          +23,9 %   Sharpe +0,42   recul 41,3 %
+            6 unites          -40,8 %   Sharpe +0,05   recul 76,6 %
+            ILLIMITE          -84,4 %   Sharpe -0,57   recul 95,3 %
+
+        Le manuel Turtle dit 4 unites. Sur CES marches et CES frais, la
+        mesure dit 3. On suit la mesure. Et l'illimite — demande a un
+        moment — est la pire des six : le monter n'est pas « debrider »,
+        c'est reproduire un resultat mesure a -84 %.
+        """
+        assert BotConfig.load("robot.bitvavo.json").risk.pyramide_max == 2
+
+    def test_le_relevement_turtle_accompagne_le_desserrage(self):
+        """`pyramide_locked_r_min` desserre : son remplacant doit etre arme.
+
+        Les deux protegent la meme chose par deux chemins opposes. Le
+        notre attend que l'etage precedent ne puisse plus perdre AVANT
+        d'ajouter ; la Turtle ajoute tous les 0,5 N mais remonte le stop
+        de TOUTE la pyramide sous la derniere unite. Desserrer le premier
+        sans armer le second laisse trois fois le risque sur une crypto
+        sans filet.
+        """
+        cfg = BotConfig.load("robot.bitvavo.json")
+        if cfg.risk.pyramide_locked_r_min < 0.05:
+            assert cfg.trade.pyramide_relevement_turtle, (
+                "pyramide_locked_r_min est desserre sans que le relevement "
+                "Turtle soit arme : le pyramidage n'a plus aucun filet")
 
     def test_le_defaut_du_code_est_desarme(self):
         assert RiskConfig().pyramide_max == 0
@@ -238,3 +276,55 @@ class TestLeStopCommunDeLaPyramide:
         """Sans le reglage, le comportement d'origine est intact."""
         from gold_bot.trade_manager import TradeManagerConfig
         assert TradeManagerConfig().pyramide_stop_commun is False
+
+
+class TestLeRelevementTurtleRemonteToutePyramide:
+    """Le filet qui remplace « n'ajouter que sur un etage a l'abri ».
+
+    La Turtle renforce tot — tous les 0,5 N, bien avant que l'etage
+    precedent ne soit a l'abri. Ce qui rend ca tenable n'est pas une
+    condition d'entree mais une consequence : chaque unite ajoutee
+    remonte le stop de TOUTE la pyramide sous elle. Sans ce relevement,
+    desserrer `pyramide_locked_r_min` empile trois risques pleins sur une
+    seule crypto — exactement le scenario que le reglage d'origine
+    interdisait.
+    """
+
+    @staticmethod
+    def _tm(arme: bool = True, stop_mult: float = 1.6):
+        from gold_bot.trade_manager import TradeManager, TradeManagerConfig
+        return TradeManager(TradeManagerConfig(
+            pyramide_relevement_turtle=arme, atr_stop_mult=stop_mult))
+
+    def test_le_plancher_suit_la_derniere_unite(self):
+        """Base a 100, renfort a 110, ATR 4 : plancher a 110 - 1,6 x 4."""
+        base = _position(entree=100.0, stop=96.8, pid="base")
+        time.sleep(0.001)                      # l'ordre d'ouverture compte
+        haut = _position(entree=110.0, stop=96.8, pid="haut")
+        plancher = self._tm().plancher_turtle(haut, [base, haut], atr=4.0)
+        assert plancher == 103.6, (
+            f"plancher {plancher} au lieu de 110 - 1,6 x 4 = 103.6 : le "
+            "relevement ne suit pas la derniere unite posee")
+        assert plancher > base.entry_price, (
+            "le plancher doit passer AU-DESSUS de l'entree de la base : "
+            "c'est ce qui borne le risque de la pyramide entiere")
+
+    def test_une_position_seule_n_est_pas_relevee(self):
+        base = _position(pid="base")
+        assert self._tm().plancher_turtle(base, [base], atr=4.0) is None
+
+    def test_sans_atr_aucun_relevement(self):
+        """Un ATR nul ne doit pas produire un plancher egal a l'entree."""
+        base = _position(entree=100.0, pid="base")
+        haut = _position(entree=110.0, pid="haut")
+        assert self._tm().plancher_turtle(haut, [base, haut], atr=0.0) is None
+
+    def test_un_autre_symbole_n_entre_pas_dans_la_famille(self):
+        """Deux cryptos ne forment pas une pyramide, meme ouvertes ensemble."""
+        sol = _position(symbole="SOLUSD", entree=100.0, pid="sol")
+        ada = _position(symbole="ADAUSD", entree=110.0, pid="ada")
+        assert self._tm().plancher_turtle(sol, [sol, ada], atr=4.0) is None
+
+    def test_desarme_le_defaut_du_code_ne_releve_rien(self):
+        from gold_bot.trade_manager import TradeManagerConfig
+        assert TradeManagerConfig().pyramide_relevement_turtle is False

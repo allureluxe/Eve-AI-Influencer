@@ -109,6 +109,12 @@ class TradeManagerConfig:
     # la pyramide — la seule echelle a laquelle elle ait un sens.
     pyramide_stop_commun: bool = False
 
+    # Relevement Turtle : tous les etages remontent a `atr_stop_mult` ATR
+    # sous la DERNIERE unite posee. C'est le filet qui rend le pyramidage
+    # precoce tenable ; il doit etre arme des que `pyramide_locked_r_min`
+    # est desserre, jamais l'un sans l'autre.
+    pyramide_relevement_turtle: bool = False
+
     # --- Sortie par CANAL (regle Turtle d'origine) ---
     #
     # Les Turtles ne sortaient pas sur un objectif en R : ils sortaient
@@ -248,6 +254,26 @@ class TradeManager:
             return None
         return sum(p.entry_price * p.volume for p in etages) / volume
 
+    def plancher_turtle(self, position: Position, etages: list[Position],
+                        atr: float) -> Optional[float]:
+        """Le niveau sous la DERNIERE unite, a `atr_stop_mult` ATR.
+
+        La regle Turtle : chaque unite ajoutee remonte le stop de toute la
+        pyramide. C'est ce qui autorise a renforcer tot — tous les 0,5 N —
+        sans accumuler trois risques pleins sur un seul actif.
+
+        Rend None quand il n'y a pas de pyramide : une position seule garde
+        son stop d'origine, ce relevement ne la concerne pas.
+        """
+        if atr <= 0:
+            return None
+        famille = [p for p in etages if p.symbol == position.symbol
+                   and p.side is position.side]
+        if len(famille) < 2:
+            return None
+        derniere = max(famille, key=lambda p: p.opened_at)
+        return derniere.entry_price - position.side.sign * self.config.atr_stop_mult * atr
+
     def stop_partage(self, position: Position,
                      etages: list[Position]) -> Optional[float]:
         """Niveau de sortie commun a tous les etages d'une pyramide.
@@ -369,6 +395,27 @@ class TradeManager:
             partage = self.stop_partage(position, etages)
             if partage is not None and sign * (new_stop - partage) > 0:
                 new_stop = partage
+
+        # --- Relevement Turtle ------------------------------------------
+        # Des qu'une pyramide compte au moins deux etages, TOUS remontent a
+        # `atr_stop_mult` ATR sous le prix de la DERNIERE unite posee.
+        #
+        # C'est la securite qui REMPLACE « n'ajouter que sur un etage deja
+        # a l'abri » (`pyramide_locked_r_min`). Les deux modeles protegent
+        # la meme chose par deux chemins opposes : le notre attendait que
+        # l'etage precedent ne puisse plus perdre AVANT d'ajouter ; la
+        # Turtle ajoute tot, tous les 0,5 N, mais remonte le plancher de
+        # toute la pyramide a chaque ajout. Armer l'un sans l'autre laisse
+        # trois fois le risque sur une seule crypto sans filet — c'est la
+        # faute a ne pas commettre.
+        #
+        # Le relevement ne DESSERRE jamais : il ne s'applique que s'il
+        # remonte le stop, et le cliquet final refuse de toute facon tout
+        # niveau moins protecteur que celui deja pose.
+        if cfg.pyramide_relevement_turtle and etages:
+            plancher = self.plancher_turtle(position, etages, atr)
+            if plancher is not None and sign * (plancher - new_stop) > 0:
+                new_stop = plancher
 
         new_stop = round(new_stop, digits)
         if sign * (new_stop - position.stop_loss) > 0:
