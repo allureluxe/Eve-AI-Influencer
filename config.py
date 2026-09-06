@@ -14,30 +14,67 @@ TIKTOK_PASSWORD = os.getenv("TIKTOK_PASSWORD")
 # APIs
 STABILITY_API_KEY = os.getenv("STABILITY_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
 
 # Configuration
 POST_FREQUENCY = int(os.getenv("POST_FREQUENCY", 2))
+IMAGE_PROVIDER = os.getenv(
+    "IMAGE_PROVIDER",
+    "replicate" if REPLICATE_API_TOKEN else "stability",
+).strip().lower()
+IMAGE_API_HOST = os.getenv("IMAGE_API_HOST", "").strip()
+IMAGE_MODEL = os.getenv("IMAGE_MODEL", "").strip()
+IMAGE_SEED = int(os.getenv("IMAGE_SEED", "774921"))
+IMAGE_STEPS = int(os.getenv("IMAGE_STEPS", "36"))
+IMAGE_CFG_SCALE = float(os.getenv("IMAGE_CFG_SCALE", "3.5"))
+IMAGE_WIDTH = int(os.getenv("IMAGE_WIDTH", "1024"))
+IMAGE_HEIGHT = int(os.getenv("IMAGE_HEIGHT", "1024"))
+IMAGE_NEGATIVE_PROMPT = os.getenv(
+    "IMAGE_NEGATIVE_PROMPT",
+    "3d render, cgi, illustration, painting, anime, cartoon, digital art, "
+    "airbrushed, smooth plastic skin, waxy, doll-like, porcelain skin, "
+    "perfect symmetry, beauty filter, oversaturated, hdr, studio lighting, "
+    "glamour shot, retouched, flawless skin, deformed hands, distorted face, "
+    "watermark, text",
+)
 
 # Eve.AI Character
 EVE_CHARACTER = {
     "name": "Eve",
-    "style": "Blonde, sexy, luxury lifestyle",
-    "personality": "Joie de vivre, motivante, provocante",
-    "interests": ["Voyages", "Hôtels luxe", "Fashion", "Restaurants chics", "Voitures", "Bijoux"],
-    "tone": "Friendly, engaging, inspiring"
+    "age": 26,
+    "origin": "French",
+    "style": "Candid iPhone photo realism, natural light, unretouched skin texture",
+    "personality": "Joie de vivre, naturelle, chaleureuse",
+    "interests": ["Voyages", "Cafés", "Mode simple", "Restaurants", "Week-ends", "Photo"],
+    "tone": "Friendly, engaging, natural",
 }
 
-# Image Generation Prompts
-IMAGE_PROMPTS = [
-    "Beautiful blonde woman in luxury hotel room, 5-star Maldives resort, wearing designer clothes, natural lighting, professional photography, lifestyle magazine style",
-    "Blonde woman in Ferrari, luxury car interior, designer sunglasses, Mediterranean coast background, fashion editorial, high quality",
-    "Woman in luxury restaurant, Michelin star dining, champagne glass, elegant dress, warm lighting, fine dining aesthetic",
-    "Blonde woman at airport lounge, luxury travel, designer luggage, sophisticated style, lifestyle content",
-    "Woman with luxury jewelry, Cartier, Rolex, diamond necklace, close-up, luxury lifestyle, glamorous photography",
-    "Blonde woman in luxury villa, infinity pool, sunset, resort lifestyle, vacation vibes, paradise setting",
-    "Woman in high-end fashion boutique, designer clothes, shopping, luxury brands, lifestyle content",
-    "Blonde woman at beach resort, luxury vacation, bikini, tropical paradise, relaxation, lifestyle"
+EVE_IDENTITY_PROMPT = (
+    "photo, candid iPhone photo of a 26-year-old French woman, long golden "
+    "blonde hair with soft natural waves and loose flyaway strands, warm hazel "
+    "eyes, light sun-kissed skin with faint freckles across the nose, "
+    "heart-shaped face, high cheekbones, small gold hoop earrings, barely any "
+    "makeup, visible skin pores and fine texture, light shine on the forehead "
+    "and nose, faint under-eye shadows, slight facial asymmetry, unretouched, "
+    "shot on iPhone 15 Pro, photojournalism, no filter, no beauty retouching"
+)
+
+IMAGE_SCENES = [
+    "plain white t-shirt, head and shoulders, looking straight into the lens, "
+    "relaxed natural expression, soft daylight from a window on her left, "
+    "plain wall behind her, shallow depth of field, imperfect framing",
+    "cream knit sweater in a small Paris cafe, coffee cup near frame, soft "
+    "window light, candid shoulder-up composition, background gently blurred",
+    "dark blazer over a white tee in an airport lounge, tired but warm eyes, "
+    "carry-on handle just visible, natural overhead daylight, documentary style",
+    "simple black top at a neighborhood restaurant, warm practical lighting, "
+    "slight motion blur in the background, candid close portrait",
+    "light denim jacket on a city sidewalk after golden hour, phone in hand, "
+    "ambient street reflections, off-center framing, realistic smartphone photo",
+    "white shirt at home in a quiet kitchen, messy loose hair, late-afternoon "
+    "window light, intimate everyday portrait, shallow depth of field",
 ]
+IMAGE_PROMPTS = [f"{EVE_IDENTITY_PROMPT}, {scene}" for scene in IMAGE_SCENES]
 
 # Captions Templates
 CAPTION_TEMPLATES = [
