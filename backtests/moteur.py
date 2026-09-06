@@ -38,6 +38,9 @@ class Position:
     ouvert_le: float
     plus_haut: float
     risque_initial: float          # en EUR, la distance au stop x lots
+    etages: int = 1                # nombre d'unites posees
+    derniere_entree: float = 0.0   # prix de la DERNIERE unite, pour l'espacement
+    atr_entree: float = 0.0        # le N du premier etage, fige
 
 
 @dataclass
@@ -71,6 +74,21 @@ class Reglages:
     trail_atr: float = 2.2
     trail_depart_r: float = 1.1
     stop_temporel_jours: int = 12
+    # Sortie par canal, a la Turtle. A 0 le stop suiveur ATR fait le
+    # travail ; au-dessus de 0 il est desactive et c'est la casse du
+    # plus-bas de N jours qui ferme. Les deux ne cohabitent pas : on
+    # mesure UNE regle de sortie a la fois, sinon on ne saura pas
+    # laquelle a produit le resultat.
+    sortie_canal_jours: int = 0
+    # --- Pyramidage a la Turtle ---
+    # 0 = desarme. A 3, on pose jusqu'a 4 unites au total, une tous les
+    # `pyramide_espacement_atr` N en notre faveur, et le stop de TOUTE la
+    # pyramide remonte a `stop_atr` N sous la derniere unite. C'est ce
+    # relevement collectif qui rend le pyramidage tenable : sans lui, les
+    # etages hauts transforment un gagnant en perdant au premier repli.
+    pyramide_max: int = 0
+    pyramide_espacement_atr: float = 0.5
+    pyramide_taille_fraction: float = 1.0   # 1.0 = etages de meme taille
     # Filtres de la variante C
     filtre_momentum: bool = False      # top tiers du momentum 90 j
     filtre_liquidite: bool = False     # au-dessus de la mediane de volume
@@ -78,6 +96,11 @@ class Reglages:
     filtre_regime_btc: bool = False    # BTC au-dessus de sa MM200
     # Robustesse
     multiplicateur_couts: float = 1.0
+    # Fenetre de mesure. On restreint le calendrier de TRADING, pas les
+    # donnees : les canaux et l'ATR continuent de lire l'historique
+    # anterieur. Sans cela un rejeu de 6 mois demarrerait aveugle.
+    debut: float = 0.0
+    fin: float = 9e18
 
 
 def atr(serie: list[Bougie], i: int, n: int) -> float:
@@ -97,7 +120,8 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
     spread = SPREAD * r.multiplicateur_couts
 
     # Calendrier commun : toutes les journees ou au moins une paire cote.
-    jours = sorted({b.ts for s in donnees.values() for b in s})
+    jours = sorted({b.ts for s in donnees.values() for b in s
+                    if r.debut <= b.ts <= r.fin})
     index = {p: {b.ts: i for i, b in enumerate(s)} for p, s in donnees.items()}
 
     capital = r.capital
@@ -106,6 +130,7 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
     courbe: list[tuple[float, float]] = []
     jours_exposes = 0
     frais_total = 0.0
+    expo: list[tuple[float, float]] = []
 
     for t in jours:
         # ---- 1. Gestion des positions ouvertes, a l'OUVERTURE du jour ----
@@ -121,6 +146,12 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
             # on sort AU STOP, pas au plus bas — mais jamais mieux.
             if b.low <= pos.stop:
                 sortie, motif = pos.stop, "stop"
+            elif r.sortie_canal_jours and i >= r.sortie_canal_jours + 1 and \
+                    b.close < min(x.low for x in
+                                  donnees[paire][i - r.sortie_canal_jours:i]):
+                # Sortie a la Turtle : on ne rend pas une distance fixe, on
+                # attend que la tendance casse pour de bon.
+                sortie, motif = b.close, f"canal {r.sortie_canal_jours} j"
             elif (t - pos.ouvert_le) / 86400 >= r.stop_temporel_jours and \
                     b.close <= pos.entree:
                 sortie, motif = b.close, "stop temporel"
@@ -136,9 +167,31 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
                 del ouvertes[paire]
                 continue
 
-            # Stop suiveur : il ne descend jamais.
+            # Pyramidage : une unite de plus chaque fois que le prix a
+            # avance d'un cran depuis la DERNIERE unite posee.
+            while (r.pyramide_max > 0 and pos.etages <= r.pyramide_max
+                   and pos.atr_entree > 0):
+                seuil = pos.derniere_entree + r.pyramide_espacement_atr * pos.atr_entree
+                if b.high < seuil:
+                    break
+                lots_sup = (pos.lots / pos.etages) * r.pyramide_taille_fraction
+                px_sup = seuil * (1 + spread)
+                engage = sum(q.lots * q.entree for q in ouvertes.values())
+                if lots_sup * px_sup < 5.0 or engage + lots_sup * px_sup > capital:
+                    break
+                total = pos.lots + lots_sup
+                pos.entree = (pos.entree * pos.lots + px_sup * lots_sup) / total
+                pos.lots = total
+                pos.derniere_entree = px_sup
+                pos.etages += 1
+                # Regle Turtle : tous les etages remontent sous la derniere unite.
+                pos.stop = max(pos.stop, px_sup - r.stop_atr * pos.atr_entree)
+                pos.risque_initial = (pos.entree - pos.stop) * pos.lots
+
+            # Stop suiveur ATR : il ne descend jamais. Neutralise des
+            # qu'une sortie par canal est demandee.
             pos.plus_haut = max(pos.plus_haut, b.high)
-            a = atr(donnees[paire], i, r.atr_periode)
+            a = 0.0 if r.sortie_canal_jours else atr(donnees[paire], i, r.atr_periode)
             if a > 0 and pos.risque_initial > 0:
                 gain_r = (pos.plus_haut - pos.entree) * pos.lots / pos.risque_initial
                 if gain_r >= r.trail_depart_r:
@@ -226,20 +279,27 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
                         continue
                 ouvertes[paire] = Position(paire, px, lots, stop, s[i + 1].ts,
                                            s[i + 1].high,
-                                           (px - stop) * lots)
+                                           (px - stop) * lots,
+                                           etages=1, derniere_entree=px,
+                                           atr_entree=a)
                 risque_engage += (px - stop) * lots
 
         # ---- 5. Valeur du portefeuille ----
         valeur = capital
+        notionnel_jour = 0.0
         for paire, pos in ouvertes.items():
             i = index[paire].get(t)
             if i is not None:
                 valeur += (donnees[paire][i].close - pos.entree) * pos.lots
+                notionnel_jour += donnees[paire][i].close * pos.lots
         courbe.append((t, valeur))
+        expo.append((t, notionnel_jour / valeur if valeur > 0 else 0.0))
 
     # Cloture de ce qui reste, au dernier cours connu.
     for paire, pos in list(ouvertes.items()):
-        b = donnees[paire][-1]
+        # Au dernier jour DE LA FENETRE, pas au dernier de l'historique.
+        i = index[paire].get(jours[-1]) if jours else None
+        b = donnees[paire][i] if i is not None else donnees[paire][-1]
         px = b.close * (1 - spread)
         brut = (px - pos.entree) * pos.lots
         f = (pos.entree + px) * pos.lots * comm
@@ -251,7 +311,7 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
     return {"trades": trades, "courbe": courbe, "frais": frais_total,
             "jours_exposes": jours_exposes, "jours_total": len(jours),
             "capital_final": courbe[-1][1] if courbe else r.capital,
-            "reglages": r}
+            "expo": expo, "reglages": r}
 
 
 # ---------------------------------------------------------------------
