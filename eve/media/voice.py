@@ -1,4 +1,9 @@
-"""Voix off. `edge-tts` est gratuit, sans clé et de qualité neuronale."""
+"""Voix off.
+
+`edge-tts` est gratuit et sans clé ; `gemini` passe par Google AI Studio
+(palier gratuit, clé requise) ; `piper` tourne hors-ligne. En dernier
+recours, une piste muette permet au montage d'aboutir quand même.
+"""
 from __future__ import annotations
 
 import logging
@@ -42,6 +47,39 @@ def _piper(text: str, out: Path, model: str) -> Path:
     return wav
 
 
+def _gemini_tts(text: str, out: Path, voice: str) -> Path:
+    """Google AI Studio : voix neuronales, palier gratuit.
+
+    Le modèle renvoie du PCM brut (16 bits, mono) ; on l'emballe dans un
+    WAV, seul format que ffmpeg lira sans deviner.
+    """
+    from eve.media import gemini
+
+    model = gemini.pick_model("tts")
+    data = gemini.post(model, "generateContent", {
+        "contents": [{"role": "user", "parts": [{"text": text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {
+                "voiceName": voice or "Kore"}}},
+        },
+    })
+    pcm, mime = gemini.first_inline_data(data)
+
+    rate = 24000
+    for morceau in mime.split(";"):
+        if morceau.strip().startswith("rate="):
+            rate = int(morceau.split("=", 1)[1])
+
+    wav = out.with_suffix(".wav")
+    with wave.open(str(wav), "w") as fh:
+        fh.setnchannels(1)
+        fh.setsampwidth(2)
+        fh.setframerate(rate)
+        fh.writeframes(pcm)
+    return wav
+
+
 def _silence(out: Path, seconds: float) -> Path:
     """Piste muette : permet au montage d'aboutir sans TTS installé."""
     wav = out.with_suffix(".wav")
@@ -62,6 +100,8 @@ def synthesize(text: str, out: Path, *, expected_seconds: float = 20.0,
 
     if provider != "silent":
         try:
+            if provider == "gemini":
+                return VoiceResult(_gemini_tts(text, out, g.voice_name), "gemini")
             if provider == "piper":
                 return VoiceResult(_piper(text, out, g.voice_name), "piper")
             return VoiceResult(_edge_tts(text, out, g.voice_name, g.voice_rate), "edge-tts")

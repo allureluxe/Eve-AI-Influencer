@@ -2,6 +2,7 @@
 
 Providers, du plus gratuit au plus cher :
   pollinations : gratuit, sans clé, modèle Flux — le défaut du projet.
+  gemini       : Google AI Studio, palier gratuit, Imagen ou Gemini Image.
   comfyui      : local (GPU), gratuit, contrôle total + LoRA de visage.
   stability    : payant, qualité stable.
   replicate    : payant, accès aux modèles récents.
@@ -167,6 +168,57 @@ class ReplicateProvider(ImageProvider):
         return out
 
 
+class GeminiProvider(ImageProvider):
+    """Google AI Studio : Imagen si disponible, sinon Gemini Image.
+
+    Imagen accepte un ratio d'image explicite, ce qui compte pour du 9:16 ;
+    les modèles Gemini Image passent par `generateContent` et suivent le
+    ratio décrit dans le prompt.
+    """
+
+    name = "gemini"
+
+    def __init__(self, model: str = ""):
+        self.model = model
+
+    def _ratio(self, width: int, height: int) -> str:
+        if height > width:
+            return "9:16"
+        if width > height:
+            return "16:9"
+        return "1:1"
+
+    def generate(self, prompt: str, out: Path, *, width: int, height: int, seed: int) -> Path:
+        from eve.media import gemini
+
+        model = self.model or gemini.pick_model("image")
+        ratio = self._ratio(width, height)
+
+        if model.startswith("imagen"):
+            data = gemini.post(model, "predict", {
+                "instances": [{"prompt": prompt[:4000]}],
+                "parameters": {"sampleCount": 1, "aspectRatio": ratio,
+                               "personGeneration": "allow_adult"},
+            })
+            predictions = data.get("predictions") or []
+            if not predictions or not predictions[0].get("bytesBase64Encoded"):
+                raise RuntimeError(f"Imagen n'a rien renvoyé : {str(data)[:300]}")
+            import base64
+            out.write_bytes(base64.b64decode(predictions[0]["bytesBase64Encoded"]))
+            return out
+
+        # Modèles « gemini-*-image » : le ratio se demande dans le prompt.
+        data = gemini.post(model, "generateContent", {
+            "contents": [{"role": "user", "parts": [
+                {"text": f"{prompt[:4000]}\n\nVertical {ratio} aspect ratio photograph."}]}],
+            "generationConfig": {"responseModalities": ["IMAGE"],
+                                 "imageConfig": {"aspectRatio": ratio}},
+        })
+        blob, _ = gemini.first_inline_data(data)
+        out.write_bytes(blob)
+        return out
+
+
 class PlaceholderProvider(ImageProvider):
     """Aucun réseau : image locale lisible, pour les tests et la CI."""
 
@@ -214,6 +266,8 @@ def get_provider(name: str | None = None) -> ImageProvider:
         return StabilityProvider(g.stability_api_key)
     if name == "replicate" and g.replicate_api_token:
         return ReplicateProvider(g.replicate_api_token)
+    if name == "gemini":
+        return GeminiProvider(g.image_model if g.image_model != "flux" else "")
     if name == "placeholder":
         return PlaceholderProvider()
     return PollinationsProvider(g.image_model)
