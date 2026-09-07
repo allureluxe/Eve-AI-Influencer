@@ -53,6 +53,21 @@ class ReglagesTurtle:
     multiplicateur_couts: float = 1.0
     debut: float = 0.0              # fenetre de mesure ; l'historique
     fin: float = 9e18               # anterieur reste lisible pour les canaux
+    # Plafond d'exposition, notionnel total (achats + ventes) / capital.
+    # A 1,0 le compte n'engage jamais plus qu'il ne possede : c'est la
+    # seule facon de savoir si la VENTE paie, ou si c'etait le LEVIER.
+    levier_max: float = 9.9
+    # Interet d'emprunt sur les VENTES a decouvert, par jour. Tarif
+    # Bitvavo marge : ~0,0274 %/j. Il court tant que la position est
+    # ouverte — sur un trend suivi 20 jours c'est 0,55 % du notionnel,
+    # loin d'etre negligeable. L'omettre rend la vente a decouvert plus
+    # belle qu'elle n'est.
+    interet_vente_par_jour: float = 0.000274
+    # Paires reellement vendables a decouvert. Bitvavo n'ouvre la marge
+    # que sur une quinzaine d'actifs, pas sur les 70 de l'univers. Vendre
+    # tout l'univers en rejeu surestime donc la vente a decouvert d'un
+    # facteur qu'il vaut mieux mesurer que supposer. Vide = tout permis.
+    paires_vendables: tuple[str, ...] = ()
 
 
 @dataclass
@@ -175,6 +190,10 @@ def rejouer_turtle(donnees: dict[str, list[Bougie]], r: ReglagesTurtle) -> dict:
         px = px_brut * (1 - pos.sens * spread)
         brut = (px - pos.prix_moyen) * pos.lots * pos.sens
         f = (pos.prix_moyen + px) * pos.lots * comm
+        if pos.sens < 0 and r.interet_vente_par_jour > 0:
+            jours = max(0.0, (t - pos.ouvert_le) / 86400.0)
+            f += (pos.prix_moyen * pos.lots
+                  * r.interet_vente_par_jour * jours)
         capital += brut - f
         frais_total += f
         trades.append(Trade(pos.paire, pos.ouvert_le, t, pos.prix_moyen, px,
@@ -222,9 +241,10 @@ def rejouer_turtle(donnees: dict[str, list[Bougie]], r: ReglagesTurtle) -> dict:
                 px = seuil * (1 + pos.sens * spread)
                 lots = r.risque_n_pct * capital / pos.n_entree
                 notionnel = lots * px
-                engage = sum(p.lots * p.prix_moyen for p in ouvertes.values())
-                if notionnel < r.ticket_min or (pos.sens > 0
-                                                and engage + notionnel > capital):
+                engage = sum(abs(p.lots) * p.prix_moyen
+                             for p in ouvertes.values())
+                if (notionnel < r.ticket_min
+                        or engage + notionnel > r.levier_max * capital):
                     break
                 pos.unites.append(Unite(px, lots))
                 pos.derniere_entree = px
@@ -250,17 +270,18 @@ def rejouer_turtle(donnees: dict[str, list[Bougie]], r: ReglagesTurtle) -> dict:
                 continue
 
             sens = systeme = 0
+            vendable = (not r.paires_vendables) or (paire in r.paires_vendables)
             # System 2 d'abord : il n'est jamais saute, donc il prime.
             if b.close > max(x.high for x in s[i - r.system2_entree:i]):
                 sens, systeme = 1, 2
-            elif r.autoriser_vente and \
-                    b.close < min(x.low for x in s[i - r.system2_entree:i]):
+            elif (r.autoriser_vente and vendable
+                    and b.close < min(x.low for x in s[i - r.system2_entree:i])):
                 sens, systeme = -1, 2
             elif b.close > max(x.high for x in s[i - r.system1_entree:i]):
                 if not r.filtre_system1 or autorise.get((paire, 1), {}).get(i, True):
                     sens, systeme = 1, 1
-            elif r.autoriser_vente and \
-                    b.close < min(x.low for x in s[i - r.system1_entree:i]):
+            elif (r.autoriser_vente and vendable
+                    and b.close < min(x.low for x in s[i - r.system1_entree:i])):
                 if not r.filtre_system1 or autorise.get((paire, -1), {}).get(i, True):
                     sens, systeme = -1, 1
             if sens == 0:
@@ -276,13 +297,17 @@ def rejouer_turtle(donnees: dict[str, list[Bougie]], r: ReglagesTurtle) -> dict:
             notionnel = lots * px
             if notionnel < r.ticket_min:
                 continue
-            if sens > 0:
-                dispo = capital - sum(p.lots * p.prix_moyen
-                                      for p in ouvertes.values() if p.sens > 0)
-                if notionnel > dispo:
-                    lots = dispo / px
-                    if lots * px < r.ticket_min:
-                        continue
+            # Plafond d'exposition, TOUS SENS CONFONDUS. Une vente engage
+            # autant qu'un achat : la borner d'un seul cote laisserait le
+            # levier rentrer par la porte de derriere.
+            engage_total = sum(abs(p.lots) * p.prix_moyen
+                               for p in ouvertes.values())
+            place = max(0.0, r.levier_max * capital - engage_total)
+            if notionnel > place:
+                lots = place / px
+                notionnel = lots * px
+                if notionnel < r.ticket_min:
+                    continue
             ouvertes[paire] = PositionT(
                 paire, sens, systeme, [Unite(px, lots)],
                 px - sens * r.stop_n * a, px, a, s[i + 1].ts)
