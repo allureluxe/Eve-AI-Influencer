@@ -1294,3 +1294,28 @@ class TestUnEtageAgranditLAvoirAuLieuDeLEcraser:
         assert p2.stop_loss == haut, (
             f"stop redescendu a {p2.stop_loss} : un etage ne doit jamais "
             "affaiblir la protection de l'avoir deja constitue")
+
+    def test_le_R_suit_la_pyramide(self):
+        """`initial_risk` doit etre recalcule, sinon quatre regles mentent.
+
+        C'est le denominateur de `r_multiple()`. Fige a la distance du
+        PREMIER etage, il faisait mesurer le R avec une regle perimee des
+        qu'une fusion changeait l'entree et le stop.
+
+        Et TOUT en depend : point mort a 0,7 R, stop suiveur a 1,1 R, stop
+        temporel sous 0,4 R, et le R du bilan. Une pyramide faisait donc
+        travailler quatre regles sur un chiffre faux, en silence.
+        """
+        b = broker_de_test()
+        inst, p1 = self._avec_une_position(b)
+        p1.entry_price = 5.0
+        p1.stop_loss = 4.0
+        p1.initial_risk = 1.0
+        p1.breakeven_done = True
+        p2 = b.open_position(inst, Side.BUY, 1.0, 10.60, 900.0)
+        attendu = abs(p2.entry_price - p2.stop_loss)
+        assert abs(p2.initial_risk - attendu) < 1e-6, (
+            f"initial_risk {p2.initial_risk} au lieu de {attendu} : le R est "
+            "encore mesure avec la regle du premier etage")
+        assert p2.breakeven_done is False, (
+            "le point mort doit se rejouer sur la nouvelle entree moyenne")

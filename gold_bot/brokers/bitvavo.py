@@ -901,6 +901,23 @@ class BitvavoBroker(Broker):
             # Le prix de CETTE unite, pas la moyenne : c'est lui qui sert
             # de reference au prochain espacement de 0,5 N.
             existante.derniere_entree = regle.arrondir_prix(rempli)
+
+            # LE R DOIT SUIVRE LA POSITION, SINON TOUTES LES REGLES MENTENT.
+            #
+            # `initial_risk` est le denominateur de `r_multiple()`. Il etait
+            # fige a la distance du PREMIER etage : apres une fusion, le
+            # prix d'entree et le stop ont bouge tous les deux, et le R
+            # continuait d'etre mesure avec une regle perimee.
+            #
+            # Or TOUT en depend : le point mort a 0,7 R, le stop suiveur a
+            # 1,1 R, le stop temporel sous 0,4 R, et le R affiche dans le
+            # bilan. Une pyramide faisait donc travailler quatre regles sur
+            # un chiffre faux, sans qu'aucune ne signale quoi que ce soit.
+            existante.initial_risk = abs(existante.entry_price - nouveau_stop)
+            # Le point mort se rejoue sur la NOUVELLE entree moyenne : celle
+            # d'avant ne veut plus rien dire, et sans cette remise a zero le
+            # drapeau empecherait le stop de revenir proteger la pyramide.
+            existante.breakeven_done = False
             self._frais_entree[existante.id] = (
                 self._frais_entree.get(existante.id, 0.0) + frais_entree)
             self._instruments[instrument.symbol] = instrument
