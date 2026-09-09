@@ -37,6 +37,14 @@ from gold_bot.env import charger_env                        # noqa: E402
 
 charger_env()
 
+# UN DIAGNOSTIC NE DOIT RIEN ECRIRE. Construire un TradingEngine met a
+# jour le marqueur de strategie — et donc REMET A ZERO l'echantillon des
+# 40 trades si la configuration a change depuis le dernier demarrage du
+# robot. C'est arrive le 9 septembre 2026 : lancer cet outil a efface le
+# compteur de preuve. On detourne donc le marqueur vers un fichier
+# jetable ; le vrai reste intact, ecrit par le robot et par lui seul.
+os.environ["GB_STRATEGIE_FILE"] = "/tmp/strategie-diagnostic.json"
+
 from gold_bot.trade_manager import ActionType         # noqa: E402
 from gold_bot.engine import TradingEngine                   # noqa: E402
 

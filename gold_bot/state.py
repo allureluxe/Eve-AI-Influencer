@@ -144,6 +144,22 @@ class StateStore:
             "breakeven_done": pos.breakeven_done,
             "partial_done": pos.partial_done,
             "opened_at": pos.opened_at,
+            # SANS CES TROIS-LA, UN REDEMARRAGE EFFACE LA PYRAMIDE.
+            #
+            # `etages` repartait a 1 : le robot croyait pouvoir rajouter
+            # deux etages sur une pyramide deja pleine, soit jusqu'a cinq
+            # unites la ou la mesure en autorise trois (six unites font
+            # -40,8 % hors echantillon).
+            #
+            # `derniere_entree` repartait a 0, donc l'espacement de 0,5 N
+            # se mesurait depuis la moyenne ponderee au lieu de la
+            # derniere unite : des etages trop rapproches.
+            #
+            # `trail_arme` repartait a false, ce qui redemandait au
+            # cliquet de s'armer alors qu'il l'etait deja.
+            "etages": pos.etages,
+            "derniere_entree": pos.derniere_entree,
+            "trail_arme": pos.trail_arme,
         }
 
     def restore_position(self, pos: Position) -> bool:
@@ -160,6 +176,9 @@ class StateStore:
         pos.breakeven_done = meta.get("breakeven_done", False)
         pos.partial_done = meta.get("partial_done", False)
         pos.opened_at = meta.get("opened_at", pos.opened_at)
+        pos.etages = meta.get("etages", 1)
+        pos.derniere_entree = meta.get("derniere_entree", 0.0)
+        pos.trail_arme = meta.get("trail_arme", False)
         return True
 
     def position_memorisee(self, position_id: str) -> Optional[Position]:

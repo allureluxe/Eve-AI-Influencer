@@ -679,3 +679,48 @@ class TestLeCliquetSArmeSansDependreDuR:
         assert "position.etages > 1" in self._src(), (
             "une pyramide a forcement progresse : elle doit avoir son "
             "stop suiveur, c'est justement elle que le bug privait")
+
+
+class TestLaPyramideSurvitAuRedemarrage:
+    """Sans persistance, un redemarrage effacait la pyramide.
+
+    Trouve le 9 septembre 2026 sur une question de l'operateur : « il a
+    quel etage du pyramide ? ». Le robot ne savait pas repondre — le
+    compteur repartait a 1 a chaque demarrage.
+
+    Consequence mesurable et deja survenue : KAVA s'est retrouvee avec
+    QUATRE unites alors que le maximum arme en autorise trois. Le robot,
+    croyant repartir de zero, avait rajoute un etage sur une pyramide
+    deja pleine. Six unites font -40,8 % hors echantillon : le plafond
+    n'est pas decoratif.
+    """
+
+    CHAMPS = ("etages", "derniere_entree", "trail_arme")
+
+    def test_les_trois_champs_sont_memorises(self):
+        import inspect
+        from gold_bot.state import TradeJournal, StateStore
+        src = inspect.getsource(StateStore)
+        for champ in self.CHAMPS:
+            assert f'"{champ}": pos.{champ}' in src, (
+                f"{champ} n'est pas ecrit dans state.json : un redemarrage "
+                "l'effacera")
+
+    def test_les_trois_champs_sont_restaures(self):
+        import inspect
+        from gold_bot.state import StateStore
+        src = inspect.getsource(StateStore.restore_position)
+        for champ in self.CHAMPS:
+            assert f'pos.{champ} = meta.get("{champ}"' in src, (
+                f"{champ} n'est pas relu au demarrage")
+
+    def test_le_defaut_de_etages_est_UN_pas_zero(self):
+        """Une position sans historique compte pour une unite, pas zero.
+
+        A zero, `peut_renforcer` autoriserait un etage de plus que le
+        plafond sur toute position dont l'etat a ete perdu.
+        """
+        import inspect
+        from gold_bot.state import StateStore
+        src = inspect.getsource(StateStore.restore_position)
+        assert 'meta.get("etages", 1)' in src
