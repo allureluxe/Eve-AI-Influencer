@@ -83,7 +83,38 @@ class TestLaPyramideResteFermeeParDefaut:
         """
         assert BotConfig.load("robot.bitvavo.json").risk.pyramide_max == 0
 
-    def test_le_reglage_livre_est_arme_a_trois_unites(self):
+    def test_le_reglage_livre_est_illimite(self):
+        """ILLIMITE, arme le 9 septembre 2026 sur decision de l'operateur.
+
+        Sa lecture du mecanisme etait meilleure que ma conclusion, et les
+        donnees lui donnent raison. Quand une pyramide se ferme, hors
+        echantillon, frais doubles :
+
+            unites    trades  gagnants   resultat    moyen
+            1            122      15 %    -635 E    -5,21
+            2-3          117      10 %    -719 E    -6,15
+            4-5           57      19 %     -63 E    -1,10
+            6-9           36      47 %   +1270 E   +35,27
+            10 et +        7     100 %    +754 E  +107,75
+
+        Les pyramides de dix unites et plus sont gagnantes SEPT FOIS SUR
+        SEPT — exactement ce qu'il decrivait : plus ca monte, plus il
+        investit, et tout sort ensemble en profit sur le stop commun.
+
+        Le budget de risque ne les bride pas : une position gagnante
+        libere son budget quand son stop passe au-dessus de l'entree.
+        Les pyramides atteignent 11-12 unites a 3,5 %, et RELEVER le
+        budget degrade (+58,6 % a 3,5 % contre +37,8 % a 6 %).
+
+        CE QUE CA COUTE, et l'operateur l'a accepte : hors echantillon
+        +58,6 % contre +27,9 % a trois unites, mais un recul de 47,6 %
+        contre 33,6 %. Et en apprentissage l'illimite fait -66,3 % avec
+        83,9 % de recul. Les deux periodes se contredisent : une partie
+        du resultat est du regime, pas de la strategie.
+        """
+        assert BotConfig.load("robot.bitvavo.json").risk.pyramide_max >= 99
+
+    def _ancienne_valeur_trois_unites(self):
         """3 unites, pas 4 ni l'illimite : c'est ce que la mesure designe.
 
         Hors echantillon, frais doubles, 70 paires, 2,2 ans :
@@ -100,7 +131,7 @@ class TestLaPyramideResteFermeeParDefaut:
         moment — est la pire des six : le monter n'est pas « debrider »,
         c'est reproduire un resultat mesure a -84 %.
         """
-        assert BotConfig.load("robot.bitvavo.json").risk.pyramide_max == 2
+        assert BotConfig.load("robot.bitvavo.json").risk.pyramide_max >= 99
 
     def test_le_relevement_turtle_accompagne_le_desserrage(self):
         """`pyramide_locked_r_min` desserre : son remplacant doit etre arme.
