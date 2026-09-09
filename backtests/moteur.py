@@ -39,6 +39,7 @@ class Position:
     plus_haut: float
     risque_initial: float          # en EUR, la distance au stop x lots
     etages: int = 1                # nombre d'unites posees
+    trail_arme: bool = False       # cliquet : une fois arme, il le reste
     derniere_entree: float = 0.0   # prix de la DERNIERE unite, pour l'espacement
     atr_entree: float = 0.0        # le N du premier etage, fige
 
@@ -74,6 +75,16 @@ class Reglages:
     trail_atr: float = 2.2
     trail_depart_r: float = 1.1
     stop_temporel_jours: int = 12
+    # SEUIL DU STOP TEMPOREL, en R. Le moteur reel ferme a
+    # `stop_temporel_jours` si le R COURANT est sous ce seuil
+    # (time_stop_min_r = 0,4 dans la config armee).
+    #
+    # Le harnais testait `close <= entree`, c'est-a-dire un seuil de 0.
+    # Il gardait donc des positions que le robot aurait fermees — et sur
+    # actions ca a laisse AAPL courir 9,7 ans en bloquant tout le capital.
+    # Une regle plus laxiste dans le rejeu que dans le moteur ne mesure
+    # pas la strategie : elle en mesure une autre, plus patiente.
+    stop_temporel_min_r: float = 0.4
     # --- Sortie sur STAGNATION (et non sur duree) ---
     #
     # Demande de l'operateur : une position qui avance ne se ferme JAMAIS
@@ -86,6 +97,11 @@ class Reglages:
     # A 0, la regle est desarmee.
     stagnation_jours: float = 0.0
     stagnation_max_r: float = 0.5
+    # True  = on lit le MEILLEUR parcours atteint (regle armee)
+    # False = on lit le R COURANT (ancienne regle du moteur)
+    # C'est la variable a isoler : changer le delai ET le critere en meme
+    # temps ne dit pas lequel des deux a produit le resultat.
+    stagnation_sur_pic: bool = True
     # Sortie par canal, a la Turtle. A 0 le stop suiveur ATR fait le
     # travail ; au-dessus de 0 il est desactive et c'est la casse du
     # plus-bas de N jours qui ferme. Les deux ne cohabitent pas : on
@@ -101,6 +117,35 @@ class Reglages:
     pyramide_max: int = 0
     pyramide_espacement_atr: float = 0.5
     pyramide_taille_fraction: float = 1.0   # 1.0 = etages de meme taille
+    # --- Entree en ordre LIMITE (maker) ---
+    #
+    # Au marche on paie 0,25 % de taker PLUS le spread. En limite on paie
+    # 0,15 % de maker et AUCUN spread : on fournit la liquidite au lieu de
+    # la consommer. Economie totale : 0,20 % du notionnel a l'entree.
+    #
+    # LA CONTREPARTIE EST LA SELECTION ADVERSE, et c'est elle qu'il faut
+    # mesurer : l'ordre n'est servi QUE si le prix revient le toucher.
+    # Quand le mouvement est franc, il ne revient pas — on rate donc
+    # precisement les trades qu'on voulait. Modelise ici honnetement :
+    # limite posee a la cloture du jour du signal, servie seulement si le
+    # plus-bas du lendemain y descend, sinon le trade n'existe pas.
+    entree_limite: bool = False
+    frais_maker: float = 0.0015
+    # --- Commission FIXE par ordre (modele IBKR) ---
+    #
+    # Bitvavo facture un POURCENTAGE : le cout suit la taille, donc un
+    # petit compte paie proportionnellement la meme chose qu'un gros.
+    # IBKR facture 0,0035 USD par action avec un MINIMUM de 0,35 USD par
+    # ordre — un cout FIXE, que la position fasse 40 EUR ou 4 000.
+    #
+    # C'est ce qui decide de tout sur un petit compte : a 40 EUR de
+    # notionnel, 0,32 EUR d'aller simple pese 0,8 % — trois fois le taker
+    # de Bitvavo. A 4 000 EUR, il pese 0,008 %. Le meme courtier est
+    # ruineux ou imbattable selon la taille.
+    #
+    # A 0, on garde le modele en pourcentage.
+    commission_fixe: float = 0.0
+    ticket_min: float = 5.0
     # Filtres de la variante C
     filtre_momentum: bool = False      # top tiers du momentum 90 j
     filtre_liquidite: bool = False     # au-dessus de la mediane de volume
@@ -168,18 +213,27 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
                 # Stagnation : le MEILLEUR parcours n'a rien donne.
                 age = (t - pos.ouvert_le) / 86400
                 if age >= r.stagnation_jours and pos.risque_initial > 0:
-                    meilleur_r = ((pos.plus_haut - pos.entree) * pos.lots
-                                  / pos.risque_initial)
-                    if meilleur_r < r.stagnation_max_r:
+                    reference = (pos.plus_haut if r.stagnation_sur_pic
+                                 else b.close)
+                    mesure_r = ((reference - pos.entree) * pos.lots
+                                / pos.risque_initial)
+                    if mesure_r < r.stagnation_max_r:
                         sortie, motif = b.close, "stagnation"
             elif (t - pos.ouvert_le) / 86400 >= r.stop_temporel_jours and \
-                    b.close <= pos.entree:
+                    pos.risque_initial > 0 and \
+                    ((b.close - pos.entree) * pos.lots / pos.risque_initial
+                     < r.stop_temporel_min_r):
                 sortie, motif = b.close, "stop temporel"
 
             if sortie is not None:
                 px = sortie * (1 - spread)
                 brut = (px - pos.entree) * pos.lots
-                f = (pos.entree + px) * pos.lots * comm
+                if r.commission_fixe > 0:
+                    f = 2 * r.commission_fixe * r.multiplicateur_couts
+                else:
+                    comm_entree = ((r.frais_maker * r.multiplicateur_couts)
+                                   if r.entree_limite else comm)
+                    f = pos.entree * pos.lots * comm_entree + px * pos.lots * comm
                 capital += brut - f
                 frais_total += f
                 trades.append(Trade(paire, pos.ouvert_le, t, pos.entree, px,
@@ -197,7 +251,8 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
                 lots_sup = (pos.lots / pos.etages) * r.pyramide_taille_fraction
                 px_sup = seuil * (1 + spread)
                 engage = sum(q.lots * q.entree for q in ouvertes.values())
-                if lots_sup * px_sup < 5.0 or engage + lots_sup * px_sup > capital:
+                if (lots_sup * px_sup < r.ticket_min
+                        or engage + lots_sup * px_sup > capital):
                     break
                 total = pos.lots + lots_sup
                 pos.entree = (pos.entree * pos.lots + px_sup * lots_sup) / total
@@ -206,7 +261,14 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
                 pos.etages += 1
                 # Regle Turtle : tous les etages remontent sous la derniere unite.
                 pos.stop = max(pos.stop, px_sup - r.stop_atr * pos.atr_entree)
-                pos.risque_initial = (pos.entree - pos.stop) * pos.lots
+                # abs() : une fois le stop remonte AU-DESSUS de l'entree
+                # moyenne, cette difference devient negative — et le bloc
+                # du stop suiveur, garde par `risque_initial > 0`, ne
+                # s'executait plus JAMAIS. La position perdait sa
+                # protection au moment precis ou elle devenait gagnante.
+                # Le moteur reel utilise deja abs() ; c'est le harnais qui
+                # mesurait autre chose que ce qui tourne.
+                pos.risque_initial = abs(pos.entree - pos.stop) * pos.lots
 
             # Stop suiveur ATR : il ne descend jamais. Neutralise des
             # qu'une sortie par canal est demandee.
@@ -214,7 +276,14 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
             a = 0.0 if r.sortie_canal_jours else atr(donnees[paire], i, r.atr_periode)
             if a > 0 and pos.risque_initial > 0:
                 gain_r = (pos.plus_haut - pos.entree) * pos.lots / pos.risque_initial
+                # CLIQUET. `risque_initial` grossit a chaque etage de
+                # pyramide, donc `gain_r` retombe sous le seuil et le
+                # suiveur se DESARMAIT — la position gardait le stop fige
+                # du dernier etage. Mesure : position la plus longue
+                # 75 j sans pyramidage, 3 510 j avec.
                 if gain_r >= r.trail_depart_r:
+                    pos.trail_arme = True
+                if pos.trail_arme:
                     suiveur = pos.plus_haut - r.trail_atr * a
                     pos.stop = max(pos.stop, suiveur)
 
@@ -278,8 +347,16 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
                 a = atr(s, i, r.atr_periode)
                 if a <= 0:
                     continue
-                # EXECUTION EN t+1 A L'OUVERTURE, glissement subi.
-                px = s[i + 1].open * (1 + spread)
+                if r.entree_limite:
+                    # Limite a la cloture du signal. Servie seulement si le
+                    # prix redescend la toucher : sinon on rate le trade.
+                    limite = s[i].close
+                    if s[i + 1].low > limite:
+                        continue
+                    px = limite            # ni spread, ni glissement
+                else:
+                    # EXECUTION EN t+1 A L'OUVERTURE, glissement subi.
+                    px = s[i + 1].open * (1 + spread)
                 stop = px - r.stop_atr * a
                 distance = px - stop
                 if distance <= 0:
@@ -289,13 +366,13 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
                     continue
                 lots = risque_eur / distance
                 notionnel = lots * px
-                if notionnel < 5.0:                    # ticket minimum Bitvavo
+                if notionnel < r.ticket_min:
                     continue
                 dispo = capital - sum(p.lots * p.entree for p in ouvertes.values())
                 if notionnel > dispo:
                     lots = dispo / px
                     notionnel = lots * px
-                    if notionnel < 5.0:
+                    if notionnel < r.ticket_min:
                         continue
                 ouvertes[paire] = Position(paire, px, lots, stop, s[i + 1].ts,
                                            s[i + 1].high,
@@ -322,7 +399,12 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
         b = donnees[paire][i] if i is not None else donnees[paire][-1]
         px = b.close * (1 - spread)
         brut = (px - pos.entree) * pos.lots
-        f = (pos.entree + px) * pos.lots * comm
+        if r.commission_fixe > 0:
+            f = 2 * r.commission_fixe * r.multiplicateur_couts
+        else:
+            comm_entree = ((r.frais_maker * r.multiplicateur_couts)
+                           if r.entree_limite else comm)
+            f = pos.entree * pos.lots * comm_entree + px * pos.lots * comm
         capital += brut - f
         frais_total += f
         trades.append(Trade(paire, pos.ouvert_le, b.ts, pos.entree, px,

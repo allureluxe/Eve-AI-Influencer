@@ -68,6 +68,13 @@ class ReglagesTurtle:
     # tout l'univers en rejeu surestime donc la vente a decouvert d'un
     # facteur qu'il vaut mieux mesurer que supposer. Vide = tout permis.
     paires_vendables: tuple[str, ...] = ()
+    # LIQUIDATION. Chez Bitvavo la vente a decouvert est a levier 10x : la
+    # marge vaut 10 % du notionnel et la position est liquidee des que le
+    # prix monte de ~7 %. Ce n'est PAS un stop qu'on choisit — il est
+    # impose, il ne se deplace pas, et il coupe avant le stop 2N des que
+    # celui-ci est plus large. Le mesurer change tout sur les actifs
+    # volatils. A 0, aucune liquidation (l'hypothese trop belle d'avant).
+    liquidation_hausse_pct: float = 0.07
 
 
 @dataclass
@@ -214,6 +221,14 @@ def rejouer_turtle(donnees: dict[str, list[Bougie]], r: ReglagesTurtle) -> dict:
 
             # Le stop passe AVANT le canal : dans la journee il est touche
             # en premier des que le plus-bas y descend.
+            # La liquidation passe AVANT tout le reste : elle ne se
+            # negocie pas et elle ne se deplace pas.
+            if pos.sens < 0 and r.liquidation_hausse_pct > 0:
+                seuil_liq = pos.unites[0].entree * (1 + r.liquidation_hausse_pct)
+                if b.high >= seuil_liq:
+                    fermer(pos, seuil_liq, t, "LIQUIDATION")
+                    del ouvertes[paire]; continue
+
             if pos.sens > 0:
                 canal = min(x.low for x in s[i - n_s:i])
                 if b.low <= pos.stop:
