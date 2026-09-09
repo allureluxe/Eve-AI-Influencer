@@ -547,6 +547,46 @@ stop vaut `atr_stop_mult` ATR, soit 1 R, donc un spread de M ATR pèse
 `M / atr_stop_mult` en R. `BotConfig.validate()` refuse désormais la
 contradiction au démarrage, en donnant la valeur à corriger.
 
+### Correction du 9 septembre : c'était vrai du FOREX, pas des actions
+
+Tout ce qui suit reste exact **pour le forex**, et la conclusion s'est
+propagée trop loin. Le minimum de 2 USD est celui du forex ; sur les
+**actions US en tarif Tiered**, le minimum est de **0,35 USD par ordre**.
+
+À 366 EUR de capital et 0,6 % de risque (2,20 EUR) :
+
+    plan IBKR                      aller-retour   cout / risque
+    Tiered, actions US                  0,64 E         29 %     <- passe
+    Fixed, actions US                   1,84 E         84 %
+    Tiered, ETF europeens               2,50 E        114 %
+    Forex (l'analyse d'origine)         3,68 E        167 %
+
+**Le Tiered actions US passe sous le plafond de 50 %.** IBKR n'est donc
+pas disqualifié par les frais — la ligne « pas utilisable à ce capital »
+ne vaut que pour le forex et les ETF européens.
+
+Ce qui bloque vraiment est ailleurs : **IBKR Ireland exige 2 000 EUR sur
+un compte de marge**, et le compte de marge est obligatoire pour vendre à
+découvert. Sans marge, IBKR n'offre que de l'achat seul — donc rien de
+plus que Bitvavo, sur un marché où **aucune mesure n'existe** (toutes les
+données du dépôt sont crypto).
+
+Ce que ça donnerait aux paliers supérieurs, Tiered actions US :
+
+    capital    risque 0,6 %   cout / risque
+     2 000 E        12,00 E        5 %      <- marge + ventes possibles
+     3 000 E        18,00 E        4 %
+
+Contre **~48 %** chez Bitvavo aujourd'hui. À 2 000 EUR, les frais sont
+divisés par dix ET la vente à découvert s'ouvre — c'est la combinaison
+qui donnait les meilleurs rejeux de la session.
+
+**Demande de marge envoyée le 9 septembre 2026.** Elle ne débloque rien
+tant que le compte n'atteint pas 2 000 EUR. Avant d'y transférer quoi que
+ce soit : remesurer la stratégie sur des **données actions**, qui n'ont
+jamais été téléchargées. Un Donchian 20 jours sur actions n'est pas le
+même animal qu'en crypto — horaires, gaps d'ouverture, corrélations.
+
 ### IBKR n'est pas utilisable à ce capital, et ce n'est pas un bug
 
 Vérifié le 29 août, tarif public IBKR : la commission forex vaut
