@@ -98,7 +98,7 @@
     "partial_at_r": 1.0,
     "partial_fraction": 0.3,
     "trail_start_r": 1.1,
-    "trail_atr_mult": 2.2,
+    "trail_atr_mult": 2.0,
     "trail_tighten_atr_mult": 0.6,
     "extend_enabled": true,
     "extend_at_progress": 0.8,

@@ -724,3 +724,54 @@ class TestLaPyramideSurvitAuRedemarrage:
         from gold_bot.state import StateStore
         src = inspect.getsource(StateStore.restore_position)
         assert 'meta.get("etages", 1)' in src
+
+
+class TestLaLargeurDuStopSuiveur:
+    """2,0 ATR, arme le 9 septembre 2026 — et pourquoi PAS plus serre.
+
+    L'operateur avait vu juste : les positions rendaient leurs gains.
+    KAVA valait +5,57 EUR de gain latent et serait sortie a +0,71 ;
+    NEAR +2,58 pour une sortie a +0,10. Un suiveur a 2,2 ATR lache 8 a
+    14 % du prix selon la crypto — il ne peut pas proteger un gain de 6 %.
+
+    LA PREMIERE MESURE DISAIT DE SERRER A 0,6 ATR (+403 % hors
+    echantillon, Sharpe 2,16). C'ETAIT FAUX, et le defaut etait dans le
+    modele d'execution : le rejeu sortait TOUJOURS au prix du stop.
+    Acceptable pour un stop large ; fiction pour un stop serre pose sous
+    le plus-haut de la veille, que l'OUVERTURE franchit une fois sur
+    deux. Le rejeu offrait donc chaque jour le plus-haut de la veille.
+
+    Le signe qui aurait du alerter plus tot : le resultat s'ameliorait
+    SANS LIMITE en serrant (0,2 ATR rendait +1253 %), et la duree
+    medianne tombait a 1 jour. Une mesure qui s'ameliore indefiniment
+    dans une direction decrit un defaut de modele, pas un optimum.
+
+    Une fois le gap modelise (`sortie = min(stop, ouverture)`), le
+    classement s'inverse, hors echantillon, frais doubles :
+
+        0,6 ATR   -26,5 %   Sharpe -0,38   recul 46,7 %
+        1,6 ATR   -10,5 %   Sharpe  0,00   recul 34,4 %
+        2,0 ATR   +27,9 %   Sharpe  0,48   recul 33,6 %   <- arme
+        2,2 ATR   +16,8 %   Sharpe  0,37   recul 34,5 %
+        2,6 ATR    +5,5 %   Sharpe  0,25   recul 35,0 %
+
+    2,0 bat 2,2 sur les trois criteres, en apprentissage comme hors
+    echantillon. Le gain est modeste et c'est normal : il n'y avait pas
+    de miracle a trouver.
+    """
+
+    def test_le_reglage_livre_est_a_deux_ATR(self):
+        cfg = BotConfig.load("robot.bitvavo.json")
+        assert cfg.trade.trail_atr_mult == 2.0
+
+    def test_ne_pas_serrer_le_suiveur(self):
+        """Le piege a ne pas retomber dedans.
+
+        Serrer parait toujours meilleur tant que le rejeu ne modelise pas
+        le gap d'ouverture. Sous 1,6 ATR, la mesure honnete est negative
+        hors echantillon.
+        """
+        cfg = BotConfig.load("robot.bitvavo.json")
+        assert cfg.trade.trail_atr_mult >= 1.6, (
+            "suiveur serre sous 1,6 ATR : mesure PERDANT hors echantillon "
+            "des que le gap d'ouverture est modelise (-26,5 % a 0,6 ATR)")
