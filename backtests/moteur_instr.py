@@ -26,6 +26,7 @@ from donnees import Bougie
 # alts en EUR tourne autour de 0,10 % ; on le compte comme un glissement
 # subi a l'entree ET a la sortie, jamais en notre faveur.
 COMMISSION = 0.0025
+ETAGES_ATTEINTS = []
 SPREAD = 0.0010
 
 
@@ -199,22 +200,10 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
             b = donnees[paire][i]
 
             sortie = motif = None
-            # LE GAP D'OUVERTURE, QUI CHANGE TOUT SUR UN STOP SERRE.
-            #
-            # On sortait toujours AU prix du stop. C'est acceptable pour
-            # un stop large, c'est une fiction pour un stop serre : pose
-            # juste sous le plus-haut de la veille, il est franchi par
-            # l'OUVERTURE une fois sur deux, et on est servi la — pas au
-            # niveau demande.
-            #
-            # Sans ce detail, resserrer le suiveur ameliorait le resultat
-            # SANS LIMITE : 0,2 ATR rendait +1253 % hors echantillon avec
-            # une duree mediane d'un jour. Ce n'etait pas une strategie,
-            # c'etait le modele d'execution qui offrait chaque jour le
-            # plus-haut de la veille.
+            # Le stop est teste sur le plus-bas du jour : s'il est touche,
+            # on sort AU STOP, pas au plus bas — mais jamais mieux.
             if b.low <= pos.stop:
-                sortie = min(pos.stop, b.open)      # jamais mieux que l'ouverture
-                motif = "stop"
+                sortie, motif = pos.stop, "stop"
             elif r.sortie_canal_jours and i >= r.sortie_canal_jours + 1 and \
                     b.close < min(x.low for x in
                                   donnees[paire][i - r.sortie_canal_jours:i]):
@@ -271,6 +260,7 @@ def rejouer(donnees: dict[str, list[Bougie]], r: Reglages) -> dict:
                 pos.lots = total
                 pos.derniere_entree = px_sup
                 pos.etages += 1
+                ETAGES_ATTEINTS.append(pos.etages)
                 # Regle Turtle : tous les etages remontent sous la derniere unite.
                 pos.stop = max(pos.stop, px_sup - r.stop_atr * pos.atr_entree)
                 # abs() : une fois le stop remonte AU-DESSUS de l'entree
