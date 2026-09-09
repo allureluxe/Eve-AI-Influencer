@@ -806,3 +806,41 @@ class TestLaLargeurDuStopSuiveur:
         assert cfg.trade.trail_atr_mult >= 1.6, (
             "suiveur serre sous 1,6 ATR : mesure PERDANT hors echantillon "
             "des que le gap d'ouverture est modelise (-26,5 % a 0,6 ATR)")
+
+
+class TestLePlafondDeCorrelationEstRetire:
+    """Retire le 9 septembre 2026, pour ALIGNER le robot sur la mesure.
+
+    LA RAISON N'EST PAS « plus d'opportunites », c'est la coherence :
+    `turtle-variants/backtests/moteur.py` NE MODELISE PAS les groupes
+    correles. Tous les rejeux — y compris celui qui a valide le
+    pyramidage « a l'abri » — ont donc ete faits SANS aucune limite de
+    correlation. Le moteur reel etait plus bride que la configuration
+    mesuree.
+
+    C'est la meme classe d'ecart que le stop temporel du harnais (seuil
+    0 R contre 0,4 R en reel) ou le gap d'ouverture : le rejeu mesurait
+    une chose, le robot en faisait une autre.
+
+    Historique du reglage, aucune valeur jamais mesuree :
+        22 aout   Claude      2   valeur par defaut, sans mesure
+        25 aout   operateur   1   « reduce correlated exposure »
+        28 aout   operateur   2   « liberer les opportunites »
+        9 sept    operateur  99   alignement sur le rejeu
+
+    CE QU'ON PERD, et c'est assume : la protection contre le scenario du
+    31 aout — six stops pleins en une nuit sur des cryptos correlees.
+    Le garde-fou qui reste est `max_total_risk_pct` (3,5 %), qui borne
+    la perte totale quel que soit le nombre de familles touchees.
+    """
+
+    def test_le_plafond_est_retire(self):
+        cfg = BotConfig.load("robot.bitvavo.json")
+        assert cfg.risk.max_per_correlation_group >= 99
+
+    def test_le_budget_de_risque_reste_la_vraie_borne(self):
+        """Sans plafond par famille, c'est lui qui limite l'exposition."""
+        cfg = BotConfig.load("robot.bitvavo.json")
+        assert 0 < cfg.risk.max_total_risk_pct <= 5.0, (
+            "le budget de risque total est desormais le SEUL garde-fou "
+            "contre une exposition sectorielle concentree")

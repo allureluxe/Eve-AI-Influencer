@@ -70,7 +70,7 @@
     "max_drawdown_pct": 45.0,
     "daily_profit_target_pct": 0.0,
     "max_positions": 99,
-    "max_per_correlation_group": 2,
+    "max_per_correlation_group": 99,
     "max_total_risk_pct": 3.5,
     "max_daily_trades": 0,
     "min_seconds_between_trades": 30.0,
