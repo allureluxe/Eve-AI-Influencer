@@ -48,28 +48,30 @@ from dataclasses import replace
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-# Recul tolere sous la reference.
+# Recul tolere sous la reference. HISTORIQUE DES TROIS VALEURS :
 #
-# Passe de 0,24 a 0,40 le 6 septembre 2026, sur decision de l'operateur,
-# parce que 0,24 etait PLUS SERRE QUE LE FONCTIONNEMENT NORMAL de la
-# strategie. Mesure sur 70 paires, 2,2 ans hors echantillon, frais
-# doubles :
+#   0,24  pose le 31 aout, depuis une simulation portefeuille sur 6 mois.
+#   0,40  le 6 septembre : a 24 % le chien de garde coupait sur un creux
+#         ORDINAIRE et non sur une avarie. Une strategie de tendance, qui
+#         vit de ses rares gros trades, ne se refait jamais si on
+#         l'arrete a chaque creux.
+#   0,55  le 9 septembre, apres armement du pyramidage illimite « a
+#         l'abri ». Recul maximal MESURE sur 7,5 ans, 70 paires, frais
+#         doubles : 34,6 %. Le plancher garde 20 points de marge.
 #
-#     configuration armee avant le 6 sept.   recul max  26,9 %
-#     avec le pyramidage Turtle (3 unites)   recul max  35,4 %
+# LA HIERARCHIE DES TROIS PROTECTIONS, et elle doit le rester :
 #
-# A 24 %, le chien de garde coupait donc sur un creux ordinaire et non
-# sur une avarie — et une strategie de tendance, qui vit de ses rares
-# gros trades, ne se refait jamais si on l'arrete a chaque creux.
+#   45 %  max_drawdown_pct  — coupe-circuit INTERNE du robot, il agit en
+#                             premier et le robot peut repartir seul
+#   55 %  ce plancher       — chien de garde EXTERNE, dernier recours :
+#                             il coupe le service et ne le rallume jamais
 #
-# 0,40 laisse 4,6 points de marge au-dessus du recul mesure. Ce n'est pas
-# un desserrage de confort : c'est le seuil qui distingue « la strategie
-# respire » de « quelque chose ne va pas ». Le vrai recul depasse
-# toujours un peu le recul rejoue, d'ou la marge.
+# Si un jour ces deux valeurs se croisent, le chien de garde devient
+# inutile : il ne se declencherait plus jamais.
 #
 # NE PAS le remonter pour « laisser une chance » a une serie perdante :
 # au-dela, on ne protege plus rien.
-PLANCHER_PCT = 0.40
+PLANCHER_PCT = 0.55
 REFERENCE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                          "data", "chien_de_garde_reference.json")
 

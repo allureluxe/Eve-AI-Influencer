@@ -152,6 +152,13 @@ class TestLaChaineProduitDesTrades:
         serie = _serie_en_tendance()
         livree = BotConfig.load("robot.bitvavo.json")
         permissive = BotConfig.load("robot.bitvavo.json")
+        # LE PYRAMIDAGE AJOUTE DU VOLUME PAR CONSTRUCTION, et ce test
+        # mesure la selectivite des FILTRES. Sans le neutraliser des deux
+        # cotes, la config livree prend forcement plus de trades — non
+        # parce qu'elle filtre moins, mais parce qu'elle renforce ses
+        # gagnants. On comparerait alors deux choses differentes.
+        livree.risk.pyramide_max = 0
+        permissive.risk.pyramide_max = 0
         permissive.strategy.min_score = 0.0
         permissive.strategy.min_confirmations = 1
         permissive.strategy.min_adx = 0.0

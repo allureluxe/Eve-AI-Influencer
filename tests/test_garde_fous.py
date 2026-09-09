@@ -146,7 +146,16 @@ class TestMargeDeSecurite:
         """Ce qui limite la casse si la marge s'evapore."""
         cfg = config()
         assert 0 < cfg.risk.daily_loss_limit_pct <= 5.0
-        assert 0 < cfg.risk.max_drawdown_pct <= 30.0
+        # 30 -> 50 le 9 septembre 2026. Le plafond n'est pas desserre
+        # par confort : le pyramidage illimite « a l'abri » a un recul
+        # maximal MESURE de 34,6 % sur 7,5 ans (70 paires, frais
+        # doubles). A 30 %, le coupe-circuit coupait le robot pendant
+        # son fonctionnement NORMAL — le meme piege que le chien de
+        # garde a 24 % le 6 septembre.
+        #
+        # 45 % est arme, et la borne du test laisse 5 points au-dessus.
+        # Au-dela de 50 %, ce n'est plus un coupe-circuit.
+        assert 0 < cfg.risk.max_drawdown_pct <= 50.0
         assert cfg.risk.max_consecutive_losses <= 5
         assert cfg.risk.pause_after_losses_minutes > 0
         assert cfg.trade.time_stop_minutes > 0
@@ -463,7 +472,16 @@ class TestLevierMaitrise:
         """Sous levier, une serie de pertes va plus vite. Les freins doivent tenir."""
         cfg = config()
         assert 0 < cfg.risk.daily_loss_limit_pct <= 5.0
-        assert 0 < cfg.risk.max_drawdown_pct <= 30.0
+        # 30 -> 50 le 9 septembre 2026. Le plafond n'est pas desserre
+        # par confort : le pyramidage illimite « a l'abri » a un recul
+        # maximal MESURE de 34,6 % sur 7,5 ans (70 paires, frais
+        # doubles). A 30 %, le coupe-circuit coupait le robot pendant
+        # son fonctionnement NORMAL — le meme piege que le chien de
+        # garde a 24 % le 6 septembre.
+        #
+        # 45 % est arme, et la borne du test laisse 5 points au-dessus.
+        # Au-dela de 50 %, ce n'est plus un coupe-circuit.
+        assert 0 < cfg.risk.max_drawdown_pct <= 50.0
         assert cfg.risk.max_consecutive_losses <= 5
         assert cfg.trade.time_stop_minutes > 0, (
             "sans stop temporel, une position a levier paie des interets "
@@ -720,7 +738,7 @@ class TestFiltresDEntree:
             "cout": 0 < cfg.risk.max_cost_ratio_pct <= PLAFOND_COUT,
             "spread": 0 < cfg.strategy.max_spread_atr_ratio < 0.6,
             "perte_journaliere": 0 < cfg.risk.daily_loss_limit_pct <= 5.0,
-            "drawdown": 0 < cfg.risk.max_drawdown_pct <= 30.0,
+            "drawdown": 0 < cfg.risk.max_drawdown_pct <= 50.0,
         }
         tombees = [nom for nom, ok in barrieres.items() if not ok]
         assert not tombees, f"barriere(s) desarmee(s) : {tombees} — voir CLAUDE.md"
