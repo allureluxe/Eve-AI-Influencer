@@ -636,3 +636,46 @@ class TestLeStopSuiveurEstUnCliquet:
         assert p.trail_arme is True, (
             "le cliquet doit survivre au recalcul de initial_risk — c'est "
             "tout l'interet")
+
+
+class TestLeCliquetSArmeSansDependreDuR:
+    """Le premier cliquet ne pouvait jamais s'armer. Corrige le 9 sept. 2026.
+
+    Il s'armait sur `r_now >= trail_start_r`. Or `initial_risk` grossit a
+    chaque etage, donc le R d'une position renforcee ne repasse JAMAIS
+    au-dessus du seuil — et au redemarrage le drapeau repart a false pour
+    toutes les positions. Constat de l'operateur : plus aucun stop ne
+    bougeait sur les 10 positions ouvertes.
+
+    On mesure donc la progression en ATR, qui ne depend d'aucun
+    denominateur mobile, plus deux preuves qui survivent a un
+    redemarrage : un stop deja au-dessus de l'entree, et une pyramide de
+    plusieurs etages.
+    """
+
+    @staticmethod
+    def _src():
+        import inspect
+        from gold_bot.trade_manager import TradeManager
+        return inspect.getsource(TradeManager.manage)
+
+    def test_la_progression_se_mesure_en_ATR(self):
+        src = self._src()
+        assert "progres_atr" in src, (
+            "le cliquet mesure encore la progression en R : il ne pourra "
+            "pas s'armer sur une position pyramidee")
+        assert "cfg.trail_start_r * cfg.atr_stop_mult" in src, (
+            "le seuil en ATR doit rester derive de trail_start_r, sinon "
+            "changer le reglage ne changerait plus rien")
+
+    def test_un_stop_deja_au_dessus_de_l_entree_arme_le_cliquet(self):
+        """Preuve de progression qui survit a un redemarrage."""
+        assert "position.locked_r() > 0" in self._src(), (
+            "une position deja protegee doit retrouver son stop suiveur "
+            "apres un redemarrage, meme si max_favorable a ete perdu")
+
+    def test_une_pyramide_arme_le_cliquet(self):
+        """Un etage ne s'ajoute qu'apres 0,5 N de progression."""
+        assert "position.etages > 1" in self._src(), (
+            "une pyramide a forcement progresse : elle doit avoir son "
+            "stop suiveur, c'est justement elle que le bug privait")

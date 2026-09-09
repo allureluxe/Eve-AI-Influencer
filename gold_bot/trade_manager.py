@@ -370,7 +370,32 @@ class TradeManager:
         # Ajouter du volume a une position gagnante ne doit pas lui retirer
         # sa protection. Le cliquet s'arme au premier passage du seuil et
         # ne se relache plus.
-        if r_now >= cfg.trail_start_r:
+        # LE R NE PEUT PAS SERVIR DE DECLENCHEUR, ET C'EST TOUT LE PIEGE.
+        #
+        # Premier correctif (trop court) : un cliquet arme sur
+        # `r_now >= trail_start_r`. Mais `initial_risk` — le denominateur
+        # du R — grossit a chaque etage de pyramide, donc le R d'une
+        # position renforcee ne REPASSE JAMAIS au-dessus du seuil. Le
+        # cliquet ne pouvait plus s'armer, et au redemarrage il repartait
+        # a `false` pour toutes les positions. Constat de l'operateur le
+        # 9 septembre : plus aucun stop ne bougeait.
+        #
+        # On mesure donc la progression en ATR, une unite qui ne depend
+        # d'aucun denominateur mobile. `trail_start_r` reste exprime en R
+        # pour ne pas changer le reglage : 1,1 R vaut
+        # 1,1 x atr_stop_mult ATR, soit 1,76 ATR ici.
+        #
+        # Deux autres preuves de progression, qui survivent a un
+        # redemarrage la ou `max_favorable` peut avoir ete perdu :
+        #   - un stop deja au-dessus de l'entree (il a bien fallu que le
+        #     prix monte pour l'y mettre) ;
+        #   - une pyramide de plusieurs etages : un etage ne s'ajoute
+        #     qu'apres 0,5 N de progression, donc elle a forcement avance.
+        progres_atr = sign * (position.max_favorable - position.entry_price) / atr
+        if (r_now >= cfg.trail_start_r
+                or progres_atr >= cfg.trail_start_r * cfg.atr_stop_mult
+                or position.locked_r() > 0
+                or position.etages > 1):
             position.trail_arme = True
         if position.trail_arme:
             mult = cfg.trail_atr_mult if momentum.favorable else cfg.trail_tighten_atr_mult
