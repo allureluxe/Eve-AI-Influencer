@@ -692,6 +692,8 @@ class TradingEngine:
 
         acc = self.broker.account()
         self.risk.sync_account(acc.equity, acc.balance, acc.currency)
+        if self.risk.dernier_apport > 0:
+            self.objectives.absorber_apport(self.risk.dernier_apport)
         self.objectives.sync(acc.equity)
         state.account_reference = self.risk.account.reference_equity
         state.peak_equity = self.risk.account.peak_equity

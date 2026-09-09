@@ -155,6 +155,28 @@ class ObjectiveTracker:
     # ---------------------------------------------------------------
     # Cycle de vie
     # ---------------------------------------------------------------
+    def absorber_apport(self, montant: float) -> None:
+        """Un virement releve le capital de reference de la semaine.
+
+        Sans ca, l'objectif reste calcule sur le capital d'AVANT le
+        depot : il devient trivial a atteindre, et `protect_after_target`
+        arrete le robot pour la semaine. Arrive le 9 septembre 2026 —
+        objectif de 4,47 EUR sur un compte devenu 366 EUR, atteint a
+        188 %, recherche suspendue pendant que six cassures passaient
+        dont LRC a +26,5 %.
+
+        Un apport n'est pas une performance : il ne doit ni rapprocher
+        ni eloigner l'objectif, seulement le mettre a l'echelle.
+        """
+        if montant > 0 and self.state.week_start_equity > 0:
+            avant = self.state.week_start_equity
+            self.state.week_start_equity += montant
+            logger.info("apport de %.2f absorbe : capital de reference de "
+                        "la semaine %.2f -> %.2f (l'objectif suit le "
+                        "capital, il ne devient pas plus facile)",
+                        montant, avant, self.state.week_start_equity)
+            self.save()
+
     def sync(self, equity: float, ts: Optional[float] = None) -> None:
         """Detecte le changement de semaine et fait evoluer le palier."""
         wk = week_key(ts)

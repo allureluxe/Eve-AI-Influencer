@@ -281,6 +281,11 @@ class RiskManager:
     # ---------------------------------------------------------------
     # Suivi du compte
     # ---------------------------------------------------------------
+    # Montant du dernier apport detecte, remis a zero a chaque cycle.
+    # L'appelant s'en sert pour recaler ce qui depend du capital de
+    # depart : l'echelle le fait ici, l'objectif hebdomadaire non.
+    dernier_apport: float = 0.0
+
     def sync_account(self, equity: float, balance: float, currency: str = "EUR",
                      ts: Optional[float] = None) -> None:
         """Met a jour l'etat du compte et gere les changements de periode."""
@@ -324,12 +329,20 @@ class RiskManager:
         #
         # Seuil volontairement large (5 % du capital ET 3x le realise du
         # jour) : on recale sur un apport franc, pas sur un gros gagnant.
+        self.dernier_apport = 0.0
         precedent = acc.equity
         if precedent > 0 and acc.reference_equity > 0:
             saut = equity - precedent
             explique = abs(acc.realized_today) * 3.0 + 0.02 * precedent
             if saut > max(explique, 0.05 * precedent):
                 acc.reference_equity += saut
+                # Memorise pour l'appelant : l'objectif hebdomadaire doit
+                # etre recale lui aussi, sinon il reste calcule sur le
+                # capital d'AVANT le virement. Le 9 septembre 2026, un
+                # objectif de 4,47 EUR (4 % de 111 EUR) a ete « largement
+                # depasse » avec 8,40 EUR alors que le compte valait deja
+                # 366 EUR — et le robot s'est arrete pour la semaine.
+                self.dernier_apport = saut
                 logger.warning(
                     "apport detecte : +%.2f %s que les trades n'expliquent "
                     "pas. Reference %.2f -> %.2f : l'echelle de capital ne "

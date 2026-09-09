@@ -323,19 +323,29 @@ class TestLObjectifHebdomadaireSuitLaStrategie:
             "le resultat hebdomadaire survit au changement de strategie : "
             "la nouvelle sera penalisee pour les pertes de l'ancienne")
 
-    def test_une_semaine_negative_reduit_bien_le_risque(self):
-        """Le mecanisme lui-meme reste actif : on ne le desarme pas."""
+    def test_une_semaine_negative_reduit_bien_le_risque(self, tmp_path):
+        """Le mecanisme lui-meme reste actif : on ne le desarme pas.
+
+        `state_file` pointe sur un fichier jetable. Sans lui, le suivi
+        lisait `data/objectives.json` — l'etat du ROBOT EN SERVICE — et
+        le test dependait de ce que le robot avait gagne dans la semaine.
+        Le 9 septembre 2026 une vente reelle l'a fait echouer sans qu'une
+        seule ligne de code ait change.
+        """
         from gold_bot.objectives import ObjectiveConfig, ObjectiveTracker
-        suivi = ObjectiveTracker(ObjectiveConfig(base_target=4.0))
+        suivi = ObjectiveTracker(ObjectiveConfig(base_target=4.0),
+                                 state_file=str(tmp_path / "obj.json"))
         suivi.state.week_start_equity = 100.0
         suivi.state.realized_this_week = -6.0
         mult, motif = suivi.risk_multiplier()
         assert mult < 1.0
         assert "negative" in motif
 
-    def test_une_semaine_neutre_ne_reduit_rien(self):
+    def test_une_semaine_neutre_ne_reduit_rien(self, tmp_path):
+        """Isole du fichier d'etat du robot : voir le test precedent."""
         from gold_bot.objectives import ObjectiveConfig, ObjectiveTracker
-        suivi = ObjectiveTracker(ObjectiveConfig(base_target=4.0))
+        suivi = ObjectiveTracker(ObjectiveConfig(base_target=4.0),
+                                 state_file=str(tmp_path / "obj.json"))
         suivi.state.week_start_equity = 100.0
         suivi.state.realized_this_week = 0.0
         mult, _ = suivi.risk_multiplier()
