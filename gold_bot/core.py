@@ -159,6 +159,13 @@ class Position:
     etages: int = 1
     derniere_entree: float = 0.0
 
+    # Cliquet du stop suiveur. Une fois arme il ne se relache plus, meme
+    # si le R courant redescend sous le seuil — ce qui arrive a CHAQUE
+    # etage de pyramide, puisque `initial_risk` grossit et fait retomber
+    # le R. Sans ce cliquet, renforcer une position gagnante lui retirait
+    # sa protection.
+    trail_arme: bool = False
+
     @property
     def prix_dernier_etage(self) -> float:
         """Prix de reference pour l'espacement de la pyramide."""

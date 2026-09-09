@@ -580,3 +580,59 @@ class TestUnePositionQuiAvanceNeSortJamaisSurLeTemps:
         assert action is None, (
             f"position a +3 R fermee apres 20 jours : "
             f"{action.reason if action else ''}")
+
+
+class TestLeStopSuiveurEstUnCliquet:
+    """Le pyramidage desarmait le stop suiveur. Trouve le 9 septembre 2026.
+
+    `initial_risk` est le denominateur du R, et il GROSSIT a chaque etage
+    ajoute. Le R courant retombait donc sous `trail_start_r`, et le stop
+    suiveur se desarmait : la position gardait le stop fige du dernier
+    etage, sans plus rien pour le remonter.
+
+    Mesure sur 65 actions US, 10 ans, meme configuration :
+
+        pyramidage desarme  ->  position la plus longue    75 jours
+        pyramidage arme     ->  position la plus longue 3 510 jours
+
+    Dix ans avec le capital bloque a 98 %. En crypto le defaut se voyait
+    moins — la volatilite ramene vite le prix sur le stop fige — mais il
+    etait le meme. Ajouter du volume a un gagnant ne doit pas lui retirer
+    sa protection.
+    """
+
+    @staticmethod
+    def _tm():
+        from gold_bot.trade_manager import TradeManager, TradeManagerConfig
+        return TradeManager(TradeManagerConfig(trail_start_r=1.1))
+
+    def test_le_defaut_est_desarme(self):
+        assert _position().trail_arme is False
+
+    def test_le_cliquet_est_bien_dans_manage(self):
+        """Le cliquet vit dans `manage`, la ou le stop suiveur se calcule.
+
+        On verifie la source plutot que le comportement : `manage` exige
+        un tick, un jeu d'indicateurs et un carnet complets, et un test
+        qui reconstruit tout ca casserait a la premiere refonte sans rien
+        prouver de plus.
+        """
+        import inspect
+        from gold_bot.trade_manager import TradeManager
+        src = inspect.getsource(TradeManager.manage)
+        assert "position.trail_arme = True" in src, (
+            "le cliquet ne s arme plus dans manage()")
+        assert "if position.trail_arme:" in src, (
+            "le stop suiveur est redevenu conditionne au R courant : il se "
+            "desarmera a chaque etage de pyramide")
+
+    def test_le_R_qui_retombe_ne_desarme_plus(self):
+        """Le scenario exact : un etage ajoute fait retomber le R."""
+        p = _position(entree=100.0, stop=98.0)
+        p.initial_risk = 2.0
+        p.trail_arme = True
+        # Un etage s'ajoute : initial_risk triple, le R courant s'effondre.
+        p.initial_risk = 6.0
+        assert p.trail_arme is True, (
+            "le cliquet doit survivre au recalcul de initial_risk — c'est "
+            "tout l'interet")

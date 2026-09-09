@@ -352,7 +352,27 @@ class TradeManager:
                 new_stop = be; position.breakeven_done = True
                 actions.append(TradeAction(ActionType.MODIFY_STOP, position.id, round(be, digits),
                     reason=f"break-even a {r_now:.2f}R : le trade ne peut plus perdre"))
+        # LE STOP SUIVEUR EST UN CLIQUET : une fois arme, il le reste.
+        #
+        # Il s'armait sur `r_now >= trail_start_r` recalcule a chaque
+        # cycle. Or `initial_risk` — le denominateur du R — GROSSIT quand
+        # un etage de pyramide s'ajoute. Le R courant retombait donc sous
+        # le seuil, et le stop suiveur SE DESARMAIT : la position se
+        # retrouvait avec le stop fige du dernier etage, sans plus rien
+        # pour le remonter.
+        #
+        # Mesure sur 65 actions US, 10 ans : pyramidage desarme, la plus
+        # longue position dure 75 jours ; pyramidage arme, elle dure
+        # 3 510 jours — presque dix ans, capital bloque a 98 %. En crypto
+        # le defaut se voyait moins parce que la volatilite ramene vite le
+        # prix sur le stop fige, mais il est le meme.
+        #
+        # Ajouter du volume a une position gagnante ne doit pas lui retirer
+        # sa protection. Le cliquet s'arme au premier passage du seuil et
+        # ne se relache plus.
         if r_now >= cfg.trail_start_r:
+            position.trail_arme = True
+        if position.trail_arme:
             mult = cfg.trail_atr_mult if momentum.favorable else cfg.trail_tighten_atr_mult
             trail = position.max_favorable - sign * mult * atr
             if sign * (trail - new_stop) > 0:
