@@ -905,6 +905,15 @@ class RiskManager:
         notionnel = lots * entry_price * instrument.contract_size
         un_pas = instrument.lot_step * entry_price * instrument.contract_size
         if cfg.ticket_min_eur > 0 and notionnel < cfg.ticket_min_eur - un_pas:
+            # LE MOTIF DIT CE QUI A LIMITE, PAS SEULEMENT QU'IL A LIMITE.
+            #
+            # Sans les facteurs, ce message ne dit que le resultat. Le
+            # 10 septembre 2026 il a coute une heure : le robot refusait a
+            # 8,87 EUR pendant qu'un diagnostic hors-ligne, meme
+            # configuration et memes positions, en calculait 21,33 —
+            # impossible de savoir laquelle des cinq bornes mordait.
+            # Une borne qui refuse doit dire son nom.
+            detail = " | ".join(factors[-3:]) if factors else "aucun facteur"
             return SizingDecision(
                 False,
                 # Libelle CONJONCTUREL : une cloture libere du cash et la
@@ -912,7 +921,7 @@ class RiskManager:
                 # tri des motifs dans `_execute` (engine.py).
                 reason=(f"budget de place insuffisant sur {instrument.symbol} : "
                         f"{notionnel:.2f} {acc.currency} possibles, plancher "
-                        f"a {cfg.ticket_min_eur:.2f}"),
+                        f"a {cfg.ticket_min_eur:.2f} — limite par : {detail}"),
                 factors=factors,
             )
 
