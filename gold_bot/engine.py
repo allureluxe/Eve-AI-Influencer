@@ -1207,6 +1207,14 @@ class TradingEngine:
             except Exception:  # pragma: no cover - la valeur de repli suffit
                 logger.debug("notionnel minimum illisible, repli sur %.2f", minimum)
 
+        # Le plancher de l'operateur prime sur celui de la plateforme : c'est
+        # lui qui decide combien de lignes le capital tient reellement. Sans
+        # cela le journal annonce « ticket minimum 5.00 » et 65 places, alors
+        # que le robot n'en ouvrira jamais plus de 16 a 20 EUR piece — un
+        # chiffre faux dans le journal envoie la session suivante chercher
+        # une panne ailleurs.
+        minimum = max(minimum, max(0.0, cfg.ticket_min_eur))
+
         positions, palier = positions_tenables(
             equity, minimum, cfg.max_capital_engaged_pct, cfg.max_positions)
 
