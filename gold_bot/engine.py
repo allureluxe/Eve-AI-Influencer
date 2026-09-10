@@ -370,6 +370,22 @@ class TradingEngine:
                 ticket = float(self.broker.notionnel_minimum())
             except Exception as exc:  # noqa: BLE001
                 logger.warning("ticket minimum illisible : %s", str(exc)[:120])
+
+        # LE PLANCHER DE L'OPERATEUR COMPTE COMME UN TICKET MINIMUM.
+        #
+        # Le calibrage sert a repondre a une seule question : « le capital
+        # permet-il encore d'ouvrir une position ? » Il la tranche par
+        # `stop_max = capital x risque / ticket_minimum`. Lui passer les
+        # 5 EUR de Bitvavo alors que `ticket_min_eur` en exige 20 le rend
+        # aveugle a la seule panne que ce plancher peut provoquer : un
+        # compte trop petit ou une crypto trop agitee, et plus AUCUNE
+        # position n'est ouvrable — le robot se fige en croyant se
+        # proteger, sans rien dire.
+        #
+        # C'est la meme erreur que le plafond de spread absolu de fin aout :
+        # deux endroits decidaient du meme reglage, et le moins informe
+        # gagnait en silence.
+        ticket = max(ticket, max(0.0, cfg.risk.ticket_min_eur))
         self.frais_reels = float(
             getattr(getattr(self.broker, "config", None), "fee_rate", 0.0)
             or cfg.risk.commission_pct or 0.0)
