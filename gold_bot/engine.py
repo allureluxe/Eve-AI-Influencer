@@ -513,6 +513,53 @@ class TradingEngine:
         # unite de temps — precisement le defaut qu'on corrige ici.
         self._transposer_le_stop_temporel()
 
+    #: Les retraits ne se lisent pas a chaque cycle : ils sont rares, et
+    #: l'appel est signe donc il consomme le quota partage avec les ordres.
+    _RETRAITS_TOUTES_LES = 600.0          # secondes
+
+    def _absorber_les_retraits(self, state) -> None:
+        """Descend la reference de capital des retraits CONFIRMES.
+
+        Sans cela, un retrait se lit comme une perte : le 10 septembre 2026
+        la reference etait restee a 429,45 EUR apres un retrait de 61 EUR,
+        le robot lisait -16,4 % de capital, et l'echelle anti-martingale
+        divisait chaque position par trois — 0,25 % de risque au lieu de
+        0,60 %. Il se protegeait d'une perte qui n'avait jamais eu lieu.
+
+        On ne DEDUIT rien de la forme de la courbe : on lit l'historique
+        des retraits chez la plateforme. Un retrait est un fait.
+        """
+        if not hasattr(self.broker, "retraits_confirmes"):
+            return
+        maintenant = time.time()
+        if maintenant - getattr(self, "_dernier_scan_retraits", 0.0) < self._RETRAITS_TOUTES_LES:
+            return
+        self._dernier_scan_retraits = maintenant
+
+        # Au tout premier passage on ne rattrape PAS l'historique complet :
+        # les retraits anciens sont deja dans la reference enregistree, et
+        # les soustraire une seconde fois la ferait plonger.
+        depuis = getattr(state, "dernier_retrait_vu", 0.0) or 0.0
+        premiere_fois = depuis <= 0
+        try:
+            retraits = self.broker.retraits_confirmes(depuis)
+        except Exception as exc:                              # noqa: BLE001
+            logger.debug("retraits illisibles : %s", str(exc)[:120])
+            return
+        if not retraits:
+            return
+
+        dernier = max(q for q, _ in retraits)
+        if premiere_fois:
+            logger.info("premier releve des retraits : %d mouvement(s) connus, "
+                        "aucun n'est rejoue sur la reference", len(retraits))
+        else:
+            for _, montant in retraits:
+                self.risk.absorber_retrait(montant)
+                if hasattr(self.objectives, "absorber_retrait"):
+                    self.objectives.absorber_retrait(montant)
+        state.dernier_retrait_vu = dernier
+
     def _ajuster_le_plancher(self, ticket_plateforme: float) -> None:
         """Le plancher de taille PLIE quand le capital ne le porte plus.
 
@@ -804,6 +851,7 @@ class TradingEngine:
         self.risk.sync_account(acc.equity, acc.balance, acc.currency)
         if self.risk.dernier_apport > 0:
             self.objectives.absorber_apport(self.risk.dernier_apport)
+        self._absorber_les_retraits(state)
         self.objectives.sync(acc.equity)
         state.account_reference = self.risk.account.reference_equity
         state.peak_equity = self.risk.account.peak_equity

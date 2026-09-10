@@ -177,6 +177,26 @@ class ObjectiveTracker:
                         montant, avant, self.state.week_start_equity)
             self.save()
 
+    def absorber_retrait(self, montant: float) -> None:
+        """Symetrique de `absorber_apport` : un retrait BAISSE la reference.
+
+        Sans lui, l'objectif de la semaine reste calcule sur un capital
+        qui a quitte le compte : il devient inatteignable, la semaine
+        passe pour perdante, et `demote_on_losing_week` retrograde le
+        palier — une sanction pour un virement.
+
+        Un retrait n'est pas une contre-performance, pas plus qu'un
+        apport n'est un gain.
+        """
+        if montant > 0 and self.state.week_start_equity > 0:
+            avant = self.state.week_start_equity
+            self.state.week_start_equity = max(0.0, avant - montant)
+            logger.info("retrait de %.2f absorbe : capital de reference de "
+                        "la semaine %.2f -> %.2f (l'objectif suit le "
+                        "capital, la semaine ne devient pas perdante)",
+                        montant, avant, self.state.week_start_equity)
+            self.save()
+
     def sync(self, equity: float, ts: Optional[float] = None) -> None:
         """Detecte le changement de semaine et fait evoluer le palier."""
         wk = week_key(ts)

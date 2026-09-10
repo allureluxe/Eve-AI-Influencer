@@ -402,6 +402,56 @@ class RiskManager:
             # sommet atteint : on ne re-risque pas un capital deja rendu.
             acc.reference_equity = max(acc.reference_equity, min(equity, acc.peak_equity))
 
+    def absorber_retrait(self, montant: float) -> None:
+        """Descend la reference d'un retrait CONFIRME par la plateforme.
+
+        POURQUOI CETTE METHODE EXISTE, ET POURQUOI ELLE EST SEPAREE.
+
+        `sync_account` ne corrige QUE les sauts vers le haut, et son
+        commentaire dit pourquoi : une chute inexpliquee peut etre un
+        retrait comme une grosse perte, et prendre une perte pour un
+        retrait desarmerait le coupe-circuit de drawdown au pire moment.
+        Ce raisonnement est juste — il lui manquait une troisieme option :
+        DEMANDER A LA PLATEFORME. Un retrait est un fait verifiable, pas
+        une deduction sur la forme de la courbe.
+
+        Ce que ca coutait, mesure le 10 septembre 2026 :
+
+            reference du gestionnaire de risque   429,45 EUR
+            reference du chien de garde           370,61 EUR  (sommet reel)
+            retrait du 7 septembre                 61,00 EUR
+            429,45 - 61,00 = 368,45  ~=  370,61
+
+        La reference etait restee au sommet d'AVANT le retrait. Le robot
+        lisait donc -16,4 % de capital, appliquait le cran « -15 % » de
+        l'echelle anti-martingale, et divisait chaque position par trois :
+        risque 0,25 % au lieu de 0,60 %, positions de 9 EUR au lieu de 21.
+        Il se protegeait d'une perte qui n'avait jamais eu lieu.
+
+        C'est la TROISIEME fois que ce piege sort dans ce depot — apres
+        l'objectif hebdomadaire et le chien de garde. La regle generale :
+        tout ce qui se calcule sur un capital de reference doit absorber
+        les mouvements de tresorerie, dans LES DEUX SENS.
+
+        `peak_equity` descend aussi, et c'est volontaire ici : l'argent est
+        parti, ce n'est pas une perte. Le laisser en haut ferait declencher
+        le coupe-circuit de drawdown sur un virement — exactement ce qui
+        est arrive au chien de garde le 4 septembre.
+        """
+        montant = max(0.0, float(montant))
+        if montant <= 0:
+            return
+        acc = self.account
+        avant_ref, avant_pic = acc.reference_equity, acc.peak_equity
+        acc.reference_equity = max(0.0, acc.reference_equity - montant)
+        acc.peak_equity = max(acc.equity, acc.peak_equity - montant)
+        logger.warning(
+            "retrait CONFIRME de %.2f %s : reference %.2f -> %.2f, "
+            "sommet %.2f -> %.2f. Ce n'est pas une perte, l'echelle de "
+            "capital ne doit pas reduire les positions.",
+            montant, acc.currency, avant_ref, acc.reference_equity,
+            avant_pic, acc.peak_equity)
+
     def record_close(self, trade: ClosedTrade) -> None:
         """Enregistre un trade cloture (statistiques et coupe-circuits)."""
         acc = self.account

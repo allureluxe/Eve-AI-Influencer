@@ -489,7 +489,13 @@ class TestLevierMaitrise:
         """
         cfg = config()
         plancher = cfg.risk.ticket_min_eur
-        assert plancher >= 20.0, (
+        # 20 -> 15 le 10 septembre, et ce n'est pas un assouplissement :
+        # le rejeu donne le MEME resultat de 5 a 20 EUR (1 284 EUR hors
+        # echantillon, 392 trades). 15 garde 72 cryptos sur 74 la ou 20
+        # n'en gardait que 62, et surtout il cesse de se battre avec
+        # l'echelle anti-martingale — voir `test_le_plancher_ne_bloque_pas
+        # _l_echelle` juste apres.
+        assert plancher >= 12.0, (
             f"ticket_min_eur vaut {plancher} : le robot rouvrira des "
             "positions de 5 EUR, mesurees sans interet — voir CLAUDE.md")
 

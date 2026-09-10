@@ -595,6 +595,39 @@ class BitvavoBroker(Broker):
     # ------------------------------------------------------------------
     # Rapprochement des positions avec les avoirs reels
     # ------------------------------------------------------------------
+    def retraits_confirmes(self, depuis: float) -> list[tuple[float, float]]:
+        """Retraits en devise de cotation acheves APRES `depuis`.
+
+        Rend une liste de (horodatage, montant). Liste VIDE en cas d'echec :
+        un appel rate ne doit jamais se lire comme « aucun retrait », mais il
+        ne doit pas non plus arreter le robot — le prochain cycle reessaiera.
+
+        Sert a descendre la reference de capital sur un FAIT plutot que sur
+        la forme de la courbe. Voir `RiskManager.absorber_retrait`.
+        """
+        try:
+            lignes = self._appel("GET", "/withdrawalHistory")
+        except Exception as exc:                              # noqa: BLE001
+            logger.debug("historique des retraits illisible : %s", str(exc)[:120])
+            return []
+        sortie: list[tuple[float, float]] = []
+        for ligne in lignes if isinstance(lignes, list) else []:
+            if str(ligne.get("symbol", "")).upper() != self.config.quote_asset.upper():
+                continue
+            # Seuls les retraits ACHEVES comptent : un retrait en cours peut
+            # encore echouer, et descendre la reference pour un mouvement qui
+            # revient produirait exactement l'erreur inverse.
+            if str(ligne.get("status", "")).lower() != "completed":
+                continue
+            try:
+                quand = float(ligne.get("timestamp", 0)) / 1000.0
+                montant = float(ligne.get("amount") or 0)
+            except (TypeError, ValueError):
+                continue
+            if quand > depuis and montant > 0:
+                sortie.append((quand, montant))
+        return sorted(sortie)
+
     def _reconcilier(self, prix_tous: dict[str, float]) -> None:
         """Detecte les positions liquidees sur la plateforme sans le robot.
 

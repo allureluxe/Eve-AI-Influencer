@@ -35,6 +35,10 @@ class BotState:
     position_meta: dict[str, dict] = field(default_factory=dict)
     account_reference: float = 0.0
     peak_equity: float = 0.0
+    # Horodatage du dernier retrait deja repercute sur la reference.
+    # Sans lui, chaque redemarrage rejouerait tout l'historique des
+    # retraits et ferait plonger la reference a chaque fois.
+    dernier_retrait_vu: float = 0.0
     halted: bool = False
     halt_reason: str = ""
 
