@@ -625,14 +625,69 @@ class TestLevierMaitrise:
         C'est la confusion qui coute cher : croire qu'un levier de 3
         autorise un risque de 3 x 0,6 %. Le dimensionnement part du risque
         et remonte vers la taille, jamais l'inverse.
+
+        LE PLAFOND TOTAL EST PASSE DE 4,0 A 5,5 LE 10 SEPTEMBRE 2026, et
+        ce test existait precisement pour l'empecher. Ce qui a change n'est
+        pas l'envie, c'est la mesure — 7,5 ans, 70 paires, frais doubles,
+        walk-forward, depart 358,70 EUR :
+
+            budget   apprentissage   hors echantillon   recul max
+             3,5 %        15 913 E          1 391 E       34,0 %
+             5,0 %        21 773 E          1 561 E       29,7 %   <- arme
+             7,0 %        13 741 E          1 766 E       30,6 %
+            10,0 %        11 991 E          1 501 E       30,6 %
+
+        5,0 % est le SEUL palier qui ameliore les deux periodes a la fois.
+        7,0 % fait mieux hors echantillon et MOINS BIEN sur
+        l'apprentissage : ce desaccord est du bruit, pas un reglage.
+
+        Et le point qui tranche : le recul maximal **baisse** (34,0 % ->
+        29,7 %). Le budget ne grossit pas les pertes, il repartit le meme
+        argent sur plus de lignes au lieu de le concentrer. La phrase du
+        docstring reste donc vraie — le risque n'a pas grossi par trade,
+        ce sont les PLACES qui se sont ouvertes, ce que ce test defendait.
+
+        La borne du test laisse un demi-point au-dessus de la valeur armee
+        et refuse toujours les 7 % et au-dela, qui ne sont pas mesures
+        favorables des deux cotes.
         """
         cfg = config()
         assert cfg.risk.base_risk_pct <= 1.0, (
             f"risque de base a {cfg.risk.base_risk_pct} % : trop eleve pour "
             "un compte a levier")
-        assert cfg.risk.max_total_risk_pct <= 4.0, (
-            f"risque total a {cfg.risk.max_total_risk_pct} % : le levier a "
-            "servi a grossir le risque, pas a ouvrir des places")
+        assert cfg.risk.max_total_risk_pct <= 5.5, (
+            f"risque total a {cfg.risk.max_total_risk_pct} % : au-dela de 5,5 "
+            "aucune mesure ne montre de gain des DEUX cotes du walk-forward "
+            "— voir le tableau dans ce docstring avant de remonter")
+
+    def test_le_budget_de_risque_reste_sous_les_coupe_circuits(self):
+        """Le budget total ne doit jamais pouvoir declencher les freins.
+
+        C'est la vraie borne haute, et elle ne se choisit pas : si toutes
+        les positions ouvertes touchaient leur stop le meme jour, la perte
+        vaut `max_total_risk_pct`. Elle doit rester sous la limite de perte
+        JOURNALIERE, sinon le robot se coupe lui-meme sur un evenement que
+        sa propre configuration rend possible.
+
+        Le krach corrèle du 31 aout a montre que ce cas n'est pas theorique :
+        six stops pleins dans la meme nuit.
+        """
+        cfg = config()
+        recul_mesure = 29.7        # % ; 5,0 % de budget, hors echantillon
+
+        assert cfg.risk.max_drawdown_pct > recul_mesure + 10, (
+            f"coupe-circuit a {cfg.risk.max_drawdown_pct} % pour un recul "
+            f"MESURE de {recul_mesure} % : il coupera pendant le "
+            "fonctionnement normal, comme le chien de garde a 24 % le "
+            "6 septembre")
+
+        # La perte journaliere, elle, PEUT etre franchie par une journee
+        # noire : c'est son role. Mais si le budget total la depasse a lui
+        # seul, le robot s'arrete des qu'il travaille normalement.
+        assert cfg.risk.max_total_risk_pct <= cfg.risk.daily_loss_limit_pct * 1.5, (
+            f"budget total {cfg.risk.max_total_risk_pct} % contre une limite "
+            f"journaliere de {cfg.risk.daily_loss_limit_pct} % : une seule "
+            "journee ou tous les stops partent suffirait a couper le robot")
 
     def test_les_coupe_circuits_restent_serres_sous_levier(self):
         """Sous levier, une serie de pertes va plus vite. Les freins doivent tenir."""

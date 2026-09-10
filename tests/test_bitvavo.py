@@ -1228,6 +1228,21 @@ class TestUnEtageAgranditLAvoirAuLieuDeLEcraser:
     # En dry-run le prix d'execution est fabrique : `(stop + objectif) / 2`,
     # faute de reseau. On pilote donc le prix d'un etage par son objectif,
     # ce qui laisse mesurer la moyenne ponderee pour de vrai.
+    #
+    # VOLUMES x10 LE 10 SEPTEMBRE 2026, ET CE N'EST PAS UN TEST ASSOUPLI.
+    #
+    # `open_position` prend le prix du MARCHE quand il est joignable
+    # (`self._prix(code)`), et ne retombe sur le prix fabrique qu'a defaut.
+    # Le test achetait 0,5 LINK : le jour ou LINK est passe a 10,00 EUR,
+    # cela a fait exactement 5,00 EUR — le minimum de Bitvavo — et les deux
+    # tests ont vire au rouge sur un arrondi, sans qu'une ligne de code ait
+    # bouge. Un test qui depend du cours du jour ne mesure pas ce qu'il
+    # annonce.
+    #
+    # Ce qu'il verifie — le second achat REJOINT le premier au lieu de
+    # l'effacer — ne depend ni du volume ni du prix. On s'eloigne donc du
+    # minimum de la plateforme : il faudrait que LINK perde 90 % pour que
+    # ces volumes y reviennent.
     @staticmethod
     def _avec_une_position(b, tp=700.0):
         from gold_bot.universe import Universe
@@ -1235,16 +1250,16 @@ class TestUnEtageAgranditLAvoirAuLieuDeLEcraser:
         b._instruments["LINKUSD"] = inst
         b._account = replace(b._account, margin_free=100000.0, equity=100000.0,
                              balance=100000.0)
-        p = b.open_position(inst, Side.BUY, 1.0, 10.44, tp)
+        p = b.open_position(inst, Side.BUY, 10.0, 10.44, tp)
         return inst, p
 
     def test_le_volume_se_cumule(self):
         b = broker_de_test()
         inst, p1 = self._avec_une_position(b)
-        p2 = b.open_position(inst, Side.BUY, 0.5, 10.60, 700.0)
+        p2 = b.open_position(inst, Side.BUY, 5.0, 10.60, 700.0)
         assert p2 is p1, "un second achat a cree une position au lieu d'un etage"
-        assert abs(p2.volume - 1.5) < 1e-9, (
-            f"volume {p2.volume} au lieu de 1.5 : le premier etage a ete "
+        assert abs(p2.volume - 15.0) < 1e-9, (
+            f"volume {p2.volume} au lieu de 15.0 : le premier etage a ete "
             "efface et son actif reste sans stop")
         assert len(b.positions()) == 1, "au comptant il n'y a qu'un avoir"
 
@@ -1258,8 +1273,8 @@ class TestUnEtageAgranditLAvoirAuLieuDeLEcraser:
         """
         b = broker_de_test()
         inst, p1 = self._avec_une_position(b)
-        p1.entry_price = 5.0                   # etage bas, volume 1.0
-        p2 = b.open_position(inst, Side.BUY, 1.0, 10.60, 900.0)
+        p1.entry_price = 5.0                   # etage bas, volume 10.0
+        p2 = b.open_position(inst, Side.BUY, 10.0, 10.60, 900.0)
         haut = p2.derniere_entree
         assert 5.0 < p2.entry_price < haut, (
             f"entree moyenne {p2.entry_price} hors de ]5.0, {haut}[ : "
@@ -1269,7 +1284,7 @@ class TestUnEtageAgranditLAvoirAuLieuDeLEcraser:
         b = broker_de_test()
         inst, p1 = self._avec_une_position(b)
         assert p1.etages == 1
-        b.open_position(inst, Side.BUY, 0.5, 10.60, 700.0)
+        b.open_position(inst, Side.BUY, 5.0, 10.60, 700.0)
         assert b.positions()[0].etages == 2, (
             "sans ce compteur, le plafond de pyramide n'est jamais atteint : "
             "au comptant il n'y a qu'une ligne, donc len() rend toujours 1")
