@@ -690,7 +690,10 @@ class TradingEngine:
                 detail += (" VENTE A DECOUVERT ACTIVE : une position vendeuse "
                            "emprunte l'actif et paie un interet journalier "
                            "tant qu'elle reste ouverte.")
-            self.notifier.warning("Bitvavo en mode REEL", detail)
+            # Une par redemarrage — cinq le 10 septembre. La console et
+            # le journal la gardent, le telephone n'en a pas besoin.
+            self.notifier.warning("Bitvavo en mode REEL", detail,
+                                  data={"telephone": False})
 
         if cfg.broker == "moonx" and cfg.offline:
             self.notifier.critical("Demarrage refuse",
@@ -978,13 +981,15 @@ class TradingEngine:
 
             elif action.type is ActionType.MODIFY_TARGET:
                 if self.broker.modify_position(pos.id, take_profit=action.price):
+                    # Ni une ouverture ni une fermeture : hors du telephone.
                     self.notifier.trade(
                         f"Objectif repousse — {pos.symbol}",
                         f"{pos.side.value} : TP {pos.initial_tp} -> {action.price}\n"
                         f"Stop a {pos.stop_loss} ({pos.locked_r():+.2f}R verrouille)\n"
                         f"{action.reason}",
                         data={"symbole": pos.symbol, "tp": action.price,
-                              "extensions": pos.tp_extensions})
+                              "extensions": pos.tp_extensions,
+                              "telephone": False})
 
             elif action.type is ActionType.PARTIAL_CLOSE:
                 trade = self.broker.close_position(pos.id, action.volume, action.reason)
@@ -998,8 +1003,10 @@ class TradingEngine:
 
         except BrokerError as exc:
             logger.error("action %s refusee sur %s : %s", action.type.value, pos.symbol, exc)
+            # Idem : un stop refuse se represente au cycle suivant.
             self.notifier.warning(f"Action refusee — {pos.symbol}",
                                   f"{action.type.value} : {exc}",
+                                  data={"telephone": False},
                                   throttle_key=f"action_{pos.symbol}", throttle_seconds=300)
 
     def _collect_closed(self) -> None:
@@ -1148,7 +1155,9 @@ class TradingEngine:
                 comment=f"{ev.setup} score={ev.score:.2f}")
         except BrokerError as exc:
             logger.error("ordre refuse sur %s : %s", ev.symbol, exc)
-            self.notifier.warning(f"Ordre refuse — {ev.symbol}", str(exc))
+            # Ordinaire et repetitif : reste au journal, pas au telephone.
+            self.notifier.warning(f"Ordre refuse — {ev.symbol}", str(exc),
+                                  data={"telephone": False})
             self.store.state.errors += 1
             # Un refus du courtier se reproduit a l'identique au cycle
             # suivant tant que la cause n'a pas bouge (cash pris par une

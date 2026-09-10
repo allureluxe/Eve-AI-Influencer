@@ -110,6 +110,25 @@ class TelegramChannel(Channel):
         return bool(self.token and self.chat_id)
 
     def send(self, note: Notification) -> None:
+        # LE TELEPHONE N'EST PAS LE JOURNAL.
+        #
+        # Decision de l'operateur, 10 septembre 2026 : il veut etre
+        # prevenu quand une position s'ouvre, quand elle se ferme, quand
+        # le robot s'arrete et quand il y a un vrai probleme — « pas a
+        # chaque fois qu'un ordre est refuse ».
+        #
+        # Un refus de courtier est ordinaire : il se reproduit a chaque
+        # cycle tant que la cause dure, et une rafale de dix messages en
+        # une minute apprend a ignorer les alertes. Or la seule alerte qui
+        # compte vraiment — le chien de garde — arrive par le meme canal.
+        # Noyer les alertes, c'est les desarmer.
+        #
+        # Ces evenements restent dans le journal (canal fichier, niveau
+        # debug) et dans la console. Seul le telephone les ignore, et
+        # c'est marque a l'appel pour que l'intention se voie : le niveau
+        # de gravite ne ment pas, il n'est simplement pas destine ici.
+        if note.data.get("telephone") is False:
+            return
         try:
             http_json(f"https://api.telegram.org/bot{self.token}/sendMessage", "POST",
                       {"chat_id": self.chat_id, "text": note.as_text(),
