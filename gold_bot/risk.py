@@ -102,6 +102,37 @@ class RiskConfig:
     # une position double payee deux fois en frais.
     pyramide_espacement_atr: float = 0.0
 
+    # --- TAILLE MINIMALE D'UNE POSITION, en devise du compte ---
+    #
+    # Le 10 septembre l'operateur constate des positions de 5, 8 et 9 EUR
+    # sur un compte de 361. Verifie dans le journal : sur 23 trades, le
+    # risque REELLEMENT porte vaut 0,30 % du capital en median, pour
+    # 0,60 % configures — et descend a 0,04 %.
+    #
+    # Le mecanisme n'est pas un mauvais reglage, c'est une TRONCATURE.
+    # Le dimensionnement part du risque et donne la bonne taille ; puis la
+    # part de cash restante la rabote. Quand la caisse est presque vide, le
+    # robot n'ouvre pas RIEN — il ouvre une miette. Une miette de 5 EUR qui
+    # gagne 10 % rapporte 50 centimes, pour le meme travail et les memes
+    # frais qu'une position entiere. Le 9 septembre : KAVA 89 EUR -> +5,56,
+    # NEAR 31 EUR -> +2,84, IMX 5 EUR -> -0,50, STRK 8 EUR -> -0,01.
+    #
+    # Mesure sur 7,5 ans, 70 paires, frais doubles, walk-forward :
+    #
+    #     plancher      hors echantillon     trades
+    #      5 EUR            1 284 EUR          392
+    #     20 EUR            1 284 EUR          392   <- arme
+    #     50 EUR            1 139 EUR          382
+    #
+    # A 20 EUR le plancher ne coute RIEN : memes trades, meme resultat. Il
+    # ne supprime que les miettes. A 50 EUR il commence a refuser de vraies
+    # occasions. NE PAS le monter sans remesurer.
+    #
+    # Ce plancher REFUSE, il ne rabote pas : mieux vaut attendre qu'une
+    # position se ferme et ouvrir entier que d'ouvrir petit tout de suite.
+    # Le refus est conjoncturel — le cash revient a chaque cloture.
+    ticket_min_eur: float = 0.0        # 0 = seul le minimum plateforme s'applique
+
     # --- Delai de carence apres une SORTIE, par symbole ---
     #
     # Mesure sur 48 h les 1er-2 septembre : 53 trades, dont DIX entrees
@@ -787,7 +818,11 @@ class RiskManager:
                 libres = max(1, plafond_places - len(positions))
                 places = libres if places_visees is None else max(
                     1, min(libres, int(places_visees)))
-                ticket_minimum = instrument.min_lot * valeur_unitaire
+                # Deux planchers, et on prend le plus haut : celui de la
+                # plateforme (un ordre plus petit est rejete) et celui de
+                # l'operateur (une position plus petite ne rapporte rien).
+                ticket_minimum = max(instrument.min_lot * valeur_unitaire,
+                                     cfg.ticket_min_eur)
                 part = min(reste, max(reste / places, ticket_minimum))
 
                 max_lots_cash = part / valeur_unitaire
@@ -850,6 +885,34 @@ class RiskManager:
                         f"(il faudrait {instrument.min_lot} lot, soit "
                         f"{stop_distance * value_per_unit * instrument.min_lot:.2f} {acc.currency} de risque "
                         f"pour {risk_amount:.2f} disponible)"),
+                factors=factors,
+            )
+
+        # PLANCHER DE TAILLE (voir `ticket_min_eur`). On le verifie ICI,
+        # apres tous les plafonds et l'arrondi : c'est le seul endroit ou
+        # la taille FINALE est connue. Le mettre plus haut laisserait
+        # passer une position rabotee ensuite par le cash ou le levier.
+        #
+        # C'est un REFUS, pas un rabotage vers le haut : ouvrir plus gros
+        # que le risque ne le permet serait exactement l'erreur inverse.
+        #
+        # L'ARRONDI NE DOIT PAS DECLENCHER LE REFUS. `normalize_lot` arrondit
+        # vers le BAS — toujours, pour ne jamais depasser le risque vise. Une
+        # part de cash de 20,00 EUR redescend donc a 19,98 apres arrondi, et
+        # comparer sechement au plancher refuserait une position qui le
+        # respecte. La marge vaut exactement un pas de lot : c'est le maximum
+        # que l'arrondi peut retirer, ni plus ni moins.
+        notionnel = lots * entry_price * instrument.contract_size
+        un_pas = instrument.lot_step * entry_price * instrument.contract_size
+        if cfg.ticket_min_eur > 0 and notionnel < cfg.ticket_min_eur - un_pas:
+            return SizingDecision(
+                False,
+                # Libelle CONJONCTUREL : une cloture libere du cash et la
+                # meme crypto redevient prenable au cycle suivant. Voir le
+                # tri des motifs dans `_execute` (engine.py).
+                reason=(f"budget de place insuffisant sur {instrument.symbol} : "
+                        f"{notionnel:.2f} {acc.currency} possibles, plancher "
+                        f"a {cfg.ticket_min_eur:.2f}"),
                 factors=factors,
             )
 

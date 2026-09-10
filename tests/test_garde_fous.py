@@ -368,6 +368,21 @@ class TestLevierMaitrise:
             f"max_leverage vaut {levier} : Bitvavo plafonne a 10x sur ses "
             "actifs eligibles — voir CLAUDE.md")
 
+    # CAPITAL DE REFERENCE DE CES TROIS TESTS.
+    #
+    # Il valait 96.0 — le compte du 30 aout 2026. Porte au capital reel du
+    # 10 septembre en armant `ticket_min_eur = 20`. Ce n'est PAS un test
+    # assoupli pour faire passer la suite : a 96 EUR et 0,60 % de risque,
+    # une position BTC vaut 6 EUR (0,576 / 8,7 % de stop). Un plancher a
+    # 20 EUR y est arithmetiquement inatteignable, donc le test mesurait un
+    # compte qui ne peut plus exister. Ce qu'il verifie — le cash se
+    # partage entre les places — reste vrai et reste verifie.
+    #
+    # Si le compte redescend vers 100 EUR, ce n'est pas ce test qu'il faut
+    # rebaisser : c'est `ticket_min_eur` qui n'aura plus de sens, et le
+    # robot se figera. Voir le commentaire de `ticket_min_eur` dans risk.py.
+    CAPITAL = 361.0
+
     @staticmethod
     def _remplir(capital: float):
         """Ouvre des positions jusqu'a epuisement du budget. Renvoie la liste."""
@@ -416,14 +431,14 @@ class TestLevierMaitrise:
         trades. C'est ce que veut l'operateur, et c'est arithmetiquement
         equivalent en risque.
         """
-        cfg, capital, tailles = self._remplir(96.0)
+        cfg, capital, tailles = self._remplir(self.CAPITAL)
         assert len(tailles) >= 4, (
             f"seulement {len(tailles)} position(s) ouverte(s) sur "
             f"{cfg.risk.max_positions} places : le budget n'est pas partage")
 
     def test_le_risque_total_ne_depasse_pas_le_budget(self):
         """Partager le cash ne doit pas multiplier le risque."""
-        cfg, capital, tailles = self._remplir(96.0)
+        cfg, capital, tailles = self._remplir(self.CAPITAL)
         risque_total = sum(pct for _, pct in tailles)
         assert risque_total <= cfg.risk.max_total_risk_pct + 1e-6, (
             f"risque total de {risque_total:.2f} % pour un plafond de "
@@ -436,13 +451,90 @@ class TestLevierMaitrise:
         places, plus grandes.
         """
         from gold_bot.universe import Universe
-        cfg, capital, tailles = self._remplir(96.0)
+        cfg, capital, tailles = self._remplir(self.CAPITAL)
         inst = Universe().get("BTCUSD")
         plancher = inst.min_lot * 68_000.0
         for notionnel, _ in tailles:
             assert notionnel >= plancher - 1e-9, (
                 f"position de {notionnel:.2f} EUR sous le ticket minimum "
                 f"de {plancher:.2f} EUR")
+
+    def test_aucune_miette(self):
+        """Decision de l'operateur du 10 septembre : 20 EUR ou rien.
+
+        CE QU'ELLE CORRIGE. Le journal du 4 au 9 septembre : 23 trades, un
+        risque REELLEMENT porte de 0,30 % du capital en median pour 0,60 %
+        configures, et jusqu'a 0,04 %. Le dimensionnement donnait la bonne
+        taille, puis la part de cash restante la rabotait — quand la caisse
+        etait presque vide le robot n'ouvrait pas RIEN, il ouvrait 5 EUR.
+        Six entrees SUSHI entre 5 et 10 EUR ont rapporte 0,98 EUR en tout,
+        pendant que KAVA a 89 EUR en rapportait 5,56 seule.
+
+        POURQUOI 20 ET PAS PLUS. Sur les 74 instruments et leurs ATR reels
+        du 10 septembre, a 361 EUR de capital et 0,60 % de risque :
+
+            plancher  5 EUR  ->  74/74 accessibles     miettes gardees
+            plancher 20 EUR  ->  62/74 (84 %)          <- arme
+            plancher 25 EUR  ->  42/74 (57 %)
+            plancher 30 EUR  ->  28/74 (38 %)
+
+        A 20 EUR on n'ecarte que les douze cryptos les plus agitees — celles
+        dont le stop depasse 10,8 % et qui ne pouvaient donc produire QUE
+        des miettes. Au-dela, on refuse de vraies occasions.
+
+        CE QUE CE TEST SURVEILLE VRAIMENT : un plancher trop haut fige le
+        robot en croyant le proteger. La taille possible vaut
+        `capital x risque / stop`, donc le plancher DOIT rester sous ce que
+        le capital permet — sinon plus aucune position n'est ouvrable.
+        """
+        cfg = config()
+        plancher = cfg.risk.ticket_min_eur
+        assert plancher >= 20.0, (
+            f"ticket_min_eur vaut {plancher} : le robot rouvrira des "
+            "positions de 5 EUR, mesurees sans interet — voir CLAUDE.md")
+
+        # La borne haute n'est pas un chiffre libre : c'est le capital qui
+        # la fixe. Avec un stop D1 typique, une position vaut au plus
+        # `capital x risque / stop`. Un plancher au-dessus ne laisse RIEN.
+        stop = ATR_PAR_UNITE[cfg.strategy.entry_tf] * cfg.trade.atr_stop_mult
+        possible = self.CAPITAL * (cfg.risk.base_risk_pct / 100) / stop
+        assert plancher <= possible, (
+            f"plancher de {plancher:.0f} EUR alors qu'a {self.CAPITAL:.0f} EUR "
+            f"de capital et {cfg.risk.base_risk_pct} % de risque une position "
+            f"vaut au plus {possible:.0f} EUR : le robot ne pourra plus rien "
+            "ouvrir. Baisser le plancher, ou attendre plus de capital.")
+
+    def test_le_plancher_refuse_au_lieu_de_raboter(self):
+        """Un plancher qui GROSSIT la position serait l'erreur inverse.
+
+        Le dimensionnement remonte du risque vers la taille, jamais
+        l'inverse (CLAUDE.md). Si le cash ne permet que 12 EUR, la reponse
+        est « pas maintenant », pas « ouvrons 20 EUR quand meme » — ce qui
+        multiplierait le risque par 1,7 en silence.
+        """
+        from gold_bot.core import Side
+        from gold_bot.risk import RiskManager
+        from gold_bot.universe import Universe, spread_estime
+
+        cfg = config()
+        u = Universe()
+        inst = u.get("BTCUSD")
+        prix = 68_000.0
+        stop = prix * ATR_PAR_UNITE[cfg.strategy.entry_tf] * cfg.trade.atr_stop_mult
+
+        rm = RiskManager(cfg.risk)
+        rm.sync_account(equity=self.CAPITAL, balance=self.CAPITAL)
+        d = rm.size_position(
+            inst, Side.BUY, prix, prix - stop,
+            prix + stop * cfg.trade.tp_r_multiple,
+            open_positions=[], universe_lookup=u.get,
+            spread=spread_estime(inst, prix),
+            available_cash=12.0)          # la caisse ne permet que 12 EUR
+
+        assert not d.allowed, (
+            f"position de {d.lots * prix:.2f} EUR ouverte avec 12 EUR de "
+            f"cash et un plancher a {cfg.risk.ticket_min_eur:.0f} : le "
+            "plancher a servi a GROSSIR la position au lieu de la refuser")
 
     def test_le_comptant_ne_peut_pas_emprunter(self):
         """Sans marge, engager plus que le capital est impossible."""

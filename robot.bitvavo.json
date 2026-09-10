@@ -82,7 +82,8 @@
     "pyramide_max": 99,
     "pyramide_espacement_atr": 0.5,
     "pyramide_fraction_risque": 1.0,
-    "pyramide_locked_r_min": 0.01
+    "pyramide_locked_r_min": 0.01,
+    "ticket_min_eur": 20.0
   },
   "trade": {
     "atr_stop_mult": 1.6,
