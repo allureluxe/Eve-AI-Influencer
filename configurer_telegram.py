@@ -29,6 +29,7 @@ import json
 import os
 import shutil
 import sys
+import time
 import urllib.request
 from getpass import getpass
 
@@ -101,10 +102,28 @@ def main() -> int:
     Il repond avec un jeton, de la forme  {GRIS}1234567890:AAF...{FIN}
     {GRIS}(Si le bot existe deja : envoyez /token et choisissez-le.){FIN}
 """)
-    jeton = getpass("  Collez le jeton ici (rien ne s'affiche) : ").strip()
+    # getpass exige un vrai terminal. Lance depuis un contexte qui n'en a
+    # pas, il leve — et l'outil mourait sur la premiere question au lieu
+    # de faire son travail. On retombe alors sur une saisie ordinaire :
+    # moins discret, mais un outil qui marche vaut mieux qu'un outil elegant.
+    try:
+        jeton = getpass("  Collez le jeton ici (rien ne s'affiche) : ").strip()
+    except Exception:                                         # noqa: BLE001
+        print(f"{GRIS}  (terminal sans masquage : le jeton sera visible){FIN}")
+        try:
+            jeton = input("  Collez le jeton ici : ").strip()
+        except EOFError:
+            print(f"\n{ROUGE}  Impossible de lire la saisie.{FIN}")
+            print(f"{GRIS}  Relancez la commande en la prefixant de « ! » "
+                  f"dans le terminal Claude, ou depuis un vrai shell.{FIN}")
+            return 1
     if not jeton:
         print(f"\n{JAUNE}  Rien saisi — aucune modification.{FIN}")
         return 1
+
+    # Une erreur tres frequente : coller « bot1234:AAA » ou le mot-cle
+    # « HTTP API » que BotFather ecrit juste avant le jeton.
+    jeton = jeton.split()[-1].removeprefix("bot").strip()
 
     # On valide AVANT d'ecrire : un .env casse arrete le robot, et un
     # jeton faux ecrit sans controle est exactement ce qui a produit
@@ -125,21 +144,31 @@ def main() -> int:
     Sur Telegram, ouvrez  {GRAS}@{nom_bot}{FIN}  et envoyez-lui n'importe
     quoi ({GRAS}salut{FIN} suffit). C'est ce message qui donne au robot le
     droit de vous ecrire — sans lui, Telegram bloque tout.
+    {GRIS}Rien a valider ici : je detecte le message tout seul.{FIN}
 """)
-    input("  Appuyez sur Entree quand c'est fait : ")
-
-    try:
-        maj = _api(jeton, "getUpdates")
-    except Exception as exc:                                  # noqa: BLE001
-        print(f"\n{ROUGE}  Lecture impossible : {str(exc)[:70]}{FIN}")
-        return 1
-
-    chats = []
-    for m in maj.get("result", []):
-        msg = m.get("message") or m.get("channel_post") or {}
-        chat = msg.get("chat") or {}
-        if chat.get("id") and chat["id"] not in [c["id"] for c in chats]:
-            chats.append(chat)
+    # ON ATTEND LE MESSAGE, ON NE DEMANDE PAS DE CONFIRMER.
+    #
+    # « Appuyez sur Entree quand c'est fait » ajoute une etape ou l'on
+    # peut se tromper, et rate le cas ou le message met dix secondes a
+    # arriver. L'outil interroge donc Telegram jusqu'a le voir.
+    chats: list[dict] = []
+    print(f"  {GRIS}j'attends votre message", end="", flush=True)
+    for essai in range(40):                       # ~2 minutes
+        try:
+            maj = _api(jeton, "getUpdates")
+        except Exception as exc:                              # noqa: BLE001
+            print(f"\n{ROUGE}  Lecture impossible : {str(exc)[:70]}{FIN}")
+            return 1
+        for m in maj.get("result", []):
+            msg = m.get("message") or m.get("channel_post") or {}
+            chat = msg.get("chat") or {}
+            if chat.get("id") and chat["id"] not in [c["id"] for c in chats]:
+                chats.append(chat)
+        if chats:
+            break
+        print(".", end="", flush=True)
+        time.sleep(3)
+    print(FIN)
 
     if not chats:
         print(f"""
