@@ -1167,19 +1167,45 @@ class TradingEngine:
         self.risk.account.last_trade_ts = time.time()
 
         obj = self.objectives.status()
+        acc = self.risk.account
+        montant = sizing.lots * pos.entry_price
+
+        # CE MESSAGE EST LU PAR UN HUMAIN SUR SON TELEPHONE, PAS PAR UN
+        # DEVELOPPEUR. Il doit tenir en euros et ne rien afficher qui
+        # ressemble a une panne.
+        #
+        # Le 10 septembre 2026 l'operateur a cru le robot bloque « capital
+        # a zero » : la famille donchian n'utilise pas le score, et la
+        # ligne affichait « score 0.00 / seuil 0.00 ». Deux zeros dans un
+        # message d'ouverture se lisent comme un echec. Le score n'est donc
+        # montre que lorsqu'un seuil existe reellement.
+        #
+        # Le capital est ajoute pour la meme raison : le message annoncait
+        # un volume en lots — 60 819,901 pour VTHO — sans jamais dire
+        # combien d'euros cela representait.
+        lignes = [f"Achat     : {montant:.2f} {acc.currency} de "
+                  f"{ev.symbol.replace('USD', '')}"]
+        if ev.threshold > 0:
+            lignes.append(f"Signal    : {ev.setup} "
+                          f"(score {ev.score:.2f} / seuil {ev.threshold:.2f})")
+        else:
+            lignes.append(f"Signal    : {ev.setup}")
+        lignes += [
+            f"Perte max : {sizing.risk_amount:.2f} {acc.currency} si le stop "
+            f"est touche ({sizing.risk_pct:.2f} % du capital)",
+            f"Capital   : {acc.equity:.2f} {acc.currency}, "
+            f"{len(self.broker.positions())} position(s) ouverte(s)",
+            f"Entree    : {pos.entry_price} | stop {pos.stop_loss}",
+            f"Objectif  : palier {obj['palier']}, "
+            f"{obj['realise']:+.2f}/{obj['objectif']:.2f}",
+        ]
+        confluence = ", ".join(f"{c.name} {c.value:+.2f}"
+                               for c in ev.components if abs(c.value) > 0.01)
+        if confluence:
+            lignes.append("Confluence : " + confluence)
         self.notifier.trade(
             f"Position ouverte — {ev.side.value} {ev.symbol}",
-            "\n".join([
-                f"Scenario  : {ev.setup} (score {ev.score:.2f} / seuil {ev.threshold:.2f})",
-                f"Entree    : {pos.entry_price} | SL {pos.stop_loss} | TP {pos.take_profit} (RR {ev.rr:.2f})",
-                f"Volume    : {sizing.lots} lots — risque {sizing.risk_amount:.2f} "
-                f"{self.risk.account.currency} ({sizing.risk_pct:.2f} %)",
-                f"Taille    : {why}",
-                f"Objectif  : palier {obj['palier']}, {obj['realise']:+.2f}/{obj['objectif']:.2f}",
-                "Facteurs valides : " + ", ".join(g.name for g in ev.gates if g.passed),
-                "Confluence : " + ", ".join(
-                    f"{c.name} {c.value:+.2f}" for c in ev.components if abs(c.value) > 0.01),
-            ]),
+            "\n".join(lignes),
             data={"symbole": ev.symbol, "sens": ev.side.value, "lots": sizing.lots,
                   "entree": pos.entry_price, "sl": pos.stop_loss, "tp": pos.take_profit,
                   "score": ev.score, "setup": ev.setup},

@@ -80,8 +80,19 @@ def main() -> int:
 
     # ---------------------------------------------------------- service
     titre("Processus")
-    actif = subprocess.run(["pgrep", "-f", "run_bot.py run"],
-                           capture_output=True).returncode == 0
+    # LE NOM DU LANCEUR A CHANGE, PAS L'OUTIL. On cherchait `run_bot.py run`
+    # alors que le service tourne `run_dual_live.py` depuis des semaines :
+    # cet ecran annoncait « robot en marche : NON » a un robot parfaitement
+    # actif. Un diagnostic qui ment sur l'essentiel est pire que pas de
+    # diagnostic — le 10 septembre 2026 l'operateur a cru son robot arrete.
+    #
+    # On interroge donc systemd, qui est la verite, et on garde `pgrep` en
+    # repli pour les lancements a la main (tmux, essais).
+    actif = subprocess.run(["systemctl", "is-active", "--quiet",
+                            "robot-dual-live"], capture_output=True).returncode == 0
+    if not actif:
+        actif = subprocess.run(["pgrep", "-f", "run_dual_live.py"],
+                               capture_output=True).returncode == 0
     ligne("robot en marche", "oui" if actif else "NON", "ok" if actif else "non",
           "" if actif else "sudo ./service.sh demarrer")
 
