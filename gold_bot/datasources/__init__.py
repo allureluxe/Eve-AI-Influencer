@@ -82,7 +82,24 @@ class DataRegistry:
     def candles(self, symbol: str, asset_class: str, timeframe: str,
                 limit: int = 300, max_age: Optional[float] = None) -> list[Candle]:
         key = (symbol, timeframe, limit)
-        ttl = max_age if max_age is not None else min(tf_seconds(timeframe) / 3.0, 60.0)
+        # DUREE DE VIE DU CACHE. Le plafond valait 60 s pour TOUTES les
+        # unites, journalier compris : le robot rechargeait la meme bougie
+        # D1 mille fois par jour. Anodin a 63 instruments, bloquant a 243 —
+        # mesure le 10 septembre 2026, un scan complet prenait 193 s pour
+        # un cycle de 10 s, et l'auto-limitation de la source Bitvavo
+        # (120 appels/min) etranglait le reste.
+        #
+        # Au-dela de l'heure, le plafond passe donc a 5 minutes. Ce que ca
+        # coute : une cassure de canal peut etre vue jusqu'a 5 minutes plus
+        # tard. Sur une strategie journaliere qui tient ses positions
+        # plusieurs JOURS, c'est sans effet — et le stop suiveur, lui, suit
+        # les cotations (2 s), pas les bougies.
+        #
+        # Rien ne change sous l'heure : le moteur de scalping garde
+        # exactement la fraicheur qu'il avait.
+        ttl = max_age if max_age is not None else min(
+            tf_seconds(timeframe) / 3.0,
+            60.0 if tf_seconds(timeframe) < 3600 else 300.0)
         hit = self._cache.get(key)
         if hit and time.time() - hit[0] < ttl:
             return hit[1]
@@ -91,7 +108,22 @@ class DataRegistry:
             try:
                 data = provider.fetch_candles(symbol, asset_class, timeframe, limit)
                 if len(data) < min(30, limit):
-                    raise ProviderError(f"historique trop court ({len(data)})")
+                    # UN SYMBOLE JEUNE N'EST PAS UNE PANNE DE LA SOURCE.
+                    #
+                    # C'etait une `ProviderError`, donc une mise en
+                    # QUARANTAINE de 300 s. Mesure le 10 septembre 2026 en
+                    # passant l'univers a 244 cryptos : une seule cotee de
+                    # la veille — deux bougies — suffisait a couper Bitvavo
+                    # pour les 243 autres. Une crypto est listee chez
+                    # Bitvavo presque chaque semaine ; le robot se serait
+                    # aveugle tout seul, regulierement, sans rien dire.
+                    #
+                    # C'est exactement la distinction que ce fichier note
+                    # deja plus bas : symbole absent != fournisseur en
+                    # panne. Un historique trop court est du meme cote.
+                    raise SymbolNotSupported(
+                        f"{provider.name}: {symbol} n'a que {len(data)} bougies "
+                        f"en {timeframe}, il en faut {min(30, limit)}")
                 provider.successes += 1
                 self._cache[key] = (time.time(), data)
                 return data

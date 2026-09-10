@@ -47,7 +47,7 @@ from .settings import BotConfig
 from .state import StateStore, TradeJournal
 from .strategy import Evaluation, Strategy
 from .trade_manager import ActionType, TradeAction, TradeManager
-from .universe import Instrument, Universe
+from .universe import Instrument, Universe, univers_bitvavo
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,26 @@ class TradingEngine:
             raise ValueError("configuration incoherente : " + " | ".join(problems))
 
         self.notifier = notifier or Notifier()
-        self.universe = Universe()
+
+        # L'UNIVERS EST LU CHEZ LE COURTIER, PAS ECRIT EN DUR.
+        #
+        # La liste ecrite a la main comptait 85 cryptos, dont QUINZE
+        # n'existaient plus chez Bitvavo — MATIC, FTM, OCEAN, MKR, EOS et
+        # dix autres, renommees ou retirees, cherchees a chaque scan pour
+        # rien. Pendant ce temps Bitvavo cotait 430 cryptos en euros, dont
+        # HYPE et ses 15 millions d'euros de volume quotidien, invisible.
+        #
+        # Une liste ecrite a la main se perime le jour ou on la termine.
+        # `univers_bitvavo` interroge le courtier et ne garde que ce qui
+        # est reellement negociable — voir les trois bornes dans
+        # `universe.py`, qui sont de la faisabilite, pas du gout.
+        #
+        # En cas de panne reseau elle rend le catalogue ecrit en dur : une
+        # API muette ne doit pas retrecir l'univers d'un robot en service.
+        if cfg.engine.broker in ("bitvavo", "bitvavo_margin"):
+            self.universe = Universe(univers_bitvavo())
+        else:
+            self.universe = Universe()
         if cfg.engine.symbols:
             self.universe.enable_only([s.upper() for s in cfg.engine.symbols])
 

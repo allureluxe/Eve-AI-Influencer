@@ -7,10 +7,14 @@ valide sur XAUUSD il bascule sur une autre paire ou une crypto.
 """
 from __future__ import annotations
 
+import logging
 import math
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -275,6 +279,142 @@ DEFAULT_UNIVERSE.extend(
     for actif, groupe in CATALOGUE_CRYPTO.items()
     if f"{actif}USD" not in _deja_definis
 )
+
+
+# ==========================================================================
+# DECOUVERTE AUTOMATIQUE DU CATALOGUE BITVAVO
+# ==========================================================================
+#
+# Le catalogue ci-dessus est ecrit a la main. Mesure le 10 septembre 2026 :
+# il contient 85 cryptos, dont **seulement 70 existent encore chez
+# Bitvavo** — MATIC, FTM, OCEAN, MKR, EOS et dix autres ont ete renommees
+# ou retirees, et le robot les cherchait a chaque scan pour rien. Pendant
+# ce temps Bitvavo cotait **430 cryptos en euros**, dont HYPE et ses
+# 15 millions d'euros de volume quotidien, invisibles pour le robot.
+#
+# Une liste ecrite a la main se perime le jour ou on la termine. Celle-ci
+# est donc LUE chez Bitvavo au demarrage.
+#
+# CE QUI FILTRE N'EST PAS UN GOUT, C'EST UNE FAISABILITE :
+#
+#   - il faut 21 bougies journalieres pour un canal de 20 jours ; une
+#     crypto cotee depuis sept heures ne peut PAS produire de signal
+#     (mesure sur CNPY, listee le 10 septembre a midi).
+#   - le spread doit laisser passer le controle de cout du robot. Au-dela,
+#     chaque trade serait refuse au dimensionnement : on ferait travailler
+#     le scanner pour rien.
+#   - le volume doit permettre d'entrer et de sortir 20 EUR sans deplacer
+#     le prix. Un carnet de 30 000 EUR par jour ne le permet pas.
+#
+# Ce que ces trois bornes gardent, mesure sur les 430 : **213 cryptos**,
+# contre 70 aujourd'hui.
+#
+# Le nombre de cryptos ne coute plus d'appels reseau depuis que
+# `BitvavoProvider` lit tout le carnet en une requete — sans cela, 430
+# cryptos depassaient la limite de 1 000 appels/minute de Bitvavo.
+
+#: Correspondance symbole interne -> actif Bitvavo. Objet PARTAGE : les
+#: courtiers et les sources de prix importent CE dictionnaire, ils n'en
+#: font pas une copie. Sans cela, une crypto decouverte au demarrage
+#: serait visible du scanner et introuvable a l'execution.
+ACTIFS_PAR_SYMBOLE: dict[str, str] = {f"{a}USD": a for a in CATALOGUE_CRYPTO}
+
+VOLUME_MIN_EUR = 50_000.0      # 24 h ; sous ce seuil, 20 EUR deplacent le prix
+SPREAD_MAX = 0.010             # 1 % ; au-dela le controle de cout refuse tout
+BOUGIES_MIN = 21               # canal de 20 jours + la bougie du jour
+
+
+def ajouter_cryptos(nouvelles: dict[str, str]) -> int:
+    """Enregistre des cryptos decouvertes. Mutation EN PLACE, jamais un rebind.
+
+    `CATALOGUE_CRYPTO` et `ACTIFS_PAR_SYMBOLE` sont importes par cinq
+    modules qui en gardent la reference. Les reaffecter ici laisserait ces
+    cinq-la sur l'ancienne version : le scanner verrait la crypto, le
+    courtier ne saurait pas la nommer, et l'ordre partirait dans le vide.
+    """
+    ajoutes = 0
+    for actif, groupe in nouvelles.items():
+        if actif in CATALOGUE_CRYPTO:
+            continue
+        CATALOGUE_CRYPTO[actif] = groupe
+        ACTIFS_PAR_SYMBOLE[f"{actif}USD"] = actif
+        ajoutes += 1
+    return ajoutes
+
+
+def cryptos_bitvavo(volume_min_eur: float = VOLUME_MIN_EUR,
+                    spread_max: float = SPREAD_MAX,
+                    timeout: float = 20.0) -> dict[str, str]:
+    """Interroge Bitvavo et rend les cryptos negociables : actif -> groupe.
+
+    Rend un dictionnaire VIDE en cas d'echec reseau. L'appelant garde alors
+    le catalogue ecrit en dur : une panne de l'API ne doit pas retrecir
+    l'univers d'un robot en service.
+    """
+    import json
+    import urllib.request
+
+    def _lire(url: str):
+        with urllib.request.urlopen(url, timeout=timeout) as reponse:
+            return json.load(reponse)
+
+    devise = os.getenv("BITVAVO_QUOTE_ASSET", "EUR").upper()
+    try:
+        marches = _lire("https://api.bitvavo.com/v2/markets")
+        tickers = _lire("https://api.bitvavo.com/v2/ticker/24h")
+    except Exception as exc:                                  # noqa: BLE001
+        logger.warning("catalogue Bitvavo illisible (%s) : on garde la "
+                       "liste ecrite en dur", str(exc)[:100])
+        return {}
+
+    par_marche = {t.get("market"): t for t in tickers
+                  if isinstance(t, dict)}
+    retenues: dict[str, str] = {}
+    for marche in marches if isinstance(marches, list) else []:
+        if (marche.get("quote") != devise
+                or marche.get("status") != "trading"):
+            continue
+        actif = str(marche.get("base", "")).upper()
+        if not actif or actif == devise:
+            continue
+        t = par_marche.get(marche.get("market"), {})
+        try:
+            dernier = float(t.get("last") or 0)
+            volume = float(t.get("volume") or 0)
+            achat = float(t.get("bid") or 0)
+            vente = float(t.get("ask") or 0)
+        except (TypeError, ValueError):
+            continue
+        if dernier <= 0 or achat <= 0 or vente < achat:
+            continue
+        if volume * dernier < volume_min_eur:
+            continue
+        milieu = (achat + vente) / 2.0
+        if milieu <= 0 or (vente - achat) / milieu > spread_max:
+            continue
+        retenues[actif] = CATALOGUE_CRYPTO.get(actif, "crypto_alt")
+    return retenues
+
+
+def univers_bitvavo(volume_min_eur: float = VOLUME_MIN_EUR,
+                    spread_max: float = SPREAD_MAX) -> list[Instrument]:
+    """Univers complet : metaux et forex d'origine, cryptos lues chez Bitvavo.
+
+    Les cryptos du catalogue ecrit en dur sont CONSERVEES meme absentes du
+    resultat : le robot peut en detenir une, et retirer son instrument lui
+    ferait perdre le stop d'une position ouverte.
+    """
+    decouvertes = cryptos_bitvavo(volume_min_eur, spread_max)
+    if not decouvertes:
+        return list(DEFAULT_UNIVERSE)
+
+    ajouter_cryptos(decouvertes)
+    connus = {i.symbol for i in DEFAULT_UNIVERSE}
+    instruments = list(DEFAULT_UNIVERSE)
+    for actif, groupe in decouvertes.items():
+        if f"{actif}USD" not in connus:
+            instruments.append(instrument_crypto(actif, groupe))
+    return instruments
 
 
 class Universe:

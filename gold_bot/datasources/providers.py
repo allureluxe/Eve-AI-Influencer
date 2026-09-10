@@ -18,7 +18,7 @@ import time
 from typing import Optional
 
 from ..core import Candle, Tick
-from ..universe import CATALOGUE_CRYPTO
+from ..universe import ACTIFS_PAR_SYMBOLE, CATALOGUE_CRYPTO
 from .base import (
     SymbolNotSupported,
     PriceProvider,
@@ -136,7 +136,9 @@ class BinanceProvider(PriceProvider):
     # La devise de cotation suit celle de l'execution (BINANCE_QUOTE_ASSET) :
     # lire les prix sur BTC/USDT tout en achetant sur BTC/USDC introduirait un
     # ecart entre les niveaux calcules et ceux envoyes a la plateforme.
-    ACTIFS = {f"{actif}USD": actif for actif in CATALOGUE_CRYPTO}
+    # OBJET PARTAGE (voir universe.ACTIFS_PAR_SYMBOLE) : une copie figee
+    # a l'import rendrait invisibles les cryptos decouvertes au demarrage.
+    ACTIFS = ACTIFS_PAR_SYMBOLE
     INTERVALS = {"M1": "1m", "M3": "3m", "M5": "5m", "M15": "15m",
                  "M30": "30m", "H1": "1h", "H4": "4h", "D1": "1d"}
 
@@ -206,12 +208,24 @@ class BitvavoProvider(PriceProvider):
     """
 
     name = "bitvavo"
-    capabilities = ProviderCapabilities(asset_classes=("crypto",), rate_limit_per_min=120)
+    # 120 -> 400 le 10 septembre 2026. Ce n'est pas un desserrage au juge :
+    # l'API renvoie sa propre limite dans l'en-tete `bitvavo-ratelimit-limit`,
+    # et elle vaut **1 000 par minute**. L'auto-limitation a 120 etait donc
+    # huit fois trop prudente, et elle etranglait le scan des que l'univers
+    # a dépassé la centaine d'instruments — 243 cryptos demandaient deux
+    # minutes rien qu'a attendre le compteur.
+    #
+    # 400 laisse 600 appels/minute au COURTIER, qui partage le meme quota :
+    # ordres, soldes, poses de stop. C'est lui qu'il ne faut jamais affamer,
+    # une position sans stop etant le pire cas du systeme.
+    capabilities = ProviderCapabilities(asset_classes=("crypto",), rate_limit_per_min=400)
     devise_crypto = os.getenv("BITVAVO_QUOTE_ASSET", "EUR").upper()
 
     # Meme catalogue que l'univers et que l'execution : une liste tenue a la
     # main ici divergerait des le premier actif ajoute.
-    ACTIFS = {f"{actif}USD": actif for actif in CATALOGUE_CRYPTO}
+    # OBJET PARTAGE (voir universe.ACTIFS_PAR_SYMBOLE) : une copie figee
+    # a l'import rendrait invisibles les cryptos decouvertes au demarrage.
+    ACTIFS = ACTIFS_PAR_SYMBOLE
     # Bitvavo n'expose pas M3 : il est reconstruit a partir de la minute.
     INTERVALS = {"M1": "1m", "M5": "5m", "M15": "15m", "M30": "30m",
                  "H1": "1h", "H4": "4h", "D1": "1d"}
@@ -265,10 +279,67 @@ class BitvavoProvider(PriceProvider):
             bougies = resample(bougies, source_tf, timeframe)
         return bougies
 
+    # ------------------------------------------------------------------
+    # COTATIONS EN UN SEUL APPEL
+    #
+    # `/ticker/book?market=X` coute un appel reseau PAR crypto. A 63
+    # instruments et un cycle de 10 s, cela fait ~380 appels par minute :
+    # Bitvavo en autorise 1 000. Le robot etait donc plafonne a ~150
+    # cryptos sans le savoir — et il en existe 430 en euros.
+    #
+    # Le meme endpoint SANS parametre renvoie TOUT le carnet, en un appel.
+    # Le nombre de cryptos suivies cesse alors de peser sur la limite : 430
+    # coutent exactement ce que coutait une seule.
+    #
+    # Le cache est court (2 s) : une cotation sert a decider d'un ordre, et
+    # la servir perimee ferait dimensionner sur un prix qui n'existe plus.
+    _CARNET_TTL = 2.0
+    _carnet: dict[str, tuple[float, float, float, float]] = {}
+    _carnet_ts: float = 0.0
+
+    def _rafraichir_le_carnet(self) -> None:
+        """Recharge tout le carnet si le cache a expire. Silencieux en cas d'echec.
+
+        Un echec ici n'est pas fatal : `fetch_tick` retombe sur l'appel
+        unitaire. Lever ferait passer la source entiere en quarantaine
+        pour une panne qui ne concerne qu'une optimisation.
+        """
+        if time.time() - BitvavoProvider._carnet_ts < self._CARNET_TTL:
+            return
+        self.throttle()
+        try:
+            lignes = http_get("https://api.bitvavo.com/v2/ticker/book")
+        except Exception:                                     # noqa: BLE001
+            return
+        if not isinstance(lignes, list):
+            return
+        carnet = {}
+        for ligne in lignes:
+            marche = str(ligne.get("market", ""))
+            try:
+                bid, ask = float(ligne["bid"]), float(ligne["ask"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if bid > 0 and ask >= bid:
+                carnet[marche] = (bid, ask,
+                                  _flottant(ligne.get("bidSize")),
+                                  _flottant(ligne.get("askSize")))
+        if carnet:
+            BitvavoProvider._carnet = carnet
+            BitvavoProvider._carnet_ts = time.time()
+
     def fetch_tick(self, symbol: str, asset_class: str) -> Optional[Tick]:
         code = self.symbol_for(symbol, asset_class)
         if not code:
             return None
+
+        self._rafraichir_le_carnet()
+        groupe = BitvavoProvider._carnet.get(code)
+        if groupe and time.time() - BitvavoProvider._carnet_ts < self._CARNET_TTL:
+            bid, ask, taille_bid, taille_ask = groupe
+            return Tick(time.time(), bid, ask, taille_bid, taille_ask)
+
+        # Repli unitaire : carnet indisponible, ou marche absent du carnet.
         self.throttle()
         try:
             data = http_get("https://api.bitvavo.com/v2/ticker/book",
@@ -305,7 +376,9 @@ class OkxProvider(PriceProvider):
     capabilities = ProviderCapabilities(asset_classes=("crypto",), rate_limit_per_min=120)
     devise_crypto = os.getenv("OKX_QUOTE_ASSET", "EUR").upper()
 
-    ACTIFS = {f"{actif}USD": actif for actif in CATALOGUE_CRYPTO}
+    # OBJET PARTAGE (voir universe.ACTIFS_PAR_SYMBOLE) : une copie figee
+    # a l'import rendrait invisibles les cryptos decouvertes au demarrage.
+    ACTIFS = ACTIFS_PAR_SYMBOLE
     # Attention aux majuscules : OKX ecrit les minutes en minuscule et les
     # heures et jours en MAJUSCULE. « 4h » est refuse, « 4H » accepte.
     INTERVALS = {"M1": "1m", "M3": "3m", "M5": "5m", "M15": "15m",

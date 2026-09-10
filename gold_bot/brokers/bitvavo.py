@@ -65,7 +65,7 @@ from dataclasses import dataclass, replace
 from typing import Any, Optional
 
 from ..core import ClosedTrade, Position, Side, Tick
-from ..universe import CATALOGUE_CRYPTO, Instrument
+from ..universe import ACTIFS_PAR_SYMBOLE, CATALOGUE_CRYPTO, Instrument
 from .base import AccountInfo, Broker, BrokerError
 
 logger = logging.getLogger(__name__)
@@ -74,7 +74,10 @@ BASE = "https://api.bitvavo.com/v2"
 
 # Le catalogue suit l'univers du robot, il n'est pas tenu a la main ici :
 # une seconde liste divergerait silencieusement de la premiere.
-ACTIFS = {f"{actif}USD": actif for actif in CATALOGUE_CRYPTO}
+# OBJET PARTAGE, pas une copie. Une comprehension figerait la liste a
+# l'import : une crypto decouverte au demarrage serait visible du
+# scanner et introuvable ICI, et l'ordre partirait dans le vide.
+ACTIFS = ACTIFS_PAR_SYMBOLE
 
 # Bitvavo est un marche europeen : sa devise naturelle est l'euro.
 DEVISE_DEFAUT = os.getenv("BITVAVO_QUOTE_ASSET", "EUR").upper()
