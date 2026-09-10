@@ -371,21 +371,23 @@ class TradingEngine:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("ticket minimum illisible : %s", str(exc)[:120])
 
-        # LE PLANCHER DE L'OPERATEUR COMPTE COMME UN TICKET MINIMUM.
+        # LE PLANCHER DE L'OPERATEUR NE DOIT PAS ENTRER ICI.
         #
-        # Le calibrage sert a repondre a une seule question : « le capital
-        # permet-il encore d'ouvrir une position ? » Il la tranche par
-        # `stop_max = capital x risque / ticket_minimum`. Lui passer les
-        # 5 EUR de Bitvavo alors que `ticket_min_eur` en exige 20 le rend
-        # aveugle a la seule panne que ce plancher peut provoquer : un
-        # compte trop petit ou une crypto trop agitee, et plus AUCUNE
-        # position n'est ouvrable — le robot se fige en croyant se
-        # proteger, sans rien dire.
+        # Il l'a fait pendant une heure le 10 septembre, et c'etait un
+        # defaut serieux. Le calibrage ne fait pas que constater : quand
+        # l'unite armee devient hors de portee, il BASCULE sur la plus
+        # rapide praticable. A 200 EUR de capital, un plancher a 20 EUR
+        # sortait le D1 de la liste et le robot passait au M30 — mesure
+        # PERDANT a -0,158 R sur 3 147 trades, soit -1 643 EUR sur 1 000.
+        # Sans un mot, et sur un compte deja en perte.
         #
-        # C'est la meme erreur que le plafond de spread absolu de fin aout :
-        # deux endroits decidaient du meme reglage, et le moins informe
-        # gagnait en silence.
-        ticket = max(ticket, max(0.0, cfg.risk.ticket_min_eur))
+        # La regle qui evite ca : le calibrage n'obeit qu'aux contraintes
+        # EXTERIEURES — le ticket de la plateforme, les frais. Le plancher
+        # de l'operateur est un choix de confort ; un choix de confort ne
+        # peut pas changer la strategie armee. Il s'applique plus bas, au
+        # dimensionnement, et il PLIE quand le capital ne le porte plus
+        # (voir `_ajuster_le_plancher` juste apres).
+        ticket_plateforme = ticket
         self.frais_reels = float(
             getattr(getattr(self.broker, "config", None), "fee_rate", 0.0)
             or cfg.risk.commission_pct or 0.0)
@@ -482,11 +484,84 @@ class TradingEngine:
                 cfg.strategy.entry_tf = cal.unite_conseillee
                 self.strategy.config.entry_tf = cal.unite_conseillee
 
+        # Le plancher de l'operateur, lui, s'ajuste APRES : il depend de
+        # l'unite finalement retenue, et il ne doit jamais l'influencer.
+        self._ajuster_le_plancher(ticket_plateforme)
+
         # Hors du « si viable » a dessein : le delai doit suivre l'unite
         # reellement utilisee dans tous les cas. Une sortie anticipee qui
         # sauterait cette ligne laisserait un delai calibre pour une autre
         # unite de temps — precisement le defaut qu'on corrige ici.
         self._transposer_le_stop_temporel()
+
+    def _ajuster_le_plancher(self, ticket_plateforme: float) -> None:
+        """Le plancher de taille PLIE quand le capital ne le porte plus.
+
+        `ticket_min_eur` dit « 20 EUR ou rien ». C'est le bon reglage a
+        361 EUR de capital : il ecarte les miettes sans ecarter d'occasion
+        (62 cryptos sur 74 restent accessibles). Mais une position vaut au
+        plus `capital x risque / stop`, et ce produit descend avec le
+        capital :
+
+            361 EUR  ->  jusqu'a 25 EUR par position   le plancher passe
+            250 EUR  ->  jusqu'a 17 EUR                il ne passe plus
+            150 EUR  ->  jusqu'a 10 EUR                plus rien n'est ouvrable
+
+        Un plancher au-dessus de ce que le capital permet ne protege plus :
+        il FIGE. Et un robot fige sur un compte en perte ne se refait
+        jamais — c'est la meme faute que le chien de garde a 24 % le
+        6 septembre, qui coupait sur un creux ordinaire.
+
+        On ne descend donc jamais en dessous de ce que le capital porte, et
+        jamais en dessous du ticket de la plateforme non plus. La reduction
+        est ANNONCEE : un plancher qui plie en silence ramenerait les
+        miettes de 5 EUR que l'operateur vient de faire retirer.
+        """
+        cfg = self.config
+        demande = max(0.0, cfg.risk.ticket_min_eur)
+        if demande <= 0:
+            return
+
+        stop = self._stop_typique_du_tf(cfg.strategy.entry_tf,
+                                        cfg.trade.atr_stop_mult)
+        equity = float(self.broker.account().equity or 0.0)
+        portable = equity * (cfg.risk.base_risk_pct / 100.0) / stop if stop > 0 else 0.0
+        effectif = max(ticket_plateforme, min(demande, portable))
+
+        if effectif < demande - 1e-9:
+            logger.warning(
+                "plancher de taille ramene de %.2f a %.2f EUR : a %.2f EUR de "
+                "capital et %.2f %% de risque, une position en %s vaut au plus "
+                "%.2f EUR. Le garder figerait le robot. Pour retrouver %.0f EUR "
+                "par position, il faut ~%.0f EUR de capital.",
+                demande, effectif, equity, cfg.risk.base_risk_pct,
+                cfg.strategy.entry_tf, portable, demande,
+                demande * stop / (cfg.risk.base_risk_pct / 100.0))
+            self.notifier.warning(
+                "Positions plus petites que voulu",
+                f"Le capital ({equity:.2f} EUR) ne porte plus des positions de "
+                f"{demande:.0f} EUR. Le robot descend a {effectif:.2f} EUR pour "
+                f"continuer a travailler plutot que de s'arreter.")
+
+        cfg.risk.ticket_min_eur = effectif
+        if getattr(self, "risk", None) is not None:
+            self.risk.config.ticket_min_eur = effectif
+
+    @staticmethod
+    def _stop_typique_du_tf(tf: str, atr_stop_mult: float) -> float:
+        """Distance au stop, en fraction du prix, pour l'unite donnee.
+
+        Memes ATR que `tests/test_garde_fous.py` — mesures dans les journaux
+        du 28 aout. Le multiplicateur vient de la configuration : ecrire 1,6
+        en dur ferait mentir le calcul le jour ou le stop change, et c'est
+        exactement le genre de constante qui se perime sans bruit.
+
+        Sert uniquement a dimensionner le plancher ; le dimensionnement
+        reel, lui, utilise l'ATR vivant de chaque crypto.
+        """
+        atr = {"M5": 0.0030, "M15": 0.0056, "M30": 0.0080, "H1": 0.0112,
+               "H4": 0.0224, "D1": 0.0546}.get(tf, 0.0546)
+        return atr * max(0.1, atr_stop_mult)
 
     def _transposer_le_stop_temporel(self) -> None:
         """Reporte le stop temporel sur l'unite de temps reellement utilisee.

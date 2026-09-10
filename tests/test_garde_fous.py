@@ -504,6 +504,80 @@ class TestLevierMaitrise:
             f"vaut au plus {possible:.0f} EUR : le robot ne pourra plus rien "
             "ouvrir. Baisser le plancher, ou attendre plus de capital.")
 
+    def test_le_plancher_ne_peut_pas_changer_la_strategie(self):
+        """Un choix de confort ne bascule pas le robot sur une strategie perdante.
+
+        DEFAUT REEL, arme pendant une heure le 10 septembre 2026.
+        `ticket_min_eur` etait passe au calibrage comme un ticket minimum.
+        Or le calibrage ne fait pas que constater : quand l'unite armee
+        sort de sa liste, il BASCULE sur la plus rapide praticable.
+
+            capital 361 EUR  ->  D1 praticable
+            capital 200 EUR  ->  D1 hors de portee  ->  bascule M30
+
+        Le M30 est mesure PERDANT : -0,158 R sur 3 147 trades, soit
+        -1 643 EUR sur 1 000 de capital de rejeu (CLAUDE.md). Le plancher
+        aurait donc, sur un compte deja en perte, remplace la strategie
+        armee par une strategie mesuree perdante — sans un mot.
+
+        La regle : le calibrage n'obeit qu'aux contraintes EXTERIEURES
+        (ticket de la plateforme, frais). Le plancher de l'operateur
+        s'applique au dimensionnement, et il PLIE quand le capital ne le
+        porte plus.
+        """
+        from gold_bot.calibrage import calibrer
+
+        cfg = config()
+        arme = cfg.strategy.entry_tf
+        for capital in (400.0, 300.0, 250.0, 200.0, 150.0, 120.0):
+            cal = calibrer(
+                equity=capital,
+                ticket_minimum=5.0,          # LE TICKET DE LA PLATEFORME, seul
+                frais_par_cote=FRAIS_BITVAVO,
+                risk_pct_demande=cfg.risk.base_risk_pct,
+                risk_pct_max=cfg.risk.max_risk_pct,
+                plafond_cout_pct=cfg.risk.max_cost_ratio_pct,
+                plafond_positions=cfg.risk.max_positions,
+                part_engageable_pct=cfg.risk.max_capital_engaged_pct,
+                atr_stop_mult=cfg.trade.atr_stop_mult)
+            assert arme in cal.unites, (
+                f"a {capital:.0f} EUR l'unite armee {arme} sort des unites "
+                f"praticables {cal.unites} : le robot basculera sur "
+                f"{cal.unite_conseillee}, mesure perdant. Le plancher de "
+                "taille ne doit PAS entrer dans le calibrage.")
+
+    def test_le_plancher_plie_au_lieu_de_figer(self):
+        """En dessous du capital qui le porte, le plancher cede — et le dit.
+
+        Un plancher au-dessus de ce que le capital permet ne protege plus,
+        il FIGE. Et un robot fige sur un compte en perte ne se refait
+        jamais : c'est la faute du chien de garde a 24 % le 6 septembre,
+        qui coupait sur un creux ordinaire.
+        """
+        from gold_bot.engine import TradingEngine
+
+        cfg = config()
+        stop = ATR_PAR_UNITE[cfg.strategy.entry_tf] * cfg.trade.atr_stop_mult
+        demande = cfg.risk.ticket_min_eur
+
+        for capital in (self.CAPITAL, 250.0, 150.0, 100.0):
+            portable = capital * (cfg.risk.base_risk_pct / 100.0) / stop
+            effectif = max(5.0, min(demande, portable))
+            assert effectif <= portable + 1e-9 or effectif == 5.0, (
+                f"a {capital:.0f} EUR le plancher retenu ({effectif:.2f}) "
+                f"depasse ce que le capital porte ({portable:.2f}) : "
+                "plus aucune position ne serait ouvrable")
+
+        # Et il ne plie pas quand ce n'est pas necessaire.
+        portable = self.CAPITAL * (cfg.risk.base_risk_pct / 100.0) / stop
+        assert min(demande, portable) == pytest.approx(demande), (
+            f"a {self.CAPITAL:.0f} EUR le plancher devrait tenir a "
+            f"{demande:.0f} EUR, or le capital ne porte que {portable:.2f}")
+
+        assert hasattr(TradingEngine, "_ajuster_le_plancher"), (
+            "le mecanisme qui fait plier le plancher a disparu : sans lui "
+            "une baisse de capital fige le robot en silence")
+
     def test_le_plancher_refuse_au_lieu_de_raboter(self):
         """Un plancher qui GROSSIT la position serait l'erreur inverse.
 
