@@ -292,7 +292,26 @@ class ObjectiveTracker:
         prog = self.progress()
         pace = self.expected_pace(ts)
 
-        if cfg.protect_after_target and self.state.achieved_this_week:
+        # ON NE PROTEGE QUE CE QU'ON A ENCORE.
+        #
+        # `achieved_this_week` est un CLIQUET : une fois l'objectif touche
+        # il ne redescend jamais, ce qui est juste pour la promotion de
+        # palier — la semaine a bel et bien atteint sa cible, et rendre
+        # ensuite ne l'efface pas.
+        #
+        # Mais pour le RISQUE, le cliquet produisait une absurdite.
+        # Mesure le 11 septembre 2026 : objectif touche en debut de
+        # semaine (KAVA +5,56 puis LSK +4,48), puis trois stops. Resultat
+        # de la semaine : -0,37 EUR. Le robot etait toujours en « mode
+        # preservation » et divisait son risque par deux — 0,26 % au lieu
+        # de 0,60 %, positions de 5 EUR refusees par le plancher — pour
+        # proteger un gain qu'il n'avait plus.
+        #
+        # La preservation n'a de sens que tant que le gain EXISTE. En
+        # dessous de la cible, c'est la branche « semaine negative » qui
+        # doit decider, et elle sait deja reduire proprement.
+        if (cfg.protect_after_target and self.state.achieved_this_week
+                and self.state.realized_this_week >= self.target):
             return cfg.protect_multiplier, "objectif de la semaine atteint : mode preservation"
 
         if prog < 0:
