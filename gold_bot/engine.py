@@ -435,6 +435,17 @@ class TradingEngine:
             if getattr(self, "risk", None) is not None:
                 self.risk.config.commission_pct = frais
 
+        # LE POINT MORT SE CALCULE SUR LE TARIF REEL, PAS SUR UN DEFAUT.
+        #
+        # `TradeManager` en a besoin pour placer le stop de break-even
+        # au-dessus du cout de l'aller-retour. Le laisser sur sa valeur par
+        # defaut annoncerait « le trade ne peut plus perdre » en se trompant
+        # de tarif — exactement le genre d'ecart entre deux endroits qui
+        # decident du meme reglage, et ce depot en a deja paye trois.
+        self.config.trade.commission_pct = frais
+        if getattr(self, "trade_manager", None) is not None:
+            self.trade_manager.config.commission_pct = frais
+
         cal = calibrer(
             equity=self.broker.account().equity,
             ticket_minimum=ticket,

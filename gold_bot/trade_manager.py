@@ -62,13 +62,29 @@ class TradeManagerConfig:
     max_cost_ratio_pct: float = 15.0
     max_stop_atr_for_cost: float = 4.0
     breakeven_at_r: float = 0.8
+    # PLANCHER, pas valeur finale : le point mort reel se CALCULE a partir
+    # du cout de l'aller-retour (voir `manage()`). Un chiffre ecrit a la
+    # main annonçait « le trade ne peut plus perdre » sur des trades qui
+    # perdaient — six sur 44 dans l'ere D1.
     breakeven_offset_r: float = 0.08
+    # Commission par cote, pour ce calcul. Doit suivre le tarif reel du
+    # lieu d'execution : le moteur la reprend de `risk.commission_pct`.
+    commission_pct: float = 0.0025
     partial_enabled: bool = True
     partial_at_r: float = 1.0
     partial_fraction: float = 0.4
     trail_start_r: float = 1.0
     trail_atr_mult: float = 1.8
     trail_tighten_atr_mult: float = 1.0
+
+    # Resserrage du suiveur UNE FOIS le benefice garanti (stop au-dessus de
+    # l'entree). A 0, rien ne change. Voir le bloc commente dans `manage()`
+    # pour la mesure sur six periodes : meme rendement, recul plus petit
+    # dans cinq periodes sur six et jamais pire.
+    trail_serrage_apres_abri: float = 0.0
+    # Plancher de largeur, en ATR. Sans lui la largeur tend vers zero et le
+    # moindre soubresaut sort la position.
+    trail_min_atr_mult: float = 1.2
     extend_enabled: bool = True
     extend_at_progress: float = 0.85
     extend_by_atr: float = 1.2
@@ -347,7 +363,34 @@ class TradeManager:
         )
         new_stop = position.stop_loss
         if not position.breakeven_done and r_now >= cfg.breakeven_at_r:
-            be = position.entry_price + sign * cfg.breakeven_offset_r * position.initial_risk
+            # « LE TRADE NE PEUT PLUS PERDRE » DOIT ETRE VRAI, PAS PRESQUE.
+            #
+            # Le 12 septembre 2026, MTL sort a -0,24 EUR avec un stop pose
+            # AU-DESSUS du prix d'entree. Le message disait « le trade ne
+            # peut plus perdre » ; il perdait. Sur 44 trades de l'ere D1,
+            # SIX sont gagnants sur les prix et perdants une fois les frais
+            # payes.
+            #
+            # L'ecart etait un chiffre ecrit a la main — 0,05 R — pendant
+            # que le retour a l'equilibre en demande :
+            #
+            #     aller-retour de frais   0,069 R
+            #     limite du stop a -0,2 % 0,023 R
+            #     ------------------------------
+            #     total                   0,092 R
+            #
+            # On le CALCULE donc au lieu de le choisir, comme le plafond de
+            # cout et la borne de spread ailleurs dans ce depot. Le reglage
+            # reste un PLANCHER : si quelqu'un veut plus de marge, il l'a.
+            distance = abs(position.initial_risk / position.volume) if position.volume else 0.0
+            cout_r = 0.0
+            if distance > 0 and position.entry_price > 0:
+                # Frais des deux cotes, plus la limite posee sous le
+                # declenchement — c'est a ce prix-la qu'on sort vraiment.
+                cout_prix = position.entry_price * (2 * cfg.commission_pct + 0.002)
+                cout_r = cout_prix / distance
+            marge = max(cfg.breakeven_offset_r, cout_r)
+            be = position.entry_price + sign * marge * position.initial_risk
             if sign * (be - new_stop) > 0:
                 new_stop = be; position.breakeven_done = True
                 actions.append(TradeAction(ActionType.MODIFY_STOP, position.id, round(be, digits),
@@ -399,6 +442,45 @@ class TradeManager:
             position.trail_arme = True
         if position.trail_arme:
             mult = cfg.trail_atr_mult if momentum.favorable else cfg.trail_tighten_atr_mult
+
+            # LE SUIVEUR SE RESSERRE UNE FOIS LE BENEFICE GARANTI.
+            #
+            # Idee de l'operateur, 12 septembre 2026 : « on reste a 2 ATR,
+            # mais des que le stop passe en benef il se resserre jusqu'a
+            # etre proche ». Tant que le stop est SOUS le prix d'entree, la
+            # position garde toute sa place pour se developper ; une fois
+            # au-dessus, elle ne peut plus rien perdre et on serre pour
+            # garder davantage.
+            #
+            # DEUX VERSIONS AVAIENT ETE MESUREES ET ECARTEES avant celle-ci,
+            # toutes deux resserrant selon le GAIN — donc des les premiers
+            # pas. Elles etranglaient la position et divisaient le resultat
+            # par deux. La difference tient a ce seul mot : APRES l'abri.
+            #
+            # CE QUE LA MESURE DIT, six periodes de ~15 mois, 70 paires,
+            # frais doubles, chacune repartant de 263 EUR :
+            #
+            #     263 EUR deviennent   696 E sans  /  702 E avec
+            #     recul moyen         25,5 %      /  21,5 %
+            #     pire recul            38 %      /    29 %
+            #
+            #     rendement meilleur : 3 periodes sur 6  -> pile ou face
+            #     recul PLUS PETIT   : 5 periodes sur 6, JAMAIS pire
+            #
+            # On n'arme donc pas pour gagner plus — les deux se valent — mais
+            # pour encaisser moins de casse. A 38 % de recul, le coupe-circuit
+            # interne (45 %) est frole ; a 29 % il reste de la marge.
+            if (cfg.trail_serrage_apres_abri > 0
+                    and sign * (position.stop_loss - position.entry_price) > 0
+                    and position.initial_risk > 0):
+                abri_r = (sign * (position.stop_loss - position.entry_price)
+                          / position.initial_risk)
+                mult = mult / (1.0 + cfg.trail_serrage_apres_abri * max(0.0, abri_r))
+                # Le plancher n'est pas decoratif : sans lui la largeur tend
+                # vers zero et le moindre soubresaut sort la position. A
+                # 1,2 ATR il reste ~2,4 % de marge sur une crypto ordinaire.
+                mult = max(cfg.trail_min_atr_mult, mult)
+
             trail = position.max_favorable - sign * mult * atr
             if sign * (trail - new_stop) > 0:
                 new_stop = trail
