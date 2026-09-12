@@ -479,8 +479,22 @@ class TradingEngine:
             logger.info("calibrage : %s", ligne)
 
         if not cal.viable:
-            self.notifier.warning(
-                "Capital insuffisant pour cette plateforme", "\n".join(cal.resume()))
+            # « Capital insuffisant » sur un capital ILLISIBLE est un
+            # mensonge, pas une alerte. Le 12 septembre a 01h49 l'operateur
+            # a recu « capital 0.00 | AUCUNE unite praticable » alors que
+            # son compte valait 263 EUR : l'API n'avait pas repondu.
+            #
+            # Une alerte fausse coute plus qu'une alerte manquante : elle
+            # apprend a ne plus les lire, et c'est par ce canal qu'arrive
+            # le chien de garde. Le journal garde la trace, le telephone
+            # n'est derange que si le chiffre veut dire quelque chose.
+            if cal.equity <= 0:
+                logger.warning("capital illisible : viabilite non evaluable, "
+                               "aucune alerte envoyee")
+            else:
+                self.notifier.warning(
+                    "Capital insuffisant pour cette plateforme",
+                    "\n".join(cal.resume()))
         else:
             if cal.risk_pct > cfg.risk.base_risk_pct:
                 logger.warning("risque par trade porte a %.3f %% (ticket minimum "
@@ -591,6 +605,28 @@ class TradingEngine:
         stop = self._stop_typique_du_tf(cfg.strategy.entry_tf,
                                         cfg.trade.atr_stop_mult)
         equity = float(self.broker.account().equity or 0.0)
+
+        # UNE LECTURE RATEE N'EST PAS UN CAPITAL NUL.
+        #
+        # Le 12 septembre 2026 a 01h49, l'operateur a recu sur son
+        # telephone : « Le capital (0.00 EUR) ne porte plus des positions
+        # de 15 EUR. Le robot descend a 5.00 EUR. » Son compte valait
+        # 263 EUR. L'API Bitvavo n'avait simplement pas repondu.
+        #
+        # Deux degats : une alerte alarmante et fausse, et surtout un
+        # RECONFIGURATION du robot sur une donnee inexistante — le
+        # plancher etait reellement descendu a 5 EUR, c'est-a-dire aux
+        # miettes que l'operateur venait de faire retirer.
+        #
+        # C'est la regle du chien de garde, qui l'applique depuis le
+        # debut : « Lecture d'equite impossible => AUCUNE ACTION. On ne
+        # coupe jamais sur une donnee manquante. » Elle vaut ici aussi :
+        # on ne se reconfigure jamais sur une donnee manquante.
+        if equity <= 0:
+            logger.warning("capital illisible (%.2f) : le plancher de taille "
+                           "reste a %.2f. Aucune reconfiguration sur une "
+                           "donnee absente.", equity, demande)
+            return
         portable = equity * (cfg.risk.base_risk_pct / 100.0) / stop if stop > 0 else 0.0
         effectif = max(ticket_plateforme, min(demande, portable))
 
