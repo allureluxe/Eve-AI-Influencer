@@ -288,6 +288,11 @@ class StrategyConfig:
     # si S1 saute la cassure qui devient la grande tendance de l'annee,
     # S2 la reprend. On ne modelise ici que S1.
     donchian_filtre_precedent: bool = False
+
+    # Plafond de progression sur 20 jours, en %. Au-dela, la cassure est
+    # refusee : le mouvement a deja eu lieu. A 0, aucun filtre.
+    # Voir le bloc commente dans `_evaluer_donchian` pour la mesure.
+    donchian_momentum_max_pct: float = 0.0
     reversion_ma_periode: int = 50       # periode de la SMA de reference (dediee)
     reversion_entree_atr: float = 2.0    # ecart MA-prix minimal, en ATR, pour entrer
     reversion_sortie_atr: float = 0.5    # sortie quand MA-prix repasse sous ce seuil, en ATR
@@ -893,6 +898,48 @@ class Strategy:
                     "cassure precedente GAGNANTE : on saute celle-ci "
                     "(regle System 1)"))
                 return ev
+
+        # CASSURE D'EPUISEMENT : le mouvement a deja eu lieu.
+        #
+        # Mesure sur 1 104 trades d'apprentissage : les cassures GAGNANTES
+        # sont moins spectaculaires que les perdantes, sur TOUS les
+        # indicateurs disponibles a l'achat.
+        #
+        #                        gagnantes  perdantes
+        #     progression 20 j     +21,0 %    +25,5 %
+        #     volume / moyenne       2,14       2,46
+        #     force de la cassure    0,41       0,46
+        #     volatilite             5,36 %     5,87 %
+        #
+        # Plus la cassure est violente, plus elle echoue : c'est la foule
+        # qui entre au sommet apres que le mouvement a eu lieu.
+        #
+        # CE QUE CA COUTE ET CE QUE CA RAPPORTE, six periodes de ~15 mois,
+        # 70 paires, frais doubles, depart 263 EUR :
+        #
+        #     plafond      263 E ->   recul    perte des positions
+        #                                       a un seul etage
+        #     aucun           661 E   20,7 %        -242 E
+        #     40 %            544 E   19,0 %        -150 E
+        #     25 %            521 E   16,0 %        -133 E
+        #     15 %            505 E   14,5 %         -73 E   <- arme
+        #
+        # Ce n'est PAS une amelioration du rendement : il baisse de 24 %.
+        # C'est un choix explicite de l'operateur — « je prefere prendre
+        # moins de positions mais de bonnes positions » — paye par 70 % de
+        # petites pertes en moins et un recul qui passe de 21 % a 14,5 %.
+        # Le rapport rendement/recul, lui, s'ameliore : 31,9 -> 34,8.
+        if cfg.donchian_momentum_max_pct > 0:
+            closes = [c.close for c in bougies[-21:]]
+            if len(closes) >= 21 and closes[0] > 0:
+                progression = (closes[-1] / closes[0] - 1) * 100
+                if progression > cfg.donchian_momentum_max_pct:
+                    ev.gates.append(Gate(
+                        "epuisement", False,
+                        f"deja +{progression:.0f} % en 20 jours "
+                        f"(plafond {cfg.donchian_momentum_max_pct:.0f} %) : "
+                        "cassure d'epuisement, le mouvement a eu lieu"))
+                    return ev
 
         ev.side = Side.BUY
         ev.setup = "donchian_cassure"

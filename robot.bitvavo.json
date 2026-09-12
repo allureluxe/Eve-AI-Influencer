@@ -57,7 +57,8 @@
       20
     ],
     "donchian_sortie": 10,
-    "donchian_filtre_precedent": false
+    "donchian_filtre_precedent": false,
+    "donchian_momentum_max_pct": 15.0
   },
   "risk": {
     "base_risk_pct": 0.6,

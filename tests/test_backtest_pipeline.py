@@ -203,6 +203,18 @@ class TestEntreeEnOrdreLimite:
         cfg.strategy.min_atr_percentile = 0.0
         cfg.strategy.max_atr_percentile = 1.0
         cfg.strategy.min_atr_price_ratio = 0.0
+        # LE FILTRE D'EPUISEMENT EST DESACTIVE ICI, ET C'EST VOLONTAIRE.
+        #
+        # Ce test mesure les ordres LIMITE non servis. Sa serie monte de
+        # facon reguliere sur 700 bougies : le plafond de progression a
+        # 20 jours (arme a 15 % le 12 septembre 2026) la refuse
+        # entierement, et le test ne mesure plus rien — il a echoue avec
+        # « Motifs : [('epuisement', 550)] ».
+        #
+        # Ce n'est pas le filtre qu'il faut assouplir : c'est ce test qui
+        # doit isoler ce qu'il examine. Un test d'execution ne doit pas
+        # dependre d'un filtre d'entree.
+        cfg.strategy.donchian_momentum_max_pct = 0.0
         return cfg
 
     def test_l_ordre_limite_rate_des_trades(self):
