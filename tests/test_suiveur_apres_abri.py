@@ -50,9 +50,27 @@ class TestLaRegleEstArmee:
         assert cfg.trade.trail_serrage_apres_abri > 0, (
             "le resserrage apres abri est desarme : le robot rendra de "
             "nouveau tout l'ecart entre le plus-haut et le stop")
-        assert cfg.trade.trail_min_atr_mult >= 1.0, (
-            f"plancher a {cfg.trade.trail_min_atr_mult} ATR : trop serre, "
-            "un soubresaut ordinaire sortirait la position")
+        # BORNE BAISSEE DE 1,0 A 0,8 LE 12 SEPTEMBRE, sur decision de
+        # l'operateur apres lui avoir montre le cout. La grille sur six
+        # periodes :
+        #
+        #     serrage/plancher   263 E ->   recul   gagne le recul
+        #     0,15 / 1,2 (avant)    702 E   21,6 %      5 sur 6
+        #     0,50 / 0,8 (arme)     661 E   20,7 %      6 sur 6
+        #     0,80 / 0,5            587 E   19,8 %      6 sur 6
+        #
+        # Il echange 41 EUR de rendement contre 0,9 point de recul et une
+        # fiabilite parfaite (6 periodes sur 6 au lieu de 5). C'est un
+        # choix de confort assume, pas une amelioration mesuree.
+        #
+        # LA BORNE NE DOIT PAS DESCENDRE PLUS BAS. A 0,8 ATR le stop est a
+        # ~1,6 % du plus-haut sur une crypto ordinaire ; la crypto bouge de
+        # 2 a 3 % sans raison, tout le temps. En dessous, la position sort
+        # sur du bruit, repaie l'aller-retour et rate la suite — c'est le
+        # mur que toutes les mesures de la semaine ont rencontre.
+        assert cfg.trade.trail_min_atr_mult >= 0.8, (
+            f"plancher a {cfg.trade.trail_min_atr_mult} ATR : sous le bruit "
+            "ordinaire du marche, un soubresaut sortirait la position")
 
 
 class TestOnNeSerreQuAPRESLAbri:
@@ -76,10 +94,10 @@ class TestOnNeSerreQuAPRESLAbri:
     def test_le_plancher_empeche_l_etranglement(self):
         """« Calcule bien pour pas que 10 pips me sorte. »"""
         cfg = TradeManagerConfig(trail_atr_mult=2.0,
-                                 trail_serrage_apres_abri=0.15,
-                                 trail_min_atr_mult=1.2)
+                                 trail_serrage_apres_abri=0.50,
+                                 trail_min_atr_mult=0.8)
         for abri in (5.0, 20.0, 100.0):
-            assert _largeur(cfg, abri) == pytest.approx(1.2), (
+            assert _largeur(cfg, abri) == pytest.approx(0.8), (
                 f"a +{abri} R d'abri la largeur tombe sous le plancher : "
                 "le moindre soubresaut sortirait la position")
 

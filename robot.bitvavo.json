@@ -120,8 +120,8 @@
     "tp_actif": false,
     "pyramide_stop_commun": true,
     "pyramide_relevement_turtle": true,
-    "trail_serrage_apres_abri": 0.15,
-    "trail_min_atr_mult": 1.2
+    "trail_serrage_apres_abri": 0.5,
+    "trail_min_atr_mult": 0.8
   },
   "objectives": {
     "base_target": 4.0,
