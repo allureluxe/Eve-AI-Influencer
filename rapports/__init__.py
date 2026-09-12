@@ -36,6 +36,38 @@ MOIS = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet",
         "aout", "septembre", "octobre", "novembre", "decembre"]
 PARIS = dt.timezone(dt.timedelta(hours=2))
 
+#: Retouches pour le telephone, ajoutees APRES la feuille du gabarit pour
+#: la surcharger. Le gabarit vise un ecran d'ordinateur : 15 px de base et
+#: 22 px de marge laterale, lisibles a 60 cm, petits a bout de bras.
+MOBILE = """
+<style>
+@media (max-width: 700px) {
+  body{ font-size:17px; line-height:1.6 }
+  .wrap{ padding:20px 15px 48px }
+  h1{ font-size:clamp(26px,7vw,34px) }
+  h2{ font-size:20px }
+  .gros{ font-size:clamp(42px,13vw,56px) }
+  .sous, .periode, .contexte p{ font-size:16px }
+  .eyebrow{ font-size:12.5px }
+  /* Deux colonnes de statistiques au lieu de quatre en file indienne. */
+  .stats{ grid-template-columns:repeat(2,1fr); gap:9px }
+  .stat .v{ font-size:23px }
+  .stat .k{ font-size:12.5px }
+  .stat .d{ font-size:12px }
+  /* Les tableaux gardent leur largeur mini et defilent : les tasser
+     rendrait les colonnes de chiffres illisibles. La marge negative du
+     gabarit vaut 28 px et depasserait du telephone. */
+  .tablewrap{ margin:0 -15px; padding:0 15px }
+  table{ font-size:15px; min-width:460px }
+  th, td{ padding:9px 8px }
+  .lecture li{ font-size:16px }
+  footer{ font-size:13px }
+}
+@media (max-width: 380px) {
+  .stats{ grid-template-columns:1fr }
+}
+</style>"""
+
 
 def _fr(quand: dt.datetime) -> str:
     q = quand.astimezone(PARIS)
@@ -305,7 +337,24 @@ def page_allure(depuis: float, vers: float | None = None,
     donnees = (f"const POINTS = {json.dumps(points)};\n\n"
                f"const TRADES = {json.dumps(tr, ensure_ascii=False)};\n\n")
 
-    html = _lire("allure_tete.html") + "\n" + corps + donnees + script
+    # UN FICHIER AUTONOME A BESOIN D'UN VRAI EN-TETE HTML.
+    #
+    # Le gabarit n'en porte pas : quand la page est publiee en artifact,
+    # l'hote fournit `<!doctype>`, la balise `viewport` et un reset. Un
+    # fichier envoye sur Telegram, lui, n'a personne pour le faire.
+    #
+    # Sans `viewport`, un telephone rend la page comme un ecran de
+    # 980 pixels puis la reduit : tout devient minuscule. C'est ce que
+    # l'operateur a vu le 12 septembre 2026. La feuille de style etait
+    # deja adaptee au mobile — elle n'etait simplement jamais appliquee.
+    entete = (
+        "<!doctype html>\n<html lang=\"fr\">\n<head>\n"
+        "<meta charset=\"utf-8\">\n"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        "<meta name=\"color-scheme\" content=\"light dark\">\n"
+        + _lire("allure_tete.html")
+        + MOBILE + "\n</head>\n<body>\n")
+    html = entete + corps + donnees + script + "\n</body>\n</html>\n"
     chemin = os.path.join(RACINE, "data", "rapport_allure.html")
     os.makedirs(os.path.dirname(chemin), exist_ok=True)
     with open(chemin, "w", encoding="utf-8") as f:
