@@ -84,7 +84,9 @@
     "pyramide_espacement_atr": 0.5,
     "pyramide_fraction_risque": 1.0,
     "pyramide_locked_r_min": 0.01,
-    "ticket_min_eur": 15.0
+    "ticket_min_eur": 15.0,
+    "carence_meme_bougie": true,
+    "unite_du_signal": "D1"
   },
   "trade": {
     "atr_stop_mult": 1.6,

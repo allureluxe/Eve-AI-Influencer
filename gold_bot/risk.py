@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from .core import ClosedTrade, Position, Side
+from .datasources.base import tf_seconds
 from .universe import Instrument
 
 logger = logging.getLogger(__name__)
@@ -155,6 +156,17 @@ class RiskConfig:
     #
     # A zero, rien ne change : le rejeu doit trancher avant.
     cooldown_apres_sortie_minutes: float = 0.0
+
+    # UNE SEULE ENTREE PAR BOUGIE DE SIGNAL, par crypto.
+    #
+    # Corrige une incoherence, pas un reglage : voir le bloc detaille dans
+    # `carence_restante`. Le robot reevalue une bougie journaliere toutes
+    # les 10 secondes et prend plusieurs fois le meme signal.
+    #
+    # N'empeche PAS le pyramidage : renforcer une position ouverte est un
+    # autre geste, et `check_exposure` le laisse passer explicitement.
+    carence_meme_bougie: bool = False
+    unite_du_signal: str = "D1"
 
     # --- Serie ---
     max_consecutive_losses: int = 4    # au-dela : pause forcee
@@ -528,9 +540,44 @@ class RiskManager:
         exactement le piege decrit pour la pyramide.
         """
         cfg = self.config
+        sortie = self._derniere_sortie.get(symbol)
+
+        # UN SIGNAL JOURNALIER NE SE PREND QU'UNE FOIS PAR JOUR.
+        #
+        # LE DEFAUT, trouve le 12 septembre 2026 en regardant MTL. La
+        # strategie est journaliere : elle a UN signal par jour et par
+        # crypto, la cassure du plus-haut de 20 jours. Mais le robot
+        # reevalue la bougie du jour toutes les 10 secondes — et tant
+        # qu'elle n'est pas close, le prix repasse au-dessus du canal
+        # plusieurs fois. Il prend donc trois fois le meme signal.
+        #
+        #     MTL    01h30 · 05h26 · 14h49 · 15h56   le meme jour
+        #     BLUR   15h06 · 15h16 · 16h12
+        #     SAGA   20h26 · 21h10 · 21h38
+        #
+        # Mesure sur les 51 trades de l'ere D1 : 14 entrees en trop, soit
+        # 27 % des trades, pour +1,51 EUR de gain brut et 1,54 EUR de
+        # frais — exactement rien, en payant le peage trois fois.
+        #
+        # POURQUOI AUCUNE MESURE NE L'AVAIT VU. Le banc d'essai avance en
+        # bougies journalieres : une bougie, une decision. Il ne PEUT pas
+        # reproduire ce defaut. Les delais de carence que j'y ai mesures
+        # refusaient donc de vraies entrees du LENDEMAIN — autre chose, et
+        # defavorable a juste titre. C'est la cinquieme fois que ce depot
+        # rencontre l'ecart entre ce qu'on mesure et ce qui tourne.
+        #
+        # Ce n'est donc pas un reglage a optimiser : c'est une incoherence
+        # a supprimer. On aligne le robot sur son unite de temps.
+        if cfg.carence_meme_bougie and sortie:
+            secondes = tf_seconds(cfg.unite_du_signal)
+            if secondes > 0:
+                maintenant = now or time.time()
+                if int(sortie // secondes) == int(maintenant // secondes):
+                    fin = (int(maintenant // secondes) + 1) * secondes
+                    return max(0.0, (fin - maintenant) / 60.0)
+
         if cfg.cooldown_apres_sortie_minutes <= 0:
             return 0.0
-        sortie = self._derniere_sortie.get(symbol)
         if not sortie:
             return 0.0
         ecoule = ((now or time.time()) - sortie) / 60.0
