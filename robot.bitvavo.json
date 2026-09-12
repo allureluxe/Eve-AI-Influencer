@@ -128,7 +128,8 @@
     "promote_only_on_success": true,
     "demote_on_losing_week": true,
     "protect_after_target": true,
-    "protect_multiplier": 0.5
+    "protect_multiplier": 0.5,
+    "module_le_risque": false
   },
   "promotion": {
     "_note": "Les frais sont lus dynamiquement depuis Bitvavo. Ce bloc reste present : c'est lui qui ramene AUTOMATIQUEMENT le robot au regime normal si une fenetre sans commission est declaree puis expire. Voir gold_bot/promotion.py.",

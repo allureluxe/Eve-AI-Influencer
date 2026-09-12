@@ -307,11 +307,38 @@ class TestPurgeDeLaSemaineHeritee:
         from gold_bot.settings import BotConfig
         cfg = BotConfig.load("robot.bitvavo.json")
 
+        # LE 12 SEPTEMBRE 2026, CE TEST A CHANGE DE SENS — et c'est dit.
+        #
+        # `_semaine_a_purger` existe pour reperer un robot qui tourne a
+        # moitie de taille a cause d'une semaine negative. Depuis que
+        # `objectives.module_le_risque` est desarme dans la configuration
+        # en service, cela NE PEUT PLUS ARRIVER : le defi hebdomadaire
+        # compte les points sans toucher a la mise.
+        #
+        # Pourquoi il a ete desarme : sur les 43 trades de l'ere D1, le
+        # robot risquait 1,76 EUR sur ses perdants contre 0,84 sur ses
+        # gagnants (p = 1,2 % au test de permutation). A taille egale le
+        # resultat passait de -10,61 a +10,67 EUR. Et cette modulation
+        # n'apparait dans AUCUN rejeu du depot.
+        #
+        # On verifie donc les DEUX regimes : rien a purger quand c'est
+        # desarme, et l'ancien comportement quand c'est arme.
         resultat = module._semaine_a_purger(cfg)
-        assert resultat is not None
-        ancien, mult, _ = resultat
-        assert ancien == pytest.approx(-5.79)
-        assert mult < 1.0, "une semaine negative doit reduire la taille"
+        if cfg.objectives.module_le_risque:
+            assert resultat is not None
+            ancien, mult, _ = resultat
+            assert ancien == pytest.approx(-5.79)
+            assert mult < 1.0, "une semaine negative doit reduire la taille"
+        else:
+            assert resultat is None, (
+                "l'outil signale une taille reduite alors que le defi ne "
+                "touche plus a la mise : le message serait faux")
+            from dataclasses import replace
+            arme = replace(cfg, objectives=replace(cfg.objectives,
+                                                   module_le_risque=True))
+            ancien, mult, _ = module._semaine_a_purger(arme)
+            assert ancien == pytest.approx(-5.79)
+            assert mult < 1.0, "une semaine negative doit reduire la taille"
 
     def test_une_semaine_neutre_n_est_pas_signalee(self, tmp_path, monkeypatch):
         import json

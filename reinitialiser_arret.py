@@ -178,6 +178,19 @@ def _semaine_a_purger(cfg):
     if abs(ancien) <= 1e-9:
         return None
     mult, motif = suivi.risk_multiplier()
+    # UNE SEMAINE NEGATIVE QUI NE PESE PLUS N'EST PAS UNE SEMAINE A PURGER.
+    #
+    # Cet outil sert a reperer un robot qui tourne a taille reduite a cause
+    # d'un resultat herite. Depuis que `objectives.module_le_risque` est
+    # desarme, le defi hebdomadaire ne touche plus a la mise : le
+    # multiplicateur vaut 1,0 quoi qu'il arrive. Signaler quand meme
+    # annoncerait une taille reduite qui n'existe pas, et enverrait
+    # l'operateur purger un compteur inoffensif.
+    #
+    # C'est le troisieme diagnostic trompeur corrige en deux jours, apres
+    # « ticket minimum 5.00 » et « robot en marche : NON ».
+    if mult >= 1.0:
+        return None
     return ancien, mult, motif
 
 

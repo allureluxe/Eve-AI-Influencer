@@ -61,6 +61,31 @@ class ObjectiveConfig:
     protect_after_target: bool = True
     protect_multiplier: float = 0.4
 
+    # LE DEFI HEBDOMADAIRE PEUT-IL TOUCHER A LA TAILLE DES POSITIONS ?
+    #
+    # A False, `risk_multiplier` rend toujours 1,0 : l'objectif continue de
+    # compter les points, de promouvoir les paliers et de s'afficher dans
+    # les rapports, mais il ne modifie plus un centime de mise.
+    #
+    # POURQUOI CE COMMUTATEUR EXISTE. Mesure le 12 septembre 2026 sur les
+    # 43 trades de l'ere D1 : le robot risquait 1,76 EUR sur ses PERDANTS
+    # contre 0,84 EUR sur ses GAGNANTS — 2,08x plus la ou il perdait. Un
+    # test de permutation sur 20 000 tirages donne p = 1,2 % : ce n'est
+    # pas le hasard. A taille egale, le resultat passait de -10,61 EUR a
+    # +10,67 EUR.
+    #
+    # Deux mecanismes font varier cette taille. L'echelle de capital
+    # (`EquityLadder`) est de la vraie gestion du risque et elle est
+    # MESUREE sur 7,5 ans — resultats contradictoires entre les deux
+    # periodes, donc on n'y touche pas. La modulation par l'objectif, elle,
+    # n'apparait dans AUCUN rejeu du depot : le rejeu qui a mesure +255 %
+    # suppose un risque constant de 0,6 %.
+    #
+    # C'est la quatrieme fois que ce depot rencontre ce piege : la mesure
+    # mesure autre chose que ce qui tourne. Un defi hebdomadaire est une
+    # facon de compter les points, pas une raison de changer la mise.
+    module_le_risque: bool = True
+
 
 @dataclass(slots=True)
 class WeekRecord:
@@ -289,6 +314,8 @@ class ObjectiveTracker:
         `max_multiplier` : l'objectif ne peut pas provoquer de sur-risque.
         """
         cfg = self.config
+        if not cfg.module_le_risque:
+            return 1.0, "objectif : suivi seul, sans effet sur la mise"
         prog = self.progress()
         pace = self.expected_pace(ts)
 
