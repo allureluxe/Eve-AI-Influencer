@@ -54,11 +54,11 @@
     "history": 300,
     "famille": "donchian",
     "donchian_entrees": [
-      20
+      10
     ],
     "donchian_sortie": 10,
     "donchian_filtre_precedent": false,
-    "donchian_momentum_max_pct": 15.0
+    "donchian_momentum_max_pct": 0.0
   },
   "risk": {
     "base_risk_pct": 0.6,
@@ -81,7 +81,7 @@
     "min_rr": 1.6,
     "max_capital_engaged_pct": 90.0,
     "pyramide_max": 99,
-    "pyramide_espacement_atr": 0.5,
+    "pyramide_espacement_atr": 0.25,
     "pyramide_fraction_risque": 1.0,
     "pyramide_locked_r_min": 0.01,
     "ticket_min_eur": 15.0,
@@ -102,7 +102,7 @@
     "partial_at_r": 1.0,
     "partial_fraction": 0.3,
     "trail_start_r": 1.1,
-    "trail_atr_mult": 2.0,
+    "trail_atr_mult": 3.0,
     "trail_tighten_atr_mult": 0.6,
     "extend_enabled": true,
     "extend_at_progress": 0.8,

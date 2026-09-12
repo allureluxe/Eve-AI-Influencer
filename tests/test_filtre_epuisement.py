@@ -37,14 +37,31 @@ from helpers import *  # noqa: F401,F403 - insere la racine du projet dans sys.p
 
 class TestLeFiltreEstArme:
 
-    def test_le_plafond_est_dans_la_config(self):
+    def test_le_plafond_reste_dans_la_plage_mesuree(self):
+        """DESARME LE 12 SEPTEMBRE AU SOIR, quelques heures apres l'armement.
+
+        Le filtre avait ete arme en le comparant au SEUL canal de 20 jours.
+        En elargissant la recherche aux canaux courts, il devient la pire
+        des six options mesurees — a 225 EUR de capital :
+
+            10 jours sans filtre    mediane 519 E   224 trades/an
+            20 jours sans filtre            468 E   172
+            20 jours + filtre               323 E    83
+
+        Il coutait 196 EUR de mediane pour dix points de recul. La lecon
+        n'est pas que le filtre etait mauvais : c'est qu'on ne juge pas un
+        reglage contre UN seul autre.
+
+        Le code reste en place, teste, pour que personne ne le recode en
+        croyant l'inventer. A 0 il ne fait rien ; s'il est rearme, il doit
+        rester dans la plage mesuree.
+        """
         from gold_bot.settings import BotConfig
 
         cfg = BotConfig.load("robot.bitvavo.json")
         p = cfg.strategy.donchian_momentum_max_pct
-        assert p > 0, (
-            "le filtre d'epuisement est desarme : le robot reprendra les "
-            "cassures qui arrivent apres coup")
+        if p == 0:
+            return                       # desarme, rien a verifier
         # BORNES MESUREES. En dessous de 10 %, aucune mesure : on
         # refuserait presque tout sans savoir ce qu'on perd. Au-dessus de
         # 40 %, le filtre ne retire plus grand-chose (-150 EUR contre

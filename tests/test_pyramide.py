@@ -791,9 +791,26 @@ class TestLaLargeurDuStopSuiveur:
     de miracle a trouver.
     """
 
-    def test_le_reglage_livre_est_a_deux_ATR(self):
+    def test_le_suiveur_livre_reste_large(self):
+        """2,0 -> 3,0 LE 12 SEPTEMBRE AU SOIR, mesure et assume.
+
+        Le passage au canal de 10 jours change ce que le suiveur doit
+        faire : un signal plus frequent entre plus tot dans le mouvement,
+        et la position a besoin de PLUS d'air, pas de moins.
+
+        Six periodes de ~15 mois, 225 EUR, canal 10 :
+
+            stop 1,6 / suiveur 3,0    mediane 697 E   6 periodes sur 6
+            stop 1,6 / suiveur 2,0            519 E   5 sur 6
+
+        Le test verrouille desormais une PLAGE et non une valeur : la
+        borne basse est celle du gap d'ouverture (voir le test suivant),
+        la haute evite qu'on rende tout le mouvement en croyant respirer.
+        """
         cfg = BotConfig.load("robot.bitvavo.json")
-        assert cfg.trade.trail_atr_mult == 2.0
+        assert 1.6 <= cfg.trade.trail_atr_mult <= 3.5, (
+            f"suiveur a {cfg.trade.trail_atr_mult} ATR : hors de la plage "
+            "mesuree (1,6 a 3,5)")
 
     def test_ne_pas_serrer_le_suiveur(self):
         """Le piege a ne pas retomber dedans.
