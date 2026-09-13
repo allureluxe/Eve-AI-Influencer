@@ -80,45 +80,54 @@ export function EcranConnexion() {
     setEnCours(true);
     setErreur(null);
 
-    if (inscription) {
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password: motDePasse,
-        options: {
-          emailRedirectTo: "allure://connexion",
-          data: {
-            pseudo: pseudo.trim(),
-            nom: nom.trim(),
-            prenom: prenom.trim(),
-            telephone: telephone.trim() || null,
-            age: age.trim() || null,
-            adresse: adresse.trim() || null,
-            sexe,
+    // TOUT est enveloppe, et setEnCours(false) part dans un `finally`.
+    // Sans ca, la moindre exception inattendue (reseau coupe en plein
+    // appel, reponse malformee...) laissait le bouton bloque sur "..."
+    // pour toujours -- observe en reel le 13 sept. : "le bouton connexion
+    // reste bloque". Le clic suivant ne faisait plus rien puisque
+    // `enCours` ne redescendait jamais a `false`.
+    try {
+      if (inscription) {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password: motDePasse,
+          options: {
+            emailRedirectTo: "allure://connexion",
+            data: {
+              pseudo: pseudo.trim(),
+              nom: nom.trim(),
+              prenom: prenom.trim(),
+              telephone: telephone.trim() || null,
+              age: age.trim() || null,
+              adresse: adresse.trim() || null,
+              sexe,
+            },
           },
-        },
-      });
-      setEnCours(false);
-      if (error) { setErreur(messageErreur(error.message)); return; }
-      // Un compte pas encore confirme n'a pas de session : `data.session`
-      // est nul. C'est le signal qu'il faut attendre l'e-mail.
-      if (!data.session) { setEnAttenteDeConfirmation(true); return; }
-      return;
-    }
+        });
+        if (error) { setErreur(messageErreur(error.message)); return; }
+        // Un compte pas encore confirme n'a pas de session : `data.session`
+        // est nul. C'est le signal qu'il faut attendre l'e-mail.
+        if (!data.session) { setEnAttenteDeConfirmation(true); return; }
+        return;
+      }
 
-    // Connexion : le pseudo n'existe nulle part cote Supabase Auth,
-    // il faut d'abord retrouver l'e-mail associe.
-    const { data: emailTrouve, error: erreurRecherche } = await supabase
-      .rpc("email_pour_pseudo", { p_pseudo: pseudo.trim() });
-    if (erreurRecherche || !emailTrouve) {
+      // Connexion : le pseudo n'existe nulle part cote Supabase Auth,
+      // il faut d'abord retrouver l'e-mail associe.
+      const { data: emailTrouve, error: erreurRecherche } = await supabase
+        .rpc("email_pour_pseudo", { p_pseudo: pseudo.trim() });
+      if (erreurRecherche || !emailTrouve) {
+        setErreur("Pseudo ou mot de passe incorrect.");
+        return;
+      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email: emailTrouve, password: motDePasse,
+      });
+      if (error) setErreur(messageErreur(error.message));
+    } catch {
+      setErreur("Quelque chose s'est mal passe. Reessaie.");
+    } finally {
       setEnCours(false);
-      setErreur("Pseudo ou mot de passe incorrect.");
-      return;
     }
-    const { error } = await supabase.auth.signInWithPassword({
-      email: emailTrouve, password: motDePasse,
-    });
-    setEnCours(false);
-    if (error) setErreur(messageErreur(error.message));
   }
 
   if (enAttenteDeConfirmation) {
@@ -161,9 +170,11 @@ export function EcranConnexion() {
                                  justifyContent: "center" }}
         keyboardShouldPersistTaps="handled"
       >
-        <Logo hauteur={72} />
+        <View style={{ alignItems: "center", marginBottom: espace.l }}>
+          <Logo hauteur={104} />
+        </View>
         <T v="corps" couleur={c.encreDouce}
-           style={{ marginTop: espace.l, marginBottom: espace.xl }}>
+           style={{ textAlign: "center", marginBottom: espace.xl }}>
           Les signaux d'un robot qui trade son propre argent.
         </T>
 
