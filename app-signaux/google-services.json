@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "887840595716",
+    "project_id": "allure-bot-d5a4c",
+    "storage_bucket": "allure-bot-d5a4c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:887840595716:android:3b8c4b2a2de2d47b7cfa51",
+        "android_client_info": {
+          "package_name": "fr.allure.trading"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKCGMG4YfTcJSZEFLblnIFrMnB1KFE0Sw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
