@@ -62,7 +62,12 @@ class TestAucunDiagnosticNEcraseLeMarqueur(unittest.TestCase):
             texte = script.read_text(encoding="utf-8", errors="replace")
             if not any(d in texte for d in DECLENCHEURS):
                 continue
-            if "GB_STRATEGIE_FILE" not in texte:
+            # Deux protections valables, et la seconde est meilleure :
+            #   - detourner GB_STRATEGIE_FILE vers un fichier jetable ;
+            #   - ou n'appeler le marqueur qu'en `lecture_seule=True`,
+            #     ce qui rend la VRAIE date sans jamais l'ecrire.
+            if ("GB_STRATEGIE_FILE" not in texte
+                    and "lecture_seule=True" not in texte):
                 coupables.append(script.name)
 
         self.assertEqual(
@@ -113,6 +118,59 @@ class TestAucunDiagnosticNEcraseLeMarqueur(unittest.TestCase):
                 f"{script.name} pose GB_STRATEGIE_FILE apres le premier "
                 "import de gold_bot : le marqueur peut deja etre ecrit")
 
+
+
+class TestLeJournalNeSeDoublePas(unittest.TestCase):
+    """`load()` ajoutait sans vider, et `__init__` l'appelle deja.
+
+    Consequence mesuree le 13 septembre 2026 : `plan_croissance.py`
+    annoncait « 38/40 trades, plus que 2 » quand il y en avait 19. Un
+    palier de risque franchi sur un echantillon deux fois trop petit,
+    c'est precisement ce que le module de croissance existe pour
+    empecher.
+    """
+
+    def test_relire_le_journal_ne_double_pas_les_trades(self):
+        import json
+        from tempfile import TemporaryDirectory
+        from gold_bot.state import TradeJournal
+
+        with TemporaryDirectory() as tmp:
+            chemin = Path(tmp) / "trades.jsonl"
+            # Les champs et la casse viennent d'une VRAIE ligne du
+            # journal : `Side` attend « BUY », pas « buy », et une
+            # ligne incomplete est avalee en silence par `load()` —
+            # ce qui donnait un journal vide et un test trompeur.
+            ligne = {
+                "position_id": "1", "symbol": "BTCEUR", "side": "BUY",
+                "volume": 0.1, "entry_price": 100.0, "exit_price": 110.0,
+                "opened_at": 1.0, "closed_at": 2.0, "profit": 1.0,
+                "r_multiple": 1.0, "reason": "tp", "tp_extensions": 0,
+                "max_favorable_r": 1.0, "partial": False,
+            }
+            chemin.write_text("\n".join(json.dumps(ligne | {"position_id": str(i)})
+                                        for i in range(5)))
+
+            journal = TradeJournal(path=str(chemin))
+            self.assertEqual(len(journal.trades), 5)
+            journal.load()
+            self.assertEqual(len(journal.trades), 5,
+                             "un second load() a double le journal")
+            journal.load()
+            self.assertEqual(len(journal.trades), 5)
+
+    def test_load_sur_un_fichier_absent_vide_la_liste(self):
+        # Sinon un rechargement apres suppression du fichier garderait
+        # l'ancien contenu en memoire, et les statistiques porteraient
+        # sur des trades qui n'existent plus.
+        from gold_bot.state import TradeJournal
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmp:
+            journal = TradeJournal(path=str(Path(tmp) / "absent.jsonl"))
+            journal.trades.append(object())          # type: ignore[arg-type]
+            journal.load()
+            self.assertEqual(journal.trades, [])
 
 if __name__ == "__main__":
     unittest.main()

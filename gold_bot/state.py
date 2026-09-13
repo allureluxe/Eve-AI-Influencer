@@ -255,6 +255,24 @@ class TradeJournal:
         self.load()
 
     def load(self) -> None:
+        """(Re)lit le journal. IDEMPOTENT : deux appels ne doublent rien.
+
+        Cette methode ajoutait a `self.trades` sans le vider, et
+        `__init__` l'appelle deja. Un second appel — celui de
+        `plan_croissance.py`, ligne 52 — comptait donc chaque trade
+        DEUX FOIS : 19 trades affiches 38, 153 affiches 294, et une
+        cadence de 38 trades par jour au lieu de 19.
+
+        Le chiffre le plus grave etait le compteur du palier : il
+        annoncait « 38/40, plus que 2 » alors que la moitie du chemin
+        restait a faire. Un palier de risque franchi sur un echantillon
+        deux fois trop petit, c'est exactement ce que `croissance.py`
+        existe pour empecher.
+
+        Trouve le 13 septembre 2026 en croisant deux comptages qui ne
+        tombaient pas d'accord.
+        """
+        self.trades = []
         if not os.path.exists(self.path):
             return
         try:

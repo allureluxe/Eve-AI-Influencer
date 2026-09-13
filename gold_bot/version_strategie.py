@@ -64,18 +64,33 @@ def _chemin(instance: str = "") -> str:
     return chemin_par_instance("data/strategie.json", "GB_STRATEGIE_FILE", instance)
 
 
-def depuis_quand(config, instance: str = "", maintenant: float | None = None) -> float:
+def depuis_quand(config, instance: str = "", maintenant: float | None = None,
+                 lecture_seule: bool = False) -> float:
     """Horodatage du debut de la strategie courante."""
-    return marqueur(config, instance, maintenant)[0]
+    return marqueur(config, instance, maintenant, lecture_seule)[0]
 
 
 def marqueur(config, instance: str = "",
-             maintenant: float | None = None) -> tuple[float, bool]:
+             maintenant: float | None = None,
+             lecture_seule: bool = False) -> tuple[float, bool]:
     """(debut de la strategie courante, a-t-elle change a cet appel ?).
 
     Met a jour le fichier si l'empreinte a change. Retourne 0.0 quand le
     marqueur ne peut pas etre ecrit — dans ce cas tout l'historique est
     compte, ce qui est le comportement d'avant : degrade, jamais bloquant.
+
+    `lecture_seule` EST POUR LES DIAGNOSTICS, et ce n'est pas un
+    confort. Un script qui calibre la configuration pour raisonner
+    produit une empreinte differente de celle du robot ; s'il ecrit le
+    marqueur, le robot croit au demarrage suivant que la strategie a
+    change et REMET A ZERO l'echantillon des 40 trades. C'est arrive
+    trois fois — le 9 septembre dans rapport_matin.py, le 13 dans
+    etat.py et plan_croissance.py, ou le compteur affichait 0/40 apres
+    151 trades reels.
+
+    En lecture seule, on rend la date VRAIE si elle existe, et zero
+    sinon — jamais « maintenant », qui ferait croire a un echantillon
+    neuf et donnerait exactement la fausse reponse qu'on veut eviter.
     """
     maintenant = maintenant or time.time()
     signature = empreinte(config)
@@ -90,6 +105,11 @@ def marqueur(config, instance: str = "",
 
     if connu.get("empreinte") == signature and connu.get("depuis"):
         return float(connu["depuis"]), False
+
+    if lecture_seule:
+        # La date connue si le fichier en porte une, meme sous une
+        # autre empreinte : le robot, lui, tranchera a son demarrage.
+        return float(connu.get("depuis") or 0.0), False
 
     ancienne = connu.get("empreinte")
     contenu = {"empreinte": signature, "depuis": maintenant,
