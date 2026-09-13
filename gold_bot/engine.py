@@ -1433,21 +1433,49 @@ class TradingEngine:
         interval = self.config.engine.heartbeat_minutes * 60
         if interval <= 0 or time.time() - self._last_heartbeat < interval:
             return
+        depuis = self._last_heartbeat or self.store.state.started_at
         self._last_heartbeat = time.time()
         acc = self.risk.account
         obj = self.objectives.status()
         uptime_h = (time.time() - self.store.state.started_at) / 3600.0
-        self.notifier.info(
-            "Robot actif",
-            "\n".join([
-                f"Actif depuis {uptime_h:.1f} h, {self.store.state.cycles} cycles",
-                f"Capital {acc.equity:.2f} {acc.currency} "
-                f"(jour {acc.daily_pnl_pct():+.2f} %, semaine {acc.weekly_pnl_pct():+.2f} %)",
-                f"Positions ouvertes : {len(self.broker.positions())}",
-                f"Objectif palier {obj['palier']} : {obj['realise']:+.2f}/{obj['objectif']:.2f}",
-                f"Marches ouverts : {', '.join(i.symbol for i in self.universe.tradable()) or 'aucun'}",
-            ]),
-        )
+
+        # CE QUI S'EST FERME DEPUIS LE DERNIER RAPPORT.
+        #
+        # Sans ce bloc, le rapport annoncait un capital qui bouge sans
+        # jamais dire ce qui l'avait fait bouger. Un solde sans son
+        # detail ne rassure pas : quand le chiffre baisse, on n'a aucun
+        # moyen de savoir si c'est normal.
+        from .rapport_trades import bilan
+        fermes = [t for t in self.journal.trades
+                  if getattr(t, "closed_at", 0) > depuis]
+        detail = bilan(fermes, acc.currency)
+
+        lignes = [
+            f"Actif depuis {uptime_h:.1f} h, {self.store.state.cycles} cycles",
+            f"Capital {acc.equity:.2f} {acc.currency} "
+            f"(jour {acc.daily_pnl_pct():+.2f} %, semaine {acc.weekly_pnl_pct():+.2f} %)",
+            f"Positions ouvertes : {len(self.broker.positions())}",
+            f"Objectif palier {obj['palier']} : {obj['realise']:+.2f}/{obj['objectif']:.2f}",
+        ]
+        if detail:
+            lignes += [""] + detail
+
+        # LE NIVEAU DEPEND DE CE QU'IL Y A A DIRE, et c'est deliberé.
+        #
+        # Telegram ne laisse passer que « trade » et au-dessus. Un
+        # rapport « rien de neuf » toutes les demi-heures ferait vibrer
+        # le telephone quarante-huit fois par jour pour rien — et la
+        # consigne de l'operateur du 10 septembre etait justement de ne
+        # pas etre notifie pour l'ordinaire. Le rapport ne part donc sur
+        # le telephone QUE si des positions se sont fermees ; sinon il
+        # reste dans le journal, ou il sert de preuve de vie.
+        if detail:
+            self.notifier.trade("Robot actif", "\n".join(lignes))
+        else:
+            lignes.append(
+                f"Marches ouverts : "
+                f"{', '.join(i.symbol for i in self.universe.tradable()) or 'aucun'}")
+            self.notifier.info("Robot actif", "\n".join(lignes))
 
     def _daily_report(self) -> None:
         """Bilan quotidien envoye une fois par jour."""

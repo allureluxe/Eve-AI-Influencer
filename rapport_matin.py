@@ -110,6 +110,50 @@ def _compte() -> tuple[float, float, int]:
     return compte.equity, compte.margin_free, avoirs
 
 
+def _trades_des_dernieres_heures(heures: float) -> list:
+    """Le detail des positions fermees, en euros et en francais.
+
+    Lit le journal directement plutot que de construire un moteur : le
+    rapport du matin tourne dans un cron a cote du robot, et instancier
+    un second moteur ouvrirait une deuxieme connexion au courtier pour
+    rien.
+    """
+    import json
+    import time as _t
+    from gold_bot.rapport_trades import bilan
+
+    class _Trade:
+        __slots__ = ("symbol", "profit", "reason", "closed_at")
+
+    limite = _t.time() - heures * 3600
+    fermes = []
+    try:
+        with open(os.path.join(RACINE, "data", "trades.jsonl")) as f:
+            for ligne in f:
+                ligne = ligne.strip()
+                if not ligne:
+                    continue
+                try:
+                    d = json.loads(ligne)
+                except json.JSONDecodeError:
+                    continue
+                if float(d.get("closed_at", 0)) < limite:
+                    continue
+                t = _Trade()
+                t.symbol = d.get("symbol", "")
+                t.profit = float(d.get("profit", 0.0))
+                t.reason = d.get("reason", "")
+                t.closed_at = float(d.get("closed_at", 0))
+                fermes.append(t)
+    except OSError:
+        return []
+
+    if not fermes:
+        # Une nuit sans trade est une information, pas un vide.
+        return ["Aucune position fermee depuis hier.", ""]
+    return ["HIER"] + bilan(fermes, "EUR", detail_max=12) + [""]
+
+
 def construire() -> str:
     cfg = BotConfig.load(os.path.join(RACINE, "robot.bitvavo.json"))
     maintenant = dt.datetime.now(dt.timezone.utc)
@@ -133,6 +177,17 @@ def construire() -> str:
     else:
         lignes += ["Capital : lecture impossible ce matin "
                    "(Bitvavo injoignable) — rien n'est change.", ""]
+
+    # -------------------------------------- ce qui s'est ferme hier
+    #
+    # Le rapport donnait un capital sans jamais dire ce qui l'avait
+    # fait bouger. Le detail des sorties de la veille repond a la seule
+    # question que l'operateur se pose en ouvrant le message : « il
+    # s'est passe quoi cette nuit ? »
+    for ligne in _trades_des_dernieres_heures(24):
+        lignes.append(ligne)
+    if lignes[-1] != "":
+        lignes.append("")
 
     # ---------------------------------------------- annonces du jour
     filtre = NewsFilter()
