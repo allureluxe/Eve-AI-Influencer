@@ -12,10 +12,18 @@
  * L'ORDRE DES ONGLETS SUIT L'USAGE, PAS L'ORGANIGRAMME.
  *   Direct   — ce qui bouge maintenant. C'est pour ca qu'on ouvre.
  *   Signaux  — ce qu'il faut faire, et l'historique.
- *   Cours    — les graphiques, quand on veut verifier de ses yeux.
- *   Analyse  — le point du matin et l'agenda, une fois par jour.
- *   Essayer  — la demonstration, pour qui hesite encore.
+ *   Marche   — les cours et l'agenda : « ou en est le prix » et
+ *              « qu'est-ce qui va le bouger », la meme question a deux
+ *              echelles de temps.
+ *   Analyse  — le point du matin, l'historique chiffre, et la
+ *              demonstration a trois montants.
+ *   Bitvavo  — ou passer ses ordres, et le parrainage.
  *   Compte   — les offres et les reglages, rarement.
+ *
+ * SIX ONGLETS EST LE MAXIMUM. Au-dela, les libelles deviennent
+ * illisibles et plus personne ne trouve rien. C'est pourquoi Cours et
+ * Agenda partagent « Marche », et pourquoi la demonstration vit dans
+ * « Analyse » plutot que d'occuper une place a elle.
  */
 
 import React from "react";
@@ -45,9 +53,8 @@ import { EcranAccueil } from "./src/ecrans/Accueil";
 import { EcranConnexion } from "./src/ecrans/Connexion";
 import { EcranDirect } from "./src/ecrans/Direct";
 import { EcranSignaux } from "./src/ecrans/Signaux";
-import { EcranCours } from "./src/ecrans/Cours";
+import { EcranMarche } from "./src/ecrans/Marche";
 import { EcranAnalyse } from "./src/ecrans/Analyse";
-import { EcranDemo } from "./src/ecrans/Demo";
 import { EcranCompte } from "./src/ecrans/Compte";
 import { EcranBitvavo } from "./src/ecrans/Bitvavo";
 import { espace, polices, TRAIT } from "./src/theme";
@@ -137,15 +144,18 @@ function Navigation({ session }: { session: Session }) {
           )}
         </Onglets.Screen>
 
-        <Onglets.Screen name="Cours" component={EcranCours} />
-        <Onglets.Screen name="Analyse" component={EcranAnalyse} />
+        <Onglets.Screen name="Marche" options={{ title: "Marche" }}
+                        component={EcranMarche} />
 
-        <Onglets.Screen name="Essayer" options={{ title: "Essayer" }}>
+        <Onglets.Screen name="Analyse" options={{ title: "Analyse" }}>
           {({ navigation }) => (
-            <EcranDemo
+            <EcranAnalyse
               versAbonnement={() => navigation.navigate("Compte" as never)} />
           )}
         </Onglets.Screen>
+
+        <Onglets.Screen name="Bitvavo" options={{ title: "Bitvavo" }}
+                        component={EcranBitvavo} />
 
         <Onglets.Screen name="Compte" options={{ title: "Compte" }}>
           {() => <EcranCompte email={session.user.email ?? ""} />}

@@ -18,6 +18,8 @@
 
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { EcranDemo } from "./Demo";
+import { Segments } from "./Marche";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Line } from "react-native-svg";
 import { api, ilYA, NoteMarche, Performance } from "../services/api";
@@ -101,9 +103,15 @@ function Statistique({ libelle, valeur, couleur }: {
   );
 }
 
-export function EcranAnalyse() {
+const VUES = [["note", "Le point"], ["demo", "Essayer"]] as const;
+type Vue = (typeof VUES)[number][0];
+
+export function EcranAnalyse({ versAbonnement }: {
+  versAbonnement: () => void;
+}) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
+  const [vue, setVue] = React.useState<Vue>("note");
 
   const [note, setNote] = React.useState<NoteMarche | null>(null);
   const [perf, setPerf] = React.useState<Performance | null>(null);
@@ -122,6 +130,19 @@ export function EcranAnalyse() {
   }, []);
 
   React.useEffect(() => { charger(); }, [charger]);
+
+  // La demonstration a trois montants vit ici plutot que d'occuper un
+  // onglet a elle : c'est la meme question — « qu'est-ce que ca donne
+  // sur la duree » — posee avant plutot qu'apres l'abonnement.
+  if (vue === "demo") {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.fond,
+                     paddingTop: marges.top + espace.s }}>
+        <Segments options={VUES} choisi={vue} onChoisir={setVue} />
+        <EcranDemo versAbonnement={versAbonnement} />
+      </View>
+    );
+  }
 
   if (!pret) {
     return (
@@ -150,7 +171,10 @@ export function EcranAnalyse() {
           }} />
       }
     >
-      <T v="titreGrand">Analyse</T>
+      <View style={{ marginHorizontal: -espace.l }}>
+        <Segments options={VUES} choisi={vue} onChoisir={setVue} />
+      </View>
+      <T v="titreGrand" style={{ marginTop: espace.m }}>Analyse</T>
       <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
         Le point du matin, et ce que le robot a fait jusqu'ici.
       </T>
