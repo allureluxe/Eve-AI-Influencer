@@ -932,8 +932,81 @@ doit être désactivé sur la clé API Bitvavo**. Avec « trade » et « view »
 seuls, le pire cas est un compte mal tradé, pas un compte vidé — et ça ne
 dépend d'aucun code de ce dépôt.
 
-Pour que la session survive à une déconnexion SSH : `tmux new -s bot`,
-puis `tmux attach -t bot` pour la retrouver.
+Pour que la session survive à une déconnexion SSH : **`./claude_persistant.sh`**,
+qui crée ou reprend la session tmux `bot`. Voir la section suivante — ce n'est
+pas du confort, c'est ce qui empêche la conversation d'être archivée.
+
+---
+
+## Les conversations archivées : la cause, et le seul remède — 13 septembre
+
+L'opérateur est parti une heure ; à son retour la conversation « bot bitvavo
+v2 » était **archivée**, le fil de travail coupé. Ce n'est pas la première fois.
+
+### Ce qui s'est réellement passé
+
+La session lancée sur le VPS n'est **pas hébergée chez Anthropic**. C'est un
+`claude` qui tourne sur le VPS, dont l'application n'affiche qu'un **miroir**
+(le pont « remote control », `environment_kind: bridge`). Le miroir n'a pas de
+vie propre : il suit le processus.
+
+Or ce processus est un simple enfant du shell SSH. SSH qui tombe — réseau,
+téléphone en veille, terminal fermé, application changée — et le processus est
+tué avec lui. Le pont passe en `disconnected`, puis la conversation est
+archivée côté application.
+
+**L'archivage est la conséquence, pas la cause.** Personne n'a archivé la
+conversation : le lien s'est rompu, et l'application a rangé ce qui ne
+répondait plus. Le journal de la session confirme d'ailleurs qu'elle
+n'« était pas en plein travail » : elle attendait un jeton Expo depuis un
+moment. Une session qui attend et dont le lien tombe est exactement le cas
+que la mise en archive vise.
+
+### Ce que l'archivage ne fait PAS
+
+**Il ne supprime rien.** Trois choses distinctes, et aucune n'a été perdue :
+
+| ce qui existe | où c'est stocké | survit à l'archivage ? |
+|---|---|---|
+| le code | git, sur le VPS et sur GitHub | oui — les 12 commits étaient poussés |
+| le fil de conversation | `~/.claude/projects/` sur le VPS | oui — `claude --resume` le retrouve |
+| le miroir dans l'application | serveurs Anthropic | il passe en lecture seule, on le désarchive |
+
+La panique porte donc sur la seule des trois qui se répare en une commande.
+
+### Le remède
+
+`./claude_persistant.sh`. tmux détache le processus du SSH : la session
+continue de tourner sur le VPS, téléphone éteint, et on s'y rebranche.
+
+    ./claude_persistant.sh            # crée la session, ou s'y rebranche
+    ./claude_persistant.sh --statut   # dit si elle tourne, sans y entrer
+
+**Se détacher avec `Ctrl+b` puis `d`.** Jamais `/exit` ni `Ctrl+d` : ceux-là
+terminent vraiment la session, et là l'archivage est légitime.
+
+Ajouter aussi, dans `~/.ssh/config` du poste client, de quoi que le lien ne
+lâche pas au premier silence :
+
+    Host mon-vps
+        ServerAliveInterval 30
+        ServerAliveCountMax 10
+
+### Ce qu'il ne faut pas chercher
+
+Il n'existe **aucun réglage « ne jamais archiver »** dans ce dépôt, ni dans
+`.claude/settings.json` : l'archivage est décidé côté application, à partir de
+l'état du pont. Le seul levier qui existe est de ne pas laisser le pont tomber.
+Chercher une option à cocher est une perte de temps ; lancer tmux prend trois
+secondes.
+
+### La leçon
+
+C'est la même que partout ailleurs dans ce fichier : **une protection qui n'est
+pas exécutée ne protège pas.** La ligne « pour que la session survive, `tmux
+new -s bot` » était écrite ici depuis le 30 août. Elle était *lue* et jamais
+*exécutée*. Elle est donc devenue un script qu'on lance, pas une phrase qu'on
+espère avoir retenue.
 
 ## Où se trouve la vérité
 
