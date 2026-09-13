@@ -27,7 +27,7 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       // Une application mobile n'a pas d'URL : le retour du lien magique
-      // passe par le schema `eve://`, gere a la main dans auth.tsx.
+      // passe par le schema `allure://`, gere a la main dans App.tsx.
       detectSessionInUrl: false,
     },
   },

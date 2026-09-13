@@ -37,7 +37,7 @@ export function EcranConnexion() {
     setErreur(null);
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: "eve://connexion" },
+      options: { emailRedirectTo: "allure://connexion" },
     });
     setEnvoi(false);
 
