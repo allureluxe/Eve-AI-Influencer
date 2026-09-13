@@ -1,16 +1,19 @@
 /**
- * Connexion par lien magique. Pas de mot de passe.
+ * Connexion par pseudo et mot de passe.
  *
- * POURQUOI PAS DE MOT DE PASSE
- * ----------------------------
- * Un mot de passe sur une application financiere, c'est un mot de passe
- * reutilise depuis ailleurs neuf fois sur dix. On n'en stocke aucun, on
- * n'en perd aucun, et il n'y a rien a voler dans une fuite.
+ * DECISION DE L'OPERATEUR (13 septembre, au soir), qui remplace le lien
+ * magique par e-mail d'origine. L'ecran precedent expliquait pourquoi
+ * un mot de passe etait evite sur une application financiere -- ce
+ * raisonnement reste vrai en soi, mais l'operateur a tranche pour la
+ * simplicite : les gens s'inscrivent et se connectent tout de suite,
+ * sans quitter l'application pour aller cliquer un lien dans leur
+ * boite mail.
  *
- * L'ecran ne dit JAMAIS si l'adresse existe deja. « Nous t'avons envoye
- * un lien » dans les deux cas : repondre « ce compte n'existe pas »
- * permettrait a n'importe qui de tester des adresses pour savoir qui
- * est inscrit.
+ * Supabase Auth n'a pas de notion de pseudo : il identifie un compte
+ * par e-mail. Le pseudo est donc resolu en e-mail cote serveur avant
+ * la connexion (fonction `email_pour_pseudo`, voir la migration
+ * 20260913200000) -- l'application ne lit et ne stocke jamais l'e-mail
+ * d'un autre compte que le sien.
  */
 
 import React from "react";
@@ -21,63 +24,69 @@ import { supabase } from "../services/supabase";
 import { espace, polices, rayon } from "../theme";
 import { Bouton, Logo, T, useCouleurs } from "../composants/base";
 
+const PSEUDO_VALIDE = /^.{3,20}$/;
+const EMAIL_VALIDE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function messageErreur(brut: string): string {
+  if (/network|fetch|timeout/i.test(brut)) return "Pas de connexion. Reessaie.";
+  if (/rate/i.test(brut)) return "Trop de tentatives. Attends une minute.";
+  if (/already registered|already exists/i.test(brut))
+    return "Ce pseudo ou cet e-mail est deja pris.";
+  if (/invalid login credentials/i.test(brut))
+    return "Pseudo ou mot de passe incorrect.";
+  if (/password.*(least|character)/i.test(brut))
+    return "Le mot de passe doit faire au moins 6 caracteres.";
+  return "Quelque chose s'est mal passe. Reessaie.";
+}
+
 export function EcranConnexion() {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
 
+  const [inscription, setInscription] = React.useState(false);
+  const [pseudo, setPseudo] = React.useState("");
   const [email, setEmail] = React.useState("");
-  const [envoi, setEnvoi] = React.useState(false);
-  const [envoye, setEnvoye] = React.useState(false);
+  const [motDePasse, setMotDePasse] = React.useState("");
+  const [enCours, setEnCours] = React.useState(false);
   const [erreur, setErreur] = React.useState<string | null>(null);
 
-  const valide = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
+  const pseudoOk = PSEUDO_VALIDE.test(pseudo.trim());
+  const emailOk = EMAIL_VALIDE.test(email.trim());
+  const motDePasseOk = motDePasse.length >= 6;
+  const valide = inscription
+    ? pseudoOk && emailOk && motDePasseOk
+    : pseudoOk && motDePasseOk;
 
-  async function envoyer() {
-    setEnvoi(true);
+  async function valider() {
+    if (!valide || enCours) return;
+    setEnCours(true);
     setErreur(null);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: "allure://connexion" },
-    });
-    setEnvoi(false);
 
-    // ON N'ANNONCE PAS L'ECHEC D'EXISTENCE. Seules les vraies pannes
-    // (reseau, service) sont dites ; le reste affiche le meme ecran de
-    // confirmation, qu'un compte existe ou non.
-    if (error && /network|fetch|timeout|rate/i.test(error.message)) {
-      setErreur(/rate/i.test(error.message)
-        ? "Trop de demandes. Attends une minute."
-        : "Pas de connexion. Reessaie.");
+    if (inscription) {
+      const { error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password: motDePasse,
+        options: { data: { pseudo: pseudo.trim() } },
+      });
+      setEnCours(false);
+      if (error) { setErreur(messageErreur(error.message)); return; }
+      return; // signUp connecte directement (confirmation par e-mail desactivee).
+    }
+
+    // Connexion : le pseudo n'existe nulle part cote Supabase Auth,
+    // il faut d'abord retrouver l'e-mail associe.
+    const { data: emailTrouve, error: erreurRecherche } = await supabase
+      .rpc("email_pour_pseudo", { p_pseudo: pseudo.trim() });
+    if (erreurRecherche || !emailTrouve) {
+      setEnCours(false);
+      setErreur("Pseudo ou mot de passe incorrect.");
       return;
     }
-    setEnvoye(true);
-  }
-
-  if (envoye) {
-    return (
-      <View style={{ flex: 1, backgroundColor: c.fond,
-                     paddingTop: marges.top, paddingHorizontal: espace.xl,
-                     justifyContent: "center" }}>
-        <T v="etiquette" couleur={c.jaune}>Verifie ta boite mail</T>
-        <T style={{ fontFamily: polices.titre, fontSize: 30, color: c.encre,
-                    lineHeight: 38, marginTop: espace.m }}>
-          Un lien de connexion est parti
-        </T>
-        <T v="corps" couleur={c.encreDouce}
-           style={{ marginTop: espace.l, lineHeight: 25 }}>
-          Ouvre le message envoye a {email.trim().toLowerCase()} et appuie
-          sur le lien. Il te ramene directement ici, connecte.
-        </T>
-        <T v="petit" style={{ marginTop: espace.xl }}>
-          Rien recu au bout de deux minutes ? Regarde dans les
-          indesirables.
-        </T>
-        <View style={{ marginTop: espace.l }}>
-          <Bouton titre="Utiliser une autre adresse" variante="discret"
-                  onPress={() => { setEnvoye(false); setEmail(""); }} />
-        </View>
-      </View>
-    );
+    const { error } = await supabase.auth.signInWithPassword({
+      email: emailTrouve, password: motDePasse,
+    });
+    setEnCours(false);
+    if (error) setErreur(messageErreur(error.message));
   }
 
   return (
@@ -93,26 +102,52 @@ export function EcranConnexion() {
           Les signaux d'un robot qui trade son propre argent.
         </T>
 
-        <T v="etiquette" style={{ marginBottom: espace.s }}>
-          Ton adresse e-mail
-        </T>
+        <T v="etiquette" style={{ marginBottom: espace.s }}>Pseudo</T>
         <TextInput
-          value={email}
-          onChangeText={setEmail}
+          value={pseudo}
+          onChangeText={setPseudo}
           autoCapitalize="none"
           autoCorrect={false}
-          keyboardType="email-address"
-          textContentType="emailAddress"
-          placeholder="toi@exemple.fr"
+          placeholder="tonpseudo"
           placeholderTextColor={c.encrePale}
-          onSubmitEditing={() => { if (valide) envoyer(); }}
-          style={{
-            backgroundColor: c.surface, color: c.encre,
-            borderWidth: StyleSheet.hairlineWidth, borderColor: c.filet,
-            borderRadius: rayon.s, paddingHorizontal: espace.l,
-            paddingVertical: espace.m + 2, fontSize: 17,
-            fontFamily: polices.interface, marginBottom: espace.l,
-          }}
+          style={styles.champ(c)}
+        />
+
+        {inscription ? (
+          <>
+            <T v="etiquette" style={{ marginBottom: espace.s }}>
+              Ton adresse e-mail
+            </T>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              placeholder="toi@exemple.fr"
+              placeholderTextColor={c.encrePale}
+              style={styles.champ(c)}
+            />
+            <T v="legende" style={{ marginTop: -espace.m + 4, marginBottom: espace.l }}>
+              Sert seulement a recuperer ton compte si tu oublies ton
+              mot de passe.
+            </T>
+          </>
+        ) : null}
+
+        <T v="etiquette" style={{ marginBottom: espace.s }}>Mot de passe</T>
+        <TextInput
+          value={motDePasse}
+          onChangeText={setMotDePasse}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          textContentType={inscription ? "newPassword" : "password"}
+          placeholder="********"
+          placeholderTextColor={c.encrePale}
+          onSubmitEditing={valider}
+          style={styles.champ(c)}
         />
 
         {erreur ? (
@@ -122,16 +157,30 @@ export function EcranConnexion() {
         ) : null}
 
         <Bouton
-          titre={envoi ? "Envoi..." : "Recevoir mon lien de connexion"}
-          onPress={envoyer}
-          desactive={!valide || envoi}
+          titre={enCours ? "..." : (inscription ? "Creer mon compte" : "Me connecter")}
+          onPress={valider}
+          desactive={!valide || enCours}
         />
 
-        <T v="legende" style={{ marginTop: espace.l, lineHeight: 17 }}>
-          Pas de mot de passe : on t'envoie un lien a chaque connexion.
-          Ton adresse ne sert qu'a ca et n'est transmise a personne.
-        </T>
+        <View style={{ marginTop: espace.l }}>
+          <Bouton
+            titre={inscription
+              ? "J'ai deja un compte" : "Je n'ai pas de compte"}
+            variante="discret"
+            onPress={() => { setInscription(!inscription); setErreur(null); }}
+          />
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
+
+const styles = {
+  champ: (c: ReturnType<typeof useCouleurs>) => ({
+    backgroundColor: c.surface, color: c.encre,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: c.filet,
+    borderRadius: rayon.s, paddingHorizontal: espace.l,
+    paddingVertical: espace.m + 2, fontSize: 17,
+    fontFamily: polices.interface, marginBottom: espace.l,
+  }),
+};

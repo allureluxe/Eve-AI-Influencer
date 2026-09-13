@@ -33,7 +33,6 @@ import { NavigationContainer, DefaultTheme, DarkTheme }
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
 import {
@@ -45,7 +44,6 @@ import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "./src/services/supabase";
-import type { EmailOtpType } from "@supabase/supabase-js";
 import { demarrerAbonnement } from "./src/services/abonnement";
 import { accueilDejaVu, marquerAccueilVu } from "./src/services/reglages";
 import { FournisseurTheme, Logo, T, useCouleurs, useTheme }
@@ -179,28 +177,6 @@ function Racine() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Le retour du lien magique arrive par le schema `allure://`.
-  React.useEffect(() => {
-    const traiter = async (url: string) => {
-      const { queryParams } = Linking.parse(url);
-      const jeton = queryParams?.token_hash;
-      if (typeof jeton !== "string") return;
-      // Supabase precise le type dans le lien ("signup" a la premiere
-      // connexion, "magiclink" ensuite) : un type fige a "email" faisait
-      // echouer verifyOtp en silence des la premiere inscription, et
-      // l'ecran retombait sur Connexion sans dire pourquoi.
-      const type: EmailOtpType = typeof queryParams?.type === "string"
-        ? queryParams.type as EmailOtpType : "email";
-      const { error } = await supabase.auth.verifyOtp({
-        token_hash: jeton, type });
-      if (error) {
-        console.warn("verifyOtp a echoue :", error.message);
-      }
-    };
-    Linking.getInitialURL().then((u) => { if (u) traiter(u); });
-    const abo = Linking.addEventListener("url", ({ url }) => traiter(url));
-    return () => abo.remove();
-  }, []);
 
   if (accueilVu === null) {
     return <View style={{ flex: 1, backgroundColor: c.fond }} />;
