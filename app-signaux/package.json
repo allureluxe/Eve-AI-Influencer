@@ -1,5 +1,5 @@
 {
-  "name": "eve-signaux",
+  "name": "allure-trading",
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
@@ -9,9 +9,9 @@
     "build:android": "eas build --platform android --profile production"
   },
   "dependencies": {
+    "@expo-google-fonts/archivo": "^0.2.3",
+    "@expo-google-fonts/fraunces": "^0.2.3",
     "@expo-google-fonts/ibm-plex-mono": "^0.2.3",
-    "@expo-google-fonts/ibm-plex-sans": "^0.2.3",
-    "@expo-google-fonts/newsreader": "^0.2.3",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-navigation/bottom-tabs": "^6.6.1",
     "@react-navigation/native": "^6.1.18",
@@ -27,14 +27,18 @@
     "react-native-safe-area-context": "4.10.5",
     "react-native-screens": "3.31.1",
     "react-native-svg": "15.2.0",
-    "react-native-url-polyfill": "^2.0.0"
+    "react-native-url-polyfill": "^2.0.0",
+    "react-native-webview": "13.8.6"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.12",
     "@types/react": "~18.2.79",
     "jest": "^29.7.0",
     "jest-expo": "~51.0.4",
     "typescript": "~5.3.3"
   },
-  "jest": { "preset": "jest-expo" },
+  "jest": {
+    "preset": "jest-expo"
+  },
   "private": true
 }

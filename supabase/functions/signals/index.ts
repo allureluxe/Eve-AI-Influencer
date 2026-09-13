@@ -36,17 +36,23 @@ Deno.serve((requete) =>
       .order("closed_at", { ascending: false })
       .limit(300);
 
-    const palier = visiteur.palier;
+    const visibles = filtrerPourLePalier((actifs ?? []) as Signal[],
+                                         visiteur.capacites);
+    const historique = filtrerPourLePalier((clos ?? []) as Signal[],
+                                           visiteur.capacites);
     return reponse({
-      tier: palier,
-      actifs: filtrerPourLePalier((actifs ?? []) as Signal[], palier),
-      clotures: filtrerPourLePalier((clos ?? []) as Signal[], palier).slice(0, 50),
+      tier: visiteur.palier,
+      capacites: visiteur.capacites,
+      actifs: visibles,
+      // L'historique complet est une capacite du palier : sans elle on
+      // s'arrete a dix trades, assez pour se faire une idee, pas assez
+      // pour reconstituer la strategie.
+      clotures: historique.slice(0, visiteur.capacites.historique_complet ? 50 : 10),
       // Sert a l'ecran d'invitation a l'abonnement : « 4 signaux de plus
-      // sont disponibles ». On annonce un NOMBRE, jamais leur contenu.
-      masques: palier === "free"
-        ? (actifs ?? []).length -
-          filtrerPourLePalier((actifs ?? []) as Signal[], palier).length
-        : 0,
+      // sont disponibles ». On annonce un NOMBRE, jamais leur contenu —
+      // annoncer « BTC vient de passer a l'achat, abonne-toi » serait
+      // donner le signal tout en pretendant le vendre.
+      masques: (actifs ?? []).length - visibles.length,
     });
   })
 );

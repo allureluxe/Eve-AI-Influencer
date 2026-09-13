@@ -32,7 +32,7 @@ Deno.serve((requete) =>
       .maybeSingle();
 
     if (!signal) return erreur("signal introuvable", 404);
-    if (filtrerPourLePalier([signal as unknown as Signal], visiteur.palier).length === 0) {
+    if (filtrerPourLePalier([signal as unknown as Signal], visiteur.capacites).length === 0) {
       return erreur("signal introuvable", 404);   // meme message : pas d'indice
     }
 

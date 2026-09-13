@@ -1,13 +1,21 @@
 /**
- * L'assemblage : polices, session, navigation.
+ * L'assemblage ALLURE : polices, session, navigation.
  *
  * L'ORDRE DES ECRANS N'EST PAS ARBITRAIRE.
- *   accueil (une fois) -> connexion -> les quatre onglets
+ *   accueil (une fois) -> connexion -> les six onglets
  *
  * L'accueil vient AVANT la connexion. Demander une adresse e-mail a
  * quelqu'un qui ne sait pas encore ce que fait l'application est le
  * meilleur moyen de le perdre — et c'est ce que font la plupart des
  * applications du genre.
+ *
+ * L'ORDRE DES ONGLETS SUIT L'USAGE, PAS L'ORGANIGRAMME.
+ *   Direct   — ce qui bouge maintenant. C'est pour ca qu'on ouvre.
+ *   Signaux  — ce qu'il faut faire, et l'historique.
+ *   Cours    — les graphiques, quand on veut verifier de ses yeux.
+ *   Analyse  — le point du matin et l'agenda, une fois par jour.
+ *   Essayer  — la demonstration, pour qui hesite encore.
+ *   Compte   — les offres et les reglages, rarement.
  */
 
 import React from "react";
@@ -21,41 +29,44 @@ import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
 import {
-  Newsreader_400Regular_Italic, Newsreader_600SemiBold,
-} from "@expo-google-fonts/newsreader";
-import {
-  IBMPlexSans_400Regular, IBMPlexSans_600SemiBold,
-} from "@expo-google-fonts/ibm-plex-sans";
+  Fraunces_400Regular_Italic, Fraunces_600SemiBold,
+} from "@expo-google-fonts/fraunces";
+import { Archivo_400Regular, Archivo_600SemiBold }
+  from "@expo-google-fonts/archivo";
 import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "./src/services/supabase";
 import { demarrerAbonnement } from "./src/services/abonnement";
 import { accueilDejaVu, marquerAccueilVu } from "./src/services/reglages";
-import { FournisseurTheme, T, useCouleurs, useTheme } from "./src/composants/base";
+import { FournisseurTheme, Logo, T, useCouleurs, useTheme }
+  from "./src/composants/base";
 import { EcranAccueil } from "./src/ecrans/Accueil";
 import { EcranConnexion } from "./src/ecrans/Connexion";
+import { EcranDirect } from "./src/ecrans/Direct";
 import { EcranSignaux } from "./src/ecrans/Signaux";
+import { EcranCours } from "./src/ecrans/Cours";
 import { EcranAnalyse } from "./src/ecrans/Analyse";
-import { EcranAgenda } from "./src/ecrans/Agenda";
+import { EcranDemo } from "./src/ecrans/Demo";
 import { EcranCompte } from "./src/ecrans/Compte";
-import { espace, polices } from "./src/theme";
+import { EcranBitvavo } from "./src/ecrans/Bitvavo";
+import { espace, polices, TRAIT } from "./src/theme";
 
 const Onglets = createBottomTabNavigator();
 
 /**
- * L'icone d'un onglet : un point, pas un pictogramme.
+ * L'icone d'un onglet : un TRAIT JAUNE, pas un pictogramme.
  *
  * Les pictogrammes de barre d'onglets sont soit generiques (une maison,
- * un graphique), soit ambigus. Un libelle lisible et un point discret
- * disent plus, et laissent la typographie porter l'identite.
+ * un graphique), soit ambigus. Un libelle lisible surmonte du trait
+ * ALLURE dit plus, et laisse la typographie porter l'identite.
  */
-function Point({ actif }: { actif: boolean }) {
+function Trait({ actif }: { actif: boolean }) {
   const c = useCouleurs();
   return (
     <View style={{
-      width: 4, height: 4, borderRadius: 2, marginBottom: 3,
-      backgroundColor: actif ? c.laiton : "transparent",
+      width: 16, height: TRAIT, marginBottom: 4,
+      backgroundColor: actif ? c.jaune : "transparent",
     }} />
   );
 }
@@ -63,7 +74,7 @@ function Point({ actif }: { actif: boolean }) {
 function Navigation({ session }: { session: Session }) {
   const c = useCouleurs();
   const theme = useTheme();
-  const [versCompte, setVersCompte] = React.useState(0);
+  const [, setVersCompte] = React.useState(0);
 
   React.useEffect(() => {
     demarrerAbonnement(session.user.id).catch(() => { /* sans magasin */ });
@@ -92,29 +103,50 @@ function Navigation({ session }: { session: Session }) {
     <NavigationContainer theme={{
       ...base,
       colors: { ...base.colors, background: c.fond, card: c.surface,
-                text: c.encre, border: c.filet, primary: c.laiton },
+                text: c.encre, border: c.filetDoux, primary: c.jaune },
     }}>
       <Onglets.Navigator
-        screenOptions={({ route }) => ({
+        screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: c.encre,
           tabBarInactiveTintColor: c.encrePale,
           tabBarStyle: {
-            backgroundColor: c.surface, borderTopColor: c.filet,
-            height: 62, paddingTop: 8, paddingBottom: 10,
+            backgroundColor: c.surface,
+            borderTopColor: c.filet,
+            borderTopWidth: TRAIT,
+            height: 64, paddingTop: 8, paddingBottom: 10,
           },
           tabBarLabelStyle: {
-            fontFamily: polices.interfaceGras, fontSize: 11,
-            letterSpacing: 0.3,
+            fontFamily: polices.interfaceGras, fontSize: 10,
+            letterSpacing: 0.4,
           },
-          tabBarIcon: ({ focused }) => <Point actif={focused} />,
-        })}
+          tabBarIcon: ({ focused }) => <Trait actif={focused} />,
+        }}
       >
-        <Onglets.Screen name="Signaux" options={{ title: "Signaux" }}>
-          {() => <EcranSignaux versAbonnement={() => setVersCompte((n) => n + 1)} />}
+        <Onglets.Screen name="Direct" options={{ title: "Direct" }}>
+          {({ navigation }) => (
+            <EcranDirect
+              versAbonnement={() => navigation.navigate("Compte" as never)} />
+          )}
         </Onglets.Screen>
+
+        <Onglets.Screen name="Signaux" options={{ title: "Signaux" }}>
+          {({ navigation }) => (
+            <EcranSignaux
+              versAbonnement={() => navigation.navigate("Compte" as never)} />
+          )}
+        </Onglets.Screen>
+
+        <Onglets.Screen name="Cours" component={EcranCours} />
         <Onglets.Screen name="Analyse" component={EcranAnalyse} />
-        <Onglets.Screen name="Agenda" component={EcranAgenda} />
+
+        <Onglets.Screen name="Essayer" options={{ title: "Essayer" }}>
+          {({ navigation }) => (
+            <EcranDemo
+              versAbonnement={() => navigation.navigate("Compte" as never)} />
+          )}
+        </Onglets.Screen>
+
         <Onglets.Screen name="Compte" options={{ title: "Compte" }}>
           {() => <EcranCompte email={session.user.email ?? ""} />}
         </Onglets.Screen>
@@ -136,15 +168,13 @@ function Racine() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Le retour du lien magique arrive par le schema `eve://`.
+  // Le retour du lien magique arrive par le schema `allure://`.
   React.useEffect(() => {
     const traiter = async (url: string) => {
       const { queryParams } = Linking.parse(url);
-      const jeton = queryParams?.token_hash ?? queryParams?.access_token;
+      const jeton = queryParams?.token_hash;
       if (typeof jeton !== "string") return;
-      if (queryParams?.token_hash) {
-        await supabase.auth.verifyOtp({ token_hash: jeton, type: "email" });
-      }
+      await supabase.auth.verifyOtp({ token_hash: jeton, type: "email" });
     };
     Linking.getInitialURL().then((u) => { if (u) traiter(u); });
     const abo = Linking.addEventListener("url", ({ url }) => traiter(url));
@@ -167,10 +197,10 @@ function Racine() {
 
 export default function App() {
   const [policesPretes] = useFonts({
-    Newsreader_600SemiBold,
-    Newsreader_400Regular_Italic,
-    IBMPlexSans_400Regular,
-    IBMPlexSans_600SemiBold,
+    Fraunces_600SemiBold,
+    Fraunces_400Regular_Italic,
+    Archivo_400Regular,
+    Archivo_600SemiBold,
     IBMPlexMono_500Medium,
   });
 
@@ -187,19 +217,17 @@ export default function App() {
 /**
  * L'ecran affiche pendant le chargement des polices.
  *
- * Il porte le nom, dans la police finale des titres — pas de roue qui
- * tourne. Le passage a l'application est alors imperceptible.
+ * Il porte le logo, pas une roue qui tourne. Le passage a l'application
+ * est alors imperceptible.
  */
 function EcranDeLancement() {
   const c = useCouleurs();
   return (
     <View style={{ flex: 1, backgroundColor: c.fond,
                    alignItems: "center", justifyContent: "center" }}>
-      <T style={{ fontFamily: polices.titre, fontSize: 44, color: c.encre }}>
-        Eve
-      </T>
-      <View style={{ width: 26, height: 1, backgroundColor: c.filet,
-                     marginTop: espace.l }} />
+      <Logo hauteur={84} />
+      <View style={{ width: 34, height: TRAIT, backgroundColor: c.jaune,
+                     marginTop: espace.xl }} />
     </View>
   );
 }

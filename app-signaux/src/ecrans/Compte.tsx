@@ -1,12 +1,11 @@
 /**
- * Onglet Compte — abonnement, reglages, et ce qu'Eve ne fait pas.
+ * Onglet Compte — abonnement, reglages, et ce qu'Allure ne fait pas.
  *
- * L'ARGUMENTAIRE D'ABONNEMENT EST ICI, ET IL EST FACTUEL.
- * Pas de « rejoins des milliers de traders », pas de temoignage, pas de
- * chiffre de gain. Trois lignes qui disent exactement ce qu'on recoit
- * en plus. Un argumentaire honnete convainc moins vite qu'un
- * argumentaire vendeur — mais il ne produit pas de rembourse­ment a
- * J+3, et c'est lui qu'on transmet a un ami.
+ * L'ARGUMENTAIRE EST FACTUEL. Pas de « rejoins des milliers de
+ * traders », pas de temoignage, pas de compte a rebours. Trois lignes
+ * qui disent exactement ce qu'on recoit en plus. Un argumentaire
+ * honnete convainc moins vite qu'un argumentaire vendeur — mais il ne
+ * produit pas de remboursement a J+3, et c'est lui qu'on transmet.
  */
 
 import React from "react";
@@ -14,23 +13,27 @@ import {
   Alert, Linking, ScrollView, StyleSheet, Switch, TextInput, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Offre, Palier } from "../services/api";
 import {
-  lireOffre, lirePalier, OffrePlus, ouvrirGestionPlay, prochainPrelevement,
-  restaurer, souscrire,
+  lireOffres, lirePalier, lireRemise, ouvrirGestionPlay,
+  prochainPrelevement, restaurer, souscrire,
 } from "../services/abonnement";
 import { CAPITAL_DEFAUT, enregistrerCapital, useCapital }
   from "../services/reglages";
 import { supabase } from "../services/supabase";
 import { euros } from "../services/format";
-import { espace, rayon } from "../theme";
-import { Bouton, Carte, Separateur, T, useCouleurs } from "../composants/base";
+import { espace, rayon, TRAIT } from "../theme";
+import {
+  Bouton, Carte, EnTete, Etiquette, Separateur, T, useCouleurs,
+} from "../composants/base";
+import { GrilleOffres } from "../composants/Offres";
 
 function Rubrique({ titre, children }: {
   titre: string; children: React.ReactNode;
 }) {
   return (
     <View style={{ marginTop: espace.xxl }}>
-      <T v="etiquette" style={{ marginBottom: espace.s }}>{titre}</T>
+      <Etiquette style={{ marginBottom: espace.s }}>{titre}</Etiquette>
       {children}
     </View>
   );
@@ -49,7 +52,7 @@ function LigneReglage({ titre, detail, valeur, onChange }: {
         {detail ? <T v="petit" style={{ marginTop: 2 }}>{detail}</T> : null}
       </View>
       <Switch value={valeur} onValueChange={onChange}
-              trackColor={{ true: c.laiton, false: c.creux }}
+              trackColor={{ true: c.jaune, false: c.creux }}
               thumbColor={c.surface} />
     </View>
   );
@@ -60,10 +63,12 @@ export function EcranCompte({ email }: { email: string }) {
   const marges = useSafeAreaInsets();
   const capitalEnregistre = useCapital();
 
-  const [palier, setPalier] = React.useState<"free" | "plus">("free");
-  const [offre, setOffre] = React.useState<OffrePlus | null>(null);
+  const [palier, setPalier] = React.useState<Palier>("free");
+  const [offres, setOffres] = React.useState<Offre[]>([]);
+  const [prixMagasin, setPrixMagasin] = React.useState<Record<string, string>>({});
+  const [remise, setRemise] = React.useState(0);
   const [echeance, setEcheance] = React.useState<Date | null>(null);
-  const [achatEnCours, setAchat] = React.useState(false);
+  const [enCours, setEnCours] = React.useState<string | null>(null);
   const [capital, setCapital] = React.useState(String(CAPITAL_DEFAUT));
   const [signaux, setSignaux] = React.useState(true);
   const [macro, setMacro] = React.useState(true);
@@ -71,14 +76,18 @@ export function EcranCompte({ email }: { email: string }) {
   React.useEffect(() => { setCapital(String(capitalEnregistre)); },
                   [capitalEnregistre]);
 
-  const rafraichirPalier = React.useCallback(async () => {
+  const rafraichir = React.useCallback(async () => {
     setPalier(await lirePalier());
+    setRemise(await lireRemise());
     setEcheance(await prochainPrelevement());
   }, []);
 
   React.useEffect(() => {
-    rafraichirPalier();
-    lireOffre().then(setOffre);
+    rafraichir();
+    lireOffres().then(({ grille, prix }) => {
+      setOffres(grille);
+      setPrixMagasin(prix);
+    });
     supabase.auth.getSession().then(async ({ data }) => {
       const id = data.session?.user?.id;
       if (!id) return;
@@ -87,7 +96,7 @@ export function EcranCompte({ email }: { email: string }) {
         .eq("id", id).single();
       if (p) { setSignaux(p.notif_signals); setMacro(p.notif_macro); }
     });
-  }, [rafraichirPalier]);
+  }, [rafraichir]);
 
   async function majNotif(champ: "notif_signals" | "notif_macro", v: boolean) {
     const { data } = await supabase.auth.getSession();
@@ -95,27 +104,36 @@ export function EcranCompte({ email }: { email: string }) {
     if (id) await supabase.from("profiles").update({ [champ]: v }).eq("id", id);
   }
 
-  async function acheter() {
-    if (!offre) return;
-    setAchat(true);
-    const resultat = await souscrire(offre);
-    setAchat(false);
+  async function choisir(offre: Offre) {
+    if (!offre.produit_id) return;
+    setEnCours(offre.tier);
+    const resultat = await souscrire(offre.produit_id);
+    setEnCours(null);
+
     if (resultat === "annule") return;
+    if (resultat === "indisponible") {
+      Alert.alert("Offre indisponible",
+                  "Le magasin n'a pas repondu. Rien n'a ete preleve.");
+      return;
+    }
     if (resultat === "echec") {
       Alert.alert("Achat non abouti",
                   "Rien n'a ete preleve. Tu peux reessayer.");
       return;
     }
     // LE DEBLOCAGE VIENT DU SERVEUR, PAS DE L'ACHAT.
-    // RevenueCat previent notre serveur par webhook ; on attend un
-    // instant puis on relit le profil. Debloquer localement ferait
-    // apparaitre un abonne que le serveur ne reconnait pas — et qui
-    // verrait un ecran vide.
-    setTimeout(rafraichirPalier, 2500);
+    // RevenueCat previent notre serveur par webhook ; on relit le
+    // profil apres un instant. Debloquer localement ferait apparaitre
+    // un abonne que le serveur ne reconnait pas — et qui verrait un
+    // ecran vide en croyant avoir paye.
+    setTimeout(rafraichir, 2500);
     Alert.alert("C'est fait",
-                "Ton abonnement est actif. Les signaux en temps reel " +
-                "arrivent dans quelques secondes.");
+                `Ton abonnement ${offre.nom} est actif. Les signaux ` +
+                `arrivent dans quelques secondes.`);
   }
+
+  const offreActuelle = offres.find((o) => o.tier === palier);
+  const payant = (offreActuelle?.rang ?? 0) > 0;
 
   return (
     <ScrollView
@@ -125,19 +143,26 @@ export function EcranCompte({ email }: { email: string }) {
         paddingBottom: marges.bottom + espace.xxxl,
       }}
     >
-      <T v="titreGrand">Compte</T>
-      <T v="petit" style={{ marginTop: 2 }}>{email}</T>
+      <EnTete titre="Compte" sousTitre={email} />
 
       {/* ------------------------------------------- l'abonnement */}
-      <Rubrique titre={palier === "plus" ? "Ton abonnement" : "Eve Plus"}>
-        {palier === "plus" ? (
-          <Carte accent={c.laiton}>
-            <T v="titre">Eve Plus, actif</T>
+      {payant ? (
+        <>
+          <Carte accent>
+            <Etiquette>Ton abonnement</Etiquette>
+            <T v="titre" style={{ marginTop: espace.xs }}>
+              Allure {offreActuelle?.nom}
+            </T>
             {echeance ? (
               <T v="petit" style={{ marginTop: espace.s }}>
                 Prochain prelevement le{" "}
                 {echeance.toLocaleDateString("fr-FR", {
                   day: "numeric", month: "long", year: "numeric" })}.
+              </T>
+            ) : null}
+            {remise > 0 ? (
+              <T v="petit" couleur={c.olive} style={{ marginTop: espace.xs }}>
+                Remise de {remise} % appliquee (parrainage Bitvavo).
               </T>
             ) : null}
             <View style={{ marginTop: espace.l }}>
@@ -149,82 +174,36 @@ export function EcranCompte({ email }: { email: string }) {
               jusqu'a la fin de la periode deja payee.
             </T>
           </Carte>
-        ) : (
-          <Carte accent={c.laiton}>
-            <T v="titre">Les signaux au moment ou ils sortent</T>
 
-            {/* Trois lignes factuelles. Ce qu'on recoit, rien d'autre. */}
-            <View style={{ marginTop: espace.l }}>
-              {[
-                ["Les 70 cryptos suivies", "au lieu de trois"],
-                ["Au moment ou le robot agit", "au lieu de deux heures apres"],
-                ["Notification a l'ouverture et a la fermeture", ""],
-              ].map(([titre, detail], i) => (
-                <View key={i} style={{ flexDirection: "row",
-                                       marginBottom: espace.m }}>
-                  <View style={{ width: 14, height: StyleSheet.hairlineWidth,
-                                 backgroundColor: c.laiton, marginTop: 11,
-                                 marginRight: espace.m }} />
-                  <View style={{ flex: 1 }}>
-                    <T v="corps">{titre}</T>
-                    {detail ? <T v="petit">{detail}</T> : null}
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            <Separateur marge={espace.m} />
-
-            {offre ? (
-              <>
-                <View style={{ flexDirection: "row", alignItems: "baseline",
-                               marginBottom: espace.l }}>
-                  <T v="chiffre" style={{ fontSize: 26 }}>{offre.prix}</T>
-                  <T v="petit" style={{ marginLeft: espace.s }}>
-                    {offre.periode}
-                  </T>
-                </View>
-                <Bouton
-                  titre={achatEnCours ? "Un instant..."
-                    : offre.essaiJours
-                      ? `Essayer ${offre.essaiJours} jours gratuitement`
-                      : "S'abonner"}
-                  onPress={acheter}
-                  desactive={achatEnCours}
-                />
-                <T v="legende" style={{ marginTop: espace.m, lineHeight: 16 }}>
-                  {offre.essaiJours
-                    ? `Sans engagement. Rien n'est preleve pendant ` +
-                      `${offre.essaiJours} jours, et tu peux arreter a tout ` +
-                      `moment depuis Google Play. `
-                    : "Sans engagement, resiliable a tout moment. "}
-                  Le paiement est gere par Google Play : nous ne voyons
-                  jamais ta carte.
-                </T>
-              </>
-            ) : (
-              <T v="petit">
-                L'offre n'est pas disponible pour le moment.
-              </T>
-            )}
-
-            <View style={{ marginTop: espace.l }}>
-              <Bouton
-                titre="J'ai deja un abonnement"
-                variante="discret"
-                onPress={async () => {
-                  const ok = await restaurer();
-                  await rafraichirPalier();
-                  Alert.alert(
-                    ok ? "Abonnement retrouve" : "Aucun abonnement trouve",
-                    ok ? "Ton acces est retabli."
-                       : "Verifie que tu utilises le meme compte Google.");
-                }}
-              />
-            </View>
-          </Carte>
-        )}
-      </Rubrique>
+          <Rubrique titre="Changer d'offre">
+            <GrilleOffres
+              offres={offres} palier={palier} prixMagasin={prixMagasin}
+              remisePct={remise} onChoisir={choisir} enCours={enCours}
+            />
+          </Rubrique>
+        </>
+      ) : (
+        <Rubrique titre="Les offres Allure">
+          <GrilleOffres
+            offres={offres} palier={palier} prixMagasin={prixMagasin}
+            remisePct={remise} onChoisir={choisir} enCours={enCours}
+          />
+          <View style={{ marginTop: espace.m }}>
+            <Bouton
+              titre="J'ai deja un abonnement"
+              variante="discret"
+              onPress={async () => {
+                const ok = await restaurer();
+                await rafraichir();
+                Alert.alert(
+                  ok ? "Abonnement retrouve" : "Aucun abonnement trouve",
+                  ok ? "Ton acces est retabli."
+                     : "Verifie que tu utilises le meme compte Google.");
+              }}
+            />
+          </View>
+        </Rubrique>
+      )}
 
       {/* ------------------------------------------- ton capital */}
       <Rubrique titre="Ton capital">
@@ -280,16 +259,17 @@ export function EcranCompte({ email }: { email: string }) {
         </Carte>
       </Rubrique>
 
-      {/* ------------------------------------- ce qu'Eve ne fait pas */}
-      <Rubrique titre="Ce qu'Eve ne fait pas">
+      {/* ------------------------------------- ce qu'Allure ne fait pas */}
+      <Rubrique titre="Ce qu'Allure ne fait pas">
         <Carte>
           {[
-            "Eve ne touche jamais a ton argent. Aucune connexion a ton " +
+            "Allure ne touche jamais a ton argent. Aucune connexion a ton " +
             "compte, aucun ordre passe a ta place.",
-            "Eve ne te demande jamais tes cles d'echange, ni ton mot de " +
+            "Allure ne te demande jamais tes cles d'echange, ni ton mot de " +
             "passe Bitvavo ou Binance. Personne de serieux ne le fait.",
-            "Eve ne promet aucun gain. Les signaux publies sont ceux d'un " +
-            "robot qui engage son propre argent, et il perd regulierement.",
+            "Allure ne promet aucun gain. Les signaux publies sont ceux " +
+            "d'un robot qui engage son propre argent, et il perd " +
+            "regulierement.",
           ].map((texte, i) => (
             <T key={i} v="petit" style={{ marginBottom: espace.m,
                                           lineHeight: 20 }}>
@@ -303,18 +283,19 @@ export function EcranCompte({ email }: { email: string }) {
       <Rubrique titre="Informations">
         <Carte>
           {[
-            ["Conditions d'utilisation", "https://eve-signaux.fr/cgu"],
-            ["Politique de confidentialite", "https://eve-signaux.fr/confidentialite"],
-            ["Nous ecrire", "mailto:contact@eve-signaux.fr"],
+            ["Conditions d'utilisation", "https://allure-trading.fr/cgu"],
+            ["Politique de confidentialite", "https://allure-trading.fr/confidentialite"],
+            ["Nous ecrire", "mailto:contact@allure-trading.fr"],
           ].map(([libelle, url]) => (
-            <T key={url} v="corps" couleur={c.laiton}
-               style={{ paddingVertical: espace.s }}
+            <T key={url} v="corps" couleur={c.encre}
+               style={{ paddingVertical: espace.s,
+                        textDecorationLine: "underline" }}
                onPress={() => Linking.openURL(url)}>
               {libelle}
             </T>
           ))}
           <Separateur marge={espace.s} />
-          <T v="corps" couleur={c.baisse} style={{ paddingVertical: espace.s }}
+          <T v="corps" couleur={c.perte} style={{ paddingVertical: espace.s }}
              onPress={() => supabase.auth.signOut()}>
             Se deconnecter
           </T>
@@ -323,7 +304,7 @@ export function EcranCompte({ email }: { email: string }) {
 
       <T v="legende" style={{ textAlign: "center", marginTop: espace.xxl,
                               lineHeight: 17 }}>
-        Eve publie des analyses de marche. Ce n'est pas un conseil en
+        Allure publie des analyses de marche. Ce n'est pas un conseil en
         investissement personnalise. Nous ne detenons aucun fonds.
       </T>
     </ScrollView>

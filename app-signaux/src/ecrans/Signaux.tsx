@@ -74,7 +74,7 @@ export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void })
       refreshControl={
         <RefreshControl
           refreshing={rafraichit}
-          tintColor={c.laiton}
+          tintColor={c.jaune}
           onRefresh={async () => {
             setRafraichit(true); await charger(); setRafraichit(false);
           }}
@@ -100,7 +100,7 @@ export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void })
               style={{
                 paddingVertical: espace.m, marginRight: espace.xl,
                 borderBottomWidth: 2, marginBottom: -1,
-                borderBottomColor: onglet === cle ? c.laiton : "transparent",
+                borderBottomColor: onglet === cle ? c.jaune : "transparent",
               }}
               onPress={() => setOnglet(cle)}
             >
@@ -145,8 +145,8 @@ export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void })
           Annoncer « BTC vient de passer a l'achat, abonne-toi » serait
           donner le signal tout en pretendant le vendre. */}
       {data?.tier === "free" && (data?.masques ?? 0) > 0 ? (
-        <Carte style={{ marginTop: espace.m }} accent={c.laiton}>
-          <T v="etiquette">Eve Plus</T>
+        <Carte style={{ marginTop: espace.m }} accent>
+          <T v="etiquette">Allure Plus</T>
           <T v="sousTitre" style={{ marginTop: espace.s }}>
             {data.masques === 1
               ? "1 signal en cours ne t'est pas montre"
@@ -154,18 +154,18 @@ export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void })
           </T>
           <T v="petit" style={{ marginTop: espace.s }}>
             Le compte gratuit recoit Bitcoin, Ethereum et Solana, deux
-            heures apres leur publication. Eve Plus donne les 70 cryptos
+            heures apres leur publication. Allure Plus donne les 70 cryptos
             suivies, au moment ou le robot agit.
           </T>
           <View style={{ marginTop: espace.l }}>
-            <Bouton titre="Voir Eve Plus" onPress={versAbonnement} />
+            <Bouton titre="Voir Allure Plus" onPress={versAbonnement} />
           </View>
         </Carte>
       ) : null}
 
       <Separateur marge={espace.xl} />
       <T v="legende" style={{ textAlign: "center", lineHeight: 17 }}>
-        Eve publie des analyses de marche. Ce n'est pas un conseil en
+        Allure publie des analyses de marche. Ce n'est pas un conseil en
         investissement personnalise. Nous ne detenons aucun fonds.
       </T>
     </ScrollView>

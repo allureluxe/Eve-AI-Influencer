@@ -1,29 +1,34 @@
 /**
- * Les briques visuelles communes.
+ * Les briques visuelles ALLURE.
  *
- * Un mot sur les ECRANS DE CHARGEMENT. La specification demande des
- * squelettes plutot qu'une roue qui tourne, et c'est plus qu'une
- * preference : une roue dit « attends », un squelette dit « voila ce
- * qui arrive ». Sur un reseau mobile, la difference entre les deux est
- * celle entre une application qui parait lente et une qui parait
- * solide.
+ * LE FILET NOIR EPAIS EST LA SIGNATURE. La ou les applications du genre
+ * posent des ombres douces et des coins tres arrondis pour paraitre
+ * amicales, ALLURE trace des traits nets de 2 px. Ca se lit comme un
+ * document imprime, pas comme une notification marketing — et c'est ce
+ * qui fait qu'on la transmet.
+ *
+ * Un mot sur les ECRANS DE CHARGEMENT. Squelettes, jamais de roue qui
+ * tourne : une roue dit « attends », un squelette dit « voila ce qui
+ * arrive ». Sur un reseau mobile, c'est la difference entre une
+ * application qui parait lente et une qui parait solide.
  */
 
 import React, { createContext, useContext } from "react";
 import {
-  ActivityIndicator, Animated, Pressable, StyleSheet, Text,
+  ActivityIndicator, Animated, Image, Pressable, StyleSheet, Text,
   useColorScheme, View, ViewStyle,
 } from "react-native";
-import { espace, palettes, polices, rayon, taille, Theme } from "../theme";
+import { espace, palettes, polices, rayon, taille, Theme, TRAIT }
+  from "../theme";
 
 // ------------------------------------------------------------ theme
 
-const ContexteTheme = createContext<Theme>("sombre");
+const ContexteTheme = createContext<Theme>("clair");
 
 export function FournisseurTheme({ children }: { children: React.ReactNode }) {
   const systeme = useColorScheme();
   return (
-    <ContexteTheme.Provider value={systeme === "light" ? "clair" : "sombre"}>
+    <ContexteTheme.Provider value={systeme === "dark" ? "sombre" : "clair"}>
       {children}
     </ContexteTheme.Provider>
   );
@@ -55,23 +60,23 @@ export function T({ v = "corps", couleur, style, children, ...reste }: {
   const c = useCouleurs();
   const styles: Record<VarianteTexte, any> = {
     titreGrand: { fontFamily: polices.titre, fontSize: taille.titreGrand,
-                  color: c.encre, lineHeight: taille.titreGrand * 1.2 },
+                  color: c.encre, lineHeight: taille.titreGrand * 1.15 },
     titre: { fontFamily: polices.titre, fontSize: taille.titre,
-             color: c.encre, lineHeight: taille.titre * 1.25 },
+             color: c.encre, lineHeight: taille.titre * 1.2 },
     sousTitre: { fontFamily: polices.interfaceGras, fontSize: taille.sousTitre,
-                 color: c.encre },
+                 color: c.encre, lineHeight: taille.sousTitre * 1.35 },
     corps: { fontFamily: polices.interface, fontSize: taille.corps,
              color: c.encre, lineHeight: taille.corps * 1.55 },
     petit: { fontFamily: polices.interface, fontSize: taille.petit,
              color: c.encreDouce, lineHeight: taille.petit * 1.5 },
     legende: { fontFamily: polices.interface, fontSize: taille.minuscule,
-               color: c.encrePale },
+               color: c.encrePale, lineHeight: taille.minuscule * 1.4 },
     chiffre: { fontFamily: polices.chiffres, fontSize: taille.corps,
                color: c.encre, fontVariant: ["tabular-nums"] },
-    // Une etiquette : petite, espacee, en capitales. Elle structure
-    // sans crier — le contraire d'un badge colore.
+    // Petite, espacee, en capitales. Elle structure sans crier — le
+    // contraire d'un badge colore.
     etiquette: { fontFamily: polices.interfaceGras, fontSize: taille.minuscule,
-                 color: c.encrePale, letterSpacing: 1.1,
+                 color: c.encrePale, letterSpacing: 1.2,
                  textTransform: "uppercase" },
   };
   return (
@@ -81,41 +86,89 @@ export function T({ v = "corps", couleur, style, children, ...reste }: {
   );
 }
 
-// ------------------------------------------------------------ cartes
+/** Raccourci : le sur-titre de section. */
+export function Etiquette({ children, style }: {
+  children: React.ReactNode; style?: any;
+}) {
+  return <T v="etiquette" style={style}>{children}</T>;
+}
 
-/**
- * Une carte. Pas d'ombre portee, pas de coin tres arrondi : un FILET.
- *
- * Les ombres et les gros arrondis sont la signature visuelle des
- * applications qui veulent paraitre amicales. Un filet fin ressemble a
- * une fiche de dossier, et c'est ce qu'on veut ici.
- */
-export function Carte({ children, style, accent }: {
-  children: React.ReactNode;
-  style?: ViewStyle;
-  /** Un filet vertical a gauche, pour marquer une categorie. */
-  accent?: string;
+// ------------------------------------------------------------ marque
+
+/** Le logo ALLURE, a la taille demandee. */
+export function Logo({ hauteur = 28 }: { hauteur?: number }) {
+  return (
+    <Image
+      source={require("../../assets/logo-allure.png")}
+      style={{ height: hauteur, width: hauteur * (128 / 111),
+               resizeMode: "contain" }}
+      accessibilityLabel="Allure"
+    />
+  );
+}
+
+/** L'en-tete de page : le titre, et le logo discret a droite. */
+export function EnTete({ titre, sousTitre, droite }: {
+  titre: string; sousTitre?: string; droite?: React.ReactNode;
 }) {
   const c = useCouleurs();
   return (
+    <View style={{ marginBottom: espace.l }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-start",
+                     justifyContent: "space-between" }}>
+        <T v="titreGrand" style={{ flex: 1 }}>{titre}</T>
+        {droite ?? <Logo hauteur={26} />}
+      </View>
+      {sousTitre ? (
+        <T v="petit" style={{ marginTop: 2 }}>{sousTitre}</T>
+      ) : null}
+      {/* Le filet fort sous le titre : la signature ALLURE. */}
+      <View style={{ height: TRAIT, backgroundColor: c.filet,
+                     marginTop: espace.m }} />
+    </View>
+  );
+}
+
+// ------------------------------------------------------------ cartes
+
+/**
+ * Une carte. Filet fin par defaut, filet JAUNE EPAIS a gauche si elle
+ * doit attirer l'oeil. Pas d'ombre portee, pas de gros arrondi.
+ */
+export function Carte({ children, style, accent, couleurAccent }: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+  /** Marque la carte d'un filet jaune a gauche. */
+  accent?: boolean;
+  /** Remplace le jaune (resultat d'un trade, vigilance). */
+  couleurAccent?: string;
+}) {
+  const c = useCouleurs();
+  const marque = couleurAccent ?? (accent ? c.jaune : null);
+  return (
     <View style={[{
       backgroundColor: c.surface,
-      borderColor: c.filet,
+      borderColor: c.filetDoux,
       borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: rayon.m,
+      borderRadius: rayon.s,
       padding: espace.l,
-      borderLeftWidth: accent ? 3 : StyleSheet.hairlineWidth,
-      borderLeftColor: accent ?? c.filet,
+      borderLeftWidth: marque ? TRAIT + 1 : StyleSheet.hairlineWidth,
+      borderLeftColor: marque ?? c.filetDoux,
     }, style]}>
       {children}
     </View>
   );
 }
 
-export function Separateur({ marge = 0 }: { marge?: number }) {
+export function Separateur({ marge = 0, fort }: {
+  marge?: number; fort?: boolean;
+}) {
   const c = useCouleurs();
-  return <View style={{ height: StyleSheet.hairlineWidth,
-                        backgroundColor: c.filet, marginVertical: marge }} />;
+  return <View style={{
+    height: fort ? TRAIT : StyleSheet.hairlineWidth,
+    backgroundColor: fort ? c.filet : c.filetDoux,
+    marginVertical: marge,
+  }} />;
 }
 
 // ---------------------------------------------------------- boutons
@@ -134,24 +187,25 @@ export function Bouton({ titre, onPress, variante = "plein", desactive }: {
       disabled={desactive}
       accessibilityRole="button"
       style={({ pressed }) => ({
-        backgroundColor: plein ? c.laiton : "transparent",
-        borderColor: variante === "contour" ? c.laiton : "transparent",
-        borderWidth: variante === "contour" ? 1 : 0,
+        // LE BOUTON PLEIN EST JAUNE ALLURE, texte encre dessus. C'est
+        // l'element le plus reconnaissable de la charte.
+        backgroundColor: plein ? c.jaune : "transparent",
+        borderColor: variante === "contour" ? c.filet : "transparent",
+        borderWidth: variante === "contour" ? TRAIT : 0,
         borderRadius: rayon.s,
         paddingVertical: espace.m + 2,
         paddingHorizontal: espace.xl,
         alignItems: "center",
-        opacity: desactive ? 0.4 : pressed ? 0.75 : 1,
+        opacity: desactive ? 0.35 : pressed ? 0.75 : 1,
       })}
     >
-      <T v="sousTitre" couleur={plein ? c.surLaiton : c.laiton}>{titre}</T>
+      <T v="sousTitre" couleur={plein ? c.surJaune : c.encre}>{titre}</T>
     </Pressable>
   );
 }
 
 // -------------------------------------------------------- squelettes
 
-/** Un bloc gris qui respire, en attendant la donnee. */
 export function Squelette({ largeur = "100%", hauteur = 14, style }: {
   largeur?: number | string; hauteur?: number; style?: ViewStyle;
 }) {
@@ -177,7 +231,6 @@ export function Squelette({ largeur = "100%", hauteur = 14, style }: {
   );
 }
 
-/** Le squelette d'une carte de signal : la forme de ce qui arrive. */
 export function SqueletteCarte() {
   return (
     <Carte style={{ marginBottom: espace.m }}>
@@ -195,20 +248,21 @@ export function SqueletteCarte() {
 // ------------------------------------------------------- etats vides
 
 /**
- * L'ecran vide. Il DIT POURQUOI, et ce n'est pas du confort.
+ * L'ecran vide DIT POURQUOI, et ce n'est pas du confort.
  *
  * Le robot prend environ un signal par jour. Un utilisateur qui ouvre
- * l'application un jour calme voit une liste vide — et sans explication,
- * il conclut que l'application est cassee ou que l'abonnement ne sert a
- * rien. Une phrase suffit a transformer un bug apparent en information.
+ * l'application un jour calme voit une liste vide — et sans
+ * explication, il conclut que l'application est cassee ou que
+ * l'abonnement ne sert a rien. Une phrase transforme un bug apparent
+ * en information.
  */
 export function Vide({ titre, detail }: { titre: string; detail?: string }) {
   const c = useCouleurs();
   return (
     <View style={{ paddingVertical: espace.xxxl, paddingHorizontal: espace.l,
                    alignItems: "center" }}>
-      <View style={{ width: 34, height: StyleSheet.hairlineWidth,
-                     backgroundColor: c.filet, marginBottom: espace.l }} />
+      <View style={{ width: 34, height: TRAIT, backgroundColor: c.jaune,
+                     marginBottom: espace.l }} />
       <T v="sousTitre" couleur={c.encreDouce} style={{ textAlign: "center" }}>
         {titre}
       </T>
@@ -222,7 +276,6 @@ export function Vide({ titre, detail }: { titre: string; detail?: string }) {
   );
 }
 
-/** Le bandeau « donnees du cache », affiche hors ligne. */
 export function BandeauCache({ texte }: { texte: string }) {
   const c = useCouleurs();
   return (
@@ -230,9 +283,8 @@ export function BandeauCache({ texte }: { texte: string }) {
       backgroundColor: c.creux, paddingVertical: espace.s,
       paddingHorizontal: espace.l, borderRadius: rayon.s,
       marginBottom: espace.m, flexDirection: "row", alignItems: "center",
+      borderLeftWidth: TRAIT, borderLeftColor: c.encrePale,
     }}>
-      <View style={{ width: 5, height: 5, borderRadius: rayon.rond,
-                     backgroundColor: c.encrePale, marginRight: espace.s }} />
       <T v="petit">{texte}</T>
     </View>
   );
@@ -242,7 +294,7 @@ export function Chargement() {
   const c = useCouleurs();
   return (
     <View style={{ padding: espace.xxl, alignItems: "center" }}>
-      <ActivityIndicator color={c.laiton} />
+      <ActivityIndicator color={c.jaune} />
     </View>
   );
 }

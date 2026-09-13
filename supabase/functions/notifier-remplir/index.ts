@@ -12,7 +12,7 @@
  * qui la fait passer pour un outil serieux ou pour une arnaque.
  */
 
-import { clientService, reponse, RETARD_GRATUIT_MS } from "../_partage/commun.ts";
+import { clientService, reponse } from "../_partage/commun.ts";
 import { texteCloture, texteMacro, texteSignal } from "../_partage/redaction.ts";
 
 /** Combien de temps avant l'annonce on previent. */
@@ -20,11 +20,13 @@ const PREAVIS_MACRO_MIN = 15;
 
 interface Destinataire {
   id: string;
-  tier: "free" | "plus";
+  tier: string;
   timezone: string;
   notif_nuit: boolean;
   notif_signals: boolean;
   notif_macro: boolean;
+  /** Le retard du palier, lu dans `offres`. Zero = temps reel. */
+  retard_minutes: number;
 }
 
 Deno.serve(async (requete) => {
@@ -39,11 +41,23 @@ Deno.serve(async (requete) => {
   const maintenant = Date.now();
   let crees = 0;
 
+  // Le retard vient de la GRILLE, pas du nom du palier. Sans cette
+  // jointure, un abonne « essentiel » recevrait sa notification deux
+  // heures apres avoir vu le signal dans l'application — il paie le
+  // temps reel et l'alerte arrive en retard.
   const { data: profils } = await service
     .from("profiles")
-    .select("id, tier, timezone, notif_nuit, notif_signals, notif_macro")
+    .select(`id, tier, timezone, notif_nuit, notif_signals, notif_macro,
+             offres!inner (retard_minutes)`)
     .not("push_token", "is", null);
-  const destinataires = (profils ?? []) as Destinataire[];
+
+  const destinataires = ((profils ?? []) as Array<Record<string, any>>)
+    .map((p) => ({
+      id: p.id, tier: p.tier, timezone: p.timezone,
+      notif_nuit: p.notif_nuit, notif_signals: p.notif_signals,
+      notif_macro: p.notif_macro,
+      retard_minutes: p.offres?.retard_minutes ?? 120,
+    })) as Destinataire[];
 
   /** Ajoute une ligne dans la file, sauf si elle y est deja. */
   async function empiler(
@@ -55,9 +69,10 @@ Deno.serve(async (requete) => {
     const { data: heure } = await service.rpc("heure_denvoi_autorisee", {
       souhaitee: quand.toISOString(),
       fuseau: qui.timezone,
-      // Seul un abonne peut recevoir la nuit, et seulement pour un
-      // signal en temps reel qu'il a explicitement accepte.
-      nuit_permise: qui.notif_nuit && qui.tier === "plus" &&
+      // Seul un palier en temps reel peut recevoir la nuit, et
+      // seulement s'il l'a explicitement accepte : reveiller quelqu'un
+      // pour un signal vieux de deux heures n'a aucun sens.
+      nuit_permise: qui.notif_nuit && qui.retard_minutes === 0 &&
                     kind === "signal_nouveau",
     });
 
@@ -88,9 +103,7 @@ Deno.serve(async (requete) => {
     const { titre, corps } = texteSignal(s.pair, s.side, s.entry_price);
     for (const qui of destinataires) {
       if (!qui.notif_signals) continue;
-      const quand = qui.tier === "plus"
-        ? new Date(publie)
-        : new Date(publie + RETARD_GRATUIT_MS);
+      const quand = new Date(publie + qui.retard_minutes * 60_000);
       await empiler(qui, "signal_nouveau", s.id, titre, corps, quand);
     }
   }

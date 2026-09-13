@@ -49,7 +49,7 @@ function Jauge({ titre, valeur, min, max, legende }: {
         <View style={{
           position: "absolute", left: `${part * 100}%`,
           width: 3, height: 11, top: -4, marginLeft: -1.5,
-          backgroundColor: c.laiton, borderRadius: rayon.rond,
+          backgroundColor: c.jaune, borderRadius: rayon.rond,
         }} />
       </View>
     </View>
@@ -80,7 +80,7 @@ function Courbe({ points }: { points: { capital: number }[] }) {
           descend peut ressembler a une courbe qui monte. */}
       <Line x1={0} y1={y(depart)} x2={L} y2={y(depart)}
             stroke={c.filet} strokeWidth={1} strokeDasharray="3 4" />
-      <Path d={trace} stroke={c.laiton} strokeWidth={1.8} fill="none"
+      <Path d={trace} stroke={c.jaune} strokeWidth={1.8} fill="none"
             strokeLinejoin="round" strokeLinecap="round" />
     </Svg>
   );
@@ -144,7 +144,7 @@ export function EcranAnalyse() {
         paddingBottom: marges.bottom + espace.xxxl,
       }}
       refreshControl={
-        <RefreshControl refreshing={rafraichit} tintColor={c.laiton}
+        <RefreshControl refreshing={rafraichit} tintColor={c.jaune}
           onRefresh={async () => {
             setRafraichit(true); await charger(); setRafraichit(false);
           }} />
@@ -214,7 +214,7 @@ export function EcranAnalyse() {
               {euros(perf.stats.capital_final, 0)}
             </T>
             <T v="chiffre"
-               couleur={perf.stats.variation_pct >= 0 ? c.hausse : c.baisse}
+               couleur={perf.stats.variation_pct >= 0 ? c.gain : c.perte}
                style={{ fontSize: 16, marginLeft: espace.m }}>
               {pourcent(perf.stats.variation_pct)}
             </T>
@@ -238,13 +238,13 @@ export function EcranAnalyse() {
                 Ne montrer que la hausse est un mensonge par omission. */}
             <Statistique libelle="Pire recul"
                          valeur={`-${perf.stats.recul_max_pct} %`}
-                         couleur={c.baisse} />
+                         couleur={c.perte} />
             <Statistique libelle="Gain moyen"
                          valeur={euros(perf.stats.gain_moyen)}
-                         couleur={c.hausse} />
+                         couleur={c.gain} />
             <Statistique libelle="Perte moyenne"
                          valeur={euros(perf.stats.perte_moyenne)}
-                         couleur={c.baisse} />
+                         couleur={c.perte} />
           </View>
 
           {/* Les hypotheses SOUS la courbe, pas derriere un lien. */}

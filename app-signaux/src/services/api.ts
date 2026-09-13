@@ -38,11 +38,65 @@ export interface Signal {
   macro_flag: boolean;
 }
 
+export type Palier = "free" | "essentiel" | "plus" | "pro";
+
+/**
+ * Ce que le palier donne, tel que le SERVEUR le declare.
+ *
+ * L'application ne recopie jamais cette grille : elle la recoit. Une
+ * copie locale se desynchroniserait le jour ou une offre change, et sa
+ * forme la plus probable est la pire — l'ecran promet une capacite que
+ * le serveur refuse.
+ */
+export interface Capacites {
+  tier: Palier;
+  rang: number;
+  nom: string;
+  toutes_paires: boolean;
+  retard_minutes: number;
+  positions_direct: boolean;
+  note_du_matin: boolean;
+  historique_complet: boolean;
+  export_csv: boolean;
+}
+
 export interface ReponseSignaux {
-  tier: "free" | "plus";
+  tier: Palier;
+  capacites: Capacites;
   actifs: Signal[];
   clotures: Signal[];
   masques: number;
+}
+
+/** Une position ouverte, avec le cours du moment. */
+export interface PositionDirecte extends Signal {
+  prix_courant: number | null;
+  variation_pct: number | null;
+  distance_stop_pct: number | null;
+  /** La protection est passee au-dessus du prix d'achat. */
+  a_l_abri: boolean;
+}
+
+export interface ReponseDirect {
+  tier: Palier;
+  positions: PositionDirecte[];
+  cotations_a: string | null;
+  cotations_disponibles: boolean;
+}
+
+export interface Offre {
+  tier: Palier;
+  rang: number;
+  nom: string;
+  accroche: string;
+  toutes_paires: boolean;
+  retard_minutes: number;
+  positions_direct: boolean;
+  note_du_matin: boolean;
+  historique_complet: boolean;
+  export_csv: boolean;
+  produit_id: string | null;
+  prix_indicatif_eur: number | null;
 }
 
 export interface NoteMarche {
@@ -177,6 +231,7 @@ function message(e: unknown): string {
 
 export const api = {
   signaux: () => appeler<ReponseSignaux>("signals"),
+  direct: () => appeler<ReponseDirect>("direct"),
   note: () => appeler<{ note: NoteMarche | null }>("market-note"),
   evenements: () => appeler<{ evenements: Evenement[] }>("events"),
   performance: () => appeler<Performance>("performance"),

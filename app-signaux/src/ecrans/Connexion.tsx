@@ -19,7 +19,7 @@ import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View }
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../services/supabase";
 import { espace, polices, rayon } from "../theme";
-import { Bouton, T, useCouleurs } from "../composants/base";
+import { Bouton, Logo, T, useCouleurs } from "../composants/base";
 
 export function EcranConnexion() {
   const c = useCouleurs();
@@ -58,7 +58,7 @@ export function EcranConnexion() {
       <View style={{ flex: 1, backgroundColor: c.fond,
                      paddingTop: marges.top, paddingHorizontal: espace.xl,
                      justifyContent: "center" }}>
-        <T v="etiquette" couleur={c.laiton}>Verifie ta boite mail</T>
+        <T v="etiquette" couleur={c.jaune}>Verifie ta boite mail</T>
         <T style={{ fontFamily: polices.titre, fontSize: 30, color: c.encre,
                     lineHeight: 38, marginTop: espace.m }}>
           Un lien de connexion est parti
@@ -87,11 +87,9 @@ export function EcranConnexion() {
     >
       <View style={{ flex: 1, paddingTop: marges.top,
                      paddingHorizontal: espace.xl, justifyContent: "center" }}>
-        <T style={{ fontFamily: polices.titre, fontSize: 44, color: c.encre }}>
-          Eve
-        </T>
+        <Logo hauteur={72} />
         <T v="corps" couleur={c.encreDouce}
-           style={{ marginTop: espace.s, marginBottom: espace.xxl }}>
+           style={{ marginTop: espace.l, marginBottom: espace.xxl }}>
           Les signaux d'un robot qui trade son propre argent.
         </T>
 
@@ -118,7 +116,7 @@ export function EcranConnexion() {
         />
 
         {erreur ? (
-          <T v="petit" couleur={c.baisse} style={{ marginBottom: espace.m }}>
+          <T v="petit" couleur={c.perte} style={{ marginBottom: espace.m }}>
             {erreur}
           </T>
         ) : null}

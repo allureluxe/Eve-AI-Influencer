@@ -37,7 +37,7 @@ function Conviction({ valeur }: { valeur: number }) {
       <View style={{ height: 3, backgroundColor: c.creux,
                      borderRadius: rayon.rond, overflow: "hidden" }}>
         <View style={{ width: `${Math.max(2, Math.min(100, valeur))}%`,
-                       height: "100%", backgroundColor: c.laiton }} />
+                       height: "100%", backgroundColor: c.jaune }} />
       </View>
     </View>
   );
@@ -74,14 +74,14 @@ export function CarteSignal({ signal, capital, onPress, marque }: {
 
   const resultat = signal.result_pct;
   const couleurResultat = resultat === null ? c.encreDouce
-    : resultat > 0 ? c.hausse : resultat < 0 ? c.baisse : c.encreDouce;
+    : resultat > 0 ? c.gain : resultat < 0 ? c.perte : c.encreDouce;
 
   return (
     <Pressable onPress={onPress} disabled={!onPress}
                style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
       <Carte
         style={{ marginBottom: espace.m, opacity: clos ? 0.9 : 1 }}
-        accent={clos ? couleurResultat : c.laiton}
+        accent={!clos} couleurAccent={clos ? couleurResultat : undefined}
       >
         {/* --- 1. quelle crypto, quel sens --- */}
         <View style={{ flexDirection: "row", alignItems: "flex-start",
@@ -121,9 +121,9 @@ export function CarteSignal({ signal, capital, onPress, marque }: {
             <View style={{
               paddingHorizontal: espace.s + 2, paddingVertical: 3,
               borderRadius: rayon.s, borderWidth: StyleSheet.hairlineWidth,
-              borderColor: c.laiton,
+              borderColor: c.jaune,
             }}>
-              <T v="legende" couleur={c.laiton}>en cours</T>
+              <T v="legende" couleur={c.jaune}>en cours</T>
             </View>
           )}
         </View>
@@ -168,7 +168,7 @@ export function CarteSignal({ signal, capital, onPress, marque }: {
         {!clos ? <Conviction valeur={signal.conviction} /> : null}
 
         {marque ? (
-          <T v="legende" couleur={c.laiton} style={{ marginTop: espace.m }}>
+          <T v="legende" couleur={c.jaune} style={{ marginTop: espace.m }}>
             Tu as marque ce trade comme pris.
           </T>
         ) : null}

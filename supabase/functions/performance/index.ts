@@ -56,7 +56,7 @@ Deno.serve((requete) =>
     // gratuit qui n'a jamais recu les signaux payants ne doit pas se
     // voir promettre leur performance.
     const signaux = filtrerPourLePalier(
-      (data ?? []) as unknown as Signal[], visiteur.palier);
+      (data ?? []) as unknown as Signal[], visiteur.capacites);
 
     if (signaux.length < MINIMUM_TRADES) {
       return reponse({

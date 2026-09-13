@@ -44,7 +44,7 @@ function LigneEvenement({ e }: { e: Evenement }) {
   const fort = e.impact === "high";
   return (
     <Carte style={{ marginBottom: espace.m }}
-           accent={fort ? c.vigilance : undefined}>
+           couleurAccent={fort ? c.vigilance : undefined}>
       <View style={{ flexDirection: "row", justifyContent: "space-between",
                      alignItems: "flex-start" }}>
         <View style={{ flex: 1, paddingRight: espace.m }}>
@@ -144,7 +144,7 @@ export function EcranAgenda() {
         paddingBottom: marges.bottom + espace.xxxl,
       }}
       refreshControl={
-        <RefreshControl refreshing={rafraichit} tintColor={c.laiton}
+        <RefreshControl refreshing={rafraichit} tintColor={c.jaune}
           onRefresh={async () => {
             setRafraichit(true); await charger(); setRafraichit(false);
           }} />

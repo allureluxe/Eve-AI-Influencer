@@ -173,7 +173,14 @@ class TestCeQuiRemonteVersLApplication(unittest.TestCase):
 
     def test_les_doublons_de_fournisseurs_sont_fusionnes(self):
         # Finnhub dit « US CPI », FMP dit « CPI y/y » : meme annonce.
-        maintenant = time.time()
+        #
+        # L'INSTANT EST FIGE, ET C'EST NECESSAIRE. La deduplication
+        # range les evenements par tranche de 15 minutes ; deux
+        # horodatages a 60 s d'ecart tombent parfois de part et d'autre
+        # d'une borne. Avec `time.time()` ce test echouait environ une
+        # fois sur quinze — assez rare pour passer inapercu longtemps,
+        # assez frequent pour faire douter d'un code correct.
+        maintenant = 1_800_000_000.0          # aligne sur une tranche
         agenda = AgendaEconomique(filtre=_filtre([
             _ev(maintenant + 3600, "US CPI m/m", IMPACT_MEDIUM),
             _ev(maintenant + 3660, "CPI y/y", IMPACT_MEDIUM),

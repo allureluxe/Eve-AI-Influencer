@@ -28,11 +28,40 @@ export const RETARD_GRATUIT_MS = 2 * 60 * 60 * 1000;
 /** Les seules cryptos visibles sans abonnement. */
 export const PAIRES_GRATUITES = ["BTC/EUR", "ETH/EUR", "SOL/EUR"];
 
-export type Palier = "free" | "plus";
+export type Palier = "free" | "essentiel" | "plus" | "pro";
+
+/**
+ * Ce que le palier donne, tel que la base le declare.
+ *
+ * LE FILTRE NE TESTE JAMAIS LE NOM DU PALIER, il teste ces capacites.
+ * Ajouter une offre demain ne demande donc aucune modification ici —
+ * une ligne dans `public.offres` suffit. Un `if (palier === "plus")`
+ * dissemine dans cinq fichiers est la garantie qu'un jour l'un d'eux
+ * sera oublie, et que quelqu'un paiera sans recevoir.
+ */
+export interface Capacites {
+  tier: Palier;
+  rang: number;
+  nom: string;
+  toutes_paires: boolean;
+  retard_minutes: number;
+  positions_direct: boolean;
+  note_du_matin: boolean;
+  historique_complet: boolean;
+  export_csv: boolean;
+}
+
+/** Le repli si la table est injoignable : le palier le plus restrictif. */
+export const CAPACITES_GRATUIT: Capacites = {
+  tier: "free", rang: 0, nom: "Decouverte",
+  toutes_paires: false, retard_minutes: 120, positions_direct: false,
+  note_du_matin: false, historique_complet: false, export_csv: false,
+};
 
 export interface Visiteur {
   id: string;
   palier: Palier;
+  capacites: Capacites;
 }
 
 export function reponse(corps: unknown, statut = 200): Response {
@@ -88,7 +117,24 @@ export async function identifier(
   // Profil absent = compte tout juste cree, le declencheur n'a pas
   // encore tourne. On sert le palier gratuit plutot que de refuser :
   // un premier lancement sur un ecran d'erreur perd l'utilisateur.
-  return { id: auth.user.id, palier: (profil?.tier as Palier) ?? "free" };
+  const palier = (profil?.tier as Palier) ?? "free";
+
+  const { data: offre } = await service
+    .from("offres")
+    .select(`tier, rang, nom, toutes_paires, retard_minutes,
+             positions_direct, note_du_matin, historique_complet, export_csv`)
+    .eq("tier", palier)
+    .single();
+
+  // FAIL-CLOSED. Si la grille est injoignable, on sert le palier le
+  // plus restrictif : un abonne verra momentanement moins que ce qu'il
+  // paie, ce qui se repare ; l'inverse distribuerait gratuitement ce
+  // que d'autres paient, ce qui ne se repare pas.
+  return {
+    id: auth.user.id,
+    palier,
+    capacites: (offre as Capacites | null) ?? CAPACITES_GRATUIT,
+  };
 }
 
 /** Un signal, tel qu'il sort de la base. */
@@ -122,14 +168,20 @@ export interface Signal {
  */
 export function filtrerPourLePalier(
   signaux: Signal[],
-  palier: Palier,
+  capacites: Capacites,
   maintenant = Date.now(),
 ): Signal[] {
-  if (palier === "plus") return signaux;
+  const retardMs = Math.max(0, capacites.retard_minutes) * 60_000;
   return signaux.filter((s) => {
-    if (!PAIRES_GRATUITES.includes(s.pair)) return false;
+    if (!capacites.toutes_paires && !PAIRES_GRATUITES.includes(s.pair)) {
+      return false;
+    }
+    if (retardMs === 0) return true;
     const publie = Date.parse(s.published_at);
-    return Number.isFinite(publie) && maintenant - publie >= RETARD_GRATUIT_MS;
+    // FAIL-CLOSED sur une date illisible : sans elle on ne peut pas
+    // savoir si le retard est ecoule, et laisser passer donnerait
+    // gratuitement un signal en temps reel.
+    return Number.isFinite(publie) && maintenant - publie >= retardMs;
   });
 }
 

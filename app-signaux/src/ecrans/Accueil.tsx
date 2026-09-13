@@ -21,8 +21,8 @@
 import React from "react";
 import { Dimensions, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { espace, polices, rayon, taille } from "../theme";
-import { Bouton, T, useCouleurs } from "../composants/base";
+import { espace, polices, rayon, taille, TRAIT } from "../theme";
+import { Bouton, Logo, T, useCouleurs } from "../composants/base";
 
 const { width: LARGEUR } = Dimensions.get("window");
 
@@ -34,23 +34,23 @@ interface Page {
 
 const PAGES: Page[] = [
   {
-    eyebrow: "Ce qu'Eve fait",
+    eyebrow: "Ce qu'Allure fait",
     titre: "Un robot qui trade son propre argent, et qui te montre tout",
     paragraphes: [
-      "Eve suit un robot qui achete et vend des cryptos avec un vrai " +
+      "Allure suit un robot qui achete et vend des cryptos avec un vrai " +
       "compte. Chaque fois qu'il ouvre une position, tu la vois : la " +
       "crypto, le prix, la protection, et pourquoi.",
       "Tu vois aussi quand il perd. C'est le meme flux, sans tri.",
     ],
   },
   {
-    eyebrow: "Ce qu'Eve ne fait pas",
-    titre: "Eve ne touche jamais a ton argent",
+    eyebrow: "Ce qu'Allure ne fait pas",
+    titre: "Allure ne touche jamais a ton argent",
     paragraphes: [
       "Aucune connexion a ton compte, aucun ordre passe a ta place, " +
       "aucune cle d'echange demandee. Personne de serieux ne t'en " +
       "demandera jamais.",
-      "Eve ne promet aucun gain et ne te dit pas quoi faire. Elle " +
+      "Allure ne promet aucun gain et ne te dit pas quoi faire. Elle " +
       "publie ce qu'un robot fait, tu decides du reste.",
     ],
   },
@@ -95,12 +95,16 @@ export function EcranAccueil({ onTermine }: { onTermine: () => void }) {
                                  justifyContent: "center" }}>
             {/* Un chiffre discret : il situe dans une sequence de trois,
                 ce qui rassure sur la longueur de l'introduction. */}
-            <T v="chiffre" couleur={c.encrePale}
-               style={{ fontSize: 13, marginBottom: espace.l }}>
-              {i + 1} / {PAGES.length}
-            </T>
+            <View style={{ flexDirection: "row", alignItems: "center",
+                           justifyContent: "space-between",
+                           marginBottom: espace.l }}>
+              <T v="chiffre" couleur={c.encrePale} style={{ fontSize: 13 }}>
+                {i + 1} / {PAGES.length}
+              </T>
+              {i === 0 ? <Logo hauteur={38} /> : null}
+            </View>
 
-            <T v="etiquette" couleur={c.laiton}>{p.eyebrow}</T>
+            <T v="etiquette" couleur={c.jaune}>{p.eyebrow}</T>
 
             <T style={{
               fontFamily: polices.titre, fontSize: 32, color: c.encre,
@@ -109,8 +113,8 @@ export function EcranAccueil({ onTermine }: { onTermine: () => void }) {
               {p.titre}
             </T>
 
-            <View style={{ width: 40, height: StyleSheet.hairlineWidth,
-                           backgroundColor: c.filet,
+            <View style={{ width: 40, height: TRAIT,
+                           backgroundColor: c.jaune,
                            marginBottom: espace.xl }} />
 
             {p.paragraphes.map((texte, j) => (
@@ -131,7 +135,7 @@ export function EcranAccueil({ onTermine }: { onTermine: () => void }) {
             <View key={i} style={{
               width: i === page ? 18 : 6, height: 3,
               borderRadius: rayon.rond, marginHorizontal: 3,
-              backgroundColor: i === page ? c.laiton : c.filet,
+              backgroundColor: i === page ? c.jaune : c.filet,
             }} />
           ))}
         </View>

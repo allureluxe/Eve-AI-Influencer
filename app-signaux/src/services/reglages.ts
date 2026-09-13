@@ -6,7 +6,7 @@
  * Il sert uniquement a convertir les pourcentages en euros — « au pire
  * tu perds 2,40 € » plutot que « 0,6 % de risque ». C'est la conversion
  * qui rend l'application comprehensible, et c'est aussi la raison pour
- * laquelle ce chiffre ne doit JAMAIS partir sur un serveur : Eve ne
+ * laquelle ce chiffre ne doit JAMAIS partir sur un serveur : Allure ne
  * touche pas a l'argent de l'utilisateur, ne connait pas son compte, et
  * n'a aucune raison de savoir combien il a.
  *
