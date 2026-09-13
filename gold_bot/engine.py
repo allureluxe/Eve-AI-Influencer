@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 import signal
 import time
+from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
@@ -193,6 +194,21 @@ class TradingEngine:
         instance = cfg.engine.broker
         self.store = StateStore(instance=instance)
         self.journal = TradeJournal(instance=instance)
+        # PUBLICATION VERS L'APPLICATION — OBSERVATEUR, JAMAIS DECIDEUR.
+        #
+        # Sans cle Supabase dans l'environnement, ce publieur est inerte
+        # et le moteur se comporte exactement comme avant. Aucune de ses
+        # methodes ne peut lever : une base injoignable ne doit jamais
+        # empecher un stop de partir.
+        from .signal_publisher import SignalPublisher
+        self.publisher = SignalPublisher.depuis_env(
+            fichier_file=Path(f"data/signaux_en_attente_{instance}.jsonl"))
+        # L'agenda REUTILISE le filtre d'actualites du robot : c'est le
+        # meme code qui bloque les entrees et qui redige la regle affichee
+        # dans l'application. Ils ne peuvent donc pas diverger.
+        from .economic_calendar import AgendaEconomique
+        self.agenda = AgendaEconomique.depuis_env(filtre=self.news)
+        self._agenda_publie_le = 0.0
         # Le journal existe enfin : c'est seulement ici qu'on peut nourrir
         # la ponderation avec les trades reellement fermes.
         alimenter_depuis_journal(self.poids, self.journal.path)
@@ -889,6 +905,11 @@ class TradingEngine:
         state = self.store.state
         state.cycles += 1
         state.last_cycle = time.time()
+        # Rattrapage des publications que Supabase avait refusees. En tete
+        # de cycle et non en queue : si le cycle plante plus loin, le
+        # rattrapage a quand meme eu lieu.
+        self.publisher.rejouer()
+        self._publier_l_agenda()
 
         # 1. Etat reel du compte et des positions
         self.broker.sync()
@@ -1078,6 +1099,7 @@ class TradingEngine:
         self.objectives.record_trade(trade.profit)
         self.store.state.trades_closed += 1
         self.store.forget_position(trade.position_id)
+        self._publier_la_cloture(trade)
 
         obj = self.objectives.status()
         acc = self.risk.account
@@ -1266,6 +1288,92 @@ class TradingEngine:
                   "entree": pos.entry_price, "sl": pos.stop_loss, "tp": pos.take_profit,
                   "score": ev.score, "setup": ev.setup},
         )
+        self._publier_le_signal(ev, pos, sizing)
+
+    def _publier_l_agenda(self) -> None:
+        """Recopie l'agenda vers l'application, une fois par jour."""
+        if time.time() - self._agenda_publie_le < 86400:
+            return
+        self._agenda_publie_le = time.time()
+        try:
+            self.agenda.publier()
+        except Exception as exc:                            # noqa: BLE001
+            logger.warning("agenda non publie : %s", exc)
+
+    def _publier_la_cloture(self, trade: ClosedTrade) -> None:
+        """Ferme dans l'application le ou les signaux de cette position.
+
+        Une position pyramidee a publie un signal par etage, et ils se
+        ferment tous ensemble : au comptant Bitvavo ne connait qu'un
+        avoir par actif, il n'y a pas de sortie partielle par etage.
+        Le pourcentage affiche est celui du PRIX, identique pour tous.
+        """
+        if not self.publisher.actif:
+            return
+        try:
+            if trade.entry_price <= 0:
+                return
+            sens = 1.0 if str(trade.side).lower().endswith(("buy", "achat")) else -1.0
+            result_pct = sens * (trade.exit_price - trade.entry_price) \
+                / trade.entry_price * 100.0
+            statut = "closed_tp" if trade.profit >= 0 else "closed_sl"
+            for etage in range(1, (getattr(trade, "etages", 1) or 1) + 1):
+                self.publisher.publier_cloture(
+                    f"{trade.position_id}:{etage}",
+                    statut, trade.closed_at, result_pct)
+        except Exception as exc:                            # noqa: BLE001
+            logger.warning("publication de la cloture impossible : %s", exc)
+
+    def _publier_le_signal(self, ev, pos, sizing) -> None:
+        """Recopie l'ouverture vers l'application. Ne peut pas echouer.
+
+        Tout est enveloppe : une exception ici remonterait dans
+        `_execute`, c'est-a-dire dans le chemin d'un ordre reel. Le
+        confort de l'application ne justifie jamais ce risque-la.
+        """
+        if not self.publisher.actif:
+            return
+        try:
+            from .signal_publisher import (SignalPublie, calculer_risk_reward,
+                                           conviction_depuis_score,
+                                           paire_lisible, rediger_rationale)
+            inst = self.universe.get(ev.symbol)
+            devise = getattr(inst, "quote_currency", "EUR") or "EUR"
+            paire = paire_lisible(ev.symbol, devise)
+            etage = getattr(pos, "etages", 1) or 1
+            canal = 20
+            entrees = getattr(self.config.strategy, "donchian_entrees", None)
+            if entrees:
+                canal = min(entrees)
+            self.publisher.publier_ouverture(SignalPublie(
+                # L'etage fait partie de la reference : un renfort de
+                # pyramide est un signal a part entiere pour l'utilisateur,
+                # pas une modification du precedent (qui serait refusee).
+                reference=f"{pos.position_id}:{etage}",
+                pair=paire,
+                side="buy" if ev.side.value.lower().startswith(("b", "a")) else "sell",
+                entry_price=float(pos.entry_price),
+                stop_loss=float(pos.stop_loss),
+                take_profit_1=float(pos.take_profit) if pos.take_profit else None,
+                risk_reward=calculer_risk_reward(
+                    pos.entry_price, pos.stop_loss, pos.take_profit),
+                position_size_pct=float(sizing.risk_pct),
+                conviction=conviction_depuis_score(float(ev.score)),
+                rationale=rediger_rationale(paire, canal, etage=etage),
+                macro_flag=self._traverse_une_annonce(),
+            ))
+        except Exception as exc:                            # noqa: BLE001
+            logger.warning("publication du signal impossible : %s", exc)
+
+    def _traverse_une_annonce(self) -> bool:
+        """Renseigne par l'agenda economique (prompt 3). Faux par defaut."""
+        agenda = getattr(self, "agenda", None)
+        if agenda is None:
+            return False
+        try:
+            return bool(agenda.evenement_fort_a_venir())
+        except Exception:                                   # noqa: BLE001
+            return False
 
     # ---------------------------------------------------------------
     # Rythme et supervision

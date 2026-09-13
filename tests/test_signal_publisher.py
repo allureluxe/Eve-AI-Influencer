@@ -1,0 +1,273 @@
+"""La publication vers l'application ne doit jamais gener le trading.
+
+Trois choses sont verrouillees ici, dans l'ordre d'importance :
+
+1. Supabase injoignable => le robot continue et rien n'est perdu.
+2. Un signal publie n'est jamais reecrit.
+3. Un signal part avec tous ses champs, et son texte est lisible.
+"""
+
+from __future__ import annotations
+
+import json
+import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from gold_bot.signal_publisher import (SignalPublie, SignalPublisher,
+                                       SupabaseIndisponible,
+                                       calculer_risk_reward,
+                                       conviction_depuis_score, nom_courant,
+                                       paire_lisible, rediger_rationale)
+
+
+class ClientFactice:
+    """Un Supabase de laboratoire : on lui dit quand tomber en panne."""
+
+    def __init__(self, en_panne: bool = False) -> None:
+        self.en_panne = en_panne
+        self.inserts: list = []
+        self.patchs: list = []
+
+    def inserer(self, table, ligne):
+        if self.en_panne:
+            raise SupabaseIndisponible("panne simulee")
+        self.inserts.append((table, ligne))
+        return [ligne]
+
+    def modifier(self, table, filtre, champs):
+        if self.en_panne:
+            raise SupabaseIndisponible("panne simulee")
+        self.patchs.append((table, filtre, champs))
+        return [champs]
+
+
+def _signal(ref: str = "pos-1") -> SignalPublie:
+    return SignalPublie(
+        reference=ref, pair="BTC/EUR", side="buy",
+        entry_price=58420.0, stop_loss=56100.0, take_profit_1=63000.0,
+        risk_reward=calculer_risk_reward(58420.0, 56100.0, 63000.0),
+        position_size_pct=0.6, conviction=72,
+        rationale=rediger_rationale("BTC/EUR", 10, volume_ratio=1.4),
+    )
+
+
+class TestUnSignalPartAvecTousSesChamps(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp = TemporaryDirectory()
+        self.client = ClientFactice()
+        self.pub = SignalPublisher(
+            client=self.client,
+            fichier_file=Path(self.tmp.name) / "file.jsonl")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_tous_les_champs_de_la_table_sont_renseignes(self):
+        self.assertTrue(self.pub.publier_ouverture(_signal()))
+        table, ligne = self.client.inserts[0]
+        self.assertEqual(table, "signals")
+        for champ in ("reference", "pair", "side", "entry_price", "stop_loss",
+                      "take_profit_1", "risk_reward", "position_size_pct",
+                      "conviction", "rationale", "status", "macro_flag",
+                      "published_at"):
+            self.assertIn(champ, ligne, f"champ manquant : {champ}")
+
+    def test_la_conviction_est_toujours_presente_car_NOT_NULL_en_base(self):
+        # Un signal sans score connu doit quand meme s'inserer : la colonne
+        # est NOT NULL, une absence ferait echouer l'insert en silence.
+        s = _signal()
+        s.conviction = None
+        self.pub.publier_ouverture(s)
+        self.assertEqual(self.client.inserts[0][1]["conviction"], 0)
+
+    def test_la_date_de_publication_est_posee(self):
+        self.pub.publier_ouverture(_signal())
+        self.assertIsNotNone(self.client.inserts[0][1]["published_at"])
+
+    def test_le_mode_brouillon_laisse_la_date_nulle(self):
+        # Un brouillon reste invisible de l'application ET modifiable.
+        self.pub.publier_ouverture(_signal(), brouillon=True)
+        self.assertIsNone(self.client.inserts[0][1]["published_at"])
+
+    def test_le_format_de_paire_respecte_la_contrainte_de_la_base(self):
+        import re
+        motif = re.compile(r"^[A-Z0-9]{2,12}/[A-Z]{3,5}$")
+        for symbole, devise in [("BTCEUR", "EUR"), ("LINKUSD", "USD"),
+                                ("1INCHEUR", "EUR"), ("PEPEEUR", "EUR")]:
+            self.assertRegex(paire_lisible(symbole, devise), motif)
+
+
+class TestLeTextePourLUtilisateur(unittest.TestCase):
+
+    def test_pas_un_mot_de_jargon(self):
+        texte = rediger_rationale("BTC/EUR", 10, volume_ratio=1.4).lower()
+        for mot in ("atr", "donchian", "canal", " r ", "multiple",
+                    "drawdown", "sharpe", "quorum"):
+            self.assertNotIn(mot, texte, f"jargon detecte : {mot!r}")
+
+    def test_aucune_promesse_de_gain(self):
+        # Interdit par le prompt 9 et par la conformite Play Store.
+        for etage in (1, 2):
+            texte = rediger_rationale("ETH/EUR", 10, etage=etage).lower()
+            for promesse in ("garanti", "assure", "certain", "va monter",
+                             "profit garanti", "sans risque"):
+                self.assertNotIn(promesse, texte)
+
+    def test_deux_a_trois_phrases(self):
+        texte = rediger_rationale("SOL/EUR", 10, volume_ratio=1.4)
+        phrases = [p for p in texte.split(".") if p.strip()]
+        self.assertIn(len(phrases), (2, 3), f"{len(phrases)} phrases : {texte}")
+
+    def test_la_base_exige_au_moins_vingt_caracteres(self):
+        # check (length(btrim(rationale)) >= 20) dans la migration.
+        self.assertGreaterEqual(len(rediger_rationale("XRP/EUR", 10).strip()), 20)
+
+    def test_les_noms_sont_ceux_du_grand_public(self):
+        self.assertEqual(nom_courant("BTC/EUR"), "Le bitcoin")
+        # Repli sur le symbole quand la crypto n'est pas connue du grand
+        # public : mieux vaut « Le PENDLE » qu'une invention.
+        self.assertEqual(nom_courant("PENDLE/EUR"), "Le PENDLE")
+
+    def test_un_renfort_de_pyramide_s_explique_differemment(self):
+        texte = rediger_rationale("BTC/EUR", 10, etage=3)
+        self.assertIn("renfor", texte.lower())
+
+
+class TestLesChiffresAffiches(unittest.TestCase):
+
+    def test_le_rapport_est_nul_quand_il_n_y_a_pas_d_objectif(self):
+        # LE ROBOT ARME TOURNE SANS OBJECTIF DE PRIX (tp_actif: false).
+        # Inventer un rapport « 2 pour 1 » serait un chiffre faux affiche
+        # a l'utilisateur — donc None, et l'application n'affiche rien.
+        self.assertIsNone(calculer_risk_reward(100.0, 95.0, None))
+
+    def test_le_rapport_se_calcule_sur_la_distance_au_stop(self):
+        self.assertAlmostEqual(calculer_risk_reward(100.0, 95.0, 110.0), 2.0)
+
+    def test_la_conviction_part_du_seuil_d_entree_pas_de_zero(self):
+        # Le robot n'entre pas sous 0,45. Afficher « 45 sur 100 » pour une
+        # entree tout juste acceptee ferait croire a une demi-conviction.
+        self.assertEqual(conviction_depuis_score(0.45), 0)
+        self.assertEqual(conviction_depuis_score(1.00), 100)
+        self.assertEqual(conviction_depuis_score(0.725), 50)
+
+
+class TestLaPanneNeGenePasLeRobot(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp = TemporaryDirectory()
+        self.chemin = Path(self.tmp.name) / "file.jsonl"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_supabase_muet_ne_leve_aucune_exception(self):
+        pub = SignalPublisher(client=ClientFactice(en_panne=True),
+                              fichier_file=self.chemin)
+        self.assertFalse(pub.publier_ouverture(_signal()))
+        self.assertFalse(pub.publier_cloture("pos-1:1", "closed_tp", 0.0, 4.2))
+
+    def test_ce_qui_n_est_pas_parti_est_rejoue_ensuite(self):
+        client = ClientFactice(en_panne=True)
+        pub = SignalPublisher(client=client, fichier_file=self.chemin)
+        pub.publier_ouverture(_signal())
+        pub.publier_cloture("pos-1:1", "closed_tp", 1_700_000_000.0, 4.2)
+        self.assertEqual(client.inserts, [])
+
+        client.en_panne = False
+        self.assertEqual(pub.rejouer(), 2)
+        self.assertEqual(len(client.inserts), 1)
+        self.assertEqual(len(client.patchs), 1)
+        self.assertEqual(pub.rejouer(), 0, "rejoue deux fois")
+
+    def test_la_file_survit_a_un_redemarrage(self):
+        client = ClientFactice(en_panne=True)
+        SignalPublisher(client=client, fichier_file=self.chemin) \
+            .publier_ouverture(_signal())
+
+        client.en_panne = False
+        repris = SignalPublisher(client=client, fichier_file=self.chemin)
+        self.assertEqual(repris.rejouer(), 1)
+
+    def test_un_redemarrage_ne_republie_pas_ce_qui_attend_deja(self):
+        # Sans cette memoire, un robot relance pendant une panne inserait
+        # le meme signal une deuxieme fois — et l'index unique de la base
+        # ferait echouer le rattrapage de tout ce qui suit.
+        client = ClientFactice(en_panne=True)
+        SignalPublisher(client=client, fichier_file=self.chemin) \
+            .publier_ouverture(_signal())
+
+        repris = SignalPublisher(client=client, fichier_file=self.chemin)
+        repris.publier_ouverture(_signal())
+        lignes = [l for l in self.chemin.read_text().splitlines() if l.strip()]
+        self.assertEqual(len(lignes), 1)
+
+    def test_l_ordre_est_respecte_au_rattrapage(self):
+        # Une cloture qui partirait avant son ouverture ne trouverait
+        # aucune ligne a modifier, et le signal resterait actif pour
+        # toujours dans l'application.
+        client = ClientFactice(en_panne=True)
+        pub = SignalPublisher(client=client, fichier_file=self.chemin)
+        pub.publier_ouverture(_signal())
+        pub.publier_cloture("pos-1:1", "closed_sl", 1.0, -1.5)
+        taches = [json.loads(l) for l in self.chemin.read_text().splitlines()
+                  if l.strip()]
+        self.assertEqual([t["type"] for t in taches], ["ouverture", "cloture"])
+
+    def test_sans_cle_le_publieur_est_inerte(self):
+        pub = SignalPublisher(client=None, fichier_file=self.chemin)
+        self.assertFalse(pub.actif)
+        self.assertFalse(pub.publier_ouverture(_signal()))
+        self.assertFalse(self.chemin.exists(), "ecrit alors qu'il est inerte")
+
+
+class TestUnSignalPublieNEstJamaisReecrit(unittest.TestCase):
+    """La regle la plus importante du module.
+
+    Un historique retouchable rend la courbe de performance de
+    l'application — et donc l'abonnement qu'elle justifie — sans valeur.
+    Le verrou definitif est le declencheur `signals_immuables` en base
+    (migration 20260913090000) ; ici on verifie que le robot lui-meme ne
+    tente jamais autre chose qu'une cloture.
+    """
+
+    def setUp(self):
+        self.tmp = TemporaryDirectory()
+        self.client = ClientFactice()
+        self.pub = SignalPublisher(
+            client=self.client,
+            fichier_file=Path(self.tmp.name) / "file.jsonl")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_la_cloture_ne_touche_que_trois_champs(self):
+        self.pub.publier_ouverture(_signal())
+        self.pub.publier_cloture("pos-1:1", "closed_tp", 1_700_000_000.0, 4.2)
+        _, filtre, champs = self.client.patchs[0]
+        self.assertEqual(filtre, "reference=eq.pos-1:1")
+        self.assertEqual(set(champs), {"status", "closed_at", "result_pct"})
+
+    def test_republier_le_meme_signal_ne_fait_rien(self):
+        self.pub.publier_ouverture(_signal())
+        self.pub.publier_ouverture(_signal())     # prix change entre-temps
+        self.assertEqual(len(self.client.inserts), 1)
+
+    def test_un_statut_de_cloture_inconnu_est_refuse(self):
+        # « active » n'est pas une cloture : laisser passer rouvrirait un
+        # signal ferme.
+        with self.assertRaises(ValueError):
+            self.pub.publier_cloture("pos-1:1", "active", 0.0, 0.0)
+
+    def test_chaque_etage_de_pyramide_est_un_signal_distinct(self):
+        # Un renfort n'est pas une modification du premier achat : c'est
+        # une nouvelle ligne, sinon la base la refuserait.
+        self.pub.publier_ouverture(_signal("pos-1:1"))
+        self.pub.publier_ouverture(_signal("pos-1:2"))
+        self.assertEqual(len(self.client.inserts), 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
