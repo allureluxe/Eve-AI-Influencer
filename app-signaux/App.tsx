@@ -43,7 +43,9 @@ import { Archivo_400Regular, Archivo_600SemiBold }
 import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
 import type { Session } from "@supabase/supabase-js";
 
+import * as Linking from "expo-linking";
 import { supabase } from "./src/services/supabase";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { demarrerAbonnement } from "./src/services/abonnement";
 import { accueilDejaVu, marquerAccueilVu } from "./src/services/reglages";
 import { FournisseurTheme, Logo, T, useCouleurs, useTheme }
@@ -175,6 +177,26 @@ function Racine() {
     const { data: sub } = supabase.auth.onAuthStateChange(
       (_e, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // Le lien de confirmation d'inscription arrive par le schema
+  // `allure://`. L'e-mail est desormais obligatoire (decision de
+  // l'operateur, 13 sept.) : sans ce traitement, un compte tout juste
+  // cree resterait bloque a "en attente de confirmation" pour toujours.
+  React.useEffect(() => {
+    const traiter = async (url: string) => {
+      const { queryParams } = Linking.parse(url);
+      const jeton = queryParams?.token_hash;
+      if (typeof jeton !== "string") return;
+      const type: EmailOtpType = typeof queryParams?.type === "string"
+        ? queryParams.type as EmailOtpType : "signup";
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: jeton, type });
+      if (error) console.warn("verifyOtp a echoue :", error.message);
+    };
+    Linking.getInitialURL().then((u) => { if (u) traiter(u); });
+    const abo = Linking.addEventListener("url", ({ url }) => traiter(url));
+    return () => abo.remove();
   }, []);
 
 
