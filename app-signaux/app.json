@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Eve",
+    "slug": "eve-signaux",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "eve",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icone.png",
+    "splash": {
+      "image": "./assets/lancement.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#14181D"
+    },
+    "android": {
+      "package": "app.eve.signaux",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icone-adaptative.png",
+        "backgroundColor": "#14181D"
+      },
+      "permissions": ["POST_NOTIFICATIONS"]
+    },
+    "plugins": ["expo-font", "expo-notifications"],
+    "extra": {
+      "supabaseUrl": "@SUPABASE_URL",
+      "supabaseAnonKey": "@SUPABASE_ANON_KEY",
+      "revenueCatAndroidKey": "@REVENUECAT_ANDROID_KEY",
+      "eas": { "projectId": "@EAS_PROJECT_ID" }
+    }
+  }
+}

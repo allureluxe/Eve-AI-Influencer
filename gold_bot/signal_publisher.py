@@ -155,6 +155,12 @@ class SignalPublie:
     take_profit_1: Optional[float] = None
     take_profit_2: Optional[float] = None
     risk_reward: Optional[float] = None
+    #: LE POURCENTAGE DU CAPITAL RISQUE, pas la somme engagee.
+    #: Les deux se ressemblent et different d'un facteur trente : 0,6 %
+    #: de risque correspond ici a ~18 % du capital engage. L'application
+    #: calcule « au pire tu perds X euros » directement depuis ce champ
+    #: (`perteMax` dans format.ts) ; l'interpreter comme une mise
+    #: afficherait un chiffre trente fois trop grand.
     position_size_pct: Optional[float] = None
     conviction: Optional[int] = None
     rationale: str = ""
