@@ -151,7 +151,7 @@ export function EnTete({ titre, sousTitre, droite }: {
 export function Carte({ children, style, accent, couleurAccent }: {
   children: React.ReactNode;
   style?: ViewStyle;
-  /** Marque la carte d'un filet jaune a gauche. */
+  /** Marque la carte d'une bande jaune a gauche. */
   accent?: boolean;
   /** Remplace le jaune (resultat d'un trade, vigilance). */
   couleurAccent?: string;
@@ -161,13 +161,17 @@ export function Carte({ children, style, accent, couleurAccent }: {
   return (
     <View style={[{
       backgroundColor: c.surface,
-      borderColor: c.filetDoux,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: rayon.s,
+      borderRadius: rayon.l,
       padding: espace.l,
-      borderLeftWidth: marque ? TRAIT + 1 : StyleSheet.hairlineWidth,
-      borderLeftColor: marque ?? c.filetDoux,
-    }, style]}>
+      // Ombre douce et coins ronds plutot qu'un filet fin : genre carte
+      // bancaire (Revolut/N26), pas document imprime -- retour reel du
+      // 13 sept., « trop comme un journal ».
+      shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 }, elevation: 2,
+    }, marque ? {
+      borderLeftWidth: 4, borderLeftColor: marque,
+      borderTopLeftRadius: rayon.s, borderBottomLeftRadius: rayon.s,
+    } : null, style]}>
       {children}
     </View>
   );

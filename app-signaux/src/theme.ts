@@ -143,10 +143,12 @@ export const espace = {
 } as const;
 
 /**
- * Les rayons sont FAIBLES. Un coin tres arrondi adoucit et infantilise ;
- * la charte ALLURE tient sur des angles nets.
+ * Rayons modernises (13 sept., retour reel : « trop comme un journal,
+ * plus moderne, une app bancaire »). L'ancienne charte voulait des
+ * angles nets ; l'operateur a tranche pour des cartes arrondies, dans
+ * le genre Revolut/N26/Binance. Decision produit, pas un oubli.
  */
-export const rayon = { s: 3, m: 5, l: 8, rond: 999 } as const;
+export const rayon = { s: 12, m: 16, l: 22, rond: 999 } as const;
 
 export function couleurResultat(p: Palette, valeur: number | null): string {
   if (valeur === null || valeur === 0) return p.encreDouce;

@@ -30,7 +30,7 @@ import { api, ilYA, PositionDirecte, ReponseDirect } from "../services/api";
 import { euros, nomCrypto, perteMax, pourcent, prix, symbole }
   from "../services/format";
 import { useCapital } from "../services/reglages";
-import { espace, rayon, TRAIT } from "../theme";
+import { espace, rayon } from "../theme";
 import {
   BandeauCache, Bouton, Carte, Etiquette, Separateur, Squelette, T,
   useCouleurs, Vide,
@@ -81,9 +81,8 @@ function Position({ p, capital }: { p: PositionDirecte; capital: number }) {
       {/* La protection : l'information qui compte vraiment. */}
       <View style={{
         marginTop: espace.l, padding: espace.m,
+        borderRadius: rayon.m,
         backgroundColor: p.a_l_abri ? c.jaunePale : c.creux,
-        borderLeftWidth: TRAIT,
-        borderLeftColor: p.a_l_abri ? c.jaune : c.filetDoux,
       }}>
         {p.a_l_abri ? (
           <>
@@ -194,14 +193,16 @@ export function EcranDirect({ versAbonnement }: { versAbonnement: () => void }) 
 
       {positions.length > 0 ? (
         <View style={{
-          borderTopWidth: TRAIT, borderBottomWidth: TRAIT,
-          borderColor: c.filet, paddingVertical: espace.l,
+          backgroundColor: total > 0 ? c.jaunePale : c.creux,
+          borderRadius: rayon.l, padding: espace.xl,
           marginBottom: espace.l,
+          shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 12,
+          shadowOffset: { width: 0, height: 4 }, elevation: 2,
         }}>
           <Etiquette>Total en cours sur {euros(capital, 0)}</Etiquette>
           <T v="chiffre"
              couleur={total > 0 ? c.gain : total < 0 ? c.perte : c.encre}
-             style={{ fontSize: 34, marginTop: espace.xs }}>
+             style={{ fontSize: 40, marginTop: espace.xs }}>
             {total >= 0 ? "+" : ""}{euros(total)}
           </T>
           {/* La phrase la plus importante de l'ecran. */}
