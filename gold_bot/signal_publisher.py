@@ -67,16 +67,28 @@ def nom_courant(paire: str) -> str:
 
 
 def paire_lisible(symbole: str, devise: str = "EUR") -> str:
-    """« BTCEUR » -> « BTC/EUR ».
+    """« BTCEUR » -> « BTC/EUR ». « TRXUSD » + devise EUR -> « TRX/EUR ».
 
     Le robot manipule des symboles colles ; la base impose le format
     `BASE/DEVISE` (contrainte `pair ~ '^[A-Z0-9]{2,12}/[A-Z]{3,5}$'`).
     On coupe par la devise de cotation plutot que par une longueur
     fixe : l'univers va de BTC a des symboles de huit lettres.
+
+    Le symbole interne du robot se termine TOUJOURS par « USD », meme
+    quand le marche reel est cote dans une autre devise (EUR chez
+    Bitvavo, achat seul) : c'est une convention de nommage, pas la
+    devise reelle. Sans ce deuxieme cas, chaque signal reel partait
+    vers l'application sous « TRXUSD/EUR » au lieu de « TRX/EUR » —
+    toujours vrai en format, jamais vrai en lecture.
     """
     s = symbole.upper().replace("-", "").replace("/", "").replace("_", "")
     d = devise.upper()
-    base = s[: -len(d)] if d and s.endswith(d) and len(s) > len(d) else s
+    if d and s.endswith(d) and len(s) > len(d):
+        base = s[: -len(d)]
+    elif s.endswith("USD") and len(s) > 3:
+        base = s[:-3]
+    else:
+        base = s
     return f"{base}/{d}" if d else base
 
 

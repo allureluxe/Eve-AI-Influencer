@@ -100,6 +100,18 @@ class TestUnSignalPartAvecTousSesChamps(unittest.TestCase):
                                 ("1INCHEUR", "EUR"), ("PEPEEUR", "EUR")]:
             self.assertRegex(paire_lisible(symbole, devise), motif)
 
+    def test_le_symbole_interne_finit_toujours_en_usd_meme_coteEUR(self):
+        # Le robot achete sur Bitvavo au comptant (EUR), mais son symbole
+        # interne garde le suffixe USD par convention de nommage. Sans
+        # traiter ce cas, chaque signal reel partait sous "TRXUSD/EUR"
+        # au lieu de "TRX/EUR" -- toujours valide pour la contrainte de
+        # la base, jamais lisible pour l'utilisateur.
+        self.assertEqual(paire_lisible("TRXUSD", "EUR"), "TRX/EUR")
+        self.assertEqual(paire_lisible("1INCHUSD", "EUR"), "1INCH/EUR")
+        # La devise reelle reste prioritaire quand elle correspond deja.
+        self.assertEqual(paire_lisible("BTCEUR", "EUR"), "BTC/EUR")
+        self.assertEqual(paire_lisible("LINKUSD", "USD"), "LINK/USD")
+
 
 class TestLeTextePourLUtilisateur(unittest.TestCase):
 
@@ -340,6 +352,9 @@ class TestLeMoteurPubliePourDeVraiUnePositionReelle(unittest.TestCase):
         table, ligne = client.inserts[0]
         self.assertEqual(table, "signals")
         self.assertEqual(ligne["reference"], "TRXUSD:1")
+        # La devise exacte depend de l'univers charge (ici minimal, sans
+        # fetch Bitvavo reel) -- voir test_le_symbole_interne_finit_toujours_en_usd_meme_coteEUR
+        # pour la preuve precise du format "TRX/EUR".
         self.assertTrue(ligne["pair"].startswith("TRX/"))
         self.assertEqual(ligne["side"], "buy")
         self.assertIsNotNone(ligne["published_at"])
