@@ -31,6 +31,7 @@ import { View } from "react-native";
 import { NavigationContainer, DefaultTheme, DarkTheme }
   from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Notifications from "expo-notifications";
@@ -63,19 +64,38 @@ import { espace, polices, TRAIT } from "./src/theme";
 const Onglets = createBottomTabNavigator();
 
 /**
- * L'icone d'un onglet : un TRAIT JAUNE, pas un pictogramme.
+ * L'icone d'un onglet.
  *
- * Les pictogrammes de barre d'onglets sont soit generiques (une maison,
- * un graphique), soit ambigus. Un libelle lisible surmonte du trait
- * ALLURE dit plus, et laisse la typographie porter l'identite.
+ * Un simple trait jaune de 16x2 px etait invisible pour qui ne connait
+ * pas deja le langage graphique ALLURE (retour reel, 13 sept.) : « les
+ * onglets sont invisibles ». Un pictogramme reconnaissable, dans une
+ * pastille jaune quand l'onglet est actif, se comprend sans explication
+ * — c'est le prix a payer pour rester utilisable par un debutant, meme
+ * si c'est moins « signature » qu'un trait epure.
  */
-function Trait({ actif }: { actif: boolean }) {
+const ICONES_ONGLET: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Direct: "flash-outline",
+  Signaux: "list-outline",
+  Marche: "stats-chart-outline",
+  Analyse: "analytics-outline",
+  Bitvavo: "swap-horizontal-outline",
+  Compte: "person-outline",
+};
+
+function IconeOnglet({ route, actif }: { route: string; actif: boolean }) {
   const c = useCouleurs();
   return (
     <View style={{
-      width: 16, height: TRAIT, marginBottom: 4,
+      width: 40, height: 28, borderRadius: 14,
+      alignItems: "center", justifyContent: "center",
       backgroundColor: actif ? c.jaune : "transparent",
-    }} />
+    }}>
+      <Ionicons
+        name={ICONES_ONGLET[route] ?? "ellipse-outline"}
+        size={20}
+        color={actif ? c.surJaune : c.encrePale}
+      />
+    </View>
   );
 }
 
@@ -114,7 +134,7 @@ function Navigation({ session }: { session: Session }) {
                 text: c.encre, border: c.filetDoux, primary: c.jaune },
     }}>
       <Onglets.Navigator
-        screenOptions={{
+        screenOptions={({ route }) => ({
           headerShown: false,
           tabBarActiveTintColor: c.encre,
           tabBarInactiveTintColor: c.encrePale,
@@ -128,8 +148,10 @@ function Navigation({ session }: { session: Session }) {
             fontFamily: polices.interfaceGras, fontSize: 10,
             letterSpacing: 0.4,
           },
-          tabBarIcon: ({ focused }) => <Trait actif={focused} />,
-        }}
+          tabBarIcon: ({ focused }) => (
+            <IconeOnglet route={route.name} actif={focused} />
+          ),
+        })}
       >
         <Onglets.Screen name="Direct" options={{ title: "Direct" }}>
           {({ navigation }) => (

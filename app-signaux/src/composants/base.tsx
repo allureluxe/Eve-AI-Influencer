@@ -16,7 +16,7 @@
 import React, { createContext, useContext } from "react";
 import {
   ActivityIndicator, Animated, Image, Pressable, StyleSheet, Text,
-  useColorScheme, View, ViewStyle,
+  View, ViewStyle,
 } from "react-native";
 import { espace, palettes, polices, rayon, taille, Theme, TRAIT }
   from "../theme";
@@ -26,9 +26,13 @@ import { espace, palettes, polices, rayon, taille, Theme, TRAIT }
 const ContexteTheme = createContext<Theme>("clair");
 
 export function FournisseurTheme({ children }: { children: React.ReactNode }) {
-  const systeme = useColorScheme();
+  // Toujours clair, meme si le telephone est en mode sombre : demande
+  // explicite de l'operateur le 13 sept. (« le fond blanc, pas noir »).
+  // Le theme sombre reste code et fonctionnel (palettes.sombre) au cas
+  // ou on le rebranche un jour derriere un reglage choisi par
+  // l'utilisateur plutot que subi via le systeme.
   return (
-    <ContexteTheme.Provider value={systeme === "dark" ? "sombre" : "clair"}>
+    <ContexteTheme.Provider value="clair">
       {children}
     </ContexteTheme.Provider>
   );
@@ -97,10 +101,19 @@ export function Etiquette({ children, style }: {
 
 /** Le logo ALLURE, a la taille demandee. */
 export function Logo({ hauteur = 28 }: { hauteur?: number }) {
+  // Le fichier d'origine (logo-allure.png) avait un fond BLANC opaque,
+  // pas transparent : sur le theme sombre (fond #15150F), ca dessinait
+  // un rectangle blanc — « ca fait tache sur le noir ». Deux fichiers
+  // detoures (fond transparent) selon le theme : traits noirs sur clair,
+  // traits blancs sur sombre — sinon le texte "ALLURE" et l'illustration
+  // se fondent dans le fond sombre et deviennent illisibles.
+  const sombre = useTheme() === "sombre";
   return (
     <Image
-      source={require("../../assets/logo-allure.png")}
-      style={{ height: hauteur, width: hauteur * (128 / 111),
+      source={sombre
+        ? require("../../assets/logo-sombre.png")
+        : require("../../assets/logo-detoure.png")}
+      style={{ height: hauteur, width: hauteur * (120 / 105),
                resizeMode: "contain" }}
       accessibilityLabel="Allure"
     />
