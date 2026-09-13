@@ -18,6 +18,27 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parent
 sys.path.insert(0, str(RACINE))
 
+# UN DIAGNOSTIC NE DOIT RIEN ECRIRE.
+#
+# Ce script CALIBRE la configuration pour raisonner : il choisit une
+# unite de temps tenable au capital du moment (D1 -> H1, stop temporel
+# 7200 -> 300 min). Cette configuration calibree n'est PAS celle du
+# robot — mais le marqueur de strategie, lui, est partage. L'ecrire ici
+# fait croire au robot, a son prochain demarrage, que la strategie a
+# change : il REMET A ZERO l'echantillon des 40 trades qui commande le
+# palier de risque.
+#
+# Observe le 13 septembre 2026 : les deux empreintes s'ecrasaient a
+# chaque lancement (065a24517609 <-> 3c10cb08dac1) et le compteur
+# affichait 0/40 apres 151 trades reels. Le meme piege avait ete
+# corrige dans rapport_matin.py le 9 septembre ; etat.py et
+# plan_croissance.py avaient ete oublies.
+#
+# LA GARDE DOIT PRECEDER TOUT IMPORT DE gold_bot (sauf gold_bot.env,
+# qui charge le .env et n'ecrit rien). Posee plus bas, elle arrive
+# trop tard.
+os.environ["GB_STRATEGIE_FILE"] = "/tmp/strategie-plan-croissance.json"
+
 from gold_bot.croissance import (ECHANTILLON_MINIMAL, PALIERS, diagnostiquer,
                                  drawdown_probable, projeter)
 from gold_bot.env import charger_env
@@ -29,6 +50,8 @@ from gold_bot.version_strategie import depuis_quand
 # sans le .env, ce rapport lirait un journal vide et annoncerait qu'aucun
 # trade n'existe.
 charger_env()
+
+
 
 GRAS, FIN, VERT, JAUNE, ROUGE = "\033[1m", "\033[0m", "\033[32m", "\033[33m", "\033[31m"
 

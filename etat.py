@@ -20,6 +20,23 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# UN DIAGNOSTIC NE DOIT RIEN ECRIRE.
+#
+# Ce script CALIBRE la configuration pour raisonner : il choisit une
+# unite de temps tenable au capital du moment (D1 -> H1, stop temporel
+# 7200 -> 300 min). Cette configuration calibree n'est PAS celle du
+# robot — mais le marqueur de strategie, lui, est partage. L'ecrire ici
+# fait croire au robot, a son prochain demarrage, que la strategie a
+# change : il REMET A ZERO l'echantillon des 40 trades qui commande le
+# palier de risque.
+#
+# Observe le 13 septembre 2026 : les deux empreintes s'ecrasaient a
+# chaque lancement (065a24517609 <-> 3c10cb08dac1) et le compteur
+# affichait 0/40 apres 151 trades reels. Le meme piege avait ete
+# corrige dans rapport_matin.py le 9 septembre ; etat.py et
+# plan_croissance.py avaient ete oublies.
+os.environ["GB_STRATEGIE_FILE"] = "/tmp/strategie-etat.json"
+
 from gold_bot.calibrage import COUT_INCOMPRESSIBLE, calibrer, duree_stop_temporel
 from gold_bot.promotion import Promotion
 from gold_bot.settings import BotConfig
