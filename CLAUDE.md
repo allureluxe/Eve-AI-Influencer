@@ -1000,6 +1000,27 @@ l'état du pont. Le seul levier qui existe est de ne pas laisser le pont tomber.
 Chercher une option à cocher est une perte de temps ; lancer tmux prend trois
 secondes.
 
+### Ne plus jamais ré-expliquer : REPRISE.md
+
+Garder un fil de conversation ouvert n'est **pas** la bonne façon de conserver
+le contexte — il finira toujours par tomber. Le contexte durable vit dans le
+dépôt, pas dans une conversation.
+
+Deux fichiers, deux rôles, et il ne faut pas les mélanger :
+
+| fichier | contient | change |
+|---|---|---|
+| `CLAUDE.md` | les **décisions** : pourquoi le D1, pourquoi 3 étages, pourquoi pas IBKR | rarement, sur mesure |
+| `REPRISE.md` | l'**état courant** : ce qui est en cours, ce qui attend une réponse | à chaque session |
+
+`.claude/reprise.py`, branché sur le hook `SessionStart`, injecte REPRISE.md
+**plus l'état git réel** (branche, dernier commit, fichiers non commités,
+commits non poussés) au démarrage de chaque session. Toute session qui laisse
+un travail en suspens réécrit REPRISE.md avant de s'arrêter.
+
+Le hook échoue en silence si quoi que ce soit cloche : un hook qui plante ne
+doit jamais empêcher une session de démarrer.
+
 ### La leçon
 
 C'est la même que partout ailleurs dans ce fichier : **une protection qui n'est
