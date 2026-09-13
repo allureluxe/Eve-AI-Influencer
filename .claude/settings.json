@@ -57,5 +57,18 @@
       "Bash(git push --force*)",
       "Bash(git push -f*)"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/reprise.py\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
   }
 }
