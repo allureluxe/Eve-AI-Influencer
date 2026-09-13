@@ -11,7 +11,7 @@
 
 ## En une phrase
 
-Eve conserve votre adresse e-mail pour vous connecter, et rien d'autre
+Allure conserve votre adresse e-mail pour vous connecter, et rien d'autre
 qui vous identifie. Nous ne connaissons ni votre compte de trading, ni
 votre argent, ni vos transactions.
 
@@ -32,7 +32,7 @@ votre argent, ni vos transactions.
 - **Votre capital.** Le montant saisi dans l'onglet Compte sert
   uniquement à convertir les pourcentages en euros sur votre écran.
   Il reste sur votre téléphone et n'est envoyé à aucun serveur.
-- **Vos clés d'échange.** Eve n'en demande jamais et n'en accepterait
+- **Vos clés d'échange.** Allure n'en demande jamais et n'en accepterait
   pas. Aucune fonctionnalité de l'application n'en a besoin.
 - **Vos transactions réelles.** Nous ne savons pas si vous avez suivi
   un signal, sauf si vous l'indiquez vous-même.
@@ -64,7 +64,7 @@ contractuelles types de la Commission européenne.
 
 Vous pouvez demander l'accès à vos données, leur correction, leur
 effacement, leur portabilité, ou vous opposer à leur traitement, en
-écrivant à **contact@eve-signaux.fr**. Réponse sous 30 jours.
+écrivant à **contact@allure-trading.fr**. Réponse sous 30 jours.
 
 Supprimer votre compte efface votre profil, vos trades marqués et vos
 notifications. C'est immédiat et sans confirmation par e-mail.
@@ -81,7 +81,7 @@ l'application.
 
 ## Mineurs
 
-Eve n'est pas destinée aux personnes de moins de 18 ans et ne collecte
+Allure n'est pas destinée aux personnes de moins de 18 ans et ne collecte
 pas sciemment leurs données.
 
 ## Modifications

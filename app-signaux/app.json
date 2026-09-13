@@ -6,9 +6,9 @@
     "orientation": "portrait",
     "scheme": "allure",
     "userInterfaceStyle": "automatic",
-    "icon": "./assets/logo-allure.png",
+    "icon": "./assets/icone.png",
     "splash": {
-      "image": "./assets/logo-allure.png",
+      "image": "./assets/lancement.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
@@ -16,7 +16,7 @@
       "package": "fr.allure.trading",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo-allure.png",
+        "foregroundImage": "./assets/icone-adaptative.png",
         "backgroundColor": "#EFE73C"
       },
       "permissions": [

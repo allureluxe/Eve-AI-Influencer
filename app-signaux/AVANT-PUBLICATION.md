@@ -1,4 +1,4 @@
-# Avant de publier Eve
+# Avant de publier Allure
 
 Ce document est la liste de ce qui doit être vrai le jour de la mise en
 ligne, et de ce qui doit être revérifié à chaque mise à jour.
@@ -50,6 +50,11 @@ curl -s "$SUPABASE_URL/functions/v1/signals" \
 signal de moins de deux heures. Si une autre paire apparaît, l'abonnement
 ne protège rien — et le corriger après la publication est trop tard.
 
+Refais le même appel avec un jeton **Essentiel** : là, toutes les paires
+doivent sortir, sans délai. C'est le palier intermédiaire qui révèle les
+erreurs de filtrage, parce qu'il n'est ni tout à fait gratuit ni tout à
+fait complet — c'est exactement celui qu'un test binaire laisse passer.
+
 ---
 
 ## 2. Conformité Play Store
@@ -61,7 +66,7 @@ Dans Play Console → *Contenu de l'application* → *Applications financières*
 - Type : **information financière / actualités**, pas courtage, pas
   gestion de portefeuille, pas cryptomonnaie négociable.
 - **Ne coche pas** « échange de cryptomonnaies » ni « portefeuille ».
-  Eve n'exécute aucun ordre et ne détient aucun fonds — cocher ces cases
+  Allure n'exécute aucun ordre et ne détient aucun fonds — cocher ces cases
   déclenche une exigence de licence que l'application n'a pas et ne
   justifie pas.
 - Pays de diffusion : là où tu peux répondre en français.
@@ -71,13 +76,13 @@ Dans Play Console → *Contenu de l'application* → *Applications financières*
 Cette phrase est déjà **dans l'application** (bas des onglets Signaux et
 Compte) et doit figurer **à l'identique** dans la fiche du store :
 
-> Eve publie des analyses de marché. Ce n'est pas un conseil en
+> Allure publie des analyses de marché. Ce n'est pas un conseil en
 > investissement personnalisé. Nous ne détenons aucun fonds.
 
 ### Pages publiques à héberger avant la soumission
 
-- `https://eve-signaux.fr/cgu`
-- `https://eve-signaux.fr/confidentialite`
+- `https://allure-trading.fr/cgu`
+- `https://allure-trading.fr/confidentialite`
 
 Modèles fournis dans `app-signaux/legal/`. Les liens sont déjà en dur
 dans l'écran Compte : **une page absente est un motif de rejet**.
@@ -118,10 +123,10 @@ Un montage est un motif de rejet et, plus grave, une promesse implicite.
 | 2 | Signaux | L'historique, **avec au moins un trade perdant à l'écran** |
 | 3 | Analyse | La note du matin et ses jauges |
 | 4 | Analyse | La courbe, avec le pire recul affiché |
-| 5 | Agenda | Une annonce importante et la règle du robot en dessous |
-| 6 | Compte | L'offre Eve Plus |
-| 7 | Compte | Le bloc « ce qu'Eve ne fait pas » |
-| 8 | Accueil | Le deuxième écran (« Eve ne touche jamais à ton argent ») |
+| 5 | Direct | Une position « à l'abri », avec le total en cours |
+| 6 | Marché | Une annonce importante et la règle du robot en dessous |
+| 7 | Compte | La grille des quatre offres |
+| 8 | Accueil | Le deuxième écran (« Allure ne touche jamais à ton argent ») |
 
 La capture 2 est celle qui compte. **Montrer un trade perdant dans la
 vitrine** est ce qui distingue cette application des autres, et c'est
@@ -131,7 +136,7 @@ plus convaincant qu'une série de gains que personne ne croit.
 
 **Titre court (30 caractères)**
 
-    Eve — signaux crypto suivis
+    Allure — signaux crypto suivis
 
 **Description courte (80 caractères)**
 
@@ -140,7 +145,7 @@ plus convaincant qu'une série de gains que personne ne croit.
 **Description longue**
 
 ```
-Eve suit un robot de trading qui achète et vend des cryptomonnaies avec
+Allure suit un robot de trading qui achète et vend des cryptomonnaies avec
 un compte réel. Chaque fois qu'il ouvre une position, tu la vois : la
 crypto, le prix d'entrée, le stop de protection, et l'explication en
 français simple.
@@ -155,31 +160,42 @@ CE QUE TU TROUVES DANS L'APPLICATION
 • L'agenda des annonces économiques, et ce que le robot fait autour
 • L'historique complet des trades terminés, gagnants et perdants
 
-CE QU'EVE NE FAIT PAS
+CE QU'ALLURE NE FAIT PAS
 
-Eve ne touche jamais à ton argent. Aucune connexion à ton compte, aucun
+Allure ne touche jamais à ton argent. Aucune connexion à ton compte, aucun
 ordre passé à ta place, aucune clé d'échange demandée.
 
-Eve ne promet aucun gain et ne te dit pas quoi faire. Elle publie ce
+Allure ne promet aucun gain et ne te dit pas quoi faire. Elle publie ce
 qu'un robot fait ; tu décides du reste.
 
-EVE PLUS
+LES OFFRES
 
 Le compte gratuit reçoit Bitcoin, Ethereum et Solana, deux heures après
-publication. Eve Plus donne les 70 cryptomonnaies suivies, au moment où
+publication. Allure Plus donne les 70 cryptomonnaies suivies, au moment où
 le robot agit.
 
-Eve publie des analyses de marché. Ce n'est pas un conseil en
+Allure publie des analyses de marché. Ce n'est pas un conseil en
 investissement personnalisé. Nous ne détenons aucun fonds. Les résultats
 passés ne préjugent pas des résultats futurs.
 ```
 
-### Icône (512 × 512)
+### Icône
 
-Un « E » en Newsreader, laiton `#C9A15C` sur encre `#14181D`. Pas de
-graphique, pas de flèche, pas de pièce de monnaie : c'est la signature
-visuelle de toutes les applications du genre, et elle rend la nôtre
-indistinguable dans une liste de résultats.
+Déjà produite : `assets/icone.png`, 1024 × 1024, l'emblème Allure sur le
+jaune `#EFE73C`. Pas de graphique, pas de flèche, pas de pièce de
+monnaie — c'est la signature visuelle de toutes les applications du
+genre, et elle rend la nôtre indistinguable dans une liste de résultats.
+
+**Le mot « ALLURE » n'y figure pas volontairement.** Une icône se regarde
+à 48 points ; à cette taille, six lettres deviennent une tache grise. Le
+nom est écrit par Android sous l'icône ; le mettre aussi dans l'image
+l'afficherait deux fois.
+
+**Une limite connue :** le logo source fait 128 × 111 pixels, donc
+l'icône est un agrandissement de huit fois. Ça tient — c'est du trait
+épais — mais si tu retrouves le fichier d'origine (Illustrator, SVG, ou
+un PNG de 1000 pixels et plus), refais-la : la marche à suivre est dans
+`assets/LISEZMOI.md`.
 
 ---
 
