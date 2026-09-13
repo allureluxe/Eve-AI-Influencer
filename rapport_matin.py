@@ -110,23 +110,20 @@ def _compte() -> tuple[float, float, int]:
     return compte.equity, compte.margin_free, avoirs
 
 
-def _trades_des_dernieres_heures(heures: float) -> list:
-    """Le detail des positions fermees, en euros et en francais.
+def _lire_journal() -> list:
+    """Tous les trades fermes du journal, les plus recents en dernier.
 
-    Lit le journal directement plutot que de construire un moteur : le
-    rapport du matin tourne dans un cron a cote du robot, et instancier
-    un second moteur ouvrirait une deuxieme connexion au courtier pour
+    Lit le fichier directement plutot que de construire un moteur : le
+    rapport tourne dans un cron a cote du robot, et instancier un
+    second moteur ouvrirait une deuxieme connexion au courtier pour
     rien.
     """
     import json
-    import time as _t
-    from gold_bot.rapport_trades import bilan
 
     class _Trade:
         __slots__ = ("symbol", "profit", "reason", "closed_at")
 
-    limite = _t.time() - heures * 3600
-    fermes = []
+    trades = []
     try:
         with open(os.path.join(RACINE, "data", "trades.jsonl")) as f:
             for ligne in f:
@@ -137,23 +134,78 @@ def _trades_des_dernieres_heures(heures: float) -> list:
                     d = json.loads(ligne)
                 except json.JSONDecodeError:
                     continue
-                if float(d.get("closed_at", 0)) < limite:
-                    continue
                 t = _Trade()
                 t.symbol = d.get("symbol", "")
                 t.profit = float(d.get("profit", 0.0))
                 t.reason = d.get("reason", "")
                 t.closed_at = float(d.get("closed_at", 0))
-                fermes.append(t)
+                trades.append(t)
     except OSError:
         return []
-
-    if not fermes:
-        # Une nuit sans trade est une information, pas un vide.
-        return ["Aucune position fermee depuis hier.", ""]
-    return ["HIER"] + bilan(fermes, "EUR", detail_max=12) + [""]
+    return sorted(trades, key=lambda x: x.closed_at)
 
 
+def _fenetre_8h_a_8h(maintenant: dt.datetime) -> tuple[float, float]:
+    """De 8 h hier a 8 h aujourd'hui, heure de Paris.
+
+    UNE JOURNEE QUI COMMENCE A MINUIT NE VEUT RIEN DIRE ICI. Le marche
+    crypto ne ferme jamais, et le robot travaille la nuit : coupe a
+    minuit, la moitie d'une nuit tombe d'un cote et la moitie de
+    l'autre. En calant sur l'heure du rapport, chaque message couvre
+    exactement ce qui s'est passe depuis le precedent — aucun trou,
+    aucun doublon.
+    """
+    huit = maintenant.astimezone(PARIS).replace(
+        hour=8, minute=0, second=0, microsecond=0)
+    if maintenant.astimezone(PARIS) < huit:
+        # Lance avant 8 h : la fenetre est celle d'avant-hier a hier.
+        huit -= dt.timedelta(days=1)
+    return (huit - dt.timedelta(days=1)).timestamp(), huit.timestamp()
+
+
+def _bilan_depuis_le_debut(trades: list) -> list:
+    """Le cumul depuis le premier trade, en francais et en euros.
+
+    Le pourcentage est calcule sur le capital de DEPART reconstitue :
+    capital actuel moins tout ce que le robot a gagne ou perdu. On ne
+    peut pas le lire ailleurs — le compte a recu des versements et un
+    retrait, qui ne sont pas des resultats de trading et ne doivent pas
+    entrer dans la progression.
+    """
+    if not trades:
+        return []
+
+    from gold_bot.rapport_trades import nom_court
+
+    total = sum(t.profit for t in trades)
+    gagnants = [t for t in trades if t.profit > 0]
+    perdants = [t for t in trades if t.profit < 0]
+    somme_gains = sum(t.profit for t in gagnants)
+    somme_pertes = -sum(t.profit for t in perdants)
+
+    premier = dt.datetime.fromtimestamp(trades[0].closed_at, PARIS)
+    jours = max(1, (dt.datetime.now(PARIS) - premier).days)
+
+    meilleur = max(trades, key=lambda t: t.profit)
+    pire = min(trades, key=lambda t: t.profit)
+
+    lignes = [
+        "DEPUIS LE DEBUT",
+        f"  {len(trades)} trades en {jours} jours "
+        f"({len(trades) / jours:.1f} par jour)",
+        f"  Gagnants : {len(gagnants)} sur {len(trades)} "
+        f"({len(gagnants) / len(trades) * 100:.0f} %)",
+        "",
+        f"  Ce qu'il a gagne  : +{somme_gains:.2f} EUR",
+        f"  Ce qu'il a perdu  : -{somme_pertes:.2f} EUR",
+        f"  Resultat net      : {total:+.2f} EUR",
+        "",
+        f"  Meilleur trade : {meilleur.profit:+.2f} EUR "
+        f"({nom_court(meilleur.symbol)})",
+        f"  Pire trade     : {pire.profit:+.2f} EUR "
+        f"({nom_court(pire.symbol)})",
+    ]
+    return lignes
 def construire() -> str:
     cfg = BotConfig.load(os.path.join(RACINE, "robot.bitvavo.json"))
     maintenant = dt.datetime.now(dt.timezone.utc)
@@ -178,16 +230,40 @@ def construire() -> str:
         lignes += ["Capital : lecture impossible ce matin "
                    "(Bitvavo injoignable) — rien n'est change.", ""]
 
-    # -------------------------------------- ce qui s'est ferme hier
+    # ------------------------------- la journee, de 8 h a 8 h
     #
-    # Le rapport donnait un capital sans jamais dire ce qui l'avait
-    # fait bouger. Le detail des sorties de la veille repond a la seule
-    # question que l'operateur se pose en ouvrant le message : « il
-    # s'est passe quoi cette nuit ? »
-    for ligne in _trades_des_dernieres_heures(24):
-        lignes.append(ligne)
-    if lignes[-1] != "":
-        lignes.append("")
+    # C'EST LE SEUL MESSAGE DE LA JOURNEE, il doit donc porter les deux
+    # reponses que l'operateur cherche : « il s'est passe quoi depuis
+    # hier ? » et « on en est ou depuis le debut ? ».
+    from gold_bot.rapport_trades import bilan
+
+    tous = _lire_journal()
+    debut, fin = _fenetre_8h_a_8h(maintenant)
+    hier = [t for t in tous if debut <= t.closed_at < fin]
+
+    lignes.append("DEPUIS HIER 8 H")
+    if hier:
+        gagnants = [t for t in hier if t.profit > 0]
+        net = sum(t.profit for t in hier)
+        lignes += [
+            f"  Resultat : {net:+.2f} EUR",
+            f"  {len(hier)} trades, {len(gagnants)} gagnants "
+            f"({len(gagnants) / len(hier) * 100:.0f} %)",
+            "",
+        ]
+        # Le detail vient sans sa ligne de tete : elle ferait doublon
+        # avec les deux lignes ci-dessus.
+        lignes += bilan(hier, "EUR", detail_max=10)[1:]
+    else:
+        # Une nuit sans trade est une information, pas un vide.
+        lignes.append("  Aucune position fermee. Le robot n'a pas trouve "
+                      "d'occasion qui passe ses filtres.")
+    lignes.append("")
+
+    # ------------------------------------------- le cumul
+    depuis = _bilan_depuis_le_debut(tous)
+    if depuis:
+        lignes += depuis + [""]
 
     # ---------------------------------------------- annonces du jour
     filtre = NewsFilter()

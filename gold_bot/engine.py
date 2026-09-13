@@ -1473,22 +1473,27 @@ class TradingEngine:
         if detail:
             lignes += [""] + detail
 
-        # LE NIVEAU DEPEND DE CE QU'IL Y A A DIRE, et c'est deliberé.
+        lignes.append(
+            f"Marches ouverts : "
+            f"{', '.join(i.symbol for i in self.universe.tradable()) or 'aucun'}")
+
+        # CE RAPPORT NE VA JAMAIS SUR LE TELEPHONE. Niveau « info »,
+        # donc sous le seuil du canal Telegram : il reste dans le
+        # journal, ou il sert de preuve de vie et de trace pour le
+        # diagnostic.
         #
-        # Telegram ne laisse passer que « trade » et au-dessus. Un
-        # rapport « rien de neuf » toutes les demi-heures ferait vibrer
-        # le telephone quarante-huit fois par jour pour rien — et la
-        # consigne de l'operateur du 10 septembre etait justement de ne
-        # pas etre notifie pour l'ordinaire. Le rapport ne part donc sur
-        # le telephone QUE si des positions se sont fermees ; sinon il
-        # reste dans le journal, ou il sert de preuve de vie.
-        if detail:
-            self.notifier.trade("Robot actif", "\n".join(lignes))
-        else:
-            lignes.append(
-                f"Marches ouverts : "
-                f"{', '.join(i.symbol for i in self.universe.tradable()) or 'aucun'}")
-            self.notifier.info("Robot actif", "\n".join(lignes))
+        # J'ai essaye l'inverse le 13 septembre — l'envoyer des qu'une
+        # position se fermait. Le robot ferme environ neuf positions par
+        # jour : ca a fait VINGT-SIX messages en une matinee. L'operateur :
+        # « je reçois constamment des messages [...] j'ai pas besoin
+        # qu'il m'envoie ça toute la journée ».
+        #
+        # La lecon est celle du 10 septembre, prise a l'envers : le
+        # seuil Telegram n'est pas un obstacle a contourner, c'est une
+        # decision. Un suivi periodique n'a rien a faire sur un
+        # telephone ; il a sa place dans un rapport quotidien qu'on
+        # ouvre quand on veut. C'est `rapport_matin.py`, a 8 h.
+        self.notifier.info("Robot actif", "\n".join(lignes))
 
     def _daily_report(self) -> None:
         """Bilan quotidien envoye une fois par jour."""
