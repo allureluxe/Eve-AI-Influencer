@@ -1362,7 +1362,7 @@ class TradingEngine:
                 # L'etage fait partie de la reference : un renfort de
                 # pyramide est un signal a part entiere pour l'utilisateur,
                 # pas une modification du precedent (qui serait refusee).
-                reference=f"{pos.position_id}:{etage}",
+                reference=f"{pos.id}:{etage}",
                 pair=paire,
                 side="buy" if ev.side.value.lower().startswith(("b", "a")) else "sell",
                 entry_price=float(pos.entry_price),

@@ -10,9 +10,11 @@ Trois choses sont verrouillees ici, dans l'ordre d'importance :
 from __future__ import annotations
 
 import json
+import time
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 
 from gold_bot.signal_publisher import (SignalPublie, SignalPublisher,
                                        SupabaseIndisponible,
@@ -267,6 +269,80 @@ class TestUnSignalPublieNEstJamaisReecrit(unittest.TestCase):
         self.pub.publier_ouverture(_signal("pos-1:1"))
         self.pub.publier_ouverture(_signal("pos-1:2"))
         self.assertEqual(len(self.client.inserts), 2)
+
+
+class TestLeMoteurPubliePourDeVraiUnePositionReelle(unittest.TestCase):
+    """Le 13 septembre, en production : chaque ouverture echouait avec
+
+        'Position' object has no attribute 'position_id'
+
+    parce que `_publier_le_signal` lisait `pos.position_id` alors que le
+    champ s'appelle `id` sur `gold_bot.core.Position`. L'erreur etait
+    avalee par le `try/except` protecteur (a raison : publier ne doit
+    jamais casser un ordre reel), donc RIEN ne remontait sauf un warning
+    dans les journaux — aucun test ne construisait de vraie `Position` et
+    ne l'envoyait dans le moteur, seulement dans `SignalPublisher`
+    directement. Ce test appelle le meme chemin que l'ouverture reelle.
+    """
+
+    def setUp(self) -> None:
+        import os
+
+        self._env_a_restaurer = {
+            cle: os.environ.pop(cle, None)
+            for cle in ("BITVAVO_API_KEY", "BITVAVO_API_SECRET",
+                        "OKX_API_KEY", "GB_STATE_FILE", "GB_TRADES_FILE")
+        }
+        self._tmp = TemporaryDirectory()
+        self._cwd_avant = os.getcwd()
+        os.chdir(self._tmp.name)
+
+    def tearDown(self) -> None:
+        import os
+
+        os.chdir(self._cwd_avant)
+        self._tmp.cleanup()
+        for cle, valeur in self._env_a_restaurer.items():
+            if valeur is not None:
+                os.environ[cle] = valeur
+
+    def _moteur(self):
+        from gold_bot.engine import TradingEngine
+        from gold_bot.settings import BotConfig
+        cfg = BotConfig.load()
+        cfg.engine.broker = "bitvavo"
+        cfg.engine.dry_run = True
+        return TradingEngine(cfg)
+
+    def test_ouvrir_une_vraie_position_ne_leve_pas_et_publie(self):
+        from gold_bot.core import Position, Side
+
+        moteur = self._moteur()
+        client = ClientFactice()
+        moteur.publisher = SignalPublisher(
+            client=client, fichier_file=Path("signaux_test.jsonl"))
+
+        pos = Position(
+            id="TRXUSD", symbol="TRXUSD", side=Side.BUY, volume=140.106203,
+            entry_price=0.29334, stop_loss=0.28634, take_profit=0.0,
+            opened_at=time.time(),
+        )
+        ev = SimpleNamespace(
+            symbol="TRXUSD", side=Side.BUY, score=0.62, threshold=0.45,
+            setup="donchian_cassure", components=[])
+        sizing = SimpleNamespace(risk_pct=0.51, risk_amount=1.18, lots=pos.volume)
+
+        # Ne doit lever aucune exception : c'est exactement ce que le
+        # try/except de _publier_le_signal masquait le 13 septembre.
+        moteur._publier_le_signal(ev, pos, sizing)
+
+        self.assertEqual(len(client.inserts), 1, "rien n'a ete publie")
+        table, ligne = client.inserts[0]
+        self.assertEqual(table, "signals")
+        self.assertEqual(ligne["reference"], "TRXUSD:1")
+        self.assertTrue(ligne["pair"].startswith("TRX/"))
+        self.assertEqual(ligne["side"], "buy")
+        self.assertIsNotNone(ligne["published_at"])
 
 
 if __name__ == "__main__":
