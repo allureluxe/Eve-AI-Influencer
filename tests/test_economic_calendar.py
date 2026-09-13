@@ -137,7 +137,12 @@ class TestCeQuiRemonteVersLApplication(unittest.TestCase):
             _ev(maintenant + 9000, "Tankan", IMPACT_HIGH, "JPY"),
         ]))
         pays = {l["country"] for l in agenda.evenements(maintenant=maintenant)}
-        self.assertEqual(pays, {"Etats-Unis", "Zone euro"})
+        # Code ISO a deux lettres : la table `economic_events` l'exige
+        # (`country ~ '^[A-Z]{2}$'`). Un nom en francais y a ete envoye
+        # pendant un jour entier sans qu'aucun test ne le remarque —
+        # Supabase le refusait en silence (HTTP 400) jusqu'a ce qu'on lise
+        # les journaux du robot.
+        self.assertEqual(pays, {"US", "EU"})
 
     def test_les_evenements_sans_impact_sont_ecartes(self):
         # Trente lignes par jour rendent l'agenda illisible, et un

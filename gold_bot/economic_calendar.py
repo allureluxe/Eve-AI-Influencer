@@ -50,7 +50,9 @@ log = logging.getLogger(__name__)
 #: Seuls ces pays interessent l'utilisateur francophone. Le reste du
 #: monde bouge les cryptos aussi, mais afficher trente lignes par jour
 #: rend l'agenda illisible — et un agenda illisible n'est pas consulte.
-PAYS_RETENUS = {"USD": "Etats-Unis", "EUR": "Zone euro"}
+#: Valeurs = code ISO a deux lettres, exige par la contrainte de la table
+#: `economic_events` (`country ~ '^[A-Z]{2}$'`) — pas un nom affichable.
+PAYS_RETENUS = {"USD": "US", "EUR": "EU"}
 
 
 # ---------------------------------------------------------------------
