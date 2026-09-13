@@ -247,7 +247,20 @@ class TradingEngine:
         # _execute ; sur un refus qui se reproduira a l'identique, ce
         # reveil relance une boucle d'ERROR toutes les ~10 s.
         self._dernier_refus_courtier = ""
-        self._last_heartbeat = 0.0
+        # L'INSTANT DU DEMARRAGE, PAS ZERO.
+        #
+        # Le rapport periodique liste les trades fermes depuis le
+        # rapport precedent. A zero, le premier rapport apres un
+        # redemarrage remontait jusqu'a `store.state.started_at` — qui
+        # est PERSISTE et vaut donc le tout premier lancement du robot.
+        # Resultat observe le 13 septembre : un message Telegram avec
+        # « ... et 141 autres » a chaque redemarrage.
+        #
+        # Partir de maintenant fait que le premier rapport couvre les
+        # trente minutes qui suivent le demarrage, ce qui est
+        # exactement ce qu'on veut : un redemarrage n'est pas une
+        # occasion de rejouer l'historique.
+        self._last_heartbeat = time.time()
         self._last_report_day = ""
 
     # ---------------------------------------------------------------
