@@ -163,10 +163,31 @@ def _traiter(texte: str, jeton: str, chat: str, etat: dict, test: bool) -> None:
     chemin = page_allure(depuis=depuis, vers=maintenant, titre_periode=libelle)
     taille = os.path.getsize(chemin)
     print(f"page generee sur {libelle} ({taille:,} octets)")
+
+    # LE TELEGRAM PART EN PREMIER, TOUJOURS.
+    # L'impression est un supplement : une imprimante eteinte, un
+    # reseau capricieux ou une configuration absente ne doivent jamais
+    # empecher le rapport d'arriver sur le telephone.
     if not test:
         _envoyer_fichier(jeton, chat, chemin,
                          f"Rapport ALLURE — {libelle}. "
                          "Ouvre le fichier pour voir la page.")
+
+    # ---------------------------------------------------- impression
+    from gold_bot.impression import imprimer, nettoyer
+
+    ok, message = imprimer(
+        chemin, sujet=f"Rapport ALLURE — {libelle}")
+    if message:
+        print(message)
+        # On ne previent sur Telegram QUE si ca a rate. Confirmer
+        # chaque impression reussie ajouterait un message a chaque
+        # demande, pour dire ce que la feuille qui sort dit deja.
+        if not ok and not test:
+            _envoyer_texte(jeton, chat, message)
+    elif ok:
+        print("envoye a l'imprimante")
+    nettoyer()
 
 
 def main() -> int:
