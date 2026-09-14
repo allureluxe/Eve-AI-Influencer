@@ -1,5 +1,5 @@
 /**
- * Onglet Signaux — l'ecran d'accueil.
+ * Onglet Signaux.
  *
  * UN JOUR SANS SIGNAL EST LE CAS NORMAL, PAS UNE PANNE.
  * Le robot prend environ un signal par jour sur 70 cryptos, et sa
@@ -8,18 +8,54 @@
  * conclut que l'application est cassee, ou que l'abonnement ne sert a
  * rien. L'ecran vide DIT pourquoi. C'est une ligne de texte, et c'est
  * probablement ce qui evite le plus de desabonnements.
+ *
+ * LISTE PUIS DETAIL (14 sept.). Chaque signal affichait toutes ses
+ * informations d'un coup, empilees ; retour reel : « trop compacte,
+ * pas fluide ». La liste montre une ligne par signal ; le detail
+ * complet (CarteSignal) ne s'ouvre qu'au clic.
  */
 
 import React from "react";
-import { RefreshControl, ScrollView, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api, ilYA, ReponseSignaux } from "../services/api";
-import { espace, rayon } from "../theme";
+import { api, ilYA, ReponseSignaux, Signal } from "../services/api";
+import { espace } from "../theme";
 import {
   BandeauCache, Bouton, Carte, Separateur, SqueletteCarte, T, useCouleurs, Vide,
 } from "../composants/base";
 import { CarteSignal } from "../composants/CarteSignal";
+import { LigneFloutee, LigneSignal } from "../composants/LigneSignal";
 import { useCapital } from "../services/reglages";
+
+/** Le detail plein ecran d'un signal, avec retour et l'action « pris ». */
+function DetailSignal({ signal, capital, onRetour }: {
+  signal: Signal; capital: number; onRetour: () => void;
+}) {
+  const c = useCouleurs();
+  const marges = useSafeAreaInsets();
+  const [pris, setPris] = React.useState(false);
+
+  return (
+    <ScrollView
+      style={{ backgroundColor: c.fond }}
+      contentContainerStyle={{
+        padding: espace.l, paddingTop: marges.top + espace.m,
+        paddingBottom: marges.bottom + espace.xxxl,
+      }}
+    >
+      <Pressable onPress={onRetour} style={{ marginBottom: espace.l }}>
+        <T v="sousTitre" couleur={c.encreDouce}>‹ Retour</T>
+      </Pressable>
+
+      <CarteSignal signal={signal} capital={capital} marque={pris} />
+
+      {signal.status === "active" && !pris ? (
+        <Bouton titre="J'ai pris ce trade"
+                onPress={() => { api.marquerPris(signal.id); setPris(true); }} />
+      ) : null}
+    </ScrollView>
+  );
+}
 
 export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void }) {
   const c = useCouleurs();
@@ -32,6 +68,7 @@ export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void })
   const [chargeUneFois, setChargeUneFois] = React.useState(false);
   const [rafraichit, setRafraichit] = React.useState(false);
   const [onglet, setOnglet] = React.useState<"encours" | "historique">("encours");
+  const [ouvert, setOuvert] = React.useState<Signal | null>(null);
 
   const charger = React.useCallback(async () => {
     const r = await api.signaux();
@@ -59,6 +96,11 @@ export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void })
         <SqueletteCarte /><SqueletteCarte /><SqueletteCarte />
       </ScrollView>
     );
+  }
+
+  if (ouvert) {
+    return <DetailSignal signal={ouvert} capital={capital}
+                         onRetour={() => setOuvert(null)} />;
   }
 
   const liste = onglet === "encours"
@@ -115,16 +157,18 @@ export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void })
       ) : null}
 
       {liste.map((s) => (
-        <CarteSignal
-          key={s.id}
-          signal={s}
-          capital={capital}
-          onPress={s.status === "active"
-            ? () => api.marquerPris(s.id) : undefined}
-        />
+        <LigneSignal key={s.id} signal={s} onPress={() => setOuvert(s)} />
       ))}
 
-      {liste.length === 0 && !erreur ? (
+      {/* Les signaux payants non envoyes : un gabarit floute par
+          signal cache, jamais leur contenu -- voir LigneSignal.tsx. */}
+      {onglet === "encours" && data?.tier === "free"
+        ? Array.from({ length: data?.masques ?? 0 }).map((_, i) => (
+            <LigneFloutee key={`masque-${i}`} />
+          ))
+        : null}
+
+      {liste.length === 0 && !erreur && !(data?.masques ?? 0) ? (
         onglet === "encours" ? (
           <Vide
             titre="Aucune position ouverte aujourd'hui"
@@ -141,9 +185,6 @@ export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void })
         )
       ) : null}
 
-      {/* L'invitation a l'abonnement : un NOMBRE, jamais un contenu.
-          Annoncer « BTC vient de passer a l'achat, abonne-toi » serait
-          donner le signal tout en pretendant le vendre. */}
       {data?.tier === "free" && (data?.masques ?? 0) > 0 ? (
         <Carte style={{ marginTop: espace.m }} accent>
           <T v="etiquette">Allure Plus</T>

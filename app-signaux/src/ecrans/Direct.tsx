@@ -21,10 +21,13 @@
  *      au-dessus du prix d'achat, la position ne peut plus rien
  *      couter. C'est verifiable, c'est rassurant, et personne ne
  *      l'affiche.
+ *
+ * LISTE PUIS DETAIL (14 sept.), meme principe que Signaux.tsx : une
+ * ligne compacte par position, le detail complet au clic.
  */
 
 import React from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ilYA, PositionDirecte, ReponseDirect } from "../services/api";
 import { euros, nomCrypto, perteMax, pourcent, prix, symbole }
@@ -39,8 +42,49 @@ import {
 /** Le rythme de rafraichissement. Dix secondes : le cache serveur aussi. */
 const RYTHME_MS = 10_000;
 
-function Position({ p, capital }: { p: PositionDirecte; capital: number }) {
+function LignePosition({ p, capital, onPress }: {
+  p: PositionDirecte; capital: number; onPress: () => void;
+}) {
   const c = useCouleurs();
+  const variation = p.variation_pct;
+  const couleur = variation === null ? c.encreDouce
+    : variation > 0 ? c.gain : variation < 0 ? c.perte : c.encreDouce;
+
+  return (
+    <Pressable onPress={onPress}
+               style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+      <View style={{
+        flexDirection: "row", alignItems: "center",
+        backgroundColor: c.surface, borderRadius: rayon.l,
+        paddingVertical: espace.m, paddingHorizontal: espace.l,
+        marginBottom: espace.s,
+        shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 }, elevation: 1,
+      }}>
+        <View style={{ flex: 1 }}>
+          <T v="sousTitre">{nomCrypto(p.pair)}</T>
+          <T v="legende" style={{ marginTop: 1 }}>
+            {p.a_l_abri ? "a l'abri" : "en cours"}
+          </T>
+        </View>
+        <T v="chiffre" couleur={couleur} style={{ fontSize: 18 }}>
+          {variation === null ? "—" : pourcent(variation)}
+        </T>
+        <T v="corps" couleur={c.encrePale}
+           style={{ marginLeft: espace.m, fontSize: 20 }}>
+          ›
+        </T>
+      </View>
+    </Pressable>
+  );
+}
+
+/** Le detail complet d'une position, plein ecran. */
+function DetailPosition({ p, capital, onRetour }: {
+  p: PositionDirecte; capital: number; onRetour: () => void;
+}) {
+  const c = useCouleurs();
+  const marges = useSafeAreaInsets();
   const variation = p.variation_pct;
   const couleur = variation === null ? c.encreDouce
     : variation > 0 ? c.gain : variation < 0 ? c.perte : c.encreDouce;
@@ -55,61 +99,73 @@ function Position({ p, capital }: { p: PositionDirecte; capital: number }) {
   const enEuros = variation === null ? null : engage * variation / 100;
 
   return (
-    <Carte style={{ marginBottom: espace.m }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between",
-                     alignItems: "flex-start" }}>
-        <View style={{ flex: 1 }}>
-          <T v="titre">{nomCrypto(p.pair)}</T>
-          <T v="legende" style={{ marginTop: 2 }}>
-            {symbole(p.pair)} · achete a {prix(p.entry_price)}
-          </T>
-        </View>
-        <View style={{ alignItems: "flex-end" }}>
-          <T v="chiffre" couleur={couleur} style={{ fontSize: 24 }}>
-            {variation === null ? "—" : pourcent(variation)}
-          </T>
-          {enEuros !== null ? (
-            <T v="chiffre" couleur={couleur} style={{ fontSize: 14 }}>
-              {enEuros >= 0 ? "+" : ""}{euros(enEuros)}
-            </T>
-          ) : null}
-          {/* JAMAIS « gagne ». Une position ouverte ne rapporte rien. */}
-          <T v="legende">en cours</T>
-        </View>
-      </View>
+    <ScrollView
+      style={{ backgroundColor: c.fond }}
+      contentContainerStyle={{
+        padding: espace.l, paddingTop: marges.top + espace.m,
+        paddingBottom: marges.bottom + espace.xxxl,
+      }}
+    >
+      <Pressable onPress={onRetour} style={{ marginBottom: espace.l }}>
+        <T v="sousTitre" couleur={c.encreDouce}>‹ Retour</T>
+      </Pressable>
 
-      {/* La protection : l'information qui compte vraiment. */}
-      <View style={{
-        marginTop: espace.l, padding: espace.m,
-        borderRadius: rayon.m,
-        backgroundColor: p.a_l_abri ? c.jaunePale : c.creux,
-      }}>
-        {p.a_l_abri ? (
-          <>
-            <T v="sousTitre" couleur={c.olive}>Cette position est a l'abri</T>
-            <T v="petit" style={{ marginTop: 2 }}>
-              Le robot a remonte sa protection au-dessus du prix d'achat.
-              Meme si le cours retombe, ce trade ne peut plus rien couter.
+      <Carte style={{ marginBottom: espace.m }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between",
+                       alignItems: "flex-start" }}>
+          <View style={{ flex: 1 }}>
+            <T v="titre">{nomCrypto(p.pair)}</T>
+            <T v="legende" style={{ marginTop: 2 }}>
+              {symbole(p.pair)} · achete a {prix(p.entry_price)}
             </T>
-          </>
-        ) : (
-          <>
-            <T v="etiquette">Protection a {prix(p.stop_loss)}</T>
-            <T v="petit" style={{ marginTop: 2 }}>
-              {p.distance_stop_pct !== null
-                ? `Le cours doit encore baisser de ${
-                    p.distance_stop_pct.toFixed(1).replace(".", ",")} % ` +
-                  `avant que le robot ne sorte.`
-                : "Le robot sort automatiquement a ce prix."}
+          </View>
+          <View style={{ alignItems: "flex-end" }}>
+            <T v="chiffre" couleur={couleur} style={{ fontSize: 24 }}>
+              {variation === null ? "—" : pourcent(variation)}
             </T>
-          </>
-        )}
-      </View>
+            {enEuros !== null ? (
+              <T v="chiffre" couleur={couleur} style={{ fontSize: 14 }}>
+                {enEuros >= 0 ? "+" : ""}{euros(enEuros)}
+              </T>
+            ) : null}
+            {/* JAMAIS « gagne ». Une position ouverte ne rapporte rien. */}
+            <T v="legende">en cours</T>
+          </View>
+        </View>
 
-      <T v="petit" couleur={c.encreDouce} style={{ marginTop: espace.m }}>
-        {p.rationale}
-      </T>
-    </Carte>
+        {/* La protection : l'information qui compte vraiment. */}
+        <View style={{
+          marginTop: espace.l, padding: espace.m,
+          borderRadius: rayon.m,
+          backgroundColor: p.a_l_abri ? c.jaunePale : c.creux,
+        }}>
+          {p.a_l_abri ? (
+            <>
+              <T v="sousTitre" couleur={c.olive}>Cette position est a l'abri</T>
+              <T v="petit" style={{ marginTop: 2 }}>
+                Le robot a remonte sa protection au-dessus du prix d'achat.
+                Meme si le cours retombe, ce trade ne peut plus rien couter.
+              </T>
+            </>
+          ) : (
+            <>
+              <T v="etiquette">Protection a {prix(p.stop_loss)}</T>
+              <T v="petit" style={{ marginTop: 2 }}>
+                {p.distance_stop_pct !== null
+                  ? `Le cours doit encore baisser de ${
+                      p.distance_stop_pct.toFixed(1).replace(".", ",")} % ` +
+                    `avant que le robot ne sorte.`
+                  : "Le robot sort automatiquement a ce prix."}
+              </T>
+            </>
+          )}
+        </View>
+
+        <T v="petit" couleur={c.encreDouce} style={{ marginTop: espace.m }}>
+          {p.rationale}
+        </T>
+      </Carte>
+    </ScrollView>
   );
 }
 
@@ -122,6 +178,7 @@ export function EcranDirect({ versAbonnement }: { versAbonnement: () => void }) 
   const [cache, setCache] = React.useState<string | null>(null);
   const [pret, setPret] = React.useState(false);
   const [rafraichit, setRafraichit] = React.useState(false);
+  const [ouvert, setOuvert] = React.useState<PositionDirecte | null>(null);
 
   const charger = React.useCallback(async () => {
     const r = await api.direct();
@@ -157,6 +214,11 @@ export function EcranDirect({ versAbonnement }: { versAbonnement: () => void }) 
       / (Math.abs(p.entry_price - p.stop_loss) / p.entry_price);
     return s + engage * p.variation_pct / 100;
   }, 0);
+
+  if (ouvert) {
+    return <DetailPosition p={ouvert} capital={capital}
+                           onRetour={() => setOuvert(null)} />;
+  }
 
   return (
     <ScrollView
@@ -214,7 +276,8 @@ export function EcranDirect({ versAbonnement }: { versAbonnement: () => void }) 
       ) : null}
 
       {positions.map((p) => (
-        <Position key={p.id} p={p} capital={capital} />
+        <LignePosition key={p.id} p={p} capital={capital}
+                       onPress={() => setOuvert(p)} />
       ))}
 
       {positions.length === 0 ? (
