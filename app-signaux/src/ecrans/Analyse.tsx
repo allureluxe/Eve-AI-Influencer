@@ -174,8 +174,11 @@ export function EcranAnalyse({ versAbonnement }: {
       <View style={{ marginHorizontal: -espace.l }}>
         <Segments options={VUES} choisi={vue} onChoisir={setVue} />
       </View>
-      <Logo hauteur={24} />
-      <T v="titreGrand" style={{ marginTop: espace.m }}>Analyse</T>
+      <View style={{ flexDirection: "row", alignItems: "center",
+                     justifyContent: "space-between" }}>
+        <T v="titreGrand">Analyse</T>
+        <Logo hauteur={38} />
+      </View>
       <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
         Le point du matin, et ce que le robot a fait jusqu'ici.
       </T>

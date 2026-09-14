@@ -234,19 +234,20 @@ export function EcranDirect({ versAbonnement }: { versAbonnement: () => void }) 
           }} />
       }
     >
-      <Logo hauteur={24} />
       <View style={{ flexDirection: "row", alignItems: "center",
-                     justifyContent: "space-between", marginTop: espace.m }}>
+                     justifyContent: "space-between" }}>
         <T v="titreGrand">Direct</T>
-        {/* Le point qui bat. Discret, mais il dit que ca vit. */}
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <View style={{ width: 6, height: 6, borderRadius: rayon.rond,
-                         backgroundColor: data?.cotations_disponibles
-                           ? c.jaune : c.encrePale, marginRight: espace.s }} />
-          <T v="legende">
-            {data?.cotations_disponibles ? "cours en direct" : "cours indisponibles"}
-          </T>
-        </View>
+        <Logo hauteur={38} />
+      </View>
+      {/* Le point qui bat. Discret, mais il dit que ca vit. */}
+      <View style={{ flexDirection: "row", alignItems: "center",
+                     marginTop: espace.s }}>
+        <View style={{ width: 6, height: 6, borderRadius: rayon.rond,
+                       backgroundColor: data?.cotations_disponibles
+                         ? c.jaune : c.encrePale, marginRight: espace.s }} />
+        <T v="legende">
+          {data?.cotations_disponibles ? "cours en direct" : "cours indisponibles"}
+        </T>
       </View>
       <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
         Ce que le robot a d'ouvert en ce moment, au cours actuel.

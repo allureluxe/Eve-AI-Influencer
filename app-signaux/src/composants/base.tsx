@@ -130,7 +130,7 @@ export function EnTete({ titre, sousTitre, droite }: {
       <View style={{ flexDirection: "row", alignItems: "flex-start",
                      justifyContent: "space-between" }}>
         <T v="titreGrand" style={{ flex: 1 }}>{titre}</T>
-        {droite ?? <Logo hauteur={26} />}
+        {droite ?? <Logo hauteur={38} />}
       </View>
       {sousTitre ? (
         <T v="petit" style={{ marginTop: 2 }}>{sousTitre}</T>

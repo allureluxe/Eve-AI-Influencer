@@ -124,8 +124,11 @@ export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void })
         />
       }
     >
-      <Logo hauteur={24} />
-      <T v="titreGrand" style={{ marginTop: espace.m }}>Signaux</T>
+      <View style={{ flexDirection: "row", alignItems: "center",
+                     justifyContent: "space-between" }}>
+        <T v="titreGrand">Signaux</T>
+        <Logo hauteur={38} />
+      </View>
       <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
         Ce que le robot fait avec son propre argent.
       </T>

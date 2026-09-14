@@ -151,7 +151,7 @@ export function EcranCompte({ email, onRevoirPresentation }: {
         paddingBottom: marges.bottom + espace.xxxl,
       }}
     >
-      <EnTete titre="Compte" sousTitre={email} droite={<Logo hauteur={24} />} />
+      <EnTete titre="Compte" sousTitre={email} droite={<Logo hauteur={38} />} />
 
       {/* ------------------------------------------- l'abonnement */}
       {payant ? (
