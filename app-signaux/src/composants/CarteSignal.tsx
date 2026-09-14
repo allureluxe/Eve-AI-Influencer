@@ -24,9 +24,25 @@ import { euros, jour, nomCrypto, perteMax, pourcent, prix, symbole }
 import { Signal } from "../services/api";
 import { Carte, T, useCouleurs } from "./base";
 
-/** La barre de conviction : discrete, jamais spectaculaire. */
+/**
+ * La barre de conviction : discrete, jamais spectaculaire.
+ *
+ * MASQUEE QUAND `valeur` EST NULLE, ET C'EST VOULU. `conviction` se
+ * calcule depuis le score d'entree (`conviction_depuis_score`, cote
+ * robot) -- concu pour l'ancienne strategie a quorum, ou le score
+ * variait entre 0,45 et 1,0. La strategie Donchian (celle qui tourne)
+ * n'a pas ce genre de score : chaque cassure vaut 0, donc CHAQUE
+ * signal affichait « 0 sur 100 » -- un robot qui n'aurait jamais
+ * confiance en rien. Signale par l'operateur le 13 sept. : « la
+ * confiance du robot est toujours a zero, ca ne va pas ».
+ *
+ * Plutot que d'inventer un chiffre pour combler le vide -- exactement
+ * l'erreur que ce depot s'interdit ailleurs -- la barre disparait
+ * simplement tant qu'aucune mesure fiable n'existe pour Donchian.
+ */
 function Conviction({ valeur }: { valeur: number }) {
   const c = useCouleurs();
+  if (valeur <= 0) return null;
   return (
     <View style={{ marginTop: espace.m }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between",
