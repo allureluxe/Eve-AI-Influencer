@@ -23,6 +23,62 @@ import { Dimensions, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { espace, polices, rayon, taille, TRAIT } from "../theme";
 import { Bouton, Logo, T, useCouleurs } from "../composants/base";
+import { supabase } from "../services/supabase";
+import { euros, pourcent } from "../services/format";
+
+interface EtatPublic { capital_eur: number; variation_jour_pct: number; }
+
+/**
+ * Le capital reel et la variation du jour, lus sans compte -- la table
+ * `etat_public` est volontairement lisible par tout le monde (demande
+ * de l'operateur, 14 sept. : « une page d'introduction avec le capital
+ * actuel du bot et le pourcentage journalier »). Publie par
+ * ops/publier_etat_public.py, toutes les 5 minutes.
+ */
+function useEtatPublic(): EtatPublic | null {
+  const [etat, setEtat] = React.useState<EtatPublic | null>(null);
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.from("etat_public")
+          .select("capital_eur, variation_jour_pct")
+          .eq("id", "robot").maybeSingle();
+        if (data) setEtat(data as EtatPublic);
+      } catch {
+        // Pas grave : la page reste utile sans ce chiffre.
+      }
+    })();
+  }, []);
+  return etat;
+}
+
+/** La carte de chiffres, en tete de la toute premiere page. */
+function CarteEnDirect() {
+  const c = useCouleurs();
+  const etat = useEtatPublic();
+  if (!etat) return null;
+  const positif = etat.variation_jour_pct >= 0;
+  return (
+    <View style={{
+      flexDirection: "row", backgroundColor: c.creux,
+      borderRadius: rayon.l, padding: espace.l, marginBottom: espace.xl,
+    }}>
+      <View style={{ flex: 1 }}>
+        <T v="legende">Capital reel du robot, maintenant</T>
+        <T v="chiffre" style={{ fontSize: 26, marginTop: 2 }}>
+          {euros(etat.capital_eur, 0)}
+        </T>
+      </View>
+      <View style={{ alignItems: "flex-end" }}>
+        <T v="legende">Aujourd'hui</T>
+        <T v="chiffre" couleur={positif ? c.gain : c.perte}
+           style={{ fontSize: 26, marginTop: 2 }}>
+          {pourcent(etat.variation_jour_pct)}
+        </T>
+      </View>
+    </View>
+  );
+}
 
 const { width: LARGEUR } = Dimensions.get("window");
 
@@ -37,9 +93,10 @@ const PAGES: Page[] = [
     eyebrow: "Ce qu'Allure fait",
     titre: "Un robot qui trade son propre argent, et qui te montre tout",
     paragraphes: [
-      "Allure suit un robot qui achete et vend des cryptos avec un vrai " +
-      "compte. Chaque fois qu'il ouvre une position, tu la vois : la " +
-      "crypto, le prix, la protection, et pourquoi.",
+      "Depuis fin aout, un robot achete et vend des cryptos avec un vrai " +
+      "compte Bitvavo -- pas une simulation. Chaque fois qu'il ouvre une " +
+      "position, tu la vois : la crypto, le prix, la protection, et " +
+      "pourquoi.",
       "Tu vois aussi quand il perd. C'est le meme flux, sans tri.",
     ],
   },
@@ -124,6 +181,8 @@ export function EcranAccueil({ onTermine }: { onTermine: () => void }) {
                 {texte}
               </T>
             ))}
+
+            {i === 0 ? <CarteEnDirect /> : null}
           </View>
         ))}
       </ScrollView>
