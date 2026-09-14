@@ -121,7 +121,7 @@ function EnteteAnalyse({ vue, onChoisir }: {
       <View style={{ flexDirection: "row", alignItems: "center",
                      justifyContent: "space-between" }}>
         <T v="titreGrand">Analyse</T>
-        <Logo hauteur={38} />
+        <Logo hauteur={114} />
       </View>
       <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
         Le point du matin, et ce que le robot a fait jusqu'ici.

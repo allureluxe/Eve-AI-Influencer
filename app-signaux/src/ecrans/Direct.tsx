@@ -237,7 +237,7 @@ export function EcranDirect({ versAbonnement }: { versAbonnement: () => void }) 
       <View style={{ flexDirection: "row", alignItems: "center",
                      justifyContent: "space-between" }}>
         <T v="titreGrand">Direct</T>
-        <Logo hauteur={38} />
+        <Logo hauteur={114} />
       </View>
       {/* Le point qui bat. Discret, mais il dit que ca vit. */}
       <View style={{ flexDirection: "row", alignItems: "center",

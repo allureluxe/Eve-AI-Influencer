@@ -27,7 +27,7 @@
  */
 
 import React from "react";
-import { View } from "react-native";
+import { Animated, View } from "react-native";
 import { NavigationContainer, DefaultTheme, DarkTheme }
   from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -56,7 +56,7 @@ import { EcranDirect } from "./src/ecrans/Direct";
 import { EcranSignaux } from "./src/ecrans/Signaux";
 import { EcranAnalyseEtMarche } from "./src/ecrans/AnalyseEtMarche";
 import { EcranCompteEtBitvavo } from "./src/ecrans/CompteEtBitvavo";
-import { espace, polices, TRAIT } from "./src/theme";
+import { espace, polices, rayon, TRAIT } from "./src/theme";
 
 const Onglets = createBottomTabNavigator();
 
@@ -183,11 +183,11 @@ function Navigation({ session }: { session: Session }) {
 }
 
 // Duree minimale du logo de lancement, meme quand tout est pret plus tot.
-// Portee a 12 s le 14 sept. (retour reel, deuxieme demande explicite :
-// « dix ou quinze secondes » -- la premiere fois ne precisait pas de
-// chiffre). Sans ce plancher, une connexion rapide fait defiler l'ecran
-// de marque en une fraction de seconde.
-const DUREE_LANCEMENT_MS = 12_000;
+// Redescendue a 5 s le 14 sept. (troisieme demande sur ce meme reglage :
+// 1,8 s -> 12 s -> 5 s, avec ajout d'un indicateur de chargement pour
+// que l'attente se justifie a l'oeil). Sans ce plancher, une connexion
+// rapide fait defiler l'ecran de marque en une fraction de seconde.
+const DUREE_LANCEMENT_MS = 5_000;
 
 function Racine() {
   const [session, setSession] = React.useState<Session | null>(null);
@@ -258,11 +258,22 @@ export default function App() {
 /**
  * L'ecran affiche pendant le chargement des polices.
  *
- * Il porte le logo, pas une roue qui tourne. Le passage a l'application
- * est alors imperceptible.
+ * Porte le logo, PAS une roue qui tourne pendant le chargement du
+ * contenu (voir la note sur les squelettes dans base.tsx) -- mais cet
+ * ecran-la est different : sa duree est un choix de marque assume, pas
+ * une attente reseau, et une barre qui se remplit lui donne un sens au
+ * lieu de ressembler a un blocage (retour reel, 14 sept.).
  */
 function EcranDeLancement() {
   const c = useCouleurs();
+  const progres = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.timing(progres, {
+      toValue: 1, duration: DUREE_LANCEMENT_MS, useNativeDriver: false,
+    }).start();
+  }, [progres]);
+
   return (
     <View style={{ flex: 1, backgroundColor: c.fond,
                    alignItems: "center", justifyContent: "center",
@@ -273,8 +284,15 @@ function EcranDeLancement() {
          style={{ textAlign: "center", marginTop: espace.s }}>
         Les signaux d'un robot qui trade son propre argent.
       </T>
-      <View style={{ width: 34, height: TRAIT, backgroundColor: c.jaune,
-                     marginTop: espace.xl }} />
+      <View style={{ width: 120, height: 4, borderRadius: rayon.rond,
+                     backgroundColor: c.creux, marginTop: espace.xl,
+                     overflow: "hidden" }}>
+        <Animated.View style={{
+          height: "100%", backgroundColor: c.jaune, borderRadius: rayon.rond,
+          width: progres.interpolate({
+            inputRange: [0, 1], outputRange: ["0%", "100%"] }),
+        }} />
+      </View>
     </View>
   );
 }

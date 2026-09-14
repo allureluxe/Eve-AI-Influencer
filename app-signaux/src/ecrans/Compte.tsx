@@ -143,7 +143,7 @@ export function EcranCompte({ email }: { email: string }) {
         paddingBottom: marges.bottom + espace.xxxl,
       }}
     >
-      <EnTete titre="Compte" sousTitre={email} droite={<Logo hauteur={38} />} />
+      <EnTete titre="Compte" sousTitre={email} droite={<Logo hauteur={114} />} />
 
       {/* ------------------------------------------- l'abonnement */}
       {payant ? (

@@ -114,7 +114,7 @@ export function EcranAccueil() {
       <View style={{ flexDirection: "row", alignItems: "center",
                      justifyContent: "space-between" }}>
         <T v="titreGrand">Accueil</T>
-        <Logo hauteur={38} />
+        <Logo hauteur={114} />
       </View>
       <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
         Ce qu'Allure fait, et pourquoi.
