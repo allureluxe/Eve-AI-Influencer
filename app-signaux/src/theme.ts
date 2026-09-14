@@ -143,7 +143,7 @@ export const polices = {
 export const TRAIT = 2;
 
 export const taille = {
-  titreGrand: 30,
+  titreGrand: 40,
   titre: 22,
   sousTitre: 17,
   corps: 15,

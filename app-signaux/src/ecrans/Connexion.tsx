@@ -22,11 +22,9 @@
  */
 
 import React from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet,
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet,
         TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as WebBrowser from "expo-web-browser";
-import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../services/supabase";
 import { espace, polices, rayon } from "../theme";
 import { Bouton, Logo, T, useCouleurs } from "../composants/base";
@@ -49,41 +47,11 @@ function messageErreur(brut: string): string {
   return "Quelque chose s'est mal passe. Reessaie.";
 }
 
-/**
- * Google et Facebook, via l'OAuth deja gere par Supabase Auth --
- * Instagram n'offre pas ce type de connexion pour une application
- * comme celle-ci (retour reel, 14 sept.).
- *
- * INACTIF TANT QUE LES FOURNISSEURS NE SONT PAS CONFIGURES cote
- * Supabase (Authentication > Providers, avec un identifiant Google/
- * Facebook cree par l'operateur -- lui seul peut creer ces acces).
- * L'appel est deja le bon : une fois les fournisseurs actives, ces
- * boutons fonctionnent sans toucher au code de l'application.
- */
-async function connexionOAuth(
-  fournisseur: "google" | "facebook",
-): Promise<string | null> {
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: fournisseur,
-    options: { redirectTo: "allure://connexion", skipBrowserRedirect: true },
-  });
-  if (error || !data?.url) {
-    if (/provider is not enabled/i.test(error?.message ?? "")) {
-      return "Cette connexion n'est pas encore activee.";
-    }
-    return messageErreur(error?.message ?? "");
-  }
-  const resultat = await WebBrowser.openAuthSessionAsync(data.url, "allure://connexion");
-  if (resultat.type !== "success" || !resultat.url) return null;
-  const brut = resultat.url.split("#")[1] ?? resultat.url.split("?")[1] ?? "";
-  const params = new URLSearchParams(brut);
-  const access_token = params.get("access_token");
-  const refresh_token = params.get("refresh_token");
-  if (access_token && refresh_token) {
-    await supabase.auth.setSession({ access_token, refresh_token });
-  }
-  return null;
-}
+// Connexion Google/Facebook : preparee puis retiree le 14 sept. (« oublie
+// FB et Google, c'est pas important ... on le remettra plus tard »). Voir
+// l'historique git de ce fichier (commit 5237380) pour la reprendre :
+// l'appel `signInWithOAuth` + `expo-web-browser` fonctionnait deja, il
+// n'attendait que les identifiants Google/Facebook cote Supabase.
 
 export function EcranConnexion() {
   const c = useCouleurs();
@@ -103,7 +71,6 @@ export function EcranConnexion() {
   const [motDePasse, setMotDePasse] = React.useState("");
   const [enCours, setEnCours] = React.useState(false);
   const [erreur, setErreur] = React.useState<string | null>(null);
-  const [enCoursOAuth, setEnCoursOAuth] = React.useState<"google" | "facebook" | null>(null);
 
   const pseudoOk = PSEUDO_VALIDE.test(pseudo.trim());
   const emailOk = EMAIL_VALIDE.test(email.trim());
@@ -291,58 +258,8 @@ export function EcranConnexion() {
           />
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center",
-                       marginTop: espace.xxl, marginBottom: espace.l }}>
-          <View style={{ flex: 1, height: StyleSheet.hairlineWidth,
-                         backgroundColor: c.filet }} />
-          <T v="petit" couleur={c.encrePale} style={{ marginHorizontal: espace.m }}>
-            Autre
-          </T>
-          <View style={{ flex: 1, height: StyleSheet.hairlineWidth,
-                         backgroundColor: c.filet }} />
-        </View>
-
-        <BoutonOAuth icone="logo-google" titre="Continuer avec Google"
-          onPress={async () => {
-            setEnCoursOAuth("google"); setErreur(null);
-            const echec = await connexionOAuth("google");
-            if (echec) setErreur(echec);
-            setEnCoursOAuth(null);
-          }}
-          enCours={enCoursOAuth === "google"} c={c} />
-
-        <View style={{ height: espace.m }} />
-
-        <BoutonOAuth icone="logo-facebook" titre="Continuer avec Facebook"
-          onPress={async () => {
-            setEnCoursOAuth("facebook"); setErreur(null);
-            const echec = await connexionOAuth("facebook");
-            if (echec) setErreur(echec);
-            setEnCoursOAuth(null);
-          }}
-          enCours={enCoursOAuth === "facebook"} c={c} />
       </ScrollView>
     </KeyboardAvoidingView>
-  );
-}
-
-function BoutonOAuth({ icone, titre, onPress, enCours, c }: {
-  icone: keyof typeof Ionicons.glyphMap; titre: string;
-  onPress: () => void; enCours: boolean; c: ReturnType<typeof useCouleurs>;
-}) {
-  return (
-    <Pressable
-      onPress={enCours ? undefined : onPress}
-      style={{
-        flexDirection: "row", alignItems: "center", justifyContent: "center",
-        borderWidth: StyleSheet.hairlineWidth, borderColor: c.filet,
-        borderRadius: rayon.s, paddingVertical: espace.m + 2,
-      }}
-    >
-      <Ionicons name={icone} size={18} color={c.encre}
-                style={{ marginRight: espace.s }} />
-      <T v="sousTitre" couleur={c.encre}>{enCours ? "..." : titre}</T>
-    </Pressable>
   );
 }
 

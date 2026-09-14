@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Line } from "react-native-svg";
 import { api, ilYA, NoteMarche, Performance } from "../services/api";
 import { euros, pourcent } from "../services/format";
+import { BarreReactions } from "../composants/BarreReactions";
 import { espace, rayon } from "../theme";
 import {
   BandeauCache, Carte, Logo, Separateur, Squelette, T, useCouleurs, Vide,
@@ -131,10 +132,10 @@ function EnteteAnalyse({ vue, onChoisir }: {
         {VUES.map(([cle, libelle]) => (
           <T
             key={cle}
-            v="sousTitre"
+            v="petit"
             couleur={vue === cle ? c.encre : c.encrePale}
             style={{
-              paddingVertical: espace.m, marginRight: espace.xl,
+              paddingVertical: espace.s, marginRight: espace.xl,
               borderBottomWidth: 2, marginBottom: -1,
               borderBottomColor: vue === cle ? c.jaune : "transparent",
             }}
@@ -252,6 +253,8 @@ export function EcranAnalyse({ versAbonnement }: {
                    legende={note.btc_dominance === null ? undefined
                      : `${note.btc_dominance} %`} />
           </View>
+
+          <BarreReactions cible="note" id={note.id} />
         </Carte>
       ) : (
         <Vide titre="Pas de note aujourd'hui"

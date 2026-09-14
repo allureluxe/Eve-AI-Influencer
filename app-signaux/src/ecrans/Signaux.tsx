@@ -2,7 +2,7 @@
  * Onglet Signaux.
  *
  * UN JOUR SANS SIGNAL EST LE CAS NORMAL, PAS UNE PANNE.
- * Le robot prend environ un signal par jour sur 70 cryptos, et sa
+ * Le robot prend environ un signal par jour sur plus de 200 cryptos, et sa
  * strategie vit de ses rares gros trades. Un utilisateur qui ouvre
  * l'application un jour calme voit une liste vide ; sans explication il
  * conclut que l'application est cassee, ou que l'abonnement ne sert a
@@ -26,6 +26,7 @@ import {
 } from "../composants/base";
 import { CarteSignal } from "../composants/CarteSignal";
 import { LigneFloutee, LigneSignal } from "../composants/LigneSignal";
+import { BarreReactions } from "../composants/BarreReactions";
 import { useCapital } from "../services/reglages";
 
 /** Le detail plein ecran d'un signal, avec retour et l'action « pris ». */
@@ -54,6 +55,8 @@ function DetailSignal({ signal, capital, onRetour }: {
         <Bouton titre="J'ai pris ce trade"
                 onPress={() => { api.marquerPris(signal.id); setPris(true); }} />
       ) : null}
+
+      <BarreReactions cible="signal" id={signal.id} />
     </ScrollView>
   );
 }
@@ -200,8 +203,8 @@ export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void })
           </T>
           <T v="petit" style={{ marginTop: espace.s }}>
             Le compte gratuit recoit Bitcoin, Ethereum et Solana, deux
-            heures apres leur publication. Allure Plus donne les 70 cryptos
-            suivies, au moment ou le robot agit.
+            heures apres leur publication. Allure Plus donne les plus de
+            200 cryptos suivies, au moment ou le robot agit.
           </T>
           <View style={{ marginTop: espace.l }}>
             <Bouton titre="Voir Allure Plus" onPress={versAbonnement} />

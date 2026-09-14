@@ -29,7 +29,7 @@ import { Bouton, Carte, Etiquette, T, useCouleurs } from "./base";
 function avantages(o: Offre): string[] {
   const liste: string[] = [];
   liste.push(o.toutes_paires
-    ? "Les 70 cryptos suivies par le robot"
+    ? "Plus de 200 cryptos suivies par le robot"
     : "Bitcoin, Ethereum et Solana");
   liste.push(o.retard_minutes === 0
     ? "Au moment ou le robot agit"

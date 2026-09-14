@@ -37,3 +37,24 @@ export async function enregistrerCapital(valeur: number): Promise<void> {
   if (!Number.isFinite(valeur) || valeur <= 0) return;
   await AsyncStorage.setItem(CLE_CAPITAL, String(valeur));
 }
+
+/**
+ * Vrai tant que l'utilisateur n'a jamais tape son propre capital --
+ * `useCapital()` seul ne le dit pas, il rend `CAPITAL_DEFAUT` dans les
+ * deux cas (jamais renseigne, ou renseigne a 1000 € par coincidence).
+ *
+ * Retour reel, 14 sept. : « dans direct total en cours et toujours a
+ * 1000 €, ce n'est pas le cas ». Le chiffre etait juste, mais rien ne
+ * disait a l'utilisateur qu'il regardait un espace reserve plutot que
+ * son vrai calcul -- ce distingo permet a l'ecran de le dire.
+ */
+export function useCapitalEstRenseigne(): boolean {
+  const [renseigne, setRenseigne] = React.useState(false);
+  React.useEffect(() => {
+    AsyncStorage.getItem(CLE_CAPITAL).then((v) => {
+      const n = Number(v);
+      setRenseigne(Number.isFinite(n) && n > 0);
+    }).catch(() => setRenseigne(false));
+  }, []);
+  return renseigne;
+}

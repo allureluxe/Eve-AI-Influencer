@@ -32,7 +32,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ilYA, PositionDirecte, ReponseDirect } from "../services/api";
 import { euros, nomCrypto, perteMax, pourcent, prix, symbole }
   from "../services/format";
-import { useCapital } from "../services/reglages";
+import { useCapital, useCapitalEstRenseigne } from "../services/reglages";
+import { BarreReactions } from "../composants/BarreReactions";
 import { espace, rayon } from "../theme";
 import {
   BandeauCache, Bouton, Carte, Etiquette, Logo, Separateur, Squelette, T,
@@ -165,6 +166,8 @@ function DetailPosition({ p, capital, onRetour }: {
           {p.rationale}
         </T>
       </Carte>
+
+      <BarreReactions cible="signal" id={p.id} />
     </ScrollView>
   );
 }
@@ -173,6 +176,7 @@ export function EcranDirect({ versAbonnement }: { versAbonnement: () => void }) 
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
   const capital = useCapital();
+  const capitalRenseigne = useCapitalEstRenseigne();
 
   const [data, setData] = React.useState<ReponseDirect | null>(null);
   const [cache, setCache] = React.useState<string | null>(null);
@@ -274,6 +278,14 @@ export function EcranDirect({ versAbonnement }: { versAbonnement: () => void }) 
             Rien n'est acquis tant que les positions ne sont pas fermees.
             Ce montant peut encore monter ou descendre.
           </T>
+          {!capitalRenseigne ? (
+            <T v="legende" couleur={c.perte}
+               style={{ marginTop: espace.s, lineHeight: 16 }}
+               onPress={versAbonnement}>
+              Capital non renseigne, calcule sur 1 000 € par defaut —
+              indique le tien dans Compte.
+            </T>
+          ) : null}
         </View>
       ) : null}
 
@@ -301,8 +313,8 @@ export function EcranDirect({ versAbonnement }: { versAbonnement: () => void }) 
             heures de retard
           </T>
           <T v="petit" style={{ marginTop: espace.s }}>
-            Le direct complet — les 70 cryptos suivies, au moment ou le
-            robot agit — fait partie de l'offre Plus.
+            Le direct complet — les plus de 200 cryptos suivies, au moment
+            ou le robot agit — fait partie de l'offre Plus.
           </T>
           <View style={{ marginTop: espace.l }}>
             <Bouton titre="Voir les offres" onPress={versAbonnement} />
