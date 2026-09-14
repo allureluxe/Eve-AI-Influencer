@@ -1372,7 +1372,8 @@ class TradingEngine:
                     pos.entry_price, pos.stop_loss, pos.take_profit),
                 position_size_pct=float(sizing.risk_pct),
                 conviction=conviction_depuis_score(float(ev.score)),
-                rationale=rediger_rationale(paire, canal, etage=etage),
+                rationale=rediger_rationale(
+                    paire, canal, etage=etage, graine=f"{pos.id}:{etage}"),
                 macro_flag=self._traverse_une_annonce(),
             ))
         except Exception as exc:                            # noqa: BLE001

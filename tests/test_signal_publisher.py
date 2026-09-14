@@ -148,6 +148,32 @@ class TestLeTextePourLUtilisateur(unittest.TestCase):
         texte = rediger_rationale("BTC/EUR", 10, etage=3)
         self.assertIn("renfor", texte.lower())
 
+    def test_deux_signaux_sur_la_meme_crypto_ne_se_disent_pas_pareil(self):
+        # 14 sept., retour reel : « toujours le meme discours ... essaye
+        # de changer, pas repetitif » -- XTZ et BAT recevaient mot pour
+        # mot la meme phrase, seul le nom changeait.
+        textes = {rediger_rationale("XTZ/EUR", 10, graine=f"pos{i}")
+                  for i in range(10)}
+        self.assertGreater(len(textes), 1,
+            "dix signaux sur la meme crypto donnent tous le meme texte")
+
+    def test_le_meme_signal_redige_deux_fois_donne_le_meme_texte(self):
+        # La variation doit venir de la graine, pas du hasard pur : un
+        # signal qu'on republierait (retry reseau) ne doit pas changer
+        # de formulation en cours de route.
+        a = rediger_rationale("SOL/EUR", 10, graine="position-42")
+        b = rediger_rationale("SOL/EUR", 10, graine="position-42")
+        self.assertEqual(a, b)
+
+    def test_aucune_formulation_ne_double_larticle_du_nom(self):
+        # nom_courant() rend toujours "Le X" ou "L'x" -- une ouverture
+        # du genre "Le prix de {nom}" produirait "Le prix de Le XTZ".
+        for paire in ("BTC/EUR", "ETH/EUR", "XTZ/EUR", "AVAX/EUR"):
+            for i in range(30):
+                texte = rediger_rationale(paire, 10, graine=f"{paire}{i}").lower()
+                self.assertNotIn("de le ", texte)
+                self.assertNotIn("de l'", texte)
+
 
 class TestLesChiffresAffiches(unittest.TestCase):
 

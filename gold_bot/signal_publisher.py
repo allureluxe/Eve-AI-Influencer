@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import random
 import threading
 import time
 import urllib.error
@@ -100,12 +101,65 @@ def _duree_lisible(jours: float) -> str:
     return f"environ {round(jours / 7)} semaines"
 
 
+#: Variantes de la phrase d'ouverture (cassure du plus haut). Retour reel,
+#: 14 sept. : « toujours le meme discours ... essaye de changer, pas
+#: repetitif ». Meme fait a chaque fois, dit autrement -- jamais un fait
+#: different, ce serait mentir sur ce que le robot a vu.
+_OUVERTURES = [
+    "{nom} vient de depasser son prix le plus haut des {jours} derniers jours",
+    "{nom} a franchi son plus haut des {jours} derniers jours",
+    "{nom} a casse son plafond des {jours} derniers jours",
+    "{nom} sort par le haut du couloir qu'il tracait depuis {jours} jours",
+]
+
+_CONTINUATIONS = [
+    "Quand un prix franchit ainsi son plus haut recent, le mouvement se "
+    "prolonge souvent — dans notre historique, {duree}.",
+    "Ce genre de cassure a tendance a continuer : sur nos trades passes, "
+    "elle s'est poursuivie en moyenne {duree}.",
+    "Historiquement ce type de mouvement ne s'arrete pas net chez nous : "
+    "il dure encore {duree} en moyenne.",
+]
+
+_PROTECTIONS = [
+    "Le stop de protection est place sous le prix d'achat : c'est le "
+    "montant maximum que ce trade peut couter.",
+    "Un ordre stop, place sous le prix d'entree, limite ce que ce trade "
+    "peut couter au pire.",
+    "La protection est posee sous le prix d'achat des le depart : elle "
+    "fixe la perte maximale possible sur ce trade.",
+]
+
+#: Variantes du renfort de pyramide. Chacune garde le mot « renforcer » --
+#: c'est ce que verifie le test de non-regression, et c'est le terme le
+#: plus clair pour dire ce que fait ce type de signal.
+_RENFORTS = [
+    "{nom} continue de monter apres notre premier achat. Nous renforcons "
+    "la position pour la {rang} fois.",
+    "Le mouvement sur {nom} se poursuit : nous renforcons la position "
+    "une {rang} fois.",
+    "{nom} n'a pas ralenti depuis notre entree, nous renforcons donc la "
+    "position pour la {rang} fois.",
+]
+
+_PROTECTIONS_RENFORT = [
+    "Nous n'ajoutons que sur une position deja protegee : si le prix "
+    "retombe, ce renfort ne peut pas nous faire perdre plus que ce qui "
+    "etait deja engage.",
+    "Cet ajout ne se fait que parce que la position est deja a l'abri : "
+    "une baisse ne peut pas couter plus que ce qui etait deja risque.",
+    "La regle ne change pas a chaque etage : on ne renforce que ce qui "
+    "ne peut deja plus nous faire perdre davantage.",
+]
+
+
 def rediger_rationale(
     paire: str,
     canal_jours: int,
     volume_ratio: Optional[float] = None,
     etage: int = 1,
     duree_moyenne_jours: float = 6.0,
+    graine: str = "",
 ) -> str:
     """L'explication de 2 a 3 phrases affichee dans l'application.
 
@@ -113,37 +167,32 @@ def rediger_rationale(
     d'ATR, pas de « cassure de canal Donchian ». Et surtout aucune
     promesse — on decrit ce qui vient de se passer, jamais ce qui va se
     passer.
+
+    `graine` varie la formulation SANS changer les faits : un meme
+    evenement (cassure, renfort, stop) se dit de plusieurs facons, tirees
+    au sort de facon reproductible (le meme signal redige deux fois donne
+    le meme texte). Sans elle, XTZ et BAT recevaient mot pour mot la
+    meme phrase -- seul le nom changeait.
     """
     nom = nom_courant(paire)
-    phrases: List[str] = []
+    alea = random.Random(graine or f"{paire}:{canal_jours}:{etage}")
 
     if etage > 1:
-        phrases.append(
-            f"{nom} continue de monter apres notre premier achat. "
-            f"Nous renforcons la position pour la {_rang(etage)} fois."
-        )
-        phrases.append(
-            "Nous n'ajoutons que sur une position deja protegee : "
-            "si le prix retombe, ce renfort ne peut pas nous faire "
-            "perdre plus que ce qui etait deja engage."
-        )
-        return " ".join(phrases)
+        ouverture = alea.choice(_RENFORTS).format(nom=nom, rang=_rang(etage))
+        protection = alea.choice(_PROTECTIONS_RENFORT)
+        return f"{ouverture} {protection}"
 
-    debut = f"{nom} vient de depasser son prix le plus haut des {canal_jours} derniers jours"
+    debut = alea.choice(_OUVERTURES).format(nom=nom, jours=canal_jours)
     if volume_ratio and volume_ratio >= 1.2:
         surplus = round((volume_ratio - 1) * 100)
         debut += f", avec {surplus} % d'echanges de plus que d'habitude"
-    phrases.append(debut + ".")
+    phrase1 = debut + "."
 
-    phrases.append(
-        "Quand un prix franchit ainsi son plus haut recent, le mouvement "
-        f"se prolonge souvent — dans notre historique, {_duree_lisible(duree_moyenne_jours)}."
-    )
-    phrases.append(
-        "Le stop de protection est place sous le prix d'achat : "
-        "c'est le montant maximum que ce trade peut couter."
-    )
-    return " ".join(phrases)
+    phrase2 = alea.choice(_CONTINUATIONS).format(
+        duree=_duree_lisible(duree_moyenne_jours))
+    phrase3 = alea.choice(_PROTECTIONS)
+
+    return " ".join([phrase1, phrase2, phrase3])
 
 
 def _rang(n: int) -> str:
