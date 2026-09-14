@@ -71,7 +71,7 @@ jobs:
       # n'importe quel APK de test, exactement l'usage vise ici.
       - name: Construire l'APK (debug, signe automatiquement)
         working-directory: app-signaux/android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Publier l'APK comme fichier telechargeable
         uses: actions/upload-artifact@v4
