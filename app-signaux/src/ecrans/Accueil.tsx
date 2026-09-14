@@ -16,12 +16,15 @@
  */
 
 import React from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { espace, rayon } from "../theme";
 import { Carte, Etiquette, Logo, Separateur, T, useCouleurs } from "../composants/base";
 import { supabase } from "../services/supabase";
 import { euros, pourcent } from "../services/format";
+import { EcranCommunaute } from "./Communaute";
+import { EcranMessages } from "./Messages";
 
 interface EtatPublic { capital_eur: number; variation_jour_pct: number; }
 
@@ -99,9 +102,39 @@ function Section({ eyebrow, titre, paragraphes }: {
   );
 }
 
+/**
+ * Un raccourci vers un ecran a part (Communaute, Messages) -- icone +
+ * libelle, sans case dans la barre du bas. Meme principe que Binance :
+ * le fil social et la messagerie se rejoignent par une icone depuis
+ * l'accueil, pas par un onglet supplementaire (retour reel, 14 sept. :
+ * « essaye de faire un peu comme Binance fait »).
+ */
+function Raccourci({ icone, libelle, onPress }: {
+  icone: keyof typeof Ionicons.glyphMap; libelle: string; onPress: () => void;
+}) {
+  const c = useCouleurs();
+  return (
+    <Pressable onPress={onPress} style={{
+      flex: 1, alignItems: "center", backgroundColor: c.creux,
+      borderRadius: rayon.m, paddingVertical: espace.m, marginRight: espace.s,
+    }}>
+      <Ionicons name={icone} size={24} color={c.encre} />
+      <T v="petit" style={{ marginTop: espace.xs }}>{libelle}</T>
+    </Pressable>
+  );
+}
+
 export function EcranAccueil() {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
+  const [vue, setVue] = React.useState<"accueil" | "communaute" | "messages">("accueil");
+
+  if (vue === "communaute") {
+    return <EcranCommunaute onRetour={() => setVue("accueil")} />;
+  }
+  if (vue === "messages") {
+    return <EcranMessages onRetour={() => setVue("accueil")} />;
+  }
 
   return (
     <ScrollView
@@ -119,6 +152,13 @@ export function EcranAccueil() {
       <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
         Ce qu'Allure fait, et pourquoi.
       </T>
+
+      <View style={{ flexDirection: "row", marginBottom: espace.l }}>
+        <Raccourci icone="people-outline" libelle="Communaute"
+                   onPress={() => setVue("communaute")} />
+        <Raccourci icone="chatbubbles-outline" libelle="Messages"
+                   onPress={() => setVue("messages")} />
+      </View>
 
       <CarteEnDirect />
 

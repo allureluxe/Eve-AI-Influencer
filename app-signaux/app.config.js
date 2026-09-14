@@ -35,7 +35,7 @@ module.exports = () => ({
       // fichiers en cache -- l'ecran de lancement flou en etait le
       // symptome, confirme par des captures montrant l'ancienne
       // illustration alors que le code avait deja change.
-      versionCode: 7,
+      versionCode: 8,
       googleServicesFile: "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/icone-adaptative.png",
