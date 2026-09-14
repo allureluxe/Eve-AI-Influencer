@@ -99,7 +99,9 @@ function IconeOnglet({ route, actif }: { route: string; actif: boolean }) {
   );
 }
 
-function Navigation({ session }: { session: Session }) {
+function Navigation({ session, onRevoirAccueil }: {
+  session: Session; onRevoirAccueil: () => void;
+}) {
   const c = useCouleurs();
   const theme = useTheme();
   const [, setVersCompte] = React.useState(0);
@@ -181,7 +183,8 @@ function Navigation({ session }: { session: Session }) {
                         component={EcranBitvavo} />
 
         <Onglets.Screen name="Compte" options={{ title: "Compte" }}>
-          {() => <EcranCompte email={session.user.email ?? ""} />}
+          {() => <EcranCompte email={session.user.email ?? ""}
+                              onRevoirPresentation={onRevoirAccueil} />}
         </Onglets.Screen>
       </Onglets.Navigator>
     </NavigationContainer>
@@ -233,7 +236,8 @@ function Racine() {
     );
   }
   if (!session) return <EcranConnexion />;
-  return <Navigation session={session} />;
+  return <Navigation session={session}
+                     onRevoirAccueil={() => setAccueilVu(false)} />;
 }
 
 export default function App() {

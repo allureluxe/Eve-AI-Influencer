@@ -58,7 +58,15 @@ function LigneReglage({ titre, detail, valeur, onChange }: {
   );
 }
 
-export function EcranCompte({ email }: { email: string }) {
+export function EcranCompte({ email, onRevoirPresentation }: {
+  email: string;
+  /** Remet l'introduction en trois pages -- vue une seule fois par
+   * defaut, sinon injoignable. Demande le 13 sept. : « il faut une
+   * page d'accueil pour expliquer l'application, c'est trop direct ».
+   * Elle existait deja ; ce qui manquait, c'etait un moyen de la
+   * revoir apres l'avoir passee la premiere fois. */
+  onRevoirPresentation: () => void;
+}) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
   const capitalEnregistre = useCapital();
@@ -294,6 +302,12 @@ export function EcranCompte({ email }: { email: string }) {
               {libelle}
             </T>
           ))}
+          <T v="corps" couleur={c.encre}
+             style={{ paddingVertical: espace.s,
+                      textDecorationLine: "underline" }}
+             onPress={onRevoirPresentation}>
+            Revoir la presentation de l'application
+          </T>
           <Separateur marge={espace.s} />
           <T v="corps" couleur={c.perte} style={{ paddingVertical: espace.s }}
              onPress={() => supabase.auth.signOut()}>
