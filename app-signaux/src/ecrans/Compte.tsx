@@ -14,7 +14,7 @@
  */
 
 import React from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { Alert, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Offre, Palier } from "../services/api";
 import {
@@ -36,7 +36,7 @@ function Rubrique({ titre, children }: {
   );
 }
 
-export function EcranCompte() {
+export function EcranCompte({ onRetour }: { onRetour: () => void }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
 
@@ -100,6 +100,10 @@ export function EcranCompte() {
         paddingBottom: marges.bottom + espace.xxxl,
       }}
     >
+      <Pressable onPress={onRetour} style={{ marginBottom: espace.l }}>
+        <T v="sousTitre" couleur={c.encreDouce}>‹ Retour</T>
+      </Pressable>
+
       {payant ? (
         <>
           <Carte accent>

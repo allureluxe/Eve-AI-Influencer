@@ -8,12 +8,12 @@
  */
 
 import React from "react";
-import { ScrollView } from "react-native";
+import { Pressable, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { espace } from "../theme";
 import { Carte, Etiquette, T, useCouleurs } from "../composants/base";
 
-export function EcranAPropos() {
+export function EcranAPropos({ onRetour }: { onRetour: () => void }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
 
@@ -25,6 +25,10 @@ export function EcranAPropos() {
         paddingBottom: marges.bottom + espace.xxxl,
       }}
     >
+      <Pressable onPress={onRetour} style={{ marginBottom: espace.l }}>
+        <T v="sousTitre" couleur={c.encreDouce}>‹ Retour</T>
+      </Pressable>
+
       <Carte>
         <Etiquette>Ce qu'Allure fait</Etiquette>
         <T v="corps" style={{ marginTop: espace.s }}>

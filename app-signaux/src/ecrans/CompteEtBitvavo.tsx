@@ -1,84 +1,92 @@
 /**
- * Onglet Compte -- cinq segments : Profil, Abonnement, Bitvavo, A propos,
- * Contact.
+ * Onglet Compte -- un menu, cinq pages.
  *
- * Retour reel du 14 sept. : « dans l'espace compte, fais des onglets au
- * lieu de montrer que l'abonnement, tu mets profil, et tout les autres
- * onglets ainsi que a propos et contact ».
- *
- * PAS LE GABARIT "Segments" (pastilles bordees) DE Marche.tsx -- avec
- * cinq entrees il deviendrait exactement le "4 gros onglets" reproche
- * le meme soir sur Analyse.tsx. Meme filet discret que Signaux.tsx,
- * dans un ScrollView horizontal puisque cinq libelles ne tiennent pas
- * tous sur un telephone etroit.
+ * Retour reel du 14 sept., DEUXIEME PASSAGE : les cinq segments en
+ * onglets horizontaux laissaient un grand vide sous chaque page courte
+ * -- « ca fait moche, mets les sous-onglets un en dessous des autres et
+ * quand on clique on va sur une autre page ». Meme principe partout
+ * ailleurs dans l'application (Signaux, Direct, Communaute) : une
+ * liste, un clic, une page a part avec son "‹ Retour" -- jamais un
+ * onglet horizontal de plus.
  */
 
 import React from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { espace } from "../theme";
-import { EnTete, Logo, T, useCouleurs } from "../composants/base";
+import { espace, rayon } from "../theme";
+import { EnTete, Logo, Separateur, T, useCouleurs } from "../composants/base";
 import { EcranProfil } from "./Profil";
 import { EcranCompte } from "./Compte";
 import { EcranBitvavo } from "./Bitvavo";
 import { EcranAPropos } from "./APropos";
 import { EcranContact } from "./Contact";
 
-const ONGLETS = [
-  ["profil", "Profil"], ["abonnement", "Abonnement"], ["bitvavo", "Bitvavo"],
-  ["apropos", "A propos"], ["contact", "Contact"],
+const MENU = [
+  ["profil", "Profil", "person-outline"],
+  ["abonnement", "Abonnement", "star-outline"],
+  ["bitvavo", "Bitvavo", "swap-horizontal-outline"],
+  ["apropos", "A propos", "information-circle-outline"],
+  ["contact", "Contact", "mail-outline"],
 ] as const;
-type Vue = (typeof ONGLETS)[number][0];
+type Vue = (typeof MENU)[number][0];
 
-function OngletsCompte({ vue, onChoisir }: {
-  vue: Vue; onChoisir: (v: Vue) => void;
+function LigneMenu({ icone, libelle, onPress }: {
+  icone: keyof typeof Ionicons.glyphMap; libelle: string; onPress: () => void;
 }) {
   const c = useCouleurs();
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{
-        paddingHorizontal: espace.l, borderBottomWidth: 1,
-        borderBottomColor: c.filet,
-      }}
-    >
-      {ONGLETS.map(([cle, libelle]) => (
-        <T
-          key={cle}
-          v="petit"
-          couleur={vue === cle ? c.encre : c.encrePale}
-          style={{
-            paddingVertical: espace.s, marginRight: espace.xl,
-            borderBottomWidth: 2, marginBottom: -1,
-            borderBottomColor: vue === cle ? c.jaune : "transparent",
-          }}
-          onPress={() => onChoisir(cle)}
-        >
-          {libelle}
-        </T>
-      ))}
-    </ScrollView>
+    <Pressable onPress={onPress} style={{
+      flexDirection: "row", alignItems: "center",
+      paddingVertical: espace.l,
+    }}>
+      <View style={{
+        width: 36, height: 36, borderRadius: rayon.m,
+        backgroundColor: c.creux, alignItems: "center", justifyContent: "center",
+        marginRight: espace.m,
+      }}>
+        <Ionicons name={icone} size={19} color={c.encre} />
+      </View>
+      <T v="sousTitre" style={{ flex: 1 }}>{libelle}</T>
+      <Ionicons name="chevron-forward" size={18} color={c.encrePale} />
+    </Pressable>
   );
 }
 
 export function EcranCompteEtBitvavo({ email }: { email: string }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
-  const [vue, setVue] = React.useState<Vue>("profil");
+  const [vue, setVue] = React.useState<Vue | null>(null);
+
+  if (vue) {
+    const retour = () => setVue(null);
+    return (
+      <>
+        {vue === "profil" ? <EcranProfil email={email} onRetour={retour} /> : null}
+        {vue === "abonnement" ? <EcranCompte onRetour={retour} /> : null}
+        {vue === "bitvavo" ? <EcranBitvavo onRetour={retour} /> : null}
+        {vue === "apropos" ? <EcranAPropos onRetour={retour} /> : null}
+        {vue === "contact" ? <EcranContact onRetour={retour} /> : null}
+      </>
+    );
+  }
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.fond }}>
-      <View style={{ paddingHorizontal: espace.l,
-                     paddingTop: marges.top + espace.m }}>
-        <EnTete titre="Compte" sousTitre={email} droite={<Logo hauteur={114} />} />
-      </View>
-      <OngletsCompte vue={vue} onChoisir={setVue} />
-      <View style={{ flex: 1 }}>
-        {vue === "profil" ? <EcranProfil email={email} /> : null}
-        {vue === "abonnement" ? <EcranCompte /> : null}
-        {vue === "bitvavo" ? <EcranBitvavo /> : null}
-        {vue === "apropos" ? <EcranAPropos /> : null}
-        {vue === "contact" ? <EcranContact /> : null}
-      </View>
-    </View>
+    <ScrollView
+      style={{ backgroundColor: c.fond }}
+      contentContainerStyle={{
+        padding: espace.l, paddingTop: marges.top + espace.m,
+        paddingBottom: marges.bottom + espace.xxxl,
+      }}
+    >
+      <EnTete titre="Compte" sousTitre={email} droite={<Logo hauteur={114} />} />
+
+      {MENU.map(([cle, libelle, icone], i) => (
+        <View key={cle}>
+          <LigneMenu icone={icone} libelle={libelle} onPress={() => setVue(cle)} />
+          {i < MENU.length - 1 ? <Separateur /> : null}
+        </View>
+      ))}
+    </ScrollView>
   );
 }

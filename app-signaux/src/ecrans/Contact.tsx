@@ -6,12 +6,12 @@
  */
 
 import React from "react";
-import { Linking, ScrollView } from "react-native";
+import { Linking, Pressable, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { espace } from "../theme";
 import { Carte, Separateur, T, useCouleurs } from "../composants/base";
 
-export function EcranContact() {
+export function EcranContact({ onRetour }: { onRetour: () => void }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
 
@@ -23,6 +23,10 @@ export function EcranContact() {
         paddingBottom: marges.bottom + espace.xxxl,
       }}
     >
+      <Pressable onPress={onRetour} style={{ marginBottom: espace.l }}>
+        <T v="sousTitre" couleur={c.encreDouce}>‹ Retour</T>
+      </Pressable>
+
       <Carte>
         <T v="corps" couleur={c.encre}
            style={{ paddingVertical: espace.s,

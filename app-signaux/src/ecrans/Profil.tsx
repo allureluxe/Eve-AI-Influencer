@@ -9,7 +9,7 @@
  */
 
 import React from "react";
-import { ScrollView, Switch, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Switch, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CAPITAL_DEFAUT, enregistrerCapital, useCapital }
   from "../services/reglages";
@@ -37,7 +37,9 @@ function LigneReglage({ titre, detail, valeur, onChange }: {
   );
 }
 
-export function EcranProfil({ email }: { email: string }) {
+export function EcranProfil({ email, onRetour }: {
+  email: string; onRetour: () => void;
+}) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
   const capitalEnregistre = useCapital();
@@ -91,6 +93,10 @@ export function EcranProfil({ email }: { email: string }) {
         paddingBottom: marges.bottom + espace.xxxl,
       }}
     >
+      <Pressable onPress={onRetour} style={{ marginBottom: espace.l }}>
+        <T v="sousTitre" couleur={c.encreDouce}>‹ Retour</T>
+      </Pressable>
+
       <Carte>
         <Etiquette>{pseudo || "Ton profil"}</Etiquette>
         <T v="petit" style={{ marginTop: 2 }}>{email}</T>

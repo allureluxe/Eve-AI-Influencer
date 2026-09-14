@@ -25,7 +25,7 @@
  */
 
 import React from "react";
-import { Alert, Linking, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { supabase } from "../services/supabase";
@@ -65,7 +65,7 @@ function Etape({ n, titre, detail }: {
   );
 }
 
-export function EcranBitvavo() {
+export function EcranBitvavo({ onRetour }: { onRetour: () => void }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
 
@@ -119,6 +119,10 @@ export function EcranBitvavo() {
         paddingBottom: marges.bottom + espace.xxxl,
       }}
     >
+      <Pressable onPress={onRetour} style={{ marginBottom: espace.l }}>
+        <T v="sousTitre" couleur={c.encreDouce}>‹ Retour</T>
+      </Pressable>
+
       <EnTete
         titre="Passer tes ordres"
         sousTitre="Ou et comment acheter ce que le robot achete."
