@@ -184,11 +184,12 @@ def spread_estime(instrument: "Instrument", prix: float) -> float:
     return max(0.0, prix) * SPREAD_CRYPTO_RATIO
 
 
-def instrument_crypto(actif: str, groupe: str, priorite: float = 0.75) -> Instrument:
-    """Construit un instrument crypto generique pour Binance Spot.
+def instrument_crypto(actif: str, groupe: str, priorite: float = 0.75,
+                       quote_currency: str = "EUR") -> Instrument:
+    """Construit un instrument crypto generique pour Bitvavo.
 
     Les valeurs de lot sont volontairement permissives : le broker les
-    remplace au demarrage par les vraies contraintes de Binance
+    remplace au demarrage par les vraies contraintes de Bitvavo
     (`apply_market_rules`). Il ne sert a rien de les deviner ici.
 
     `max_spread` est laisse a l'infini car un plafond absolu n'a aucun sens
@@ -199,6 +200,12 @@ def instrument_crypto(actif: str, groupe: str, priorite: float = 0.75) -> Instru
     `round_step = 0` desactive les niveaux psychologiques (chiffres ronds),
     qui n'ont de sens que sur des marches ou une echelle de prix fait
     reference, comme les paliers de 10 $ sur l'or.
+
+    `quote_currency` doit rester "EUR" : le `symbol` interne finit toujours
+    en "USD" (convention historique Binance), mais le robot ne negocie que
+    les marches EUR de Bitvavo. Sans ce parametre explicite, `Instrument`
+    retombe sur son defaut "USD" et l'application affiche de faux "/USD"
+    sur les signaux publies -- vu en reel sur XTZ et ZETA le 13 sept.
     """
     return Instrument(
         symbol=f"{actif}USD",
@@ -213,6 +220,7 @@ def instrument_crypto(actif: str, groupe: str, priorite: float = 0.75) -> Instru
         max_spread=math.inf,
         weekend=True,
         priority=priorite,
+        quote_currency=quote_currency,
         correlation_group=groupe,
     )
 
@@ -261,13 +269,17 @@ DEFAULT_UNIVERSE: list[Instrument] = [
     # jamais chargees, ces valeurs rendaient BTCUSD indimensionnable et
     # faussaient toute comparaison de strategies.
     Instrument("BTCUSD", "crypto", 2, 1.0, 1e-8, 1e-8, 20.0, 1000.0, 8.0, math.inf,
-               weekend=True, priority=1.05, correlation_group="crypto_major"),
+               weekend=True, priority=1.05, quote_currency="EUR",
+               correlation_group="crypto_major"),
     Instrument("ETHUSD", "crypto", 2, 1.0, 1e-8, 1e-8, 200.0, 50.0, 0.60, math.inf,
-               weekend=True, priority=1.0, correlation_group="crypto_major"),
+               weekend=True, priority=1.0, quote_currency="EUR",
+               correlation_group="crypto_major"),
     Instrument("SOLUSD", "crypto", 3, 1.0, 1e-8, 1e-8, 2000.0, 5.0, 0.05, math.inf,
-               weekend=True, priority=0.9, correlation_group="crypto_l1"),
+               weekend=True, priority=0.9, quote_currency="EUR",
+               correlation_group="crypto_l1"),
     Instrument("XRPUSD", "crypto", 4, 1.0, 1e-8, 1e-8, 100000.0, 0.10, 0.0008, math.inf,
-               weekend=True, priority=0.8, correlation_group="crypto_paiement"),
+               weekend=True, priority=0.8, quote_currency="EUR",
+               correlation_group="crypto_paiement"),
 ]
 
 # Le reste du catalogue crypto, genere automatiquement. Les quatre paires

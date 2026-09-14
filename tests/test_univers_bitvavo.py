@@ -150,3 +150,40 @@ class TestLaLimiteD_AppelsVientDeL_API:
         assert limite >= 200, (
             f"{limite} appels/min ne suffit pas a rafraichir un univers de "
             "200+ cryptos dans le cycle")
+
+
+class TestToutesLesCryptosSontCoteesEnEuro:
+    """Le 13 septembre, XTZ et ZETA sont sortis en "/USD" dans l'application.
+
+    `Instrument.quote_currency` a pour defaut "USD" (heritage Binance). Le
+    robot, lui, ne negocie que les marches EUR de Bitvavo. `instrument_crypto`
+    ne passait jamais ce parametre, et les quatre instruments crypto reglages
+    a la main (BTC, ETH, SOL, XRP) ne le passaient pas non plus : TOUTE crypto
+    fraichement publiee affichait une devise fausse a l'operateur, y compris
+    celles qui semblaient correctes -- un correctif ponctuel avait recolle les
+    lignes historiques a la main, sans toucher au code qui en produit de
+    nouvelles.
+    """
+
+    def test_instrument_crypto_cote_en_euro_par_defaut(self):
+        from gold_bot.universe import instrument_crypto
+
+        inst = instrument_crypto("ZZTEST", "crypto_alt")
+        assert inst.quote_currency == "EUR"
+
+    def test_tout_l_univers_par_defaut_est_cote_en_euro(self):
+        from gold_bot.universe import DEFAULT_UNIVERSE
+
+        fautifs = [i.symbol for i in DEFAULT_UNIVERSE
+                   if i.asset_class == "crypto" and i.quote_currency != "EUR"]
+        assert not fautifs, (
+            f"instruments crypto sans quote_currency='EUR' : {fautifs} -- "
+            "ils afficheront /USD dans l'application malgre un trade en EUR")
+
+    def test_une_crypto_decouverte_chez_bitvavo_est_cotee_en_euro(self):
+        """`univers_bitvavo` construit ses nouveautes via `instrument_crypto`
+        sans jamais passer `quote_currency` -- c'est son defaut qui compte."""
+        from gold_bot.universe import instrument_crypto
+
+        nouveau = instrument_crypto("ZZNOUVEAU", "crypto_alt")
+        assert nouveau.quote_currency == "EUR"
