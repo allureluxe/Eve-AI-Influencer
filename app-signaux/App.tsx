@@ -181,17 +181,32 @@ function Navigation({ session, onRevoirAccueil }: {
   );
 }
 
+// Duree minimale du logo de lancement, meme quand tout est pret plus tot
+// (retour reel du 14 sept. : « laisser un laps de temps ... j'aimerais
+// que les utilisateurs aient le temps de le voir »). Sans ce plancher,
+// une connexion rapide fait defiler l'ecran de marque en dessous de
+// 200 ms -- trop vite pour etre lu.
+const DUREE_LANCEMENT_MS = 1800;
+
 function Racine() {
-  const c = useCouleurs();
   const [session, setSession] = React.useState<Session | null>(null);
+  const [sessionPrete, setSessionPrete] = React.useState(false);
   const [accueilVu, setAccueilVu] = React.useState<boolean | null>(null);
+  const [delaiEcoule, setDelaiEcoule] = React.useState(false);
 
   React.useEffect(() => {
     accueilDejaVu().then(setAccueilVu);
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session); setSessionPrete(true);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange(
       (_e, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
+  }, []);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setDelaiEcoule(true), DUREE_LANCEMENT_MS);
+    return () => clearTimeout(t);
   }, []);
 
   // Le lien de confirmation d'inscription arrive par le schema
@@ -215,8 +230,8 @@ function Racine() {
   }, []);
 
 
-  if (accueilVu === null) {
-    return <View style={{ flex: 1, backgroundColor: c.fond }} />;
+  if (accueilVu === null || !sessionPrete || !delaiEcoule) {
+    return <EcranDeLancement />;
   }
   if (!accueilVu) {
     return (
@@ -259,8 +274,14 @@ function EcranDeLancement() {
   const c = useCouleurs();
   return (
     <View style={{ flex: 1, backgroundColor: c.fond,
-                   alignItems: "center", justifyContent: "center" }}>
+                   alignItems: "center", justifyContent: "center",
+                   paddingHorizontal: espace.xl }}>
       <Logo hauteur={84} />
+      <T v="titreGrand" style={{ marginTop: espace.l }}>Allure</T>
+      <T v="corps" couleur={c.encreDouce}
+         style={{ textAlign: "center", marginTop: espace.s }}>
+        Les signaux d'un robot qui trade son propre argent.
+      </T>
       <View style={{ width: 34, height: TRAIT, backgroundColor: c.jaune,
                      marginTop: espace.xl }} />
     </View>
