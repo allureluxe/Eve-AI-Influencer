@@ -60,11 +60,54 @@ NOMS = {
     "MATIC": "Le polygon", "LTC": "Le litecoin", "ATOM": "Le cosmos",
 }
 
+#: Ce qui distingue chaque crypto majeure, en une phrase factuelle --
+#: retour reel du 14 sept. : « les textes sont tous les memes, donne
+#: quelque element qui les definit ». Pas d'avis, pas de promesse : ce
+#: que la crypto EST, jamais ce qu'elle va faire.
+DESCRIPTIONS: dict[str, str] = {
+    "BTC": "la premiere cryptomonnaie, et celle que le marche suit le plus.",
+    "ETH": "la plateforme qui a lance les contrats intelligents.",
+    "SOL": "connu pour ses transactions tres rapides et peu cheres.",
+    "XRP": "concu pour les transferts d'argent entre banques.",
+    "ADA": "une blockchain construite sur des articles de recherche revus par des pairs.",
+    "DOGE": "ne comme une blague, devenu l'un des jetons les plus echanges.",
+    "LINK": "connecte les contrats intelligents a des donnees du monde reel.",
+    "AVAX": "une blockchain concue pour lancer d'autres blockchains dessus.",
+    "DOT": "relie plusieurs blockchains entre elles.",
+    "MATIC": "accelere et allege les transactions d'Ethereum.",
+    "LTC": "l'un des plus vieux jetons, pense comme une version plus rapide du bitcoin.",
+    "ATOM": "vise a faire communiquer des blockchains independantes.",
+}
+
+#: A defaut d'une fiche dediee, la famille de la crypto (deja etablie
+#: dans `universe.CATALOGUE_CRYPTO`, pas inventee ici) donne au moins un
+#: repere reel plutot qu'aucun.
+DESCRIPTIONS_PAR_GROUPE: dict[str, str] = {
+    "crypto_major": "l'une des cryptos les plus echangees du marche.",
+    "crypto_l1": "une blockchain de premiere couche, comme Bitcoin ou Ethereum.",
+    "crypto_l2": "une solution qui accelere une autre blockchain plutot que d'en etre une nouvelle.",
+    "crypto_defi": "un jeton de finance decentralisee : preter, emprunter ou echanger sans banque.",
+    "crypto_meme": "un jeton ne d'une blague ou d'une image, tres suivi sur les reseaux.",
+    "crypto_ai": "un jeton lie a l'intelligence artificielle ou au traitement de donnees.",
+    "crypto_gaming": "un jeton lie au jeu video ou aux univers virtuels.",
+    "crypto_paiement": "un jeton pense pour servir de moyen de paiement.",
+    "crypto_echange": "le jeton propre a une plateforme d'echange.",
+    "metaux": "un jeton adosse a un metal precieux physique.",
+}
+
 
 def nom_courant(paire: str) -> str:
     """« BTC/EUR » -> « Le bitcoin ». Repli : « Le SYMBOLE »."""
     base = paire.split("/")[0].upper()
     return NOMS.get(base, f"Le {base}")
+
+
+def description_crypto(paire: str, groupe: str = "") -> str:
+    """Ce qui definit cette crypto : une phrase, jamais une opinion."""
+    base = paire.split("/")[0].upper()
+    if base in DESCRIPTIONS:
+        return DESCRIPTIONS[base]
+    return DESCRIPTIONS_PAR_GROUPE.get(groupe, "")
 
 
 def paire_lisible(symbole: str, devise: str = "EUR") -> str:
@@ -160,8 +203,9 @@ def rediger_rationale(
     etage: int = 1,
     duree_moyenne_jours: float = 6.0,
     graine: str = "",
+    groupe: str = "",
 ) -> str:
-    """L'explication de 2 a 3 phrases affichee dans l'application.
+    """L'explication de 2 a 4 phrases affichee dans l'application.
 
     Ecrite pour quelqu'un qui ne connait rien au trading : pas de R, pas
     d'ATR, pas de « cassure de canal Donchian ». Et surtout aucune
@@ -173,6 +217,13 @@ def rediger_rationale(
     au sort de facon reproductible (le meme signal redige deux fois donne
     le meme texte). Sans elle, XTZ et BAT recevaient mot pour mot la
     meme phrase -- seul le nom changeait.
+
+    `groupe` ajoute une quatrieme phrase, propre a CETTE crypto plutot
+    qu'a la cassure du jour (retour reel, 14 sept. : « les textes sont
+    tous les memes, donne quelque element qui les definit »). Une fiche
+    dediee existe pour les cryptos majeures ; sinon on retombe sur la
+    famille (`groupe`), deja etablie dans `universe.CATALOGUE_CRYPTO` --
+    jamais un fait invente pour l'occasion.
     """
     nom = nom_courant(paire)
     alea = random.Random(graine or f"{paire}:{canal_jours}:{etage}")
@@ -192,7 +243,12 @@ def rediger_rationale(
         duree=_duree_lisible(duree_moyenne_jours))
     phrase3 = alea.choice(_PROTECTIONS)
 
-    return " ".join([phrase1, phrase2, phrase3])
+    phrases = [phrase1, phrase2, phrase3]
+    description = description_crypto(paire, groupe)
+    if description:
+        phrases.append(f"{nom} : {description}")
+
+    return " ".join(phrases)
 
 
 def _rang(n: int) -> str:

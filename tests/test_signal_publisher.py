@@ -129,10 +129,12 @@ class TestLeTextePourLUtilisateur(unittest.TestCase):
                              "profit garanti", "sans risque"):
                 self.assertNotIn(promesse, texte)
 
-    def test_deux_a_trois_phrases(self):
+    def test_deux_a_quatre_phrases(self):
+        # Une quatrieme phrase (14 sept.) decrit ce qui definit la
+        # crypto -- SOL en a une fiche dediee, elle apparait toujours.
         texte = rediger_rationale("SOL/EUR", 10, volume_ratio=1.4)
         phrases = [p for p in texte.split(".") if p.strip()]
-        self.assertIn(len(phrases), (2, 3), f"{len(phrases)} phrases : {texte}")
+        self.assertIn(len(phrases), (2, 3, 4), f"{len(phrases)} phrases : {texte}")
 
     def test_la_base_exige_au_moins_vingt_caracteres(self):
         # check (length(btrim(rationale)) >= 20) dans la migration.
