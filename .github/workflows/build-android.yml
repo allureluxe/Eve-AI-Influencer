@@ -25,6 +25,11 @@ on:
     branches: ["claude/gold-trading-system-auto-6boe8m"]
     paths: ["app-signaux/**", ".github/workflows/build-android.yml"]
 
+# GITHUB_TOKEN doit pouvoir publier une release (voir la derniere etape) --
+# par defaut certains depots ne lui donnent que la lecture.
+permissions:
+  contents: write
+
 jobs:
   construire:
     runs-on: ubuntu-latest
@@ -74,3 +79,24 @@ jobs:
           name: allure-android
           path: app-signaux/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
+
+      # UNE RELEASE, PAS SEULEMENT UN ARTEFACT.
+      #
+      # Un artefact GitHub se telecharge en .zip (l'operateur a du
+      # extraire l'archive pour trouver l'APK, confusion le 14 sept.) et
+      # exige d'etre connecte a GitHub. Une release donne un lien direct
+      # vers le fichier .apk lui-meme -- un seul geste sur telephone,
+      # comme la page de build Expo avant elle.
+      #
+      # LE TAG RESTE FIXE ("dernier-build") : la meme URL sert a chaque
+      # construction, l'operateur n'a jamais besoin d'un nouveau lien.
+      - name: Publier une release avec l'APK (lien stable)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dernier-build --yes --cleanup-tag || true
+          gh release create dernier-build \
+            app-signaux/android/app/build/outputs/apk/debug/app-debug.apk \
+            --title "Allure -- derniere construction" \
+            --notes "Construit automatiquement depuis le commit ${{ github.sha }}." \
+            --prerelease
