@@ -43,21 +43,34 @@ function avantages(o: Offre): string[] {
   return liste;
 }
 
+export type Periode = "mensuel" | "annuel";
+
 export function CarteOffre({ offre, prixMagasin, actuelle, remisePct,
-                             onChoisir, enCours }: {
+                             periode, onChoisir, enCours }: {
   offre: Offre;
   /** Le prix reel de Google Play. Prioritaire sur l'indicatif. */
   prixMagasin?: string;
   actuelle: boolean;
   /** 10 % si le parrainage Bitvavo est confirme. */
   remisePct: number;
+  periode: Periode;
   onChoisir: () => void;
   enCours: boolean;
 }) {
   const c = useCouleurs();
   const gratuite = offre.rang === 0;
-  const prix = offre.prix_indicatif_eur ?? 0;
-  const remise = remisePct > 0 && !gratuite ? prix * (1 - remisePct / 100) : null;
+  const annuel = periode === "annuel" && offre.prix_indicatif_annuel_eur !== null;
+
+  // En annuel, le "prix normal" barre est le tarif mensuel x 12 -- pas
+  // un chiffre invente, c'est ce que payerait le meme abonnement en
+  // s'y prenant mois par mois (retour reel, 14 sept. : « tu montres le
+  // prix normal genre une promo »).
+  const prixMensuel = offre.prix_indicatif_eur ?? 0;
+  const prixAffiche = annuel
+    ? (offre.prix_indicatif_annuel_eur ?? 0) : prixMensuel;
+  const prixBarre = annuel ? prixMensuel * 12 : null;
+  const remise = remisePct > 0 && !gratuite
+    ? prixAffiche * (1 - remisePct / 100) : null;
 
   return (
     <Carte
@@ -77,17 +90,31 @@ export function CarteOffre({ offre, prixMagasin, actuelle, remisePct,
             <T v="chiffre" style={{ fontSize: 20 }}>0 €</T>
           ) : (
             <>
-              {remise !== null ? (
+              {annuel ? (
+                <View style={{
+                  backgroundColor: c.jaune, borderRadius: rayon.s,
+                  paddingHorizontal: espace.s, marginBottom: espace.xs,
+                }}>
+                  <T v="legende" couleur={c.surJaune}>-10 %</T>
+                </View>
+              ) : null}
+              {prixBarre !== null ? (
                 <T v="chiffre" couleur={c.encrePale}
                    style={{ fontSize: 13,
                             textDecorationLine: "line-through" }}>
-                  {euros(prix)}
+                  {euros(prixBarre)}
+                </T>
+              ) : remise !== null ? (
+                <T v="chiffre" couleur={c.encrePale}
+                   style={{ fontSize: 13,
+                            textDecorationLine: "line-through" }}>
+                  {euros(prixAffiche)}
                 </T>
               ) : null}
               <T v="chiffre" style={{ fontSize: 20 }}>
-                {prixMagasin ?? euros(remise ?? prix)}
+                {prixMagasin ?? euros(remise ?? prixAffiche)}
               </T>
-              <T v="legende">par mois</T>
+              <T v="legende">{annuel ? "par an" : "par mois"}</T>
             </>
           )}
         </View>
@@ -145,8 +172,34 @@ export function GrilleOffres({ offres, palier, prixMagasin, remisePct,
   enCours: string | null;
 }) {
   const c = useCouleurs();
+  const [periode, setPeriode] = React.useState<Periode>("mensuel");
+
   return (
     <View>
+      {/* Mensuel / annuel : un choix qui vaut pour toute la grille, pas
+          un reglage par offre. Retour reel, 14 sept. : « tu mets
+          mensuelle ou annuelle, si c'est annuelle 10 % moins cher ». */}
+      <View style={{
+        flexDirection: "row", backgroundColor: c.creux,
+        borderRadius: rayon.rond, padding: 3, marginBottom: espace.l,
+      }}>
+        {(["mensuel", "annuel"] as const).map((p) => (
+          <T
+            key={p}
+            v="sousTitre"
+            couleur={periode === p ? c.surJaune : c.encreDouce}
+            style={{
+              flex: 1, textAlign: "center", paddingVertical: espace.s,
+              borderRadius: rayon.rond,
+              backgroundColor: periode === p ? c.jaune : "transparent",
+            }}
+            onPress={() => setPeriode(p)}
+          >
+            {p === "mensuel" ? "Mensuel" : "Annuel · -10 %"}
+          </T>
+        ))}
+      </View>
+
       {remisePct > 0 ? (
         <View style={{
           backgroundColor: c.jaunePale, padding: espace.m,
@@ -160,17 +213,22 @@ export function GrilleOffres({ offres, palier, prixMagasin, remisePct,
         </View>
       ) : null}
 
-      {[...offres].sort((a, b) => a.rang - b.rang).map((o) => (
-        <CarteOffre
-          key={o.tier}
-          offre={o}
-          prixMagasin={o.produit_id ? prixMagasin[o.produit_id] : undefined}
-          actuelle={o.tier === palier}
-          remisePct={remisePct}
-          onChoisir={() => onChoisir(o)}
-          enCours={enCours === o.tier}
-        />
-      ))}
+      {[...offres].sort((a, b) => a.rang - b.rang).map((o) => {
+        const produitPeriode = periode === "annuel" && o.produit_id_annuel
+          ? o.produit_id_annuel : o.produit_id;
+        return (
+          <CarteOffre
+            key={o.tier}
+            offre={o}
+            prixMagasin={produitPeriode ? prixMagasin[produitPeriode] : undefined}
+            actuelle={o.tier === palier}
+            remisePct={remisePct}
+            periode={periode}
+            onChoisir={() => onChoisir({ ...o, produit_id: produitPeriode })}
+            enCours={enCours === o.tier}
+          />
+        );
+      })}
 
       <T v="legende" style={{ lineHeight: 17, marginTop: espace.s }}>
         Sans engagement. Le paiement est gere par Google Play : nous ne

@@ -68,7 +68,8 @@ export async function lireOffres(): Promise<{
     .from("offres")
     .select(`tier, rang, nom, accroche, toutes_paires, retard_minutes,
              positions_direct, note_du_matin, historique_complet,
-             export_csv, produit_id, prix_indicatif_eur`)
+             export_csv, produit_id, prix_indicatif_eur,
+             produit_id_annuel, prix_indicatif_annuel_eur`)
     .order("rang");
 
   const grille = (data ?? []) as Offre[];

@@ -97,6 +97,9 @@ export interface Offre {
   export_csv: boolean;
   produit_id: string | null;
   prix_indicatif_eur: number | null;
+  produit_id_annuel: string | null;
+  /** Prix TOTAL de l'annee, deja remise de 10 % sur le tarif mensuel x 12. */
+  prix_indicatif_annuel_eur: number | null;
 }
 
 export interface NoteMarche {
