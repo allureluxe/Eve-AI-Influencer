@@ -125,10 +125,18 @@ def main() -> int:
     ligne("levier", f"{cfg.risk.max_leverage:g}x", "ok" if levier_ok else "non",
           "" if levier_ok else "decision de l'operateur : 1x (voir CLAUDE.md)")
 
+    # CE PLAFOND N'A JAMAIS ETE UN CHIFFRE FIXE : CLAUDE.md le dit lui-meme,
+    # « le plafond suit le stop » -- il depend de l'unite de temps tradee.
+    # Cette ligne comparait encore a 15 %, la decision du 28 aout, alors que
+    # CLAUDE.md documente deux relevements motives depuis (35 % en H1, puis
+    # 50 % en M30, section « M30 au comptant, achat seul ») : le robot
+    # tournait a 50 %, en plein respect de la derniere decision ecrite, et
+    # ce controle affichait NON. Un garde-fou perime est pire qu'absent.
     plafond = cfg.risk.max_cost_ratio_pct
-    plafond_ok = plafond <= 15.0
+    plafond_ok = plafond <= 50.0
     ligne("plafond de cout", f"{plafond:g} %", "ok" if plafond_ok else "non",
-          "" if plafond_ok else "decision de l'operateur : 15 % (voir CLAUDE.md)")
+          "" if plafond_ok else "decision de l'operateur : 50 % (voir CLAUDE.md, "
+          "section « M30 au comptant, achat seul »)")
 
     # ---------------------------------------------------------- tarif
     titre("Regime tarifaire")
