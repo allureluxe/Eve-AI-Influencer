@@ -1,0 +1,76 @@
+# Construit l'APK Android SANS passer par EAS Build (Expo).
+#
+# POURQUOI CE FICHIER EXISTE. Le compte Expo a epuise son quota gratuit
+# de constructions ce mois-ci (14 sept. 2026, reinitialisation le
+# 1er octobre). Deux alternatives ecartees :
+#   - construire sur le VPS du robot : cette machine tourne le robot en
+#     argent reel, avec tres peu de memoire libre et aucune memoire
+#     d'echange -- une construction Gradle pourrait l'affamer au pire
+#     moment ;
+#   - payer un abonnement Expo : evitable, GitHub fournit des machines
+#     de construction gratuites, deja utilisees pour ce depot.
+#
+# Les valeurs ci-dessous (URL/cle Supabase, code de parrainage, id de
+# projet Expo) ne sont PAS des secrets : la cle Supabase est publique
+# par construction (elle part dans chaque APK, voir services/supabase.ts),
+# et les autres sont des identifiants, pas des mots de passe. Les ecrire
+# ici plutot que dans les secrets du depot evite un aller-retour manuel
+# sans rien exposer de plus que ce que l'APK contient deja.
+
+name: Construire l'APK Android (Allure)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/gold-trading-system-auto-6boe8m"]
+    paths: ["app-signaux/**", ".github/workflows/build-android.yml"]
+
+jobs:
+  construire:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://jwksajhtvhwktkbkpits.supabase.co
+      SUPABASE_ANON_KEY: sb_publishable_hd3loPAD_x3_D_HPmxekcQ_vvDH0xmm
+      BITVAVO_PARRAINAGE: 4BFF5D529C
+      EAS_PROJECT_ID: a8ae497e-aec8-4765-a87d-170db17f07eb
+      REVENUECAT_ANDROID_KEY: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.1"
+
+      # AGP (Android Gradle Plugin) recent exige Java 17 -- les images
+      # ubuntu-latest de GitHub portent deja le SDK Android complet,
+      # aucune installation supplementaire n'est necessaire pour lui.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Installer les dependances
+        working-directory: app-signaux
+        run: npm install
+
+      - name: Generer le projet Android natif
+        working-directory: app-signaux
+        run: npx expo prebuild --platform android
+
+      # ASSEMBLEDEBUG, PAS ASSEMBLERELEASE. Une construction "release"
+      # exige une cle de signature configuree (EAS la gere elle-meme,
+      # cote cloud) ; sans elle Gradle refuse ou produit un APK
+      # inutilisable. Le debug se signe automatiquement avec une cle
+      # generee a la volee -- installable sur un telephone comme
+      # n'importe quel APK de test, exactement l'usage vise ici.
+      - name: Construire l'APK (debug, signe automatiquement)
+        working-directory: app-signaux/android
+        run: ./gradlew assembleDebug
+
+      - name: Publier l'APK comme fichier telechargeable
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-android
+          path: app-signaux/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
