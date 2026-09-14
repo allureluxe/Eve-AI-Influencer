@@ -15,7 +15,7 @@ import React from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { espace } from "../theme";
-import { useCouleurs } from "../composants/base";
+import { Logo, T, useCouleurs } from "../composants/base";
 import { Segments } from "./Marche";
 import { EcranAnalyse } from "./Analyse";
 import { EcranMarche } from "./Marche";
@@ -33,6 +33,15 @@ export function EcranAnalyseEtMarche({ versAbonnement }: {
   return (
     <View style={{ flex: 1, backgroundColor: c.fond,
                    paddingTop: marges.top + espace.s }}>
+      {/* Titre et logo D'ABORD, le selecteur en dessous -- retour reel
+          du 14 sept. : « inverse le titre et logo en haut et les 2
+          onglets en dessous ». */}
+      <View style={{ flexDirection: "row", alignItems: "center",
+                     justifyContent: "space-between",
+                     paddingHorizontal: espace.l, marginBottom: espace.m }}>
+        <T v="titreGrand">{vue === "analyse" ? "Analyse" : "Marche"}</T>
+        <Logo hauteur={114} />
+      </View>
       <Segments options={ONGLETS} choisi={vue} onChoisir={setVue} />
       {vue === "analyse"
         ? <EcranAnalyse versAbonnement={versAbonnement} />

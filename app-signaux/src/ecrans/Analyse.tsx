@@ -26,7 +26,7 @@ import { euros, pourcent } from "../services/format";
 import { BarreReactions } from "../composants/BarreReactions";
 import { espace, rayon } from "../theme";
 import {
-  BandeauCache, Carte, Logo, Separateur, Squelette, T, useCouleurs, Vide,
+  BandeauCache, Carte, Separateur, Squelette, T, useCouleurs, Vide,
 } from "../composants/base";
 
 /** Une jauge horizontale, sobre : un filet et un repere. */
@@ -107,11 +107,16 @@ const VUES = [["note", "Le point"], ["demo", "Essayer"]] as const;
 type Vue = (typeof VUES)[number][0];
 
 /**
- * L'en-tete de l'onglet, et son choix "Le point / Essayer" en-dessous --
- * PAS un deuxieme gros bouton segmente empile sur celui d'AnalyseEtMarche.
- * Retour reel du 14 sept. : « 4 gros onglets, essaye un autre truc ».
- * Meme filet discret que Signaux.tsx (En cours / Historique) : un trait
- * sous le libelle actif, pas une pastille bordee.
+ * Le sous-titre et le choix "Le point / Essayer" -- PAS un deuxieme
+ * gros bouton segmente empile sur celui d'AnalyseEtMarche. Retour reel
+ * du 14 sept. : « 4 gros onglets, essaye un autre truc ». Meme filet
+ * discret que Signaux.tsx (En cours / Historique) : un trait sous le
+ * libelle actif, pas une pastille bordee.
+ *
+ * LE TITRE ET LE LOGO NE SONT PLUS ICI (14 sept., 2e retour le meme
+ * soir : « inverse le titre et logo en haut, les 2 onglets en
+ * dessous ») -- ils vivent desormais dans AnalyseEtMarche.tsx, au-dessus
+ * du selecteur Analyse/Marche, pour ne pas les dupliquer.
  */
 function EnteteAnalyse({ vue, onChoisir }: {
   vue: Vue; onChoisir: (v: Vue) => void;
@@ -119,12 +124,7 @@ function EnteteAnalyse({ vue, onChoisir }: {
   const c = useCouleurs();
   return (
     <>
-      <View style={{ flexDirection: "row", alignItems: "center",
-                     justifyContent: "space-between" }}>
-        <T v="titreGrand">Analyse</T>
-        <Logo hauteur={114} />
-      </View>
-      <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
+      <T v="petit" style={{ marginBottom: espace.l }}>
         Le point du matin, et ce que le robot a fait jusqu'ici.
       </T>
       <View style={{ flexDirection: "row", marginBottom: espace.l,
