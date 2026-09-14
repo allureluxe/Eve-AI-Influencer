@@ -2,28 +2,28 @@
  * L'assemblage ALLURE : polices, session, navigation.
  *
  * L'ORDRE DES ECRANS N'EST PAS ARBITRAIRE.
- *   accueil (une fois) -> connexion -> les six onglets
+ *   accueil (une fois) -> connexion -> les quatre onglets
  *
  * L'accueil vient AVANT la connexion. Demander une adresse e-mail a
  * quelqu'un qui ne sait pas encore ce que fait l'application est le
  * meilleur moyen de le perdre — et c'est ce que font la plupart des
  * applications du genre.
  *
- * L'ORDRE DES ONGLETS SUIT L'USAGE, PAS L'ORGANIGRAMME.
+ * QUATRE ONGLETS, PAS SIX (retour reel du 14 sept. : « trop d'onglets,
+ * trop d'informations par ecran »). Le regroupement continue celui
+ * deja fait entre Cours et Agenda (voir Marche.tsx) :
  *   Direct   — ce qui bouge maintenant. C'est pour ca qu'on ouvre.
  *   Signaux  — ce qu'il faut faire, et l'historique.
- *   Marche   — les cours et l'agenda : « ou en est le prix » et
- *              « qu'est-ce qui va le bouger », la meme question a deux
- *              echelles de temps.
- *   Analyse  — le point du matin, l'historique chiffre, et la
- *              demonstration a trois montants.
- *   Bitvavo  — ou passer ses ordres, et le parrainage.
- *   Compte   — les offres et les reglages, rarement.
+ *   Analyse  — le point du matin, l'historique chiffre, la
+ *              demonstration a trois montants, ET (via un selecteur
+ *              interne) les cours et l'agenda -- voir
+ *              AnalyseEtMarche.tsx.
+ *   Compte   — les offres, les reglages, ET (via le meme principe)
+ *              ou passer ses ordres et le parrainage Bitvavo -- voir
+ *              CompteEtBitvavo.tsx.
  *
- * SIX ONGLETS EST LE MAXIMUM. Au-dela, les libelles deviennent
- * illisibles et plus personne ne trouve rien. C'est pourquoi Cours et
- * Agenda partagent « Marche », et pourquoi la demonstration vit dans
- * « Analyse » plutot que d'occuper une place a elle.
+ * Le contenu n'est pas perdu, seulement range derriere un selecteur au
+ * lieu d'occuper une case de la barre du bas a lui seul.
  */
 
 import React from "react";
@@ -55,10 +55,8 @@ import { EcranAccueil } from "./src/ecrans/Accueil";
 import { EcranConnexion } from "./src/ecrans/Connexion";
 import { EcranDirect } from "./src/ecrans/Direct";
 import { EcranSignaux } from "./src/ecrans/Signaux";
-import { EcranMarche } from "./src/ecrans/Marche";
-import { EcranAnalyse } from "./src/ecrans/Analyse";
-import { EcranCompte } from "./src/ecrans/Compte";
-import { EcranBitvavo } from "./src/ecrans/Bitvavo";
+import { EcranAnalyseEtMarche } from "./src/ecrans/AnalyseEtMarche";
+import { EcranCompteEtBitvavo } from "./src/ecrans/CompteEtBitvavo";
 import { espace, polices, TRAIT } from "./src/theme";
 
 const Onglets = createBottomTabNavigator();
@@ -76,9 +74,7 @@ const Onglets = createBottomTabNavigator();
 const ICONES_ONGLET: Record<string, keyof typeof Ionicons.glyphMap> = {
   Direct: "flash-outline",
   Signaux: "list-outline",
-  Marche: "stats-chart-outline",
   Analyse: "analytics-outline",
-  Bitvavo: "swap-horizontal-outline",
   Compte: "person-outline",
 };
 
@@ -169,22 +165,16 @@ function Navigation({ session, onRevoirAccueil }: {
           )}
         </Onglets.Screen>
 
-        <Onglets.Screen name="Marche" options={{ title: "Marche" }}
-                        component={EcranMarche} />
-
         <Onglets.Screen name="Analyse" options={{ title: "Analyse" }}>
           {({ navigation }) => (
-            <EcranAnalyse
+            <EcranAnalyseEtMarche
               versAbonnement={() => navigation.navigate("Compte" as never)} />
           )}
         </Onglets.Screen>
 
-        <Onglets.Screen name="Bitvavo" options={{ title: "Bitvavo" }}
-                        component={EcranBitvavo} />
-
         <Onglets.Screen name="Compte" options={{ title: "Compte" }}>
-          {() => <EcranCompte email={session.user.email ?? ""}
-                              onRevoirPresentation={onRevoirAccueil} />}
+          {() => <EcranCompteEtBitvavo email={session.user.email ?? ""}
+                                       onRevoirPresentation={onRevoirAccueil} />}
         </Onglets.Screen>
       </Onglets.Navigator>
     </NavigationContainer>
