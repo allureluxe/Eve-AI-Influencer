@@ -19,7 +19,6 @@
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { EcranDemo } from "./Demo";
-import { Segments } from "./Marche";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Line } from "react-native-svg";
 import { api, ilYA, NoteMarche, Performance } from "../services/api";
@@ -106,6 +105,49 @@ function Statistique({ libelle, valeur, couleur }: {
 const VUES = [["note", "Le point"], ["demo", "Essayer"]] as const;
 type Vue = (typeof VUES)[number][0];
 
+/**
+ * L'en-tete de l'onglet, et son choix "Le point / Essayer" en-dessous --
+ * PAS un deuxieme gros bouton segmente empile sur celui d'AnalyseEtMarche.
+ * Retour reel du 14 sept. : « 4 gros onglets, essaye un autre truc ».
+ * Meme filet discret que Signaux.tsx (En cours / Historique) : un trait
+ * sous le libelle actif, pas une pastille bordee.
+ */
+function EnteteAnalyse({ vue, onChoisir }: {
+  vue: Vue; onChoisir: (v: Vue) => void;
+}) {
+  const c = useCouleurs();
+  return (
+    <>
+      <View style={{ flexDirection: "row", alignItems: "center",
+                     justifyContent: "space-between" }}>
+        <T v="titreGrand">Analyse</T>
+        <Logo hauteur={38} />
+      </View>
+      <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
+        Le point du matin, et ce que le robot a fait jusqu'ici.
+      </T>
+      <View style={{ flexDirection: "row", marginBottom: espace.l,
+                     borderBottomWidth: 1, borderBottomColor: c.filet }}>
+        {VUES.map(([cle, libelle]) => (
+          <T
+            key={cle}
+            v="sousTitre"
+            couleur={vue === cle ? c.encre : c.encrePale}
+            style={{
+              paddingVertical: espace.m, marginRight: espace.xl,
+              borderBottomWidth: 2, marginBottom: -1,
+              borderBottomColor: vue === cle ? c.jaune : "transparent",
+            }}
+            onPress={() => onChoisir(cle)}
+          >
+            {libelle}
+          </T>
+        ))}
+      </View>
+    </>
+  );
+}
+
 export function EcranAnalyse({ versAbonnement }: {
   versAbonnement: () => void;
 }) {
@@ -137,8 +179,10 @@ export function EcranAnalyse({ versAbonnement }: {
   if (vue === "demo") {
     return (
       <View style={{ flex: 1, backgroundColor: c.fond,
-                     paddingTop: marges.top + espace.s }}>
-        <Segments options={VUES} choisi={vue} onChoisir={setVue} />
+                     paddingTop: marges.top + espace.m }}>
+        <View style={{ paddingHorizontal: espace.l }}>
+          <EnteteAnalyse vue={vue} onChoisir={setVue} />
+        </View>
         <EcranDemo versAbonnement={versAbonnement} />
       </View>
     );
@@ -171,17 +215,7 @@ export function EcranAnalyse({ versAbonnement }: {
           }} />
       }
     >
-      <View style={{ marginHorizontal: -espace.l }}>
-        <Segments options={VUES} choisi={vue} onChoisir={setVue} />
-      </View>
-      <View style={{ flexDirection: "row", alignItems: "center",
-                     justifyContent: "space-between" }}>
-        <T v="titreGrand">Analyse</T>
-        <Logo hauteur={38} />
-      </View>
-      <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
-        Le point du matin, et ce que le robot a fait jusqu'ici.
-      </T>
+      <EnteteAnalyse vue={vue} onChoisir={setVue} />
 
       {cache ? <BandeauCache texte={cache} /> : null}
 
