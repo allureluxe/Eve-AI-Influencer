@@ -20,10 +20,7 @@ import { EcranBitvavo } from "./Bitvavo";
 const ONGLETS = [["compte", "Compte"], ["bitvavo", "Bitvavo"]] as const;
 type Vue = (typeof ONGLETS)[number][0];
 
-export function EcranCompteEtBitvavo({ email, onRevoirPresentation }: {
-  email: string;
-  onRevoirPresentation: () => void;
-}) {
+export function EcranCompteEtBitvavo({ email }: { email: string }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
   const [vue, setVue] = React.useState<Vue>("compte");
@@ -32,9 +29,7 @@ export function EcranCompteEtBitvavo({ email, onRevoirPresentation }: {
     <View style={{ flex: 1, backgroundColor: c.fond,
                    paddingTop: marges.top + espace.s }}>
       <Segments options={ONGLETS} choisi={vue} onChoisir={setVue} />
-      {vue === "compte"
-        ? <EcranCompte email={email} onRevoirPresentation={onRevoirPresentation} />
-        : <EcranBitvavo />}
+      {vue === "compte" ? <EcranCompte email={email} /> : <EcranBitvavo />}
     </View>
   );
 }

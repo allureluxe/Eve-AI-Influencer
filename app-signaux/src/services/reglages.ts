@@ -18,7 +18,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React from "react";
 
 const CLE_CAPITAL = "eve:capital";
-const CLE_ACCUEIL = "eve:accueil-vu";
 
 /** Valeur par defaut tant que l'utilisateur n'a rien declare. */
 export const CAPITAL_DEFAUT = 1000;
@@ -37,12 +36,4 @@ export function useCapital(): number {
 export async function enregistrerCapital(valeur: number): Promise<void> {
   if (!Number.isFinite(valeur) || valeur <= 0) return;
   await AsyncStorage.setItem(CLE_CAPITAL, String(valeur));
-}
-
-export async function accueilDejaVu(): Promise<boolean> {
-  return (await AsyncStorage.getItem(CLE_ACCUEIL)) === "1";
-}
-
-export async function marquerAccueilVu(): Promise<void> {
-  await AsyncStorage.setItem(CLE_ACCUEIL, "1");
 }

@@ -48,7 +48,6 @@ import * as Linking from "expo-linking";
 import { supabase } from "./src/services/supabase";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { demarrerAbonnement } from "./src/services/abonnement";
-import { accueilDejaVu, marquerAccueilVu } from "./src/services/reglages";
 import { FournisseurTheme, Logo, T, useCouleurs, useTheme }
   from "./src/composants/base";
 import { EcranAccueil } from "./src/ecrans/Accueil";
@@ -72,6 +71,7 @@ const Onglets = createBottomTabNavigator();
  * si c'est moins « signature » qu'un trait epure.
  */
 const ICONES_ONGLET: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Accueil: "home-outline",
   Direct: "flash-outline",
   Signaux: "list-outline",
   Analyse: "analytics-outline",
@@ -95,9 +95,7 @@ function IconeOnglet({ route, actif }: { route: string; actif: boolean }) {
   );
 }
 
-function Navigation({ session, onRevoirAccueil }: {
-  session: Session; onRevoirAccueil: () => void;
-}) {
+function Navigation({ session }: { session: Session }) {
   const c = useCouleurs();
   const theme = useTheme();
   const [, setVersCompte] = React.useState(0);
@@ -151,6 +149,10 @@ function Navigation({ session, onRevoirAccueil }: {
           ),
         })}
       >
+        <Onglets.Screen name="Accueil" options={{ title: "Accueil" }}>
+          {() => <EcranAccueil />}
+        </Onglets.Screen>
+
         <Onglets.Screen name="Direct" options={{ title: "Direct" }}>
           {({ navigation }) => (
             <EcranDirect
@@ -173,29 +175,26 @@ function Navigation({ session, onRevoirAccueil }: {
         </Onglets.Screen>
 
         <Onglets.Screen name="Compte" options={{ title: "Compte" }}>
-          {() => <EcranCompteEtBitvavo email={session.user.email ?? ""}
-                                       onRevoirPresentation={onRevoirAccueil} />}
+          {() => <EcranCompteEtBitvavo email={session.user.email ?? ""} />}
         </Onglets.Screen>
       </Onglets.Navigator>
     </NavigationContainer>
   );
 }
 
-// Duree minimale du logo de lancement, meme quand tout est pret plus tot
-// (retour reel du 14 sept. : « laisser un laps de temps ... j'aimerais
-// que les utilisateurs aient le temps de le voir »). Sans ce plancher,
-// une connexion rapide fait defiler l'ecran de marque en dessous de
-// 200 ms -- trop vite pour etre lu.
-const DUREE_LANCEMENT_MS = 1800;
+// Duree minimale du logo de lancement, meme quand tout est pret plus tot.
+// Portee a 12 s le 14 sept. (retour reel, deuxieme demande explicite :
+// « dix ou quinze secondes » -- la premiere fois ne precisait pas de
+// chiffre). Sans ce plancher, une connexion rapide fait defiler l'ecran
+// de marque en une fraction de seconde.
+const DUREE_LANCEMENT_MS = 12_000;
 
 function Racine() {
   const [session, setSession] = React.useState<Session | null>(null);
   const [sessionPrete, setSessionPrete] = React.useState(false);
-  const [accueilVu, setAccueilVu] = React.useState<boolean | null>(null);
   const [delaiEcoule, setDelaiEcoule] = React.useState(false);
 
   React.useEffect(() => {
-    accueilDejaVu().then(setAccueilVu);
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session); setSessionPrete(true);
     });
@@ -230,19 +229,11 @@ function Racine() {
   }, []);
 
 
-  if (accueilVu === null || !sessionPrete || !delaiEcoule) {
+  if (!sessionPrete || !delaiEcoule) {
     return <EcranDeLancement />;
   }
-  if (!accueilVu) {
-    return (
-      <EcranAccueil onTermine={() => {
-        marquerAccueilVu(); setAccueilVu(true);
-      }} />
-    );
-  }
   if (!session) return <EcranConnexion />;
-  return <Navigation session={session}
-                     onRevoirAccueil={() => setAccueilVu(false)} />;
+  return <Navigation session={session} />;
 }
 
 export default function App() {
