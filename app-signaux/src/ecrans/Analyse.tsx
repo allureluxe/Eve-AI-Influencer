@@ -26,7 +26,7 @@ import { api, ilYA, NoteMarche, Performance } from "../services/api";
 import { euros, pourcent } from "../services/format";
 import { espace, rayon } from "../theme";
 import {
-  BandeauCache, Carte, Separateur, Squelette, T, useCouleurs, Vide,
+  BandeauCache, Carte, Logo, Separateur, Squelette, T, useCouleurs, Vide,
 } from "../composants/base";
 
 /** Une jauge horizontale, sobre : un filet et un repere. */
@@ -174,6 +174,7 @@ export function EcranAnalyse({ versAbonnement }: {
       <View style={{ marginHorizontal: -espace.l }}>
         <Segments options={VUES} choisi={vue} onChoisir={setVue} />
       </View>
+      <Logo hauteur={24} />
       <T v="titreGrand" style={{ marginTop: espace.m }}>Analyse</T>
       <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
         Le point du matin, et ce que le robot a fait jusqu'ici.

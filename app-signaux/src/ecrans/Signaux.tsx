@@ -21,7 +21,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ilYA, ReponseSignaux, Signal } from "../services/api";
 import { espace } from "../theme";
 import {
-  BandeauCache, Bouton, Carte, Separateur, SqueletteCarte, T, useCouleurs, Vide,
+  BandeauCache, Bouton, Carte, Logo, Separateur, SqueletteCarte, T,
+  useCouleurs, Vide,
 } from "../composants/base";
 import { CarteSignal } from "../composants/CarteSignal";
 import { LigneFloutee, LigneSignal } from "../composants/LigneSignal";
@@ -123,7 +124,8 @@ export function EcranSignaux({ versAbonnement }: { versAbonnement: () => void })
         />
       }
     >
-      <T v="titreGrand">Signaux</T>
+      <Logo hauteur={24} />
+      <T v="titreGrand" style={{ marginTop: espace.m }}>Signaux</T>
       <T v="petit" style={{ marginTop: 2, marginBottom: espace.l }}>
         Ce que le robot fait avec son propre argent.
       </T>

@@ -1,6 +1,15 @@
 /**
  * L'identite visuelle ALLURE.
  *
+ * MIS A JOUR LE 14 SEPT. : deux decisions ci-dessous ont ete inversees
+ * depuis, sur demande explicite de l'operateur -- gardees en l'etat
+ * pour la logique du raisonnement, pas parce qu'elles tiennent encore.
+ *   - le jaune n'est plus #EFE73C mais #FCFF00 (couleur reelle du logo
+ *     dessine par le frere de l'operateur, mesuree dans le fichier
+ *     d'origine -- voir `jaune` plus bas) ;
+ *   - les rayons ne sont plus nets mais arrondis (voir `rayon`, 13 sept.,
+ *     « trop comme un journal, plus moderne »).
+ *
  * CE N'EST PAS UNE PALETTE INVENTEE POUR L'OCCASION.
  * Elle est reprise a l'identique des rapports ALLURE deja produits
  * (`rapports/allure_tete.html`) : meme jaune, meme encre, memes filets,
@@ -64,8 +73,13 @@ const CLAIR: Palette = {
   encreDouce: "#55554A",
   encrePale: "#8E8E80",
 
-  jaune: "#EFE73C",
-  jaunePale: "#FCFAD9",
+  // Jaune ajuste le 14 sept. sur la couleur reelle du logo dessine par
+  // le frere de l'operateur (#FCFF00 mesure dans le fichier d'origine)
+  // -- l'ancien #EFE73C, plus doux, ne correspondait pas au vrai
+  // dessin : « je veux que les couleurs de l'appli soient avec ces
+  // couleurs, ce que je ne vois toujours pas ».
+  jaune: "#FCFF00",
+  jaunePale: "#FDFFD0",
   olive: "#5C570C",
   surJaune: "#15150F",
 
@@ -94,7 +108,7 @@ const SOMBRE: Palette = {
   encreDouce: "#A8A89A",
   encrePale: "#77776B",
 
-  jaune: "#EFE73C",
+  jaune: "#FCFF00",
   jaunePale: "#2E2C10",
   olive: "#D6CE5A",
   surJaune: "#15150F",

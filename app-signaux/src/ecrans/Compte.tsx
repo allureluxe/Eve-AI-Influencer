@@ -24,7 +24,7 @@ import { supabase } from "../services/supabase";
 import { euros } from "../services/format";
 import { espace, rayon, TRAIT } from "../theme";
 import {
-  Bouton, Carte, EnTete, Etiquette, Separateur, T, useCouleurs,
+  Bouton, Carte, EnTete, Etiquette, Logo, Separateur, T, useCouleurs,
 } from "../composants/base";
 import { GrilleOffres } from "../composants/Offres";
 
@@ -151,7 +151,7 @@ export function EcranCompte({ email, onRevoirPresentation }: {
         paddingBottom: marges.bottom + espace.xxxl,
       }}
     >
-      <EnTete titre="Compte" sousTitre={email} />
+      <EnTete titre="Compte" sousTitre={email} droite={<Logo hauteur={24} />} />
 
       {/* ------------------------------------------- l'abonnement */}
       {payant ? (

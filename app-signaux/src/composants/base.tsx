@@ -113,7 +113,7 @@ export function Logo({ hauteur = 28 }: { hauteur?: number }) {
       source={sombre
         ? require("../../assets/logo-sombre.png")
         : require("../../assets/logo-detoure.png")}
-      style={{ height: hauteur, width: hauteur * (120 / 105),
+      style={{ height: hauteur, width: hauteur * (646 / 622),
                resizeMode: "contain" }}
       accessibilityLabel="Allure"
     />

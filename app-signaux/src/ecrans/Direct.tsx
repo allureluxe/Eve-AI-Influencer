@@ -35,7 +35,7 @@ import { euros, nomCrypto, perteMax, pourcent, prix, symbole }
 import { useCapital } from "../services/reglages";
 import { espace, rayon } from "../theme";
 import {
-  BandeauCache, Bouton, Carte, Etiquette, Separateur, Squelette, T,
+  BandeauCache, Bouton, Carte, Etiquette, Logo, Separateur, Squelette, T,
   useCouleurs, Vide,
 } from "../composants/base";
 
@@ -234,8 +234,9 @@ export function EcranDirect({ versAbonnement }: { versAbonnement: () => void }) 
           }} />
       }
     >
+      <Logo hauteur={24} />
       <View style={{ flexDirection: "row", alignItems: "center",
-                     justifyContent: "space-between" }}>
+                     justifyContent: "space-between", marginTop: espace.m }}>
         <T v="titreGrand">Direct</T>
         {/* Le point qui bat. Discret, mais il dit que ca vit. */}
         <View style={{ flexDirection: "row", alignItems: "center" }}>

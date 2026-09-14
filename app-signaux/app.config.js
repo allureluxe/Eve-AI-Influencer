@@ -39,7 +39,7 @@ module.exports = () => ({
       googleServicesFile: "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/icone-adaptative.png",
-        backgroundColor: "#EFE73C",
+        backgroundColor: "#FFFFFF",
       },
       permissions: ["POST_NOTIFICATIONS"],
     },
