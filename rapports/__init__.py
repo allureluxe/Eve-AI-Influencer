@@ -12,7 +12,6 @@ Le gabarit est donc range dans le depot :
 
     rapports/allure_tete.html    titre, polices, feuille de style
     rapports/allure_logo.html    le logo Allure, en base64
-    rapports/allure_script.js    le graphique et le tableau
 
 CE QUE CE MODULE NE FAIT PAS. Il n'invente aucun commentaire. Une page
 ecrite dans une conversation porte une lecture — « ce que ca dit et ce que
@@ -20,11 +19,25 @@ ca ne dit pas » — qui vient d'une analyse. Ici on s'en tient aux CHIFFRES,
 et on le dit en clair dans la page plutot que de faire semblant.
 
 Aucun ordre n'est envoye : ce module lit.
+
+LE GRAPHIQUE ET LE TABLEAU DES TRADES SONT RENDUS COTE SERVEUR (14 sept.).
+Ils l'etaient auparavant en JavaScript, execute au chargement de la page
+(`allure_script.js`, retire). Le fichier envoye par Telegram est ouvert
+dans la visionneuse de documents interne de l'app, qui n'execute PAS le
+JavaScript — l'operateur a vu une page entiere sans graphique NI tableau
+de trades, alors que « Jour par jour » (deja rendu en HTML pur par ce
+module) s'affichait normalement. Le second bug, cache derriere le
+premier : quand `POINTS` etait vide, `POINTS[0][1]` levait une exception
+JavaScript qui arretait TOUT le script — c'est ce qui emportait aussi le
+tableau des trades avec le graphique, deux blocs distincts mais un seul
+`<script>`. Rendre les deux en HTML/SVG statique, comme "Jour par jour"
+deja, regle les deux a la fois et ne depend plus d'aucun moteur JS.
 """
 from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 import os
 import re
 
@@ -34,7 +47,22 @@ GABARIT = os.path.dirname(os.path.abspath(__file__))
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 MOIS = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet",
         "aout", "septembre", "octobre", "novembre", "decembre"]
+MOIS_ABREGE = ["janv.", "fevr.", "mars", "avr.", "mai", "juin", "juil.",
+               "aout", "sept.", "oct.", "nov.", "dec."]
 PARIS = dt.timezone(dt.timedelta(hours=2))
+
+# Couleurs de la charte (rapports/allure_tete.html, section :root). Ecrites
+# en dur ici : le graphique est maintenant du SVG statique, sans CSS pour
+# les nourrir a l'affichage.
+C_JAUNE = "#EFE73C"
+C_OLIVE = "#5C570C"
+C_GAIN = "#2C6B3F"
+C_PERTE = "#A8382A"
+C_INK = "#15150F"
+C_INK_SOFT = "#55554A"
+C_INK_FAINT = "#8E8E80"
+C_LIGNE_DOUCE = "#E9E9DE"
+C_SURFACE = "#FFFFFF"
 
 #: Retouches pour le telephone, ajoutees APRES la feuille du gabarit pour
 #: la surcharger. Le gabarit vise un ecran d'ordinateur : 15 px de base et
@@ -181,6 +209,183 @@ def _compte() -> tuple[float, float, int]:
         return 0.0, 0.0, 0
 
 
+def _heure_paris(t: float) -> int:
+    return int(dt.datetime.fromtimestamp(t, PARIS).strftime("%H"))
+
+
+def _jour_court_paris(t: float) -> str:
+    q = dt.datetime.fromtimestamp(t, PARIS)
+    return f"{q.day} {MOIS_ABREGE[q.month - 1]}"
+
+
+def _virgule(v: float) -> str:
+    return f"{v:.2f}".replace(".", ",")
+
+
+def _graphique_svg(points: list[list], trades: list[dict]) -> str:
+    """Le graphique de la courbe de capital, en SVG statique.
+
+    Portage direct de l'ancien `allure_script.js` (retire) : memes
+    dimensions, memes pas de grille, meme decoupe des trous > 2 h. La
+    seule difference est qu'il n'a plus besoin d'un moteur JavaScript
+    pour exister — voir la note en tete de module.
+    """
+    if len(points) < 2:
+        return ('<p class="h2note">Pas encore assez de points relevés sur '
+                'cette période pour tracer une courbe.</p>')
+
+    W, H, PL, PR, PT, PB = 900, 320, 58, 14, 18, 30
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    x0, x1 = min(xs), max(xs)
+    lo, hi = min(ys), max(ys)
+    pad = (hi - lo) * .06 or 0.5
+    y_lo, y_hi = lo - pad, hi + pad
+    portee_x = (x1 - x0) or 1
+
+    def X(t: float) -> float:
+        return PL + (t - x0) / portee_x * (W - PL - PR)
+
+    def Y(v: float) -> float:
+        return PT + (y_hi - v) / (y_hi - y_lo) * (H - PT - PB)
+
+    elements = [
+        f'<defs><linearGradient id="deg" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0%" stop-color="{C_JAUNE}" stop-opacity=".95"/>'
+        f'<stop offset="100%" stop-color="{C_JAUNE}" stop-opacity=".15"/>'
+        f'</linearGradient></defs>'
+    ]
+
+    # Grille horizontale, graduee au demi-euro.
+    pas = 0.5
+    v = math.ceil(y_lo / pas) * pas
+    while v <= y_hi:
+        y = Y(v)
+        rond = abs(v - round(v)) < 1e-9
+        tirets = '' if rond else 'stroke-dasharray="2 4"'
+        elements.append(
+            f'<line x1="{PL}" y1="{y:.1f}" x2="{W-PR}" y2="{y:.1f}" '
+            f'stroke="{C_LIGNE_DOUCE}" stroke-width="{1.4 if rond else 1}" {tirets}/>')
+        libelle = f"{v:.0f}" if rond else _virgule(v)
+        elements.append(
+            f'<text x="{PL-10}" y="{y+4:.1f}" fill="{C_INK_FAINT}" font-size="11.5" '
+            f'text-anchor="end" font-family="IBM Plex Mono, monospace">{libelle} €</text>')
+        v += pas
+
+    # Reperes de temps toutes les 6 h.
+    H6 = 6 * 3600
+    t = math.ceil((x0 + 5400) / H6) * H6
+    while t <= x1 - 3600:
+        x = X(t)
+        h = _heure_paris(t)
+        elements.append(
+            f'<line x1="{x:.1f}" y1="{PT}" x2="{x:.1f}" y2="{H-PB}" '
+            f'stroke="{C_LIGNE_DOUCE}" stroke-width="1" stroke-dasharray="2 5"/>')
+        libelle = _jour_court_paris(t) if h == 0 else f"{h} h"
+        elements.append(
+            f'<text x="{x:.1f}" y="{H-9}" fill="{C_INK_FAINT}" font-size="11" '
+            f'text-anchor="middle" font-family="Archivo, sans-serif">{libelle}</text>')
+        t += H6
+
+    # Les deux bouts, toujours nommes.
+    for t, x, ancrage in ((x0, PL, "start"), (x1, W - PR, "end")):
+        libelle = f"{_jour_court_paris(t)} {_heure_paris(t):02d} h"
+        elements.append(
+            f'<text x="{x}" y="{H-9}" fill="{C_INK_SOFT}" font-size="11" '
+            f'text-anchor="{ancrage}" font-weight="500" '
+            f'font-family="Archivo, sans-serif">{libelle}</text>')
+
+    # Ligne de depart : tout ce qui est au-dessus est du gain.
+    y_dep = Y(points[0][1])
+    elements.append(
+        f'<line x1="{PL}" y1="{y_dep:.1f}" x2="{W-PR}" y2="{y_dep:.1f}" '
+        f'stroke="{C_INK_FAINT}" stroke-width="1.5" stroke-dasharray="6 4"/>')
+    elements.append(
+        f'<text x="{W-PR-4}" y="{y_dep-7:.1f}" fill="{C_INK_SOFT}" font-size="11.5" '
+        f'text-anchor="end" font-family="Archivo, sans-serif">'
+        f'départ {_virgule(points[0][1])} €</text>')
+
+    # On coupe la courbe la ou le robot etait arrete (trou > 2 h).
+    segments: list[list[list]] = [[]]
+    for i, p in enumerate(points):
+        if i and p[0] - points[i - 1][0] > 7200:
+            segments.append([])
+        segments[-1].append(p)
+
+    for seg in segments:
+        if len(seg) < 2:
+            continue
+        d = " ".join(
+            f"{'L' if i else 'M'}{X(p[0]):.1f} {Y(p[1]):.1f}"
+            for i, p in enumerate(seg))
+        aire = (f"{d} L{X(seg[-1][0]):.1f} {H-PB} "
+                f"L{X(seg[0][0]):.1f} {H-PB} Z")
+        elements.append(f'<path d="{aire}" fill="url(#deg)"/>')
+        elements.append(
+            f'<path d="{d}" fill="none" stroke="{C_OLIVE}" stroke-width="3" '
+            f'stroke-linejoin="round" stroke-linecap="round"/>')
+
+    # Chaque trade ferme, pose sur la courbe.
+    def valeur_a(t: float) -> float:
+        b = points[0]
+        for p in points:
+            if p[0] <= t:
+                b = p
+            else:
+                break
+        return b[1]
+
+    for tr in trades:
+        c = int(tr["closed_at"])
+        if c < x0 or c > x1:
+            continue
+        couleur = C_GAIN if tr["profit"] >= 0 else C_PERTE
+        elements.append(
+            f'<circle cx="{X(c):.1f}" cy="{Y(valeur_a(c)):.1f}" r="4.5" '
+            f'fill="{couleur}" stroke="{C_SURFACE}" stroke-width="2"/>')
+
+    # Point final, appuye.
+    dernier = points[-1]
+    elements.append(
+        f'<circle cx="{X(dernier[0]):.1f}" cy="{Y(dernier[1]):.1f}" r="6" '
+        f'fill="{C_JAUNE}" stroke="{C_OLIVE}" stroke-width="3"/>')
+    elements.append(
+        f'<text x="{X(dernier[0])-10:.1f}" y="{Y(dernier[1])-12:.1f}" fill="{C_OLIVE}" '
+        f'font-size="13" text-anchor="end" font-weight="600" '
+        f'font-family="IBM Plex Mono, monospace">{_virgule(dernier[1])} €</text>')
+
+    return (f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" '
+            f'aria-label="Courbe du travail du robot">{"".join(elements)}</svg>')
+
+
+def _lignes_trades(trades: list[dict]) -> str:
+    """Le tableau « Les trades », en HTML statique -- voir la note de module."""
+    if not trades:
+        return '<tr><td colspan="5">aucun trade</td></tr>'
+
+    max_r = max((abs(t.get("r_multiple") or 0) for t in trades), default=0) or 1.0
+    lignes = []
+    for t in trades:
+        d = dt.datetime.fromtimestamp(t["closed_at"], PARIS)
+        date_fr = f"{d.day:02d}/{d.month:02d} à {d.hour:02d}h{d.minute:02d}"
+        symbole = t["symbol"].replace("USD", "")
+        r = t.get("r_multiple") or 0
+        profit = t["profit"]
+        cls = "pos" if profit > 0 else "neg"
+        largeur = abs(r) / max_r * 50
+        if r >= 0:
+            style = f"left:50%;width:{largeur:.2f}%;background:var(--gain)"
+        else:
+            style = f"right:50%;width:{largeur:.2f}%;background:var(--loss)"
+        lignes.append(
+            f'<tr><td class="num" style="color:var(--ink-soft)">{date_fr}</td>'
+            f'<td class="sym">{symbole}</td>'
+            f'<td><span class="bar"><i class="mid"></i><i style="{style}"></i></span></td>'
+            f'<td class="r num {cls}">{r:+.2f}</td>'
+            f'<td class="r num {cls}">{profit:+.2f} €</td></tr>')
+    return "".join(lignes)
+
+
 def page_allure(depuis: float, vers: float | None = None,
                 titre_periode: str = "") -> str:
     """Fabrique la page et rend son chemin sur le disque.
@@ -278,8 +483,7 @@ def page_allure(depuis: float, vers: float | None = None,
   <h2>La courbe du robot</h2>
   <p class="h2note">Ce qui monte, il l'a gagné ; ce qui descend, il l'a perdu.
   Les virements sont retirés point par point.</p>
-  <svg class="chart" id="chart" viewBox="0 0 900 320" role="img"
-       aria-label="Courbe du travail du robot"></svg>
+  {_graphique_svg(points, trades)}
   <div class="legende">
     <span><i class="sw"></i> ce que le robot a fait du capital</span>
     <span><i class="dot"></i> trade fermé — vert gagnant, rouge perdant</span>
@@ -301,7 +505,7 @@ def page_allure(depuis: float, vers: float | None = None,
   <div class="tablewrap"><table>
     <thead><tr><th>Date</th><th>Crypto</th><th>Amplitude</th>
     <th class="r">R</th><th class="r">Résultat</th></tr></thead>
-    <tbody id="trades"></tbody>
+    <tbody>{_lignes_trades(trades)}</tbody>
   </table></div>
 </section>
 
@@ -322,20 +526,7 @@ def page_allure(depuis: float, vers: float | None = None,
 <footer>Relevés Bitvavo · page générée le {_fr(dt.datetime.now())} à
 {dt.datetime.now(PARIS):%Hh%M} · Donchian 20 j en D1</footer>
 </div>
-
-<script>
 '''
-    script = _lire("allure_script.js")
-    if points:
-        script = script.replace("'départ 365,90 €'",
-                                f"'départ {points[0][1]:.2f} €'".replace(".", ","))
-        script = script.replace("'361,04 €'",
-                                f"'{points[-1][1]:.2f} €'".replace(".", ","))
-    tr = [{"s": t["symbol"].replace("USD", ""), "c": int(t["closed_at"]),
-           "r": round(t.get("r_multiple") or 0, 2), "p": round(t["profit"], 2)}
-          for t in trades]
-    donnees = (f"const POINTS = {json.dumps(points)};\n\n"
-               f"const TRADES = {json.dumps(tr, ensure_ascii=False)};\n\n")
 
     # UN FICHIER AUTONOME A BESOIN D'UN VRAI EN-TETE HTML.
     #
@@ -354,7 +545,7 @@ def page_allure(depuis: float, vers: float | None = None,
         "<meta name=\"color-scheme\" content=\"light dark\">\n"
         + _lire("allure_tete.html")
         + MOBILE + "\n</head>\n<body>\n")
-    html = entete + corps + donnees + script + "\n</body>\n</html>\n"
+    html = entete + corps + "\n</body>\n</html>\n"
     chemin = os.path.join(RACINE, "data", "rapport_allure.html")
     os.makedirs(os.path.dirname(chemin), exist_ok=True)
     with open(chemin, "w", encoding="utf-8") as f:
