@@ -63,21 +63,31 @@ jobs:
         working-directory: app-signaux
         run: npx expo prebuild --platform android
 
-      # ASSEMBLEDEBUG, PAS ASSEMBLERELEASE. Une construction "release"
-      # exige une cle de signature configuree (EAS la gere elle-meme,
-      # cote cloud) ; sans elle Gradle refuse ou produit un APK
-      # inutilisable. Le debug se signe automatiquement avec une cle
-      # generee a la volee -- installable sur un telephone comme
-      # n'importe quel APK de test, exactement l'usage vise ici.
-      - name: Construire l'APK (debug, signe automatiquement)
+      # ASSEMBLERELEASE, PAS ASSEMBLEDEBUG -- ERREUR CORRIGEE LE 14 SEPT.
+      #
+      # Un APK "debug" n'embarque PAS le code JavaScript : il attend une
+      # connexion reseau a un serveur Metro sur le poste du developpeur.
+      # Installe seul sur un telephone, il plante immediatement avec
+      # "Could not connect to development server" -- exactement ce que
+      # l'operateur a vu.
+      #
+      # "release" embarque le JavaScript dans l'APK au moment de la
+      # construction (bundleReleaseJsAndAssets), ce qu'il faut pour un
+      # fichier autonome. Le template Expo courant configure DEJA le
+      # type "release" pour se signer avec la cle de debug par defaut
+      # (`android/app/build.gradle`, bloc `buildTypes.release`) tant
+      # qu'aucune vraie cle n'est fournie -- verifie en generant le
+      # projet localement avant ce correctif. Aucune configuration de
+      # signature supplementaire n'est donc necessaire ici.
+      - name: Construire l'APK (release, signe par defaut)
         working-directory: app-signaux/android
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleRelease --stacktrace
 
       - name: Publier l'APK comme fichier telechargeable
         uses: actions/upload-artifact@v4
         with:
           name: allure-android
-          path: app-signaux/android/app/build/outputs/apk/debug/app-debug.apk
+          path: app-signaux/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
 
       # UNE RELEASE, PAS SEULEMENT UN ARTEFACT.
@@ -96,7 +106,7 @@ jobs:
         run: |
           gh release delete dernier-build --yes --cleanup-tag || true
           gh release create dernier-build \
-            app-signaux/android/app/build/outputs/apk/debug/app-debug.apk \
+            app-signaux/android/app/build/outputs/apk/release/app-release.apk \
             --title "Allure -- derniere construction" \
             --notes "Construit automatiquement depuis le commit ${{ github.sha }}." \
             --prerelease
