@@ -29,7 +29,13 @@ module.exports = () => ({
     },
     android: {
       package: "fr.allure.trading",
-      versionCode: 1,
+      // Incremente a CHAQUE construction envoyee a l'operateur. Reste
+      // a 1 pendant des dizaines de constructions le 13-14 sept. :
+      // Android (et surtout MIUI/Xiaomi) peut alors garder d'anciens
+      // fichiers en cache -- l'ecran de lancement flou en etait le
+      // symptome, confirme par des captures montrant l'ancienne
+      // illustration alors que le code avait deja change.
+      versionCode: 2,
       googleServicesFile: "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/icone-adaptative.png",
