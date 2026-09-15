@@ -55,7 +55,10 @@ class Apparence:
         "older, "
         "consistent facial features across all images"
     )
-    graine: int = 776_601  # seed fixe : meme visage d'une image a l'autre
+    # 15 sept. : l'operateur n'aimait pas ce visage precis -- graine changee
+    # pour repartir sur un nouveau visage (reste fixe ensuite pour la
+    # coherence d'une photo a l'autre, tant qu'il n'est pas change a nouveau).
+    graine: int = 154_203
 
 
 @dataclass(frozen=True)

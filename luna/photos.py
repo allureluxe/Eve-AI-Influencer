@@ -22,7 +22,9 @@ NEGATIF = ("child, teenager, underage, deformed hands, extra fingers, "
            "distorted face, watermark, text, logo, low quality, blurry, "
            "duplicate person, different face, 3d render, cgi, video game "
            "character, anime, cartoon, illustration, painting, doll, plastic "
-           "skin, waxy skin, airbrushed, overly smooth skin, fake looking")
+           "skin, waxy skin, airbrushed, overly smooth skin, fake looking, "
+           "excessively large breasts, exaggerated bust, deep plunging "
+           "neckline, cutout cleavage design")
 
 SIGNATURE = "fictional AI-generated character, not a real person"
 
@@ -56,11 +58,11 @@ SCENES = (
           "windows, glossy hair, phone held up, candid lifestyle framing",
           "Prete pour la journee ☕ Tu me souhaites bonne chance ?"),
     Scene("bureau", "Avant les cours", TENDRE,
-          "fitted blazer over a fitted top with a flattering moderate "
-          "neckline, tasteful not revealing, jeans, standing in a school "
-          "library or campus hallway, backpack on one shoulder, notebook in "
-          "hand, natural daylight, confident charming pose, candid student "
-          "lifestyle photography",
+          "casual outfit, simple crew-neck crop top and high-waisted jeans, "
+          "no plunging neckline, white sneakers, standing in a campus "
+          "courtyard, backpack on one shoulder, notebook in hand, natural "
+          "daylight, confident charming pose, candid student lifestyle "
+          "photography",
           "Cours de finance dans dix minutes 📚 Souhaite-moi bon courage."),
     Scene("restaurant", "Sortie au restaurant", TENDRE,
           "seated at a fine dining table, fitted black cocktail dress, "
