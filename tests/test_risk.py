@@ -4,6 +4,8 @@ from __future__ import annotations
 import time
 import unittest
 
+import pytest
+
 from helpers import *  # noqa: F401,F403 - insere le chemin du projet
 
 from gold_bot.core import ClosedTrade, Position, Side
@@ -350,6 +352,58 @@ class TestUnApportNEstPasUnePerformance:
         assert rm.account.reference_equity == ref, (
             "un gain de trading a ete pris pour un apport : l'echelle ne "
             "montera jamais")
+
+
+class TestAbsorberRetraitCorrigeAussiLeJourEtLaSemaine:
+    """15 septembre 2026 : un retrait confirme coupait le trading du jour.
+
+    `absorber_retrait` corrigeait deja `reference_equity` et `peak_equity`
+    pour un retrait CONFIRME par la plateforme (pas une deduction sur la
+    forme de la courbe). Mais `day_start_equity`/`week_start_equity` --
+    qui alimentent le coupe-circuit de PERTE JOURNALIERE/HEBDOMADAIRE --
+    n'etaient pas touches. Un retrait de 19 EUR sur un compte a ~160 EUR a
+    fait lire -11,95 % de perte du jour (seuil : -4 %) et a bloque le
+    trading pour le reste de la journee UTC, alors que la performance
+    reelle de trading etait proche de -3 %.
+    """
+
+    def test_un_retrait_ne_declenche_plus_le_coupe_circuit_journalier(self):
+        rm = RiskManager()
+        rm.sync_account(160.0, 160.0, "EUR")
+        assert rm.account.day_start_equity == 160.0
+        rm.sync_account(141.0, 141.0, "EUR")           # retrait de 19 EUR
+        rm.absorber_retrait(19.0)                       # confirme par la plateforme
+        assert rm.account.day_start_equity == pytest.approx(141.0), (
+            f"depart du jour reste a {rm.account.day_start_equity:.2f} : "
+            "le coupe-circuit journalier va encore lire le retrait comme "
+            "une perte de trading")
+        assert rm.account.daily_pnl_pct() == pytest.approx(0.0, abs=0.01), (
+            f"pnl du jour lu a {rm.account.daily_pnl_pct():+.2f} % apres un "
+            "retrait pourtant absorbe")
+
+    def test_un_retrait_ne_declenche_plus_le_coupe_circuit_hebdomadaire(self):
+        rm = RiskManager()
+        rm.sync_account(160.0, 160.0, "EUR")
+        assert rm.account.week_start_equity == 160.0
+        rm.sync_account(141.0, 141.0, "EUR")
+        rm.absorber_retrait(19.0)
+        assert rm.account.week_start_equity == pytest.approx(141.0), (
+            f"depart de semaine reste a {rm.account.week_start_equity:.2f} "
+            ": le coupe-circuit hebdomadaire va lire le retrait comme "
+            "une perte")
+
+    def test_une_vraie_perte_du_jour_reste_visible_apres_un_retrait(self):
+        """Le garde-fou ne doit pas non plus avaler une vraie perte."""
+        rm = RiskManager()
+        rm.sync_account(160.0, 160.0, "EUR")
+        rm.account.realized_today = -5.0                # perdu en tradant
+        rm.sync_account(136.0, 136.0, "EUR")             # 160 - 19 (retrait) - 5 (perte)
+        rm.absorber_retrait(19.0)
+        assert rm.account.day_start_equity == pytest.approx(141.0)
+        pnl = rm.account.daily_pnl_pct()
+        assert pnl < -3.0, (
+            f"pnl du jour lu a {pnl:+.2f} % : la vraie perte de trading a "
+            "ete masquee par la correction du retrait")
 
 
 class TestLeRejeuAppliqueVraimentLaCarence:

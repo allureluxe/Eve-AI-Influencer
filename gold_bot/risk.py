@@ -449,20 +449,38 @@ class RiskManager:
         parti, ce n'est pas une perte. Le laisser en haut ferait declencher
         le coupe-circuit de drawdown sur un virement — exactement ce qui
         est arrive au chien de garde le 4 septembre.
+
+        QUATRIEME FOIS, LE 15 SEPTEMBRE : `day_start_equity` (et
+        `week_start_equity`) n'etaient PAS corriges ici, alors qu'ils
+        alimentent `daily_pnl_pct()` / `weekly_pnl_pct()` — le coupe-circuit
+        de PERTE JOURNALIERE (4 %). Un retrait de 19 EUR a fait lire
+        -11,95 % de perte du jour, sous le seuil de -4 %, et a coupe le
+        trading pour le reste de la journee UTC alors que la performance
+        reelle de trading etait proche de -3 %. Meme raisonnement que pour
+        `reference_equity` : le retrait n'explique pas la chute, donc il ne
+        doit pas compter comme perte du jour ni de la semaine.
         """
         montant = max(0.0, float(montant))
         if montant <= 0:
             return
         acc = self.account
         avant_ref, avant_pic = acc.reference_equity, acc.peak_equity
+        avant_jour, avant_semaine = acc.day_start_equity, acc.week_start_equity
         acc.reference_equity = max(0.0, acc.reference_equity - montant)
         acc.peak_equity = max(acc.equity, acc.peak_equity - montant)
+        if acc.day_start_equity > 0:
+            acc.day_start_equity = max(0.0, acc.day_start_equity - montant)
+        if acc.week_start_equity > 0:
+            acc.week_start_equity = max(0.0, acc.week_start_equity - montant)
         logger.warning(
             "retrait CONFIRME de %.2f %s : reference %.2f -> %.2f, "
-            "sommet %.2f -> %.2f. Ce n'est pas une perte, l'echelle de "
-            "capital ne doit pas reduire les positions.",
+            "sommet %.2f -> %.2f, depart du jour %.2f -> %.2f, depart de "
+            "la semaine %.2f -> %.2f. Ce n'est pas une perte, l'echelle de "
+            "capital ni le coupe-circuit de perte journaliere/hebdomadaire "
+            "ne doivent en tenir compte.",
             montant, acc.currency, avant_ref, acc.reference_equity,
-            avant_pic, acc.peak_equity)
+            avant_pic, acc.peak_equity, avant_jour, acc.day_start_equity,
+            avant_semaine, acc.week_start_equity)
 
     def record_close(self, trade: ClosedTrade) -> None:
         """Enregistre un trade cloture (statistiques et coupe-circuits)."""
