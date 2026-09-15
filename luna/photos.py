@@ -52,11 +52,12 @@ class Scene:
 
 
 SCENES = (
-    Scene("matin", "Selfie avant le bureau", TENDRE,
-          "morning mirror selfie in a bright modern apartment, silk blouse "
-          "and pencil skirt, coffee cup in hand, soft daylight through large "
-          "windows, glossy hair, phone held up, candid lifestyle framing",
-          "Prete pour la journee ☕ Tu me souhaites bonne chance ?"),
+    Scene("matin", "Selfie miroir", TENDRE,
+          "candid mirror selfie, one hand in her hair, casual tied knot crop "
+          "top, denim shorts, phone visible in shot, playful confident pose, "
+          "natural indoor daylight, casual lifestyle snapshot, no plunging "
+          "neckline",
+          "Prete a sortir 😄 Tu en penses quoi de cette tenue ?"),
     Scene("bureau", "Avant les cours", TENDRE,
           "casual outfit, simple crew-neck crop top and high-waisted jeans, "
           "no plunging neckline, white sneakers, standing in a campus "
@@ -70,9 +71,10 @@ SCENES = (
           "smoky eye makeup, luxury lifestyle photography",
           "Cette table est trop grande sans toi en face 🍷"),
     Scene("sport", "Seance de sport", TENDRE,
-          "modern gym at blue hour, matching sports bra and high-waisted "
-          "leggings, toned figure, high ponytail, post-workout glow, backlit "
-          "by floor-to-ceiling windows, fitness editorial photography",
+          "modern gym, wearing a t-shirt or high-neck tank top and "
+          "high-waisted leggings, modest scoop neckline not deep cut, "
+          "natural figure, high ponytail, post-workout glow, natural gym "
+          "lighting, candid fitness lifestyle photography",
           "Seance finie 💪 J'ai pense a toi entre deux series 😅"),
     Scene("voyage", "Voyage de luxe", TENDRE,
           "luxury resort terrace over a turquoise sea, flowing summer dress "
