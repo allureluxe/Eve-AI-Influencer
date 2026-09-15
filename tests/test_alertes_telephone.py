@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from helpers import *  # noqa: F401,F403 - insere la racine du projet dans sys.path
 
-from gold_bot.notifiers import Notification, TelegramChannel
+from gold_bot.notifiers import AlluxeBotChannel, Notification, TelegramChannel
 
 
 class _Espion(TelegramChannel):
@@ -39,8 +39,23 @@ class _Espion(TelegramChannel):
         self.envoyes.append(note.title)
 
 
-def _passe(niveau: str, titre: str, data=None) -> bool:
-    canal = _Espion()
+class _EspionAlluxe(AlluxeBotChannel):
+    """Meme principe pour Alluxe Bot -- remplace Telegram, meme discipline
+    (decision de l'operateur, 15 sept. 2026)."""
+
+    def __init__(self):
+        super().__init__()
+        self.url, self.cle = "https://x", "cle"
+        self.envoyes: list[str] = []
+
+    def send(self, note):
+        if note.data.get("telephone") is False:
+            return
+        self.envoyes.append(note.title)
+
+
+def _passe(niveau: str, titre: str, data=None, classe_canal=_Espion) -> bool:
+    canal = classe_canal()
     note = Notification(level=niveau, title=titre, body="", data=data or {})
     if not canal.accepts(note.level):
         return False
@@ -137,3 +152,64 @@ class TestLeMarqueurNeSilencePasLeJournal:
         assert canal.accepts("warning"), (
             "le canal refuse desormais les warnings : les vrais problemes "
             "n'arriveraient plus")
+
+
+class TestAlluxeBotSuitLaMemeDiscipline:
+    """15 sept. 2026 : Alluxe Bot remplace Telegram -- meme seuil
+    (`trade`), meme garde-fou `telephone: False`. Pas d'exhaustivite ici
+    (deja verifiee sur Telegram ci-dessus), juste la preuve que le meme
+    comportement s'applique au nouveau canal."""
+
+    def test_une_position_ouverte_arrive(self):
+        assert _passe("trade", "Position ouverte — BUY ETHFIUSD",
+                      classe_canal=_EspionAlluxe)
+
+    def test_un_ordre_refuse_ne_sonne_pas(self):
+        assert not _passe("warning", "Ordre refuse — SAGAUSD",
+                          {"telephone": False}, classe_canal=_EspionAlluxe)
+
+    def test_les_scans_de_routine_ne_sonnent_pas(self):
+        assert not _passe("info", "Robot actif", classe_canal=_EspionAlluxe)
+
+    def test_enabled_exige_url_et_cle(self):
+        canal = AlluxeBotChannel()
+        canal.url, canal.cle = "", ""
+        assert not canal.enabled()
+        canal.url, canal.cle = "https://x", "cle"
+        assert canal.enabled()
+
+    def test_send_poste_sur_la_table_alertes(self, monkeypatch):
+        appels = []
+
+        def _http_json_factice(url, method="POST", payload=None, headers=None, timeout=10.0):
+            appels.append((url, method, payload, headers))
+            return {}
+
+        import gold_bot.notifiers as notifiers
+        monkeypatch.setattr(notifiers, "http_json", _http_json_factice)
+
+        canal = AlluxeBotChannel()
+        canal.url, canal.cle = "https://exemple.supabase.co", "secret"
+        note = Notification(level="trade", title="Position ouverte", body="detail")
+        canal.send(note)
+
+        assert len(appels) == 1
+        url, methode, payload, entetes = appels[0]
+        assert url == "https://exemple.supabase.co/rest/v1/alluxe_bot_alertes"
+        assert methode == "POST"
+        assert payload["titre"] == "Position ouverte"
+        assert payload["niveau"] == "trade"
+        assert entetes["apikey"] == "secret"
+
+    def test_send_ne_poste_pas_si_telephone_est_faux(self, monkeypatch):
+        appels = []
+        import gold_bot.notifiers as notifiers
+        monkeypatch.setattr(notifiers, "http_json", lambda *a, **k: appels.append(1))
+
+        canal = AlluxeBotChannel()
+        canal.url, canal.cle = "https://exemple.supabase.co", "secret"
+        note = Notification(level="warning", title="Ordre refuse",
+                            data={"telephone": False})
+        canal.send(note)
+
+        assert appels == []

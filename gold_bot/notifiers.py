@@ -137,6 +137,47 @@ class TelegramChannel(Channel):
             logger.warning("telegram indisponible : %s", str(exc)[:120])
 
 
+class AlluxeBotChannel(Channel):
+    """Alertes dans l'application Alluxe Bot -- remplace Telegram.
+
+    Decision de l'operateur, 15 sept. 2026 : « tout ce que le robot fait
+    sur Telegram, il le fait sur l'application Alluxe Bot, plus besoin de
+    Telegram ». Meme seuil que TelegramChannel (`min_level="trade"`) et
+    meme garde-fou (`telephone=False` pour les refus ordinaires de
+    courtier, voir TelegramChannel plus haut) : c'est le meme public, la
+    meme discipline anti-spam.
+
+    Ecrit directement dans la table `alluxe_bot_alertes` via l'API REST
+    de Supabase (service_role, comme les autres publieurs `ops/*.py`) --
+    pas de serveur intermediaire a maintenir.
+    """
+    name = "alluxe_bot"
+
+    def __init__(self, min_level: str = "trade") -> None:
+        self.url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        self.cle = os.getenv("SUPABASE_SERVICE_KEY", "")
+        self.min_level = min_level
+
+    def enabled(self) -> bool:
+        return bool(self.url and self.cle)
+
+    def send(self, note: Notification) -> None:
+        # Meme garde-fou que Telegram : un refus de courtier ordinaire ne
+        # doit pas noyer l'operateur.
+        if note.data.get("telephone") is False:
+            return
+        try:
+            http_json(
+                f"{self.url}/rest/v1/alluxe_bot_alertes", "POST",
+                {"niveau": note.level, "titre": note.title,
+                 "corps": note.body, "donnees": note.data},
+                headers={"apikey": self.cle, "Authorization": f"Bearer {self.cle}",
+                         "Prefer": "return=minimal"},
+                timeout=10)
+        except Exception as exc:
+            logger.warning("alluxe bot indisponible : %s", str(exc)[:120])
+
+
 class WebhookChannel(Channel):
     name = "webhook"
 
@@ -184,7 +225,8 @@ class Notifier:
 
     def __init__(self, channels: Optional[list[Channel]] = None) -> None:
         if channels is None:
-            channels = [ConsoleChannel(), FileChannel(), TelegramChannel(), WebhookChannel(), OutboxChannel()]
+            channels = [ConsoleChannel(), FileChannel(), TelegramChannel(),
+                        AlluxeBotChannel(), WebhookChannel(), OutboxChannel()]
         self.channels = [c for c in channels if c.enabled()]
         self._last_sent: dict[str, float] = {}
 

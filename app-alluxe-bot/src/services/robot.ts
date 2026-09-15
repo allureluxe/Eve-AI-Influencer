@@ -94,3 +94,21 @@ export async function objectifs(): Promise<Objectifs | null> {
   }
   return data;
 }
+
+export interface Alerte {
+  id: number;
+  created_at: string;
+  niveau: "debug" | "info" | "trade" | "warning" | "critical";
+  titre: string;
+  corps: string;
+}
+
+export async function alertes(limite = 100): Promise<Alerte[]> {
+  const { data, error } = await supabase
+    .from("alluxe_bot_alertes")
+    .select("id, created_at, niveau, titre, corps")
+    .order("created_at", { ascending: false })
+    .limit(limite);
+  if (error) throw error;
+  return (data ?? []) as unknown as Alerte[];
+}

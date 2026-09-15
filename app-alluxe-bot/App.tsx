@@ -38,6 +38,7 @@ import { EcranVerification } from "./src/ecrans/Verification";
 import { EcranDirect } from "./src/ecrans/Direct";
 import { EcranHistorique } from "./src/ecrans/Historique";
 import { EcranObjectifs } from "./src/ecrans/Objectifs";
+import { EcranAlertes } from "./src/ecrans/Alertes";
 import { EcranDiscussion } from "./src/ecrans/Discussion";
 import { espace, polices, TRAIT } from "./src/theme";
 
@@ -49,6 +50,7 @@ const ICONES_ONGLET: Record<string, keyof typeof Ionicons.glyphMap> = {
   Direct: "flash-outline",
   Historique: "time-outline",
   Objectifs: "trending-up-outline",
+  Alertes: "notifications-outline",
   Discussion: "chatbubble-ellipses-outline",
 };
 
@@ -103,6 +105,7 @@ function Navigation() {
         <Onglets.Screen name="Direct" component={EcranDirect} />
         <Onglets.Screen name="Historique" component={EcranHistorique} />
         <Onglets.Screen name="Objectifs" component={EcranObjectifs} />
+        <Onglets.Screen name="Alertes" component={EcranAlertes} />
         <Onglets.Screen name="Discussion" component={EcranDiscussion} />
       </Onglets.Navigator>
     </NavigationContainer>
