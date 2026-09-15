@@ -102,10 +102,10 @@ SCENES = (
           "smirk, concentrating on cooking, one eyebrow slightly raised",
           "Je teste une nouvelle recette 🍳 Tu gouterais ?"),
     Scene("soiree", "Tenue de soiree", TENDRE,
-          "long fitted evening gown with a slit, rooftop terrace at night, "
-          "city lights bokeh, statement earrings, glamorous makeup, stiletto "
-          "heels, high fashion editorial photography, confident subtle "
-          "half-smile, direct eye contact",
+          "long fitted evening gown, rooftop terrace in the evening, city "
+          "lights bokeh, statement earrings, elegant makeup, heels, high "
+          "fashion editorial photography, confident subtle half-smile, "
+          "direct eye contact",
           "Alors, cette robe ? Sois honnete 👗"),
     Scene("shopping", "Shopping", TENDRE,
           "high-end fashion boutique, chic casual outfit with a blazer and "
@@ -137,9 +137,9 @@ SCENES = (
           "high fashion glamour photography, no nudity",
           "Je sors... ou je reste ? A toi de choisir 💋"),
     Scene("romantique", "Selfie romantique", TENDRE,
-          "close-up cozy selfie in bed under a soft duvet, oversized knit "
-          "sweater, tousled hair, soft morning light, affectionate playful "
-          "expression, natural makeup",
+          "candid photo sitting on a sofa at home, wrapped in a soft "
+          "blanket, oversized knit sweater, tousled hair, soft morning "
+          "light, warm playful smile, natural makeup",
           "Un petit selfie pour te faire sourire 🥰"),
 )
 
