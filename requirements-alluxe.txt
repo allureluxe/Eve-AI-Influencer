@@ -1,0 +1,9 @@
+# Dependances d'Alluxe (script + photo + voix + video), separees du
+# requirements.txt du robot de trading pour ne jamais interferer avec lui.
+#
+#     python3 -m venv .venv-luna
+#     .venv-luna/bin/pip install -r requirements-alluxe.txt
+#
+# ffmpeg (video) et Python 3 (deja la) sont requis a cote, hors pip :
+#     sudo apt install ffmpeg
+gTTS
