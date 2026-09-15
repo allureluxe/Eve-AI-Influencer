@@ -20,19 +20,23 @@ from .persona import LUNA, Persona
 
 NEGATIF = ("child, teenager, underage, deformed hands, extra fingers, "
            "distorted face, watermark, text, logo, low quality, blurry, "
-           "duplicate person, different face")
+           "duplicate person, different face, 3d render, cgi, video game "
+           "character, anime, cartoon, illustration, painting, doll, plastic "
+           "skin, waxy skin, airbrushed, overly smooth skin, fake looking")
 
 SIGNATURE = "fictional AI-generated character, not a real person"
 
-# Le rendu, identique partout : c'est lui qui fait la difference entre une
-# image plate et une photo de studio. Objectif court, lumiere travaillee,
-# peau texturee — les trois choses qui trahissent le plus une image generee
-# quand elles manquent.
-RENDU = ("hyperrealistic glamour photography, professional fashion shoot, "
-         "85mm f/1.4 portrait lens, shallow depth of field, softbox key light "
-         "with warm rim light, detailed natural skin texture with visible "
-         "pores, sharp focus on the eyes, subtle film grain, high dynamic "
-         "range, magazine editorial retouching, 8k")
+# Le rendu, identique partout. Change le 15 sept. : le style "magazine
+# editorial retouche" precedent produisait exactement ce que l'operateur a
+# signale -- un rendu IA generique, trop lisse, avec des proportions
+# artificielles. Vise desormais une vraie photo de tous les jours (celle
+# qu'une etudiante poste ou s'envoie), pas un shooting de studio : moins de
+# retouche, plus de grain et d'imperfections naturelles.
+RENDU = ("shot on iPhone, candid realistic photography, natural everyday "
+         "lighting, authentic amateur photo aesthetic, no studio lighting, "
+         "no airbrushing, no over-retouching, visible natural skin texture "
+         "with pores and slight imperfections, realistic proportions, "
+         "sharp focus, photorealistic, high detail")
 
 
 @dataclass(frozen=True)
@@ -50,11 +54,11 @@ SCENES = (
           "and pencil skirt, coffee cup in hand, soft daylight through large "
           "windows, glossy hair, phone held up, candid lifestyle framing",
           "Prete pour la journee ☕ Tu me souhaites bonne chance ?"),
-    Scene("bureau", "Tenue professionnelle", TENDRE,
-          "elegant fitted trouser suit over a silk camisole, standing in a "
-          "modern glass office at golden hour, city skyline behind, stiletto "
-          "heels, confident posture, corporate editorial photography",
-          "Reunion dans dix minutes 💼 Souhaite-moi bon courage."),
+    Scene("bureau", "Avant les cours", TENDRE,
+          "simple blazer over a plain top and jeans, standing in a school "
+          "library or campus hallway, backpack on one shoulder, notebook in "
+          "hand, natural daylight, candid student lifestyle photography",
+          "Cours de finance dans dix minutes 📚 Souhaite-moi bon courage."),
     Scene("restaurant", "Sortie au restaurant", TENDRE,
           "seated at a fine dining table, fitted black cocktail dress, "
           "candlelight and warm bokeh, glass of red wine, delicate jewellery, "

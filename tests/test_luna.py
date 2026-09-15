@@ -191,7 +191,7 @@ class TestPhotos(unittest.TestCase):
         for scene in SCENES:
             demande = prompt_photo(scene.cle, limites.ADULTE)
             self.assertIn("fictional", demande["prompt"])
-            self.assertIn("30-year-old adult woman", demande["prompt"])
+            self.assertIn("22-year-old adult woman", demande["prompt"])
             self.assertIn("underage", demande["negatif"])
 
     def test_une_scene_sensuelle_est_refusee_en_registre_tendre(self):
