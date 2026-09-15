@@ -259,7 +259,12 @@ class GenerateurImages:
         requete = urllib.request.Request(
             self.url, data=json.dumps(corps).encode("utf-8"),
             headers={"content-type": "application/json", "accept": "application/json",
-                     "authorization": f"Bearer {self.cle}"}, method="POST")
+                     "authorization": f"Bearer {self.cle}",
+                     # Sans User-Agent, urllib envoie "Python-urllib/x.y" --
+                     # le pare-feu Cloudflare de Stability le bloque (erreur
+                     # 1010) avant meme de lire la cle. Decouvert le 15 sept.
+                     "user-agent": "Mozilla/5.0 (X11; Linux x86_64) luna/1.0"},
+            method="POST")
         try:
             with urllib.request.urlopen(requete, timeout=120) as r:
                 reponse = json.loads(r.read().decode("utf-8"))
