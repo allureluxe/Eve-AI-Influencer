@@ -30,6 +30,7 @@ import { Archivo_400Regular, Archivo_600SemiBold }
   from "@expo-google-fonts/archivo";
 import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
 import Constants from "expo-constants";
+import * as Notifications from "expo-notifications";
 
 import { supabase } from "./src/services/supabase";
 import { FournisseurTheme, Logo, T, useCouleurs, useTheme }
@@ -43,6 +44,15 @@ import { EcranDiscussion } from "./src/ecrans/Discussion";
 import { espace, polices, TRAIT } from "./src/theme";
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string>;
+
+// Affiche la notification meme quand l'appli est deja ouverte -- sinon
+// "achat/vente/robot suspendu" n'apparaitrait que si le telephone etait
+// verrouille, ce qui n'est pas ce que l'operateur a demande.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: false,
+  }),
+});
 
 const Onglets = createBottomTabNavigator();
 
@@ -133,6 +143,26 @@ function Racine() {
       else setConnecte(true);
     })();
   }, []);
+
+  // Jeton de notification : enregistre une fois connecte, sur la ligne
+  // privee unique (un seul appareil, un seul operateur). Meme methode
+  // qu'Allure (getDevicePushTokenAsync, pas le jeton Expo -- l'envoi se
+  // fait directement via Firebase Cloud Messaging, voir
+  // gold_bot/notifiers.py::FirebasePushChannel).
+  React.useEffect(() => {
+    if (!connecte) return;
+    (async () => {
+      try {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== "granted") return;
+        const jeton = (await Notifications.getDevicePushTokenAsync()).data;
+        await supabase.from("alluxe_bot_prive")
+          .update({ push_token: jeton }).eq("id", "robot");
+      } catch {
+        // Un refus de notification n'empeche pas d'utiliser l'application.
+      }
+    })();
+  }, [connecte]);
 
   if (erreurConnexion) return <EcranDeLancement erreur={erreurConnexion} />;
   if (!connecte) return <EcranDeLancement />;

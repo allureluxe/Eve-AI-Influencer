@@ -213,3 +213,79 @@ class TestAlluxeBotSuitLaMemeDiscipline:
         canal.send(note)
 
         assert appels == []
+
+
+class TestFirebasePushSuitLaMemeDiscipline:
+    """15 sept. 2026 : vraie notification push (achat/vente/robot
+    suspendu), demande explicite de l'operateur -- pas juste un onglet a
+    ouvrir. Meme seuil (`trade`) et meme garde-fou `telephone: False`."""
+
+    def _canal(self, tmp_path):
+        from gold_bot.notifiers import FirebasePushChannel
+
+        fichier = tmp_path / "cle.json"
+        fichier.write_text('{"client_email": "x@y.iam.gserviceaccount.com", '
+                           '"private_key": "factice", "project_id": "allure-bot-d5a4c"}')
+        canal = FirebasePushChannel()
+        canal.fichier_cle = str(fichier)
+        canal.url_supabase = "https://exemple.supabase.co"
+        canal.cle_supabase = "secret"
+        return canal
+
+    def test_enabled_exige_le_fichier_et_les_identifiants_supabase(self, tmp_path):
+        canal = self._canal(tmp_path)
+        assert canal.enabled()
+        canal.fichier_cle = str(tmp_path / "absent.json")
+        assert not canal.enabled()
+
+    def test_un_ordre_refuse_ne_declenche_aucun_appel_reseau(self, tmp_path, monkeypatch):
+        """Le garde-fou doit agir AVANT toute tentative d'authentification --
+        sinon chaque refus de courtier signerait un JWT pour rien."""
+        canal = self._canal(tmp_path)
+        appele = []
+        monkeypatch.setattr(canal, "_jeton_appareil", lambda: appele.append(1))
+        monkeypatch.setattr(canal, "_jeton_oauth", lambda: appele.append(1))
+
+        note = Notification(level="warning", title="Ordre refuse",
+                            data={"telephone": False})
+        canal.send(note)
+
+        assert appele == []
+
+    def test_sans_jeton_d_appareil_enregistre_rien_n_est_envoye(self, tmp_path, monkeypatch):
+        canal = self._canal(tmp_path)
+        monkeypatch.setattr(canal, "_jeton_appareil", lambda: "")
+        appels = []
+        import gold_bot.notifiers as notifiers
+        monkeypatch.setattr(notifiers, "http_json", lambda *a, **k: appels.append(1))
+
+        canal.send(Notification(level="trade", title="Position ouverte"))
+
+        assert appels == []
+
+    def test_send_poste_le_bon_message_a_fcm(self, tmp_path, monkeypatch):
+        canal = self._canal(tmp_path)
+        monkeypatch.setattr(canal, "_jeton_appareil", lambda: "jeton-appareil")
+        monkeypatch.setattr(canal, "_jeton_oauth", lambda: "jeton-oauth")
+
+        appels = []
+
+        def _http_json_factice(url, method="POST", payload=None, headers=None, timeout=10.0):
+            appels.append((url, method, payload, headers))
+            return {}
+
+        import gold_bot.notifiers as notifiers
+        monkeypatch.setattr(notifiers, "http_json", _http_json_factice)
+
+        note = Notification(level="trade", title="Position ouverte — BUY ETHFIUSD",
+                            body="Entree a 2450 EUR")
+        canal.send(note)
+
+        assert len(appels) == 1
+        url, methode, payload, entetes = appels[0]
+        assert url == "https://fcm.googleapis.com/v1/projects/allure-bot-d5a4c/messages:send"
+        assert methode == "POST"
+        assert payload["message"]["token"] == "jeton-appareil"
+        assert payload["message"]["notification"]["title"] == "Position ouverte — BUY ETHFIUSD"
+        assert payload["message"]["notification"]["body"] == "Entree a 2450 EUR"
+        assert entetes["Authorization"] == "Bearer jeton-oauth"

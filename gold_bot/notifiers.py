@@ -6,6 +6,7 @@ import logging
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -178,6 +179,95 @@ class AlluxeBotChannel(Channel):
             logger.warning("alluxe bot indisponible : %s", str(exc)[:120])
 
 
+class FirebasePushChannel(Channel):
+    """Vraie notification push sur le telephone -- pas juste un onglet a
+    ouvrir. Demande explicite de l'operateur, 15 sept. 2026 : « je veux
+    qu'il envoie une notification quand il y a un achat, une vente ou le
+    robot suspendu ».
+
+    Passe par Firebase Cloud Messaging directement (HTTP v1), pas par le
+    service push d'Expo : le projet Firebase existe deja pour Allure
+    (allure-bot-d5a4c), Alluxe Bot y est enregistre comme 2e application
+    Android. Le jeton d'acces OAuth2 est obtenu en signant un JWT avec la
+    cle privee du compte de service (RS256) -- import de `jwt` fait a
+    l'interieur de `_jeton_oauth`, jamais au sommet du fichier, pour
+    qu'une dependance manquante ne puisse jamais faire planter tout le
+    robot au demarrage : au pire, ce seul canal reste indisponible.
+    """
+    name = "firebase_push"
+
+    def __init__(self, min_level: str = "trade") -> None:
+        self.fichier_cle = os.getenv("FIREBASE_SERVICE_ACCOUNT_FILE", "")
+        self.url_supabase = os.getenv("SUPABASE_URL", "").rstrip("/")
+        self.cle_supabase = os.getenv("SUPABASE_SERVICE_KEY", "")
+        self.min_level = min_level
+        self._jeton_acces = ""
+        self._expire_le = 0.0
+
+    def enabled(self) -> bool:
+        return bool(self.fichier_cle and os.path.exists(self.fichier_cle)
+                     and self.url_supabase and self.cle_supabase)
+
+    def _jeton_oauth(self) -> str:
+        if self._jeton_acces and time.time() < self._expire_le - 60:
+            return self._jeton_acces
+        import jwt  # noqa: PLC0415 -- import tardif, voir la docstring
+        with open(self.fichier_cle, "r", encoding="utf-8") as f:
+            info = json.load(f)
+        maintenant = int(time.time())
+        charge = {
+            "iss": info["client_email"],
+            "scope": "https://www.googleapis.com/auth/firebase.messaging",
+            "aud": "https://oauth2.googleapis.com/token",
+            "iat": maintenant,
+            "exp": maintenant + 3600,
+        }
+        assertion = jwt.encode(charge, info["private_key"], algorithm="RS256")
+        corps = urllib.parse.urlencode({
+            "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+            "assertion": assertion,
+        }).encode("utf-8")
+        requete = urllib.request.Request(
+            "https://oauth2.googleapis.com/token", data=corps, method="POST",
+            headers={"Content-Type": "application/x-www-form-urlencoded"})
+        with urllib.request.urlopen(requete, timeout=15) as r:
+            reponse = json.loads(r.read())
+        self._jeton_acces = reponse["access_token"]
+        self._expire_le = maintenant + int(reponse.get("expires_in", 3600))
+        return self._jeton_acces
+
+    def _jeton_appareil(self) -> str:
+        requete = urllib.request.Request(
+            f"{self.url_supabase}/rest/v1/alluxe_bot_prive?id=eq.robot&select=push_token",
+            headers={"apikey": self.cle_supabase,
+                     "Authorization": f"Bearer {self.cle_supabase}"})
+        with urllib.request.urlopen(requete, timeout=10) as r:
+            lignes = json.loads(r.read())
+        return lignes[0]["push_token"] if lignes and lignes[0].get("push_token") else ""
+
+    def send(self, note: Notification) -> None:
+        if note.data.get("telephone") is False:
+            return
+        try:
+            with open(self.fichier_cle, "r", encoding="utf-8") as f:
+                projet = json.load(f)["project_id"]
+            jeton_appareil = self._jeton_appareil()
+            if not jeton_appareil:
+                logger.warning("firebase push : aucun jeton d'appareil enregistre")
+                return
+            jeton_oauth = self._jeton_oauth()
+            http_json(
+                f"https://fcm.googleapis.com/v1/projects/{projet}/messages:send",
+                "POST",
+                {"message": {"token": jeton_appareil,
+                             "notification": {"title": note.title, "body": note.body},
+                             "android": {"priority": "high"}}},
+                headers={"Authorization": f"Bearer {jeton_oauth}"},
+                timeout=15)
+        except Exception as exc:
+            logger.warning("firebase push indisponible : %s", str(exc)[:150])
+
+
 class WebhookChannel(Channel):
     name = "webhook"
 
@@ -226,7 +316,8 @@ class Notifier:
     def __init__(self, channels: Optional[list[Channel]] = None) -> None:
         if channels is None:
             channels = [ConsoleChannel(), FileChannel(), TelegramChannel(),
-                        AlluxeBotChannel(), WebhookChannel(), OutboxChannel()]
+                        AlluxeBotChannel(), FirebasePushChannel(),
+                        WebhookChannel(), OutboxChannel()]
         self.channels = [c for c in channels if c.enabled()]
         self._last_sent: dict[str, float] = {}
 

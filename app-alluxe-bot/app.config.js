@@ -21,12 +21,14 @@ module.exports = () => ({
     android: {
       package: "fr.allure.alluxebot",
       versionCode: 1,
+      googleServicesFile: "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/icone-adaptative.png",
         backgroundColor: "#FFFFFF",
       },
+      permissions: ["POST_NOTIFICATIONS"],
     },
-    plugins: ["expo-font"],
+    plugins: ["expo-font", "expo-notifications"],
     extra: {
       supabaseUrl: process.env.SUPABASE_URL ?? "",
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? "",

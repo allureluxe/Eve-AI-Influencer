@@ -32,3 +32,17 @@ pydantic==2.3.0
 # gere une position ouverte.
 #
 #   python3 run_bot.py check
+
+# ------------------------------------------------------------------------
+#  OPTIONNEL -- notifications push vers Alluxe Bot (FirebasePushChannel)
+# ------------------------------------------------------------------------
+# Le seul ecart au "aucune dependance" ci-dessus, et delibirement isole :
+# gold_bot/notifiers.py importe `jwt` UNIQUEMENT a l'interieur de
+# FirebasePushChannel._jeton_oauth(), jamais au sommet du fichier. Si ce
+# paquet manque, ce seul canal de notification reste indisponible (log
+# d'avertissement) -- le reste du robot, y compris les positions ouvertes,
+# n'en sait rien et continue normalement. Installer seulement si les
+# notifications push doivent fonctionner :
+#
+#   pip install "PyJWT[crypto]"
+PyJWT[crypto]==2.14.0

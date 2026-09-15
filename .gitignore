@@ -23,3 +23,4 @@ data/chien_de_garde_reference.json
 app-alluxe-bot/node_modules/
 app-alluxe-bot/android/
 app-alluxe-bot/.expo/
+secrets/
