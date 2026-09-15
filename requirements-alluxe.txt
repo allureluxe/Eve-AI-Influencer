@@ -6,4 +6,5 @@
 #
 # ffmpeg (video) et Python 3 (deja la) sont requis a cote, hors pip :
 #     sudo apt install ffmpeg
+edge-tts
 gTTS

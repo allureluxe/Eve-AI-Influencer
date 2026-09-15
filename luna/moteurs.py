@@ -205,15 +205,40 @@ class MoteurHorsLigne(Moteur):
 
 
 # --------------------------------------------------------------------------
+class MoteurAvecRepli(Moteur):
+    """Essaie plusieurs moteurs DANS L'ORDRE jusqu'a ce que l'un reponde.
+
+    Meme principe que `GenerateurImages` pour les photos (15 sept.) :
+    Groq ou Claude peuvent tomber en panne (quota, reseau, service en
+    maintenance) en pleine conversation. Sans repli, Luna redevenait
+    hors-ligne pour tout le reste de l'echange alors qu'un autre moteur
+    etait peut-etre deja configure a cote.
+    """
+
+    def __init__(self, moteurs: list[Moteur]):
+        # MoteurHorsLigne ferme toujours la marche : sa reponse ne leve
+        # jamais d'ErreurMoteur, donc la chaine ne peut jamais echouer
+        # completement -- au pire, Luna dit qu'elle est hors ligne.
+        self._moteurs = [m for m in moteurs if m.disponible] + [MoteurHorsLigne()]
+        self.nom = self._moteurs[0].nom
+        self.disponible = True
+
+    def repondre(self, systeme: str, tours: list[dict]) -> str:
+        derniere: ErreurMoteur | None = None
+        for m in self._moteurs:
+            try:
+                return m.repondre(systeme, tours)
+            except ErreurMoteur as e:
+                derniere = e
+                logger.warning("moteur %s indisponible (%s) -- on essaie le "
+                               "suivant si un autre est configure.", m.nom, e)
+        raise derniere or ErreurMoteur("aucun moteur n'a repondu")
+
+
 def choisir_moteur() -> Moteur:
-    """Le premier moteur configure gagne : endpoint perso, puis Claude."""
-    perso = MoteurCompatibleOpenAI()
-    if perso.disponible:
-        return perso
-    claude = MoteurClaude()
-    if claude.disponible:
-        return claude
-    return MoteurHorsLigne()
+    """Chaine de repli : compatible-OpenAI (Groq...), puis Claude, puis
+    hors-ligne en dernier recours garanti."""
+    return MoteurAvecRepli([MoteurCompatibleOpenAI(), MoteurClaude()])
 
 
 # --------------------------------------------------------------------------

@@ -295,6 +295,59 @@ class TestPhotoDansLaVisio(unittest.TestCase):
         self.assertEqual(GenerateurFactice.appels, 2)
 
 
+class TestMoteurAvecRepli(unittest.TestCase):
+    """15 sept. : meme discipline de repli que GenerateurImages, cote texte."""
+
+    def test_bascule_sur_le_moteur_suivant_si_le_premier_echoue(self):
+        from luna.moteurs import ErreurMoteur, MoteurAvecRepli
+
+        class Panne(Moteur):
+            nom, disponible = "panne", True
+
+            def repondre(self, systeme, tours):
+                raise ErreurMoteur("HTTP 402 : quota epuise")
+
+        class OK(Moteur):
+            nom, disponible = "ok", True
+
+            def repondre(self, systeme, tours):
+                return "ca marche"
+
+        chaine = MoteurAvecRepli([Panne(), OK()])
+        self.assertEqual(chaine.repondre("systeme", []), "ca marche")
+
+    def test_finit_toujours_hors_ligne_plutot_que_de_lever_une_erreur(self):
+        from luna.moteurs import ErreurMoteur, MoteurAvecRepli
+
+        class Panne(Moteur):
+            nom, disponible = "panne", True
+
+            def repondre(self, systeme, tours):
+                raise ErreurMoteur("en panne")
+
+        chaine = MoteurAvecRepli([Panne()])
+        # Ne leve jamais : MoteurHorsLigne ferme toujours la chaine.
+        self.assertTrue(chaine.repondre("systeme", []))
+
+    def test_ignore_les_moteurs_non_configures_sans_les_appeler(self):
+        from luna.moteurs import MoteurAvecRepli
+
+        class NonConfigure(Moteur):
+            nom, disponible = "absent", False
+
+            def repondre(self, systeme, tours):
+                raise AssertionError("ne doit jamais etre appele")
+
+        class OK(Moteur):
+            nom, disponible = "ok", True
+
+            def repondre(self, systeme, tours):
+                return "ca marche"
+
+        chaine = MoteurAvecRepli([NonConfigure(), OK()])
+        self.assertEqual(chaine.repondre("systeme", []), "ca marche")
+
+
 class TestGenerateurImages(unittest.TestCase):
     def test_le_modele_par_defaut_est_sdxl(self):
         from luna.moteurs import GenerateurImages

@@ -1,0 +1,67 @@
+# Construit l'APK Android d'Alluxe Bot -- meme pipeline que
+# build-android.yml (Allure), voir ce fichier pour le detail du
+# raisonnement (pourquoi pas EAS, pourquoi assembleRelease et pas
+# assembleDebug, pourquoi une release GitHub plutot qu'un artefact).
+#
+# Cle Supabase : publique par construction (anon key, part dans l'APK),
+# pas un secret.
+
+name: Construire l'APK Android (Alluxe Bot)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/gold-trading-system-auto-6boe8m"]
+    paths: ["app-alluxe-bot/**", ".github/workflows/build-android-alluxe-bot.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  construire:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://jwksajhtvhwktkbkpits.supabase.co
+      SUPABASE_ANON_KEY: sb_publishable_hd3loPAD_x3_D_HPmxekcQ_vvDH0xmm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.1"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Installer les dependances
+        working-directory: app-alluxe-bot
+        run: npm install
+
+      - name: Generer le projet Android natif
+        working-directory: app-alluxe-bot
+        run: npx expo prebuild --platform android
+
+      - name: Construire l'APK (release, signe par defaut)
+        working-directory: app-alluxe-bot/android
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Publier l'APK comme fichier telechargeable
+        uses: actions/upload-artifact@v4
+        with:
+          name: alluxe-bot-android
+          path: app-alluxe-bot/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      - name: Publier une release avec l'APK (lien stable)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dernier-build-alluxe-bot --yes --cleanup-tag || true
+          gh release create dernier-build-alluxe-bot \
+            app-alluxe-bot/android/app/build/outputs/apk/release/app-release.apk \
+            --title "Alluxe Bot -- derniere construction" \
+            --notes "Construit automatiquement depuis le commit ${{ github.sha }}." \
+            --prerelease

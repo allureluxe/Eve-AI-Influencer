@@ -2,10 +2,11 @@
 """Alluxe -- l'agent qui parle a Luna et agit : script, photo, voix, video.
 
     python3 alluxe.py "un post Instagram sur son week-end au ski"
+    python3 alluxe.py                 (sans sujet : Luna improvise toute seule)
 
 Se relance automatiquement sous .venv-luna/bin/python3 s'il existe : c'est
-la que vivent les dependances propres a Alluxe (gTTS...), separees du
-.venv du robot de trading pour ne jamais y toucher.
+la que vivent les dependances propres a Alluxe (edge-tts, gTTS...),
+separees du .venv du robot de trading pour ne jamais y toucher.
 """
 from __future__ import annotations
 
@@ -41,10 +42,10 @@ if __name__ == "__main__":
 
     from luna.alluxe import creer
 
-    if len(sys.argv) < 2:
+    if sys.argv[1:] in (["-h"], ["--help"], ["aide"]):
         print(__doc__)
-        raise SystemExit(1)
-    demande = " ".join(sys.argv[1:])
+        raise SystemExit(0)
+    demande = " ".join(sys.argv[1:])  # vide : Luna improvise toute seule
     resultat = creer(demande)
     print(resultat.resume())
     raise SystemExit(1 if resultat.erreurs else 0)
