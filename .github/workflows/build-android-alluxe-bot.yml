@@ -23,6 +23,13 @@ jobs:
     env:
       SUPABASE_URL: https://jwksajhtvhwktkbkpits.supabase.co
       SUPABASE_ANON_KEY: sb_publishable_hd3loPAD_x3_D_HPmxekcQ_vvDH0xmm
+      # Ce depot est PUBLIC -- contrairement a la cle anon (publique par
+      # construction), le mot de passe du compte de service NE DOIT JAMAIS
+      # apparaitre ici en clair. Il vient d'un secret du depot GitHub
+      # (Settings > Secrets and variables > Actions > New repository
+      # secret), invisible dans le code source et dans les journaux.
+      ALLUXE_BOT_SERVICE_EMAIL: alluxe-bot@service.interne
+      ALLUXE_BOT_SERVICE_PASSWORD: ${{ secrets.ALLUXE_BOT_SERVICE_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4

@@ -1,9 +1,18 @@
 /**
  * Alluxe Bot -- l'outil prive de pilotage du robot de trading.
  *
- * Beaucoup plus simple qu'Allure : un seul utilisateur (l'operateur),
- * pas d'inscription, pas de paiement, pas de notifications push. Juste
- * une connexion (compte Allure existant) puis quatre onglets.
+ * PROPRIETE DE LENY LUDOVIC. Application privee, personnelle, exclusive
+ * a l'operateur -- aucune reprise ou reutilisation sans son accord.
+ *
+ * DECISION EXPLICITE DU 15 SEPTEMBRE : cette application n'a NI
+ * inscription NI ecran de connexion email/mot de passe -- contrairement
+ * a Allure, elle n'est faite que pour une seule personne. L'appli
+ * s'authentifie donc seule aupres de Supabase, en arriere-plan, avec un
+ * compte de service dedie (jamais montre, jamais demande). La seule
+ * chose demandee a l'ouverture est une verification d'identite locale
+ * (l'annee de naissance de l'operateur, voir ecrans/Verification.tsx) --
+ * PAS un mot de passe a retenir, juste de quoi lever un doute si
+ * jamais quelqu'un d'autre ouvrait ce telephone.
  */
 import React from "react";
 import { View } from "react-native";
@@ -20,17 +29,19 @@ import {
 import { Archivo_400Regular, Archivo_600SemiBold }
   from "@expo-google-fonts/archivo";
 import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono";
-import type { Session } from "@supabase/supabase-js";
+import Constants from "expo-constants";
 
 import { supabase } from "./src/services/supabase";
 import { FournisseurTheme, Logo, T, useCouleurs, useTheme }
   from "./src/composants/base";
-import { EcranConnexion } from "./src/ecrans/Connexion";
+import { EcranVerification } from "./src/ecrans/Verification";
 import { EcranDirect } from "./src/ecrans/Direct";
 import { EcranHistorique } from "./src/ecrans/Historique";
 import { EcranObjectifs } from "./src/ecrans/Objectifs";
 import { EcranDiscussion } from "./src/ecrans/Discussion";
 import { espace, polices, TRAIT } from "./src/theme";
+
+const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string>;
 
 const Onglets = createBottomTabNavigator();
 
@@ -99,25 +110,34 @@ function Navigation() {
 }
 
 function Racine() {
-  const [session, setSession] = React.useState<Session | null>(null);
-  const [sessionPrete, setSessionPrete] = React.useState(false);
+  const [connecte, setConnecte] = React.useState(false);
+  const [erreurConnexion, setErreurConnexion] = React.useState("");
+  const [verifie, setVerifie] = React.useState(false);
 
+  // Connexion invisible : le compte de service, jamais un formulaire.
   React.useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setSessionPrete(true);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange(
-      (_e, s) => setSession(s));
-    return () => sub.subscription.unsubscribe();
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) { setConnecte(true); return; }
+      if (!extra.serviceEmail || !extra.servicePassword) {
+        setErreurConnexion("Compte de service non configure.");
+        return;
+      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email: extra.serviceEmail, password: extra.servicePassword,
+      });
+      if (error) setErreurConnexion(error.message);
+      else setConnecte(true);
+    })();
   }, []);
 
-  if (!sessionPrete) return <EcranDeLancement />;
-  if (!session) return <EcranConnexion />;
+  if (erreurConnexion) return <EcranDeLancement erreur={erreurConnexion} />;
+  if (!connecte) return <EcranDeLancement />;
+  if (!verifie) return <EcranVerification surReussite={() => setVerifie(true)} />;
   return <Navigation />;
 }
 
-function EcranDeLancement() {
+function EcranDeLancement({ erreur }: { erreur?: string }) {
   const c = useCouleurs();
   return (
     <View style={{ flex: 1, backgroundColor: c.fond,
@@ -125,9 +145,9 @@ function EcranDeLancement() {
                    paddingHorizontal: espace.xl }}>
       <Logo hauteur={84} />
       <T v="titreGrand" style={{ marginTop: espace.l }}>Alluxe Bot</T>
-      <T v="corps" couleur={c.encreDouce}
+      <T v="corps" couleur={erreur ? c.perte : c.encreDouce}
          style={{ textAlign: "center", marginTop: espace.s }}>
-        Le pilotage prive du robot.
+        {erreur ?? "Le pilotage prive du robot."}
       </T>
     </View>
   );
