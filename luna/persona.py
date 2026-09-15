@@ -21,11 +21,16 @@ class Apparence:
     """
 
     cheveux: str = "blond platine, longs et ondules, coiffure naturelle"
-    yeux: str = "yeux bleus clairs, regard petillant"
+    # 15 sept. : bleu pur jugé trop artificiel par l'operateur -- une nuance
+    # verte subtile (bleu-vert plutot que bleu franc) rend le regard plus
+    # credible en photo.
+    yeux: str = "yeux bleu-vert avec une subtile nuance verte, regard petillant"
     taille_cm: int = 160
     silhouette: str = "silhouette feminine mince, naturelle, sans exces"
-    visage: str = ("visage doux et symetrique, pommettes hautes, sourire "
-                   "franc et pétillant, maquillage leger, naturel")
+    visage: str = ("visage doux, legerement asymetrique comme un vrai visage, "
+                   "quelques taches de rousseur discretes sur le nez, "
+                   "pommettes hautes, sourire franc et pétillant, "
+                   "maquillage leger, naturel")
     # 15 sept. : refonte demandee par l'operateur -- Luna a 22 ans (pas 30),
     # et le rendu precedent ("glamorous", "seductive presence", silhouette
     # trop insistante sur la poitrine/la taille) donnait des photos qui
@@ -34,11 +39,15 @@ class Apparence:
     # proportions naturelles, plutot qu'un archetype glamour.
     ancre: str = (
         "the same recurring fictional character: a 22-year-old adult woman, "
-        "university student, long wavy platinum blonde hair, bright blue "
-        "eyes, natural light makeup, high cheekbones, symmetrical face, "
-        "bright genuine smile, slim natural body proportions, average "
-        "realistic bust size, 160 cm, fair skin with visible natural skin "
-        "texture, no plastic or airbrushed look, "
+        "university student, long wavy platinum blonde hair, blue-green eyes "
+        "with a subtle green hue, not pure blue, natural light makeup, "
+        "high cheekbones, slightly asymmetrical realistic face like a real "
+        "person, a few subtle light freckles across the nose and cheeks, "
+        "small natural skin blemishes and pores, "
+        "bright genuine smile with natural uneven teeth, slim natural body "
+        "proportions, average realistic bust size, 160 cm, natural warm "
+        "skin tone, not pale, not overexposed, visible natural skin texture, "
+        "no plastic or airbrushed look, "
         "consistent facial features across all images"
     )
     graine: int = 776_601  # seed fixe : meme visage d'une image a l'autre

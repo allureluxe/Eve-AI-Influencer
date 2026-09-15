@@ -33,10 +33,11 @@ SIGNATURE = "fictional AI-generated character, not a real person"
 # qu'une etudiante poste ou s'envoie), pas un shooting de studio : moins de
 # retouche, plus de grain et d'imperfections naturelles.
 RENDU = ("shot on iPhone, candid realistic photography, natural everyday "
-         "lighting, authentic amateur photo aesthetic, no studio lighting, "
-         "no airbrushing, no over-retouching, visible natural skin texture "
-         "with pores and slight imperfections, realistic proportions, "
-         "sharp focus, photorealistic, high detail")
+         "lighting, soft realistic exposure, not overexposed, not too bright, "
+         "warm natural skin tones, authentic amateur photo aesthetic, no "
+         "studio lighting, no airbrushing, no over-retouching, visible "
+         "natural skin texture with pores and slight imperfections, "
+         "realistic proportions, sharp focus, photorealistic, high detail")
 
 
 @dataclass(frozen=True)
