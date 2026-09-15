@@ -31,6 +31,12 @@ import urllib.request
 
 TIMEOUT = 60
 
+# Sans User-Agent, urllib envoie "Python-urllib/x.y" -- plusieurs pare-feux
+# (Stability, Groq, tous deux passes par Cloudflare) le bloquent avant meme
+# de lire la cle, avec un message opaque (erreur 1010) qui ressemble a un
+# probleme de cle. Un User-Agent de navigateur suffit. Decouvert le 15 sept.
+ENTETE_NAVIGATEUR = {"user-agent": "Mozilla/5.0 (X11; Linux x86_64) luna/1.0"}
+
 
 class ErreurMoteur(RuntimeError):
     pass
@@ -82,6 +88,7 @@ class MoteurClaude(Moteur):
                 "content-type": "application/json",
                 "x-api-key": self.cle,
                 "anthropic-version": self.VERSION,
+                **ENTETE_NAVIGATEUR,
             },
             method="POST",
         )
@@ -146,7 +153,7 @@ class MoteurCompatibleOpenAI(Moteur):
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
         }
-        entetes = {"content-type": "application/json"}
+        entetes = {"content-type": "application/json", **ENTETE_NAVIGATEUR}
         if self.cle:
             entetes["authorization"] = f"Bearer {self.cle}"
         requete = urllib.request.Request(
@@ -259,11 +266,7 @@ class GenerateurImages:
         requete = urllib.request.Request(
             self.url, data=json.dumps(corps).encode("utf-8"),
             headers={"content-type": "application/json", "accept": "application/json",
-                     "authorization": f"Bearer {self.cle}",
-                     # Sans User-Agent, urllib envoie "Python-urllib/x.y" --
-                     # le pare-feu Cloudflare de Stability le bloque (erreur
-                     # 1010) avant meme de lire la cle. Decouvert le 15 sept.
-                     "user-agent": "Mozilla/5.0 (X11; Linux x86_64) luna/1.0"},
+                     "authorization": f"Bearer {self.cle}", **ENTETE_NAVIGATEUR},
             method="POST")
         try:
             with urllib.request.urlopen(requete, timeout=120) as r:
