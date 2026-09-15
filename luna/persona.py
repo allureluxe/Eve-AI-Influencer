@@ -28,10 +28,11 @@ class Apparence:
     taille_cm: int = 160
     silhouette: str = "silhouette feminine mince, naturelle, sans exces"
     visage: str = ("visage doux et juvenile, joues encore un peu rondes, "
-                   "legerement asymetrique comme un vrai visage, quelques "
-                   "taches de rousseur discretes sur le nez, pommettes hautes, "
-                   "sourire franc et pétillant, maquillage tres leger, "
-                   "presque pas maquillee")
+                   "petit nez fin et discret, legerement asymetrique comme un "
+                   "vrai visage, quelques taches de rousseur discretes sur le "
+                   "nez, pommettes hautes, sourire franc et pétillant, "
+                   "maquillage tres leger, presque pas maquillee, "
+                   "expression charmeuse et confiante")
     # 15 sept. : refonte demandee par l'operateur -- Luna a 22 ans (pas 30),
     # et le rendu precedent ("glamorous", "seductive presence", silhouette
     # trop insistante sur la poitrine/la taille) donnait des photos qui
@@ -43,10 +44,11 @@ class Apparence:
         "young college student, youthful fresh face, soft round baby cheeks, "
         "long wavy platinum blonde hair, blue-green eyes with a subtle green "
         "hue, not pure blue, bare minimal makeup, no mature or sophisticated "
-        "makeup look, high cheekbones, slightly asymmetrical realistic face "
-        "like a real person, a few subtle light freckles across the nose and "
-        "cheeks, small natural skin blemishes and pores, youthful smooth "
-        "skin, bright genuine smile with natural uneven teeth, slim natural "
+        "makeup look, high cheekbones, small delicate nose, slightly "
+        "asymmetrical realistic face like a real person, a few subtle light "
+        "freckles across the nose and cheeks, small natural skin blemishes "
+        "and pores, youthful smooth skin, bright genuine smile with natural "
+        "uneven teeth, confident playful charming expression, slim natural "
         "body proportions, average realistic bust size, 160 cm, natural warm "
         "skin tone, not pale, not overexposed, visible natural skin texture, "
         "no plastic or airbrushed look, looks clearly early twenties not "

@@ -56,9 +56,11 @@ SCENES = (
           "windows, glossy hair, phone held up, candid lifestyle framing",
           "Prete pour la journee ☕ Tu me souhaites bonne chance ?"),
     Scene("bureau", "Avant les cours", TENDRE,
-          "simple blazer over a plain top and jeans, standing in a school "
+          "fitted blazer over a fitted top with a flattering moderate "
+          "neckline, tasteful not revealing, jeans, standing in a school "
           "library or campus hallway, backpack on one shoulder, notebook in "
-          "hand, natural daylight, candid student lifestyle photography",
+          "hand, natural daylight, confident charming pose, candid student "
+          "lifestyle photography",
           "Cours de finance dans dix minutes 📚 Souhaite-moi bon courage."),
     Scene("restaurant", "Sortie au restaurant", TENDRE,
           "seated at a fine dining table, fitted black cocktail dress, "
