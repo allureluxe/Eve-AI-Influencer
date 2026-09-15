@@ -8,6 +8,7 @@ jamais une valeur secrete.
     GEMINI_API_KEY_A_ECRIRE=xxx python3 configurer_luna_ia.py
     GROQ_API_KEY_A_ECRIRE=xxx python3 configurer_luna_ia.py
     HUGGINGFACE_API_KEY_A_ECRIRE=xxx python3 configurer_luna_ia.py
+    CLOUDFLARE_ACCOUNT_ID_A_ECRIRE=xxx CLOUDFLARE_API_TOKEN_A_ECRIRE=yyy python3 configurer_luna_ia.py
 
 Stocke la cle Gemini sous GEMINI_API_KEY (reference, pas branchee dans
 LUNA_API_* : generativelanguage.googleapis.com refuse les requetes
@@ -69,14 +70,18 @@ def main() -> int:
     gemini = os.environ.get("GEMINI_API_KEY_A_ECRIRE", "").strip()
     groq = os.environ.get("GROQ_API_KEY_A_ECRIRE", "").strip()
     huggingface = os.environ.get("HUGGINGFACE_API_KEY_A_ECRIRE", "").strip()
+    cf_compte = os.environ.get("CLOUDFLARE_ACCOUNT_ID_A_ECRIRE", "").strip()
+    cf_jeton = os.environ.get("CLOUDFLARE_API_TOKEN_A_ECRIRE", "").strip()
 
-    if not gemini and not groq and not huggingface:
+    rien_saisi = not any((gemini, groq, huggingface, cf_compte, cf_jeton))
+    if rien_saisi:
         try:
             groq = getpass("Cle Groq (rien ne s'affiche) : ").strip()
         except Exception:                                      # noqa: BLE001
             groq = input("Cle Groq : ").strip()
+        rien_saisi = not groq
 
-    if not gemini and not groq and not huggingface:
+    if rien_saisi:
         print(f"{JAUNE}Rien saisi — aucune modification.{FIN}")
         return 1
 
@@ -89,6 +94,10 @@ def main() -> int:
         valeurs["LUNA_API_MODELE"] = "openai/gpt-oss-120b"
     if huggingface:
         valeurs["HUGGINGFACE_API_KEY"] = huggingface
+    if cf_compte:
+        valeurs["CLOUDFLARE_ACCOUNT_ID"] = cf_compte
+    if cf_jeton:
+        valeurs["CLOUDFLARE_API_TOKEN"] = cf_jeton
 
     copie = _ecrire(valeurs)
     print(f"{VERT}.env mis a jour{FIN} {GRIS}(copie de securite : "

@@ -24,10 +24,13 @@ livre aucun contenu explicite.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import random
 import urllib.error
 import urllib.request
+
+logger = logging.getLogger(__name__)
 
 TIMEOUT = 60
 
@@ -225,26 +228,42 @@ FORMATS = {
 
 
 class GenerateurImages:
-    """Generation d'images, endpoint configurable.
+    """Generation d'images, avec repli automatique entre fournisseurs.
 
-    Deux fournisseurs integres, choisis selon la cle presente dans .env
-    (Stability gagne si les deux sont configurees, car meilleure qualite
-    et deja teste en production) :
+    Trois fournisseurs integres, tentes DANS L'ORDRE jusqu'a ce qu'un
+    reussisse (pas seulement choisi une fois pour toutes) -- trouve le
+    15 sept. quand Hugging Face a soudainement renvoye HTTP 402 (quota
+    gratuit mensuel epuise) en plein milieu d'une serie de generations :
+    sans repli, Luna restait bloquee jusqu'au mois suivant alors qu'un
+    autre fournisseur gratuit etait deja configure a cote.
 
     - **Stability** (payant, quelques centimes/image) : SDXL, la plus
       haute qualite. `STABILITY_API_KEY`.
-    - **Hugging Face** (gratuit, verifie fonctionnel le 15 sept. avec
-      `stabilityai/stable-diffusion-3-medium-diffusers` sur le
-      fournisseur `hf-inference`) : `HUGGINGFACE_API_KEY`.
+    - **Hugging Face** (gratuit avec quota mensuel) :
+      `HUGGINGFACE_API_KEY`, modele `stabilityai/stable-diffusion-3-medium-diffusers`
+      sur le fournisseur `hf-inference`.
+    - **Cloudflare Workers AI** (gratuit avec quota QUOTIDIEN, verifie
+      fonctionnel le 15 sept.) : `CLOUDFLARE_ACCOUNT_ID` +
+      `CLOUDFLARE_API_TOKEN` (permission "Workers AI"), modele
+      `@cf/stabilityai/stable-diffusion-xl-base-1.0`.
 
     LUNA_IMAGE_URL/LUNA_IMAGE_KEY permettent de pointer ailleurs — ta
     propre instance Stable Diffusion / ComfyUI, ou un service special.
     Dans ce cas le corps envoye reste au format Stability ; adapte-le si
-    ton endpoint differe.
+    ton endpoint differe. Un fournisseur personnalise passe toujours en
+    premier.
+
+    `fournisseur`/`cle`/`url`/`modele` refletent le PREMIER candidat
+    configure (pour l'introspection, ex. `luna.py check`) ; `generer()`
+    essaie ensuite tous les candidats configures, pas seulement celui-la.
     """
 
     MODELE_DEFAUT_STABILITY = "stable-diffusion-xl-1024-v1-0"
     MODELE_DEFAUT_HF = "stabilityai/stable-diffusion-3-medium-diffusers"
+    # SDXL-base sur Cloudflare donne un rendu illustration/dessin, pas
+    # photoréaliste (verifié le 15 sept., y compris une derive de couleur
+    # de cheveux) -- Flux, teste le meme soir, est nettement plus realiste.
+    MODELE_DEFAUT_CLOUDFLARE = "@cf/black-forest-labs/flux-1-schnell"
 
     def __init__(self, cle: str = "", url: str = "", modele: str = ""):
         stability = cle or os.getenv("STABILITY_API_KEY", "")
@@ -255,46 +274,83 @@ class GenerateurImages:
             # configure. Trouve le 15 sept. sur ce depot precisement.
             stability = ""
         huggingface = os.getenv("HUGGINGFACE_API_KEY", "")
+        cf_compte = os.getenv("CLOUDFLARE_ACCOUNT_ID", "")
+        cf_jeton = os.getenv("CLOUDFLARE_API_TOKEN", "")
         perso = url or os.getenv("LUNA_IMAGE_URL", "")
 
+        candidats = []
         if perso:
-            self.fournisseur = "stability"          # format de corps suppose
-            self.cle = cle or os.getenv("LUNA_IMAGE_KEY", "") or stability
-            self.modele = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT_STABILITY)
-            self.url = perso
-        elif stability:
-            self.fournisseur = "stability"
-            self.cle = stability
-            self.modele = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT_STABILITY)
-            self.url = f"https://api.stability.ai/v1/generation/{self.modele}/text-to-image"
-        elif huggingface:
-            self.fournisseur = "huggingface"
-            self.cle = huggingface
-            self.modele = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT_HF)
-            self.url = f"https://router.huggingface.co/hf-inference/models/{self.modele}"
-        else:
-            self.fournisseur = "stability"
-            self.cle = ""
-            self.modele = modele or self.MODELE_DEFAUT_STABILITY
-            self.url = f"https://api.stability.ai/v1/generation/{self.modele}/text-to-image"
+            candidats.append({
+                "nom": "stability",     # format de corps suppose
+                "cle": cle or os.getenv("LUNA_IMAGE_KEY", "") or stability,
+                "url": perso,
+                "modele": modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT_STABILITY),
+            })
+        if stability:
+            m = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT_STABILITY)
+            candidats.append({
+                "nom": "stability", "cle": stability, "modele": m,
+                "url": f"https://api.stability.ai/v1/generation/{m}/text-to-image",
+            })
+        if huggingface:
+            m = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT_HF)
+            candidats.append({
+                "nom": "huggingface", "cle": huggingface, "modele": m,
+                "url": f"https://router.huggingface.co/hf-inference/models/{m}",
+            })
+        if cf_compte and cf_jeton:
+            m = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT_CLOUDFLARE)
+            candidats.append({
+                "nom": "cloudflare", "cle": cf_jeton, "modele": m,
+                "url": f"https://api.cloudflare.com/client/v4/accounts/{cf_compte}/ai/run/{m}",
+            })
+        if not candidats:
+            candidats.append({
+                "nom": "stability", "cle": "",
+                "modele": modele or self.MODELE_DEFAUT_STABILITY,
+                "url": f"https://api.stability.ai/v1/generation/{modele or self.MODELE_DEFAUT_STABILITY}/text-to-image",
+            })
+
+        self._candidats = candidats
+        premier = candidats[0]
+        self.fournisseur = premier["nom"]
+        self.cle = premier["cle"]
+        self.url = premier["url"]
+        self.modele = premier["modele"]
 
     @property
     def disponible(self) -> bool:
-        return bool(self.cle and self.url)
+        return any(c["cle"] and c["url"] for c in self._candidats)
 
     def generer(self, prompt: str, negatif: str = "", graine: int = 0,
                 format: str = "portrait") -> bytes:
         if not self.disponible:
             raise ErreurMoteur("aucune cle d'images configuree")
-        if self.fournisseur == "huggingface":
-            return self._generer_huggingface(prompt, negatif, graine, format)
-        return self._generer_stability(prompt, negatif, graine, format)
+        methodes = {
+            "stability": self._generer_stability,
+            "huggingface": self._generer_huggingface,
+            "cloudflare": self._generer_cloudflare,
+        }
+        derniere_erreur: ErreurMoteur | None = None
+        for candidat in self._candidats:
+            if not (candidat["cle"] and candidat["url"]):
+                continue
+            try:
+                return methodes[candidat["nom"]](
+                    candidat["cle"], candidat["url"], prompt, negatif, graine, format)
+            except ErreurMoteur as e:
+                derniere_erreur = e
+                logger.warning("generateur d'images %s indisponible (%s) -- "
+                               "on essaie le suivant si un autre est configure.",
+                               candidat["nom"], e)
+        raise derniere_erreur or ErreurMoteur("aucun fournisseur d'images n'a repondu")
 
-    def _requeter(self, corps: dict) -> bytes:
+    @staticmethod
+    def _requeter(url: str, cle: str, corps: dict) -> bytes:
         requete = urllib.request.Request(
-            self.url, data=json.dumps(corps).encode("utf-8"),
+            url, data=json.dumps(corps).encode("utf-8"),
             headers={"content-type": "application/json", "accept": "application/json",
-                     "authorization": f"Bearer {self.cle}", **ENTETE_NAVIGATEUR},
+                     "authorization": f"Bearer {cle}", **ENTETE_NAVIGATEUR},
             method="POST")
         try:
             with urllib.request.urlopen(requete, timeout=120) as r:
@@ -304,8 +360,8 @@ class GenerateurImages:
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             raise ErreurMoteur(f"reseau : {e}") from e
 
-    def _generer_stability(self, prompt: str, negatif: str, graine: int,
-                            format: str) -> bytes:
+    def _generer_stability(self, cle: str, url: str, prompt: str, negatif: str,
+                            graine: int, format: str) -> bytes:
         largeur, hauteur = FORMATS.get(format, FORMATS["portrait"])
         textes = [{"text": prompt, "weight": 1}]
         if negatif:
@@ -317,7 +373,7 @@ class GenerateurImages:
                  "width": largeur, "samples": 1, "steps": 40}
         if graine:
             corps["seed"] = graine
-        brut = self._requeter(corps)
+        brut = self._requeter(url, cle, corps)
         import base64
         try:
             reponse = json.loads(brut.decode("utf-8"))
@@ -325,8 +381,8 @@ class GenerateurImages:
         except (KeyError, IndexError, TypeError, json.JSONDecodeError, UnicodeDecodeError) as e:
             raise ErreurMoteur("reponse image inattendue") from e
 
-    def _generer_huggingface(self, prompt: str, negatif: str, graine: int,
-                              format: str) -> bytes:
+    def _generer_huggingface(self, cle: str, url: str, prompt: str, negatif: str,
+                              graine: int, format: str) -> bytes:
         largeur, hauteur = FORMATS.get(format, FORMATS["portrait"])
         parametres = {"width": largeur, "height": hauteur}
         if negatif:
@@ -334,7 +390,7 @@ class GenerateurImages:
         if graine:
             parametres["seed"] = graine
         corps = {"inputs": prompt, "parameters": parametres}
-        brut = self._requeter(corps)
+        brut = self._requeter(url, cle, corps)
         # `hf-inference` route vers plusieurs fournisseurs tiers, et ils ne
         # repondent pas tous pareil : la plupart renvoient l'image en octets
         # bruts, certains renvoient une chaine JSON contenant le base64 tout
@@ -353,4 +409,30 @@ class GenerateurImages:
                 return base64.b64decode(json.loads(brut.decode("utf-8")))
             except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as e:
                 raise ErreurMoteur("reponse image inattendue (base64 invalide)") from e
+        return brut
+
+    def _generer_cloudflare(self, cle: str, url: str, prompt: str, negatif: str,
+                             graine: int, format: str) -> bytes:
+        # Flux-1-schnell (le defaut, choisi pour son realisme -- SDXL-base
+        # sur Cloudflare rendait des illustrations, pas des photos) ne
+        # supporte QUE `prompt` et `steps` : `width`/`height`/`seed`/
+        # `negative_prompt` sont rejetes (HTTP 400, verifie le 15 sept.).
+        # Consequence assumee : format fixe en 1024x1024, pas de graine
+        # (donc pas de garantie de reproduire exactement le meme visage
+        # d'une image a l'autre avec ce fournisseur precis), pas de
+        # negatif. C'est un repli de secours, pas le fournisseur principal.
+        corps = {"prompt": prompt, "steps": 8}
+        brut = self._requeter(url, cle, corps)
+        if brut[:1] == b"{":
+            try:
+                reponse = json.loads(brut.decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                raise ErreurMoteur("reponse image inattendue") from e
+            if not reponse.get("success", True):
+                raise ErreurMoteur(f"{reponse.get('errors', '')}"[:300])
+            b64 = reponse.get("result", {}).get("image")
+            if not b64:
+                raise ErreurMoteur("reponse image inattendue (pas d'image)")
+            import base64
+            return base64.b64decode(b64)
         return brut

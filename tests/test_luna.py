@@ -303,7 +303,8 @@ class TestGenerateurImages(unittest.TestCase):
         # 15 sept., qui deviendrait le fournisseur choisi sinon).
         anciennes = {k: os.environ.pop(k, None) for k in
                      ("STABILITY_API_KEY", "HUGGINGFACE_API_KEY", "LUNA_IMAGE_URL",
-                      "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE")}
+                      "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE",
+                      "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN")}
         try:
             # v1.6 ne tient pas sur un portrait realiste : le defaut doit etre SDXL.
             self.assertEqual(GenerateurImages(modele="").modele,
@@ -328,7 +329,8 @@ class TestGenerateurImages(unittest.TestCase):
         import os
         anciennes = {k: os.environ.pop(k, None) for k in
                      ("STABILITY_API_KEY", "HUGGINGFACE_API_KEY", "LUNA_IMAGE_URL",
-                      "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE")}
+                      "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE",
+                      "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN")}
         try:
             os.environ["HUGGINGFACE_API_KEY"] = "hf_test"
             g = GenerateurImages()
@@ -350,7 +352,8 @@ class TestGenerateurImages(unittest.TestCase):
         import os
         anciennes = {k: os.environ.pop(k, None) for k in
                      ("STABILITY_API_KEY", "HUGGINGFACE_API_KEY", "LUNA_IMAGE_URL",
-                      "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE")}
+                      "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE",
+                      "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN")}
         try:
             os.environ["STABILITY_API_KEY"] = "your_stability_api_key_here"
             os.environ["HUGGINGFACE_API_KEY"] = "hf_test"
@@ -374,7 +377,7 @@ class TestGenerateurImages(unittest.TestCase):
         from unittest.mock import patch
         from luna.moteurs import GenerateurImages
         g = GenerateurImages()
-        g.fournisseur, g.cle, g.url = "huggingface", "hf_test", "https://x"
+        g._candidats = [{"nom": "huggingface", "cle": "hf_test", "url": "https://x", "modele": "m"}]
         image_brute = b"\x89PNG\r\n\x1a\nfausse-image"
         reponse_chaine = json_mod.dumps(base64.b64encode(image_brute).decode("ascii")).encode()
         with patch.object(GenerateurImages, "_requeter", return_value=reponse_chaine):
@@ -385,11 +388,66 @@ class TestGenerateurImages(unittest.TestCase):
         from unittest.mock import patch
         from luna.moteurs import GenerateurImages
         g = GenerateurImages()
-        g.fournisseur, g.cle, g.url = "huggingface", "hf_test", "https://x"
+        g._candidats = [{"nom": "huggingface", "cle": "hf_test", "url": "https://x", "modele": "m"}]
         image_brute = b"\x89PNG\r\n\x1a\nfausse-image"
         with patch.object(GenerateurImages, "_requeter", return_value=image_brute):
             resultat = g.generer("un prompt")
         self.assertEqual(resultat, image_brute)
+
+    def test_bascule_sur_le_fournisseur_suivant_si_le_premier_echoue(self):
+        """15 sept. : Hugging Face a renvoye HTTP 402 (quota mensuel epuise)
+        en pleine serie de generations, alors que Cloudflare etait deja
+        configure a cote. generer() doit essayer le candidat suivant plutot
+        que d'echouer alors qu'une alternative marche."""
+        from unittest.mock import patch
+        from luna.moteurs import ErreurMoteur, GenerateurImages
+        g = GenerateurImages()
+        g._candidats = [
+            {"nom": "huggingface", "cle": "hf_test", "url": "https://hf", "modele": "m"},
+            {"nom": "cloudflare", "cle": "cf_test", "url": "https://cf", "modele": "m"},
+        ]
+        image_brute = b"\x89PNG\r\n\x1a\nfausse-image"
+
+        def _requeter(url, cle, corps):
+            if url == "https://hf":
+                raise ErreurMoteur("HTTP 402 : quota epuise")
+            return image_brute
+
+        with patch.object(GenerateurImages, "_requeter", side_effect=_requeter):
+            resultat = g.generer("un prompt")
+        self.assertEqual(resultat, image_brute)
+
+    def test_cloudflare_accepte_les_octets_bruts_et_signale_les_erreurs_json(self):
+        from unittest.mock import patch
+        from luna.moteurs import ErreurMoteur, GenerateurImages
+        g = GenerateurImages()
+        g._candidats = [{"nom": "cloudflare", "cle": "cf_test", "url": "https://cf",
+                          "modele": "m"}]
+        image_brute = b"\x89PNG\r\n\x1a\nfausse-image"
+        with patch.object(GenerateurImages, "_requeter", return_value=image_brute):
+            self.assertEqual(g.generer("un prompt"), image_brute)
+        erreur_json = b'{"success": false, "errors": ["quota depasse"]}'
+        with patch.object(GenerateurImages, "_requeter", return_value=erreur_json):
+            with self.assertRaises(ErreurMoteur):
+                g.generer("un prompt")
+
+    def test_cloudflare_decode_le_base64_de_flux(self):
+        """Flux-1-schnell (le modele Cloudflare par defaut, choisi pour son
+        realisme) renvoie {"success": true, "result": {"image": "<b64>"}},
+        pas des octets bruts -- verifie sur un vrai appel le 15 sept."""
+        import base64
+        import json as json_mod
+        from unittest.mock import patch
+        from luna.moteurs import GenerateurImages
+        g = GenerateurImages()
+        g._candidats = [{"nom": "cloudflare", "cle": "cf_test", "url": "https://cf",
+                          "modele": "m"}]
+        image_brute = b"\xff\xd8\xff\xe0fausse-image"
+        reponse = json_mod.dumps(
+            {"success": True, "result": {"image": base64.b64encode(image_brute).decode()}}
+        ).encode()
+        with patch.object(GenerateurImages, "_requeter", return_value=reponse):
+            self.assertEqual(g.generer("un prompt"), image_brute)
 
 
 class TestPrompt(unittest.TestCase):
@@ -468,9 +526,10 @@ class TestApplication(unittest.TestCase):
     def test_sans_generateur_l_application_rend_le_prompt(self):
         app = self.application()
         # Le test isole le comportement "aucun generateur configure" du
-        # contenu reel de .env (une cle Groq/Hugging Face y est branchee
-        # depuis le 15 sept.) plutot que de dependre d'un environnement vide.
-        app.images.cle = ""
+        # contenu reel de .env (des cles Groq/Hugging Face/Cloudflare y sont
+        # branchees depuis le 15 sept.) plutot que de dependre d'un
+        # environnement vide.
+        app.images._candidats = []
         resultat = app.photo({"scene": "matin"})
         self.assertEqual(resultat["image"], "")
         self.assertIn("prompt", resultat)
