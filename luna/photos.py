@@ -52,49 +52,58 @@ class Scene:
 
 
 SCENES = (
+    # 15 sept., 2e passage : le sourire fige et identique d'une photo a
+    # l'autre venait de l'ancre commune (retire de persona.py). Chaque scene
+    # porte maintenant sa propre expression, volontairement differente.
     Scene("matin", "Selfie miroir", TENDRE,
           "candid mirror selfie, one hand in her hair, casual tied knot crop "
-          "top, denim shorts, phone visible in shot, playful confident pose, "
-          "natural indoor daylight, casual lifestyle snapshot, no plunging "
-          "neckline",
+          "top, denim shorts, phone visible in shot, natural indoor "
+          "daylight, casual lifestyle snapshot, no plunging neckline, "
+          "laughing candidly with eyes crinkled, genuine spontaneous laugh",
           "Prete a sortir 😄 Tu en penses quoi de cette tenue ?"),
     Scene("bureau", "Avant les cours", TENDRE,
           "casual outfit, simple crew-neck crop top and high-waisted jeans, "
           "no plunging neckline, white sneakers, standing in a campus "
           "courtyard, backpack on one shoulder, notebook in hand, natural "
-          "daylight, confident charming pose, candid student lifestyle "
-          "photography",
+          "daylight, candid student lifestyle photography, soft "
+          "closed-mouth smile, relaxed and calm expression",
           "Cours de finance dans dix minutes 📚 Souhaite-moi bon courage."),
     Scene("restaurant", "Sortie au restaurant", TENDRE,
           "seated at a fine dining table, fitted black cocktail dress, "
           "candlelight and warm bokeh, glass of red wine, delicate jewellery, "
-          "smoky eye makeup, luxury lifestyle photography",
+          "smoky eye makeup, luxury lifestyle photography, warm gentle "
+          "smile looking directly at the camera",
           "Cette table est trop grande sans toi en face 🍷"),
     Scene("sport", "Seance de sport", TENDRE,
           "modern gym, wearing a t-shirt or high-neck tank top and "
           "high-waisted leggings, modest scoop neckline not deep cut, "
           "natural figure, high ponytail, post-workout glow, natural gym "
-          "lighting, candid fitness lifestyle photography",
+          "lighting, candid fitness lifestyle photography, big genuine "
+          "laughing smile, slightly out of breath",
           "Seance finie 💪 J'ai pense a toi entre deux series 😅"),
     Scene("voyage", "Voyage de luxe", TENDRE,
           "luxury resort terrace over a turquoise sea, flowing summer dress "
           "moving in the breeze, wide-brim hat, infinity pool, golden hour "
-          "backlight, travel magazine photography",
+          "backlight, travel magazine photography, soft dreamy smile "
+          "looking off to the side at the horizon",
           "Ce coucher de soleil serait parfait avec toi ✈️"),
     Scene("cuisine", "Cuisine a la maison", TENDRE,
           "cozy designer kitchen, oversized white shirt over bare legs, "
           "sleeves rolled up, fresh ingredients on a marble counter, warm "
-          "afternoon light, relaxed candid lifestyle photography",
+          "afternoon light, relaxed candid lifestyle photography, playful "
+          "smirk, concentrating on cooking, one eyebrow slightly raised",
           "Je teste une nouvelle recette 🍳 Tu gouterais ?"),
     Scene("soiree", "Tenue de soiree", TENDRE,
           "long fitted evening gown with a slit, rooftop terrace at night, "
           "city lights bokeh, statement earrings, glamorous makeup, stiletto "
-          "heels, high fashion editorial photography",
+          "heels, high fashion editorial photography, confident subtle "
+          "half-smile, direct eye contact",
           "Alors, cette robe ? Sois honnete 👗"),
     Scene("shopping", "Shopping", TENDRE,
           "high-end fashion boutique, chic casual outfit with a blazer and "
           "heels, shopping bags, mirror reflection, polished lifestyle "
-          "editorial photography",
+          "editorial photography, excited open-mouth smile, holding up a "
+          "shopping bag",
           "J'ai craque 🛍️ ... enfin, presque."),
     Scene("costume", "Costume et deguisement", SENSUEL,
           "playful character costume portrait, theatrical fully covering "

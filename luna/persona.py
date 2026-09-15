@@ -29,30 +29,35 @@ class Apparence:
     silhouette: str = "silhouette feminine mince, naturelle, sans exces"
     visage: str = ("visage doux et juvenile, joues encore un peu rondes, "
                    "petit nez fin et discret, legerement asymetrique comme un "
-                   "vrai visage, quelques taches de rousseur discretes sur le "
-                   "nez, pommettes hautes, sourire franc et pétillant, "
-                   "maquillage tres leger, presque pas maquillee, "
-                   "expression charmeuse et confiante")
+                   "vrai visage, peau naturellement mate/doree, presque pas "
+                   "de taches de rousseur, pommettes hautes, maquillage tres "
+                   "leger, presque pas maquillee, expression charmeuse et "
+                   "confiante, differente d'une photo a l'autre")
     # 15 sept. : refonte demandee par l'operateur -- Luna a 22 ans (pas 30),
     # et le rendu precedent ("glamorous", "seductive presence", silhouette
     # trop insistante sur la poitrine/la taille) donnait des photos qui
     # ressemblaient a un rendu IA generique bacle, pas a une vraie personne.
     # Le nouvel ancrage vise le realisme d'abord : une jeune femme normale,
     # proportions naturelles, plutot qu'un archetype glamour.
+    # 15 sept., 2e passage : le bronzage vu sur la photo "voyage" est en fait
+    # son teint d'origine (pas un bronzage de vacances) -- fixe ici une fois
+    # pour toutes plutot que de le limiter a une scene. Taches de rousseur
+    # jugees trop nombreuses -> reduites a presque rien. Le sourire fige et
+    # identique d'une photo a l'autre part de l'ancre : retire d'ici et
+    # laisse aux scenes le soin de varier l'expression (voir photos.py).
     ancre: str = (
         "the same recurring fictional character: a 22-year-old adult woman, "
         "young college student, youthful fresh face, soft round baby cheeks, "
         "long wavy platinum blonde hair, blue-green eyes with a subtle green "
         "hue, not pure blue, bare minimal makeup, no mature or sophisticated "
         "makeup look, high cheekbones, small delicate nose, slightly "
-        "asymmetrical realistic face like a real person, a few subtle light "
-        "freckles across the nose and cheeks, small natural skin blemishes "
-        "and pores, youthful smooth skin, bright genuine smile with natural "
-        "uneven teeth, confident playful charming expression, slim natural "
-        "body proportions, average realistic bust size, 160 cm, natural warm "
-        "skin tone, not pale, not overexposed, visible natural skin texture, "
-        "no plastic or airbrushed look, looks clearly early twenties not "
-        "older, "
+        "asymmetrical realistic face like a real person, at most one or two "
+        "extremely faint barely visible freckles, small natural skin "
+        "blemishes and pores, youthful smooth skin, slim natural body "
+        "proportions, average realistic bust size, 160 cm, naturally tanned "
+        "golden skin tone as her permanent complexion (not a vacation tan, "
+        "not pale, not overexposed), visible natural skin texture, no "
+        "plastic or airbrushed look, looks clearly early twenties not older, "
         "consistent facial features across all images"
     )
     # 15 sept. : l'operateur n'aimait pas ce visage precis -- graine changee
