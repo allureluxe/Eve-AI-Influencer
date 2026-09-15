@@ -24,7 +24,9 @@ NEGATIF = ("child, teenager, underage, deformed hands, extra fingers, "
            "character, anime, cartoon, illustration, painting, doll, plastic "
            "skin, waxy skin, airbrushed, overly smooth skin, fake looking, "
            "excessively large breasts, exaggerated bust, deep plunging "
-           "neckline, cutout cleavage design")
+           "neckline, cutout cleavage design, crossed eyes, lazy eye, "
+           "misaligned eyes, wall-eyed, asymmetrical eyes, strabismus, "
+           "eyes looking in different directions")
 
 SIGNATURE = "fictional AI-generated character, not a real person"
 
