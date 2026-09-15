@@ -852,7 +852,13 @@ class TradingEngine:
             + (f", {self.config.strategy.min_confirmations} confirmations minimum"
                if self.config.strategy.mode == "quorum" else ""),
         ])
-        self.notifier.info("Robot demarre", body)
+        # Niveau "warning" (pas "info") : demande explicite de
+        # l'operateur, 15 sept. 2026, "je veux une notif quand le robot
+        # s'arrete et quand le robot demarre" -- "info" reste sous le
+        # seuil des canaux telephone (voir LEVEL_ORDER), le demarrage
+        # n'y arrivait jamais.
+        self.notifier.warning("Robot demarre", body,
+                              throttle_key="robot_demarre", throttle_seconds=60)
         self._running = True
         return True
 
@@ -1551,7 +1557,9 @@ class TradingEngine:
         self.objectives.save()
         positions = self.broker.positions()
         stats = self.journal.stats(self.store.state.started_at)
-        self.notifier.info(
+        # Meme raisonnement que "Robot demarre" ci-dessus : "info" ne
+        # sonnait jamais le telephone.
+        self.notifier.warning(
             "Robot arrete",
             "\n".join([
                 f"{self.store.state.cycles} cycles, {self.store.state.trades_closed} trades cloture(s)",

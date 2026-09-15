@@ -79,6 +79,15 @@ class TestCeQueLOperateurVeutRecevoir:
         assert _passe("critical", "Robot en securite")
         assert _passe("warning", "Trading suspendu")
 
+    def test_le_demarrage_et_l_arret_normaux_arrivent(self):
+        """15 sept. 2026, demande explicite : "je veux une notif quand le
+        robot s'arrete et quand le robot demarre". Ces deux evenements
+        (gold_bot/engine.py: start()/shutdown()) sont passes de "info" a
+        "warning" ce jour-la -- "info" ne sonnait jamais (voir
+        TestCeQuiNeDoitPasSonner)."""
+        assert _passe("warning", "Robot demarre")
+        assert _passe("warning", "Robot arrete")
+
     def test_un_vrai_probleme_arrive(self):
         assert _passe("critical", "Connexion au broker impossible")
         assert _passe("critical", "Demarrage refuse")
@@ -110,8 +119,8 @@ class TestCeQuiNeDoitPasSonner:
 
     def test_les_scans_de_routine_ne_sonnent_pas(self):
         """Le niveau « info » reste sous le seuil du canal."""
-        assert not _passe("info", "Robot demarre")
         assert not _passe("info", "Robot actif")
+        assert not _passe("info", "Cycle termine")
         assert not _passe("debug", "Trade non dimensionnable — ETHFIUSD")
 
 
@@ -170,6 +179,10 @@ class TestAlluxeBotSuitLaMemeDiscipline:
 
     def test_les_scans_de_routine_ne_sonnent_pas(self):
         assert not _passe("info", "Robot actif", classe_canal=_EspionAlluxe)
+
+    def test_le_demarrage_et_l_arret_normaux_arrivent(self):
+        assert _passe("warning", "Robot demarre", classe_canal=_EspionAlluxe)
+        assert _passe("warning", "Robot arrete", classe_canal=_EspionAlluxe)
 
     def test_enabled_exige_url_et_cle(self):
         canal = AlluxeBotChannel()
