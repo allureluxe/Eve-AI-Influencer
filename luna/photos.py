@@ -26,7 +26,9 @@ NEGATIF = ("child, teenager, underage, deformed hands, extra fingers, "
            "excessively large breasts, exaggerated bust, deep plunging "
            "neckline, cutout cleavage design, crossed eyes, lazy eye, "
            "misaligned eyes, wall-eyed, asymmetrical eyes, strabismus, "
-           "eyes looking in different directions")
+           "eyes looking in different directions, cgi rendered look, "
+           "video game skin, beauty pageant look, overly perfect model "
+           "face, instagram filter, glossy skin")
 
 SIGNATURE = "fictional AI-generated character, not a real person"
 
@@ -38,10 +40,14 @@ SIGNATURE = "fictional AI-generated character, not a real person"
 # retouche, plus de grain et d'imperfections naturelles.
 RENDU = ("shot on iPhone, candid realistic photography, natural everyday "
          "lighting, soft realistic exposure, not overexposed, not too bright, "
-         "warm natural skin tones, authentic amateur photo aesthetic, no "
-         "studio lighting, no airbrushing, no over-retouching, visible "
-         "natural skin texture with pores and slight imperfections, "
-         "realistic proportions, sharp focus, photorealistic, high detail")
+         "warm natural skin tones, authentic amateur photo aesthetic, looks "
+         "like a real unedited phone photo of an actual person, not a "
+         "professional model or beauty pageant photo, not a generated "
+         "looking face, no studio lighting, no airbrushing, no "
+         "over-retouching, no makeup filter, visible natural skin texture "
+         "with pores, fine lines and slight imperfections up close, "
+         "realistic proportions, slight natural film grain, photorealistic, "
+         "high detail")
 
 
 @dataclass(frozen=True)
