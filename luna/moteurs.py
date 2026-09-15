@@ -227,22 +227,56 @@ FORMATS = {
 class GenerateurImages:
     """Generation d'images, endpoint configurable.
 
-    Par defaut Stability en SDXL — pas la v1.6 heritee du module Eve : sur
-    des portraits realistes, l'ecart de qualite entre les deux est ce qui
-    separe une image « generee par IA » d'une photo credible.
+    Deux fournisseurs integres, choisis selon la cle presente dans .env
+    (Stability gagne si les deux sont configurees, car meilleure qualite
+    et deja teste en production) :
 
-    LUNA_IMAGE_URL permet de pointer ailleurs : ta propre instance
-    Stable Diffusion / ComfyUI / Flux, ou un service specialise. Le corps
-    envoye reste le format Stability ; adapte-le si ton endpoint differe.
+    - **Stability** (payant, quelques centimes/image) : SDXL, la plus
+      haute qualite. `STABILITY_API_KEY`.
+    - **Hugging Face** (gratuit, verifie fonctionnel le 15 sept. avec
+      `stabilityai/stable-diffusion-3-medium-diffusers` sur le
+      fournisseur `hf-inference`) : `HUGGINGFACE_API_KEY`.
+
+    LUNA_IMAGE_URL/LUNA_IMAGE_KEY permettent de pointer ailleurs — ta
+    propre instance Stable Diffusion / ComfyUI, ou un service special.
+    Dans ce cas le corps envoye reste au format Stability ; adapte-le si
+    ton endpoint differe.
     """
 
-    MODELE_DEFAUT = "stable-diffusion-xl-1024-v1-0"
+    MODELE_DEFAUT_STABILITY = "stable-diffusion-xl-1024-v1-0"
+    MODELE_DEFAUT_HF = "stabilityai/stable-diffusion-3-medium-diffusers"
 
     def __init__(self, cle: str = "", url: str = "", modele: str = ""):
-        self.cle = cle or os.getenv("STABILITY_API_KEY", "") or os.getenv("LUNA_IMAGE_KEY", "")
-        self.modele = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT)
-        self.url = url or os.getenv("LUNA_IMAGE_URL", "") or (
-            f"https://api.stability.ai/v1/generation/{self.modele}/text-to-image")
+        stability = cle or os.getenv("STABILITY_API_KEY", "")
+        if stability.lower().startswith("your_"):
+            # Placeholder jamais remplace (convention de .env.example dans
+            # tout ce depot) : le traiter comme absent plutot que d'echouer
+            # en HTTP 401 alors qu'un fournisseur gratuit est peut-etre
+            # configure. Trouve le 15 sept. sur ce depot precisement.
+            stability = ""
+        huggingface = os.getenv("HUGGINGFACE_API_KEY", "")
+        perso = url or os.getenv("LUNA_IMAGE_URL", "")
+
+        if perso:
+            self.fournisseur = "stability"          # format de corps suppose
+            self.cle = cle or os.getenv("LUNA_IMAGE_KEY", "") or stability
+            self.modele = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT_STABILITY)
+            self.url = perso
+        elif stability:
+            self.fournisseur = "stability"
+            self.cle = stability
+            self.modele = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT_STABILITY)
+            self.url = f"https://api.stability.ai/v1/generation/{self.modele}/text-to-image"
+        elif huggingface:
+            self.fournisseur = "huggingface"
+            self.cle = huggingface
+            self.modele = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT_HF)
+            self.url = f"https://router.huggingface.co/hf-inference/models/{self.modele}"
+        else:
+            self.fournisseur = "stability"
+            self.cle = ""
+            self.modele = modele or self.MODELE_DEFAUT_STABILITY
+            self.url = f"https://api.stability.ai/v1/generation/{self.modele}/text-to-image"
 
     @property
     def disponible(self) -> bool:
@@ -252,6 +286,26 @@ class GenerateurImages:
                 format: str = "portrait") -> bytes:
         if not self.disponible:
             raise ErreurMoteur("aucune cle d'images configuree")
+        if self.fournisseur == "huggingface":
+            return self._generer_huggingface(prompt, negatif, graine, format)
+        return self._generer_stability(prompt, negatif, graine, format)
+
+    def _requeter(self, corps: dict) -> bytes:
+        requete = urllib.request.Request(
+            self.url, data=json.dumps(corps).encode("utf-8"),
+            headers={"content-type": "application/json", "accept": "application/json",
+                     "authorization": f"Bearer {self.cle}", **ENTETE_NAVIGATEUR},
+            method="POST")
+        try:
+            with urllib.request.urlopen(requete, timeout=120) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            raise ErreurMoteur(f"HTTP {e.code} : {e.read().decode('utf-8','replace')[:300]}") from e
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            raise ErreurMoteur(f"reseau : {e}") from e
+
+    def _generer_stability(self, prompt: str, negatif: str, graine: int,
+                            format: str) -> bytes:
         largeur, hauteur = FORMATS.get(format, FORMATS["portrait"])
         textes = [{"text": prompt, "weight": 1}]
         if negatif:
@@ -263,20 +317,40 @@ class GenerateurImages:
                  "width": largeur, "samples": 1, "steps": 40}
         if graine:
             corps["seed"] = graine
-        requete = urllib.request.Request(
-            self.url, data=json.dumps(corps).encode("utf-8"),
-            headers={"content-type": "application/json", "accept": "application/json",
-                     "authorization": f"Bearer {self.cle}", **ENTETE_NAVIGATEUR},
-            method="POST")
-        try:
-            with urllib.request.urlopen(requete, timeout=120) as r:
-                reponse = json.loads(r.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            raise ErreurMoteur(f"HTTP {e.code} : {e.read().decode('utf-8','replace')[:300]}") from e
-        except (urllib.error.URLError, TimeoutError, OSError) as e:
-            raise ErreurMoteur(f"reseau : {e}") from e
+        brut = self._requeter(corps)
         import base64
         try:
+            reponse = json.loads(brut.decode("utf-8"))
             return base64.b64decode(reponse["artifacts"][0]["base64"])
-        except (KeyError, IndexError, TypeError) as e:
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError, UnicodeDecodeError) as e:
             raise ErreurMoteur("reponse image inattendue") from e
+
+    def _generer_huggingface(self, prompt: str, negatif: str, graine: int,
+                              format: str) -> bytes:
+        largeur, hauteur = FORMATS.get(format, FORMATS["portrait"])
+        parametres = {"width": largeur, "height": hauteur}
+        if negatif:
+            parametres["negative_prompt"] = negatif
+        if graine:
+            parametres["seed"] = graine
+        corps = {"inputs": prompt, "parameters": parametres}
+        brut = self._requeter(corps)
+        # `hf-inference` route vers plusieurs fournisseurs tiers, et ils ne
+        # repondent pas tous pareil : la plupart renvoient l'image en octets
+        # bruts, certains renvoient une chaine JSON contenant le base64 tout
+        # seul ("iVBORw0..."), et une erreur arrive en objet JSON. Trouve le
+        # 15 sept. : la meme requete a donne les deux formats a des essais
+        # differents.
+        import base64
+        if brut[:1] == b"{":
+            try:
+                detail = json.loads(brut.decode("utf-8")).get("error", "")
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                detail = ""
+            raise ErreurMoteur(f"reponse image inattendue : {detail}"[:300])
+        if brut[:1] == b'"':
+            try:
+                return base64.b64decode(json.loads(brut.decode("utf-8")))
+            except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as e:
+                raise ErreurMoteur("reponse image inattendue (base64 invalide)") from e
+        return brut

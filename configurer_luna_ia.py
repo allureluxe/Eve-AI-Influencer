@@ -7,6 +7,7 @@ jamais une valeur secrete.
 
     GEMINI_API_KEY_A_ECRIRE=xxx python3 configurer_luna_ia.py
     GROQ_API_KEY_A_ECRIRE=xxx python3 configurer_luna_ia.py
+    HUGGINGFACE_API_KEY_A_ECRIRE=xxx python3 configurer_luna_ia.py
 
 Stocke la cle Gemini sous GEMINI_API_KEY (reference, pas branchee dans
 LUNA_API_* : generativelanguage.googleapis.com refuse les requetes
@@ -16,6 +17,10 @@ Groq, lui, repond depuis ce serveur (verifie le 15 sept., HTTP 200 sur
 /v1/models). GROQ_API_KEY_A_ECRIRE branche donc directement
 LUNA_API_URL/LUNA_API_KEY/LUNA_API_MODELE, qui font passer Luna en
 mode connecte des le prochain demarrage.
+
+HUGGINGFACE_API_KEY_A_ECRIRE stocke la cle sous HUGGINGFACE_API_KEY,
+lue directement par `luna.moteurs.GenerateurImages` (gratuit, verifie
+fonctionnel le 15 sept. avec stable-diffusion-3-medium-diffusers).
 """
 from __future__ import annotations
 
@@ -63,14 +68,15 @@ def main() -> int:
 
     gemini = os.environ.get("GEMINI_API_KEY_A_ECRIRE", "").strip()
     groq = os.environ.get("GROQ_API_KEY_A_ECRIRE", "").strip()
+    huggingface = os.environ.get("HUGGINGFACE_API_KEY_A_ECRIRE", "").strip()
 
-    if not gemini and not groq:
+    if not gemini and not groq and not huggingface:
         try:
             groq = getpass("Cle Groq (rien ne s'affiche) : ").strip()
         except Exception:                                      # noqa: BLE001
             groq = input("Cle Groq : ").strip()
 
-    if not gemini and not groq:
+    if not gemini and not groq and not huggingface:
         print(f"{JAUNE}Rien saisi — aucune modification.{FIN}")
         return 1
 
@@ -81,6 +87,8 @@ def main() -> int:
         valeurs["LUNA_API_URL"] = "https://api.groq.com/openai/v1"
         valeurs["LUNA_API_KEY"] = groq
         valeurs["LUNA_API_MODELE"] = "openai/gpt-oss-120b"
+    if huggingface:
+        valeurs["HUGGINGFACE_API_KEY"] = huggingface
 
     copie = _ecrire(valeurs)
     print(f"{VERT}.env mis a jour{FIN} {GRIS}(copie de securite : "

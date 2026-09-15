@@ -298,15 +298,98 @@ class TestPhotoDansLaVisio(unittest.TestCase):
 class TestGenerateurImages(unittest.TestCase):
     def test_le_modele_par_defaut_est_sdxl(self):
         from luna.moteurs import GenerateurImages
-        # v1.6 ne tient pas sur un portrait realiste : le defaut doit etre SDXL.
-        self.assertEqual(GenerateurImages(modele="").MODELE_DEFAUT,
-                         "stable-diffusion-xl-1024-v1-0")
+        import os
+        # Isole du vrai .env (une cle Hugging Face y est branchee depuis le
+        # 15 sept., qui deviendrait le fournisseur choisi sinon).
+        anciennes = {k: os.environ.pop(k, None) for k in
+                     ("STABILITY_API_KEY", "HUGGINGFACE_API_KEY", "LUNA_IMAGE_URL",
+                      "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE")}
+        try:
+            # v1.6 ne tient pas sur un portrait realiste : le defaut doit etre SDXL.
+            self.assertEqual(GenerateurImages(modele="").modele,
+                             "stable-diffusion-xl-1024-v1-0")
+        finally:
+            for k, v in anciennes.items():
+                if v is not None:
+                    os.environ[k] = v
+                else:
+                    os.environ.pop(k, None)
 
     def test_le_format_portrait_est_vertical_et_accepte_par_sdxl(self):
         from luna.moteurs import FORMATS
         largeur, hauteur = FORMATS["portrait"]
         self.assertLess(largeur, hauteur)
         self.assertEqual((largeur * hauteur) % 64, 0)
+
+    def test_huggingface_gratuit_si_stability_absente(self):
+        """15 sept. : Hugging Face doit prendre le relai quand Stability
+        n'est pas configuree, plutot que de laisser Luna sans generateur."""
+        from luna.moteurs import GenerateurImages
+        import os
+        anciennes = {k: os.environ.pop(k, None) for k in
+                     ("STABILITY_API_KEY", "HUGGINGFACE_API_KEY", "LUNA_IMAGE_URL",
+                      "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE")}
+        try:
+            os.environ["HUGGINGFACE_API_KEY"] = "hf_test"
+            g = GenerateurImages()
+            self.assertEqual(g.fournisseur, "huggingface")
+            self.assertTrue(g.disponible)
+            self.assertIn("huggingface.co", g.url)
+        finally:
+            for k, v in anciennes.items():
+                if v is not None:
+                    os.environ[k] = v
+                else:
+                    os.environ.pop(k, None)
+
+    def test_placeholder_stability_ne_bloque_pas_huggingface(self):
+        """Une cle Stability jamais remplacee (convention .env.example :
+        prefixe `your_`) doit etre ignoree, pas provoquer un HTTP 401 alors
+        qu'un fournisseur gratuit et fonctionnel est configure a cote."""
+        from luna.moteurs import GenerateurImages
+        import os
+        anciennes = {k: os.environ.pop(k, None) for k in
+                     ("STABILITY_API_KEY", "HUGGINGFACE_API_KEY", "LUNA_IMAGE_URL",
+                      "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE")}
+        try:
+            os.environ["STABILITY_API_KEY"] = "your_stability_api_key_here"
+            os.environ["HUGGINGFACE_API_KEY"] = "hf_test"
+            g = GenerateurImages()
+            self.assertEqual(g.fournisseur, "huggingface")
+        finally:
+            for k, v in anciennes.items():
+                if v is not None:
+                    os.environ[k] = v
+                else:
+                    os.environ.pop(k, None)
+
+    def test_huggingface_accepte_une_reponse_en_chaine_base64(self):
+        """15 sept. : le routeur hf-inference bascule entre fournisseurs
+        tiers, et l'un d'eux renvoie le base64 comme une chaine JSON toute
+        seule ("iVBORw0...") au lieu des octets bruts de l'image. Verifie
+        sur un vrai appel le meme jour -- la meme requete a donne les deux
+        formats a des essais differents."""
+        import base64
+        import json as json_mod
+        from unittest.mock import patch
+        from luna.moteurs import GenerateurImages
+        g = GenerateurImages()
+        g.fournisseur, g.cle, g.url = "huggingface", "hf_test", "https://x"
+        image_brute = b"\x89PNG\r\n\x1a\nfausse-image"
+        reponse_chaine = json_mod.dumps(base64.b64encode(image_brute).decode("ascii")).encode()
+        with patch.object(GenerateurImages, "_requeter", return_value=reponse_chaine):
+            resultat = g.generer("un prompt")
+        self.assertEqual(resultat, image_brute)
+
+    def test_huggingface_accepte_une_reponse_en_octets_bruts(self):
+        from unittest.mock import patch
+        from luna.moteurs import GenerateurImages
+        g = GenerateurImages()
+        g.fournisseur, g.cle, g.url = "huggingface", "hf_test", "https://x"
+        image_brute = b"\x89PNG\r\n\x1a\nfausse-image"
+        with patch.object(GenerateurImages, "_requeter", return_value=image_brute):
+            resultat = g.generer("un prompt")
+        self.assertEqual(resultat, image_brute)
 
 
 class TestPrompt(unittest.TestCase):
@@ -384,6 +467,10 @@ class TestApplication(unittest.TestCase):
 
     def test_sans_generateur_l_application_rend_le_prompt(self):
         app = self.application()
+        # Le test isole le comportement "aucun generateur configure" du
+        # contenu reel de .env (une cle Groq/Hugging Face y est branchee
+        # depuis le 15 sept.) plutot que de dependre d'un environnement vide.
+        app.images.cle = ""
         resultat = app.photo({"scene": "matin"})
         self.assertEqual(resultat["image"], "")
         self.assertIn("prompt", resultat)
