@@ -1,10 +1,13 @@
-"""Alluxe : l'agent qui combine script, photo, voix et video pour Luna.
+"""Alluxe v2 : combine script, photo, voix et video pour Luna.
+
+(Nom "v2" pour ne pas se confondre avec "Alluxe" tout court, le futur
+agent vocal personnel -- voir alluxe_v2.py a la racine du depot.)
 
 Une demande en langage naturel -- ou aucune -- et quatre etapes
 automatiques :
 
-    python3 alluxe.py "un post Instagram sur son week-end au ski"
-    python3 alluxe.py                 (Luna improvise toute seule)
+    python3 alluxe_v2.py "un post Instagram sur son week-end au ski"
+    python3 alluxe_v2.py                 (Luna improvise toute seule)
 
 1. SCRIPT   -- le moteur de conversation (Groq, puis Claude, puis
    hors-ligne -- `MoteurAvecRepli`) ecrit la legende ET decrit la scene,

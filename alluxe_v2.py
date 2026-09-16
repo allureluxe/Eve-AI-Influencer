@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""Alluxe -- l'agent qui parle a Luna et agit : script, photo, voix, video.
+"""Alluxe v2 -- le pipeline de contenu de Luna : script, photo, voix, video.
 
-    python3 alluxe.py "un post Instagram sur son week-end au ski"
-    python3 alluxe.py                 (sans sujet : Luna improvise toute seule)
+Nom choisi le 15 sept. pour ne pas se confondre avec "Alluxe" tout court,
+reserve au futur agent vocal personnel (tab 4 de l'application, pas
+encore construit -- voir memoire fusion-app-unique-et-agent-alluxe).
+Celui-ci ne parle pas et n'agit pas en direct : il produit du contenu.
+
+    python3 alluxe_v2.py "un post Instagram sur son week-end au ski"
+    python3 alluxe_v2.py                 (sans sujet : Luna improvise toute seule)
 
 Se relance automatiquement sous .venv-luna/bin/python3 s'il existe : c'est
 la que vivent les dependances propres a Alluxe (edge-tts, gTTS...),
@@ -40,7 +45,7 @@ if __name__ == "__main__":
     sys.path.insert(0, racine)
     _charger_env(os.path.join(racine, ".env"))
 
-    from luna.alluxe import creer
+    from luna.alluxe_v2 import creer
 
     if sys.argv[1:] in (["-h"], ["--help"], ["aide"]):
         print(__doc__)

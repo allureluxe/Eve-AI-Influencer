@@ -13,7 +13,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from luna.alluxe import Resultat, creer
+from luna.alluxe_v2 import Resultat, creer
 from luna.moteurs import ErreurMoteur, Moteur
 
 
@@ -47,9 +47,9 @@ class TestVoixAvecRepli(unittest.TestCase):
     """15 sept. : meme discipline de repli que pour les images et le texte."""
 
     def test_bascule_sur_gtts_si_edge_tts_echoue(self):
-        from luna.alluxe import _generer_voix
-        with patch("luna.alluxe._voix_edge", side_effect=RuntimeError("reseau")):
-            with patch("luna.alluxe._voix_gtts") as gtts_factice:
+        from luna.alluxe_v2 import _generer_voix
+        with patch("luna.alluxe_v2._voix_edge", side_effect=RuntimeError("reseau")):
+            with patch("luna.alluxe_v2._voix_gtts") as gtts_factice:
                 def _ecrire(texte, chemin):
                     with open(chemin, "wb") as f:
                         f.write(b"voix-gtts")
@@ -61,9 +61,9 @@ class TestVoixAvecRepli(unittest.TestCase):
             self.assertEqual(f.read(), b"voix-gtts")
 
     def test_leve_une_erreur_si_les_deux_echouent(self):
-        from luna.alluxe import _generer_voix
-        with patch("luna.alluxe._voix_edge", side_effect=RuntimeError("reseau")):
-            with patch("luna.alluxe._voix_gtts", side_effect=RuntimeError("aussi en panne")):
+        from luna.alluxe_v2 import _generer_voix
+        with patch("luna.alluxe_v2._voix_edge", side_effect=RuntimeError("reseau")):
+            with patch("luna.alluxe_v2._voix_gtts", side_effect=RuntimeError("aussi en panne")):
                 with self.assertRaises(RuntimeError):
                     _generer_voix("Coucou 😊", tempfile.mktemp(suffix=".mp3"))
 
@@ -74,12 +74,12 @@ class TestAlluxe(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.dossier, ignore_errors=True)
 
     def test_script_photo_et_voix_bout_en_bout_sans_ffmpeg(self):
-        with patch("luna.alluxe._generer_voix") as voix_factice:
+        with patch("luna.alluxe_v2._generer_voix") as voix_factice:
             def _ecrire(texte, chemin):
                 with open(chemin, "wb") as f:
                     f.write(b"fausse-voix")
             voix_factice.side_effect = _ecrire
-            with patch("luna.alluxe._assembler_video") as video_factice:
+            with patch("luna.alluxe_v2._assembler_video") as video_factice:
                 def _assembler(image, audio, video):
                     with open(video, "wb") as f:
                         f.write(b"fausse-video")
@@ -120,7 +120,7 @@ class TestAlluxe(unittest.TestCase):
         self.assertFalse(resultat.chemin_voix)
 
     def test_une_panne_de_generateur_d_images_n_empeche_pas_la_voix(self):
-        with patch("luna.alluxe._generer_voix") as voix_factice:
+        with patch("luna.alluxe_v2._generer_voix") as voix_factice:
             def _ecrire(texte, chemin):
                 with open(chemin, "wb") as f:
                     f.write(b"fausse-voix")
@@ -144,7 +144,7 @@ class TestAlluxe(unittest.TestCase):
         de l'audio (pas 1 frame figee) et que l'image change entre le debut
         et la fin (le zoom progresse reellement)."""
         import subprocess
-        from luna.alluxe import _assembler_video, _duree_audio
+        from luna.alluxe_v2 import _assembler_video, _duree_audio
 
         image = os.path.join(self.dossier, "photo.png")
         audio = os.path.join(self.dossier, "voix.mp3")
@@ -177,7 +177,7 @@ class TestAlluxe(unittest.TestCase):
 
     def test_le_prompt_image_porte_l_ancre_et_la_scene(self):
         images = GenerateurImagesFactice()
-        with patch("luna.alluxe._generer_voix"), patch("luna.alluxe._assembler_video"):
+        with patch("luna.alluxe_v2._generer_voix"), patch("luna.alluxe_v2._assembler_video"):
             creer("un post", dossier_racine=self.dossier,
                   moteur=MoteurFactice(), images=images)
         from luna.persona import LUNA

@@ -12,7 +12,7 @@ Republie aussi `luna_persona` a chaque tour (cout negligeable), pour
 que l'app affiche toujours le personnage tel qu'il est reellement
 configure dans `luna/persona.py`, sans etape manuelle a part.
 
-Se relance sous .venv-luna, comme alluxe.py : c'est la que vivent
+Se relance sous .venv-luna, comme alluxe_v2.py : c'est la que vivent
 edge-tts/gTTS, separes du .venv du robot de trading.
 """
 from __future__ import annotations
@@ -41,7 +41,7 @@ from gold_bot.env import charger_env  # noqa: E402
 
 charger_env()
 
-from luna.alluxe import creer  # noqa: E402
+from luna.alluxe_v2 import creer  # noqa: E402
 from luna.persona import LUNA  # noqa: E402
 
 
@@ -144,7 +144,7 @@ def _traiter_une_demande(rest: _Rest) -> bool:
 
     # "terminee" des que le script a produit une legende, meme si photo/
     # voix/video ont echoue a cote -- le meme principe de degradation
-    # partielle que `Resultat` lui-meme (voir luna/alluxe.py). "echec"
+    # partielle que `Resultat` lui-meme (voir luna/alluxe_v2.py). "echec"
     # seulement quand rien n'est exploitable.
     champs["statut"] = "terminee" if resultat.legende else "echec"
     rest.completer(id_, champs)
