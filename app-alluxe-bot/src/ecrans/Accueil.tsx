@@ -41,8 +41,8 @@ const SECTIONS: Section[] = [
   },
   {
     cle: "Agent", titre: "Agent",
-    detail: "Alluxe : l'assistant vocal personnel, connecte a tous les projets.",
-    icone: "mic-outline", disponible: false,
+    detail: "Alluxe : demande-lui l'etat du robot, des alertes, de Luna.",
+    icone: "mic-outline", disponible: true,
   },
 ];
 

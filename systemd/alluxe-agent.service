@@ -1,0 +1,34 @@
+# Service systemd pour l'agent personnel Alluxe (tab 4 de l'application).
+#
+# A installer avec : sudo cp systemd/alluxe-agent.service /etc/systemd/system/
+#                     sudo systemctl daemon-reload
+#                     sudo systemctl enable --now alluxe-agent
+#
+# Meme patron que robot-dual-live.service, en plus leger : pas de venv
+# dedie (ops/agent_alluxe.py n'a aucune dependance native, juste
+# urllib), et pas de risque financier -- lecture seule sur Supabase.
+
+[Unit]
+Description=Agent personnel Alluxe (lecture seule -- robot, Luna, alertes)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ubuntu/Eve-AI-Influencer/.venv/bin/python /home/ubuntu/Eve-AI-Influencer/ops/agent_alluxe.py
+Restart=always
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=20
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=alluxe-agent
+
+[Install]
+WantedBy=multi-user.target
