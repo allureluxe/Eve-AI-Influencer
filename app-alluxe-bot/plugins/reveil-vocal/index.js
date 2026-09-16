@@ -34,7 +34,11 @@ const {
 } = require("@expo/config-plugins");
 
 const PACKAGE_ANDROID = "fr.allure.alluxebot";
-const VERSION_PORCUPINE_ANDROID = "3.0.3";
+// Verifie sur search.maven.org (g:ai.picovoice a:porcupine-android) --
+// 3.0.3 n'existe pas, une premiere tentative avec ce numero a fait
+// echouer la resolution Gradle en CI (16 sept.). Rester sur une version
+// confirmee presente avant d'en changer.
+const VERSION_PORCUPINE_ANDROID = "3.0.1";
 const FICHIER_MOT_CLE = path.join("assets", "reveil", "alluxe_android.ppn");
 
 function withPermissionsReveilVocal(config) {
