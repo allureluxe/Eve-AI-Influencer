@@ -28,7 +28,12 @@ module.exports = () => ({
       },
       permissions: ["POST_NOTIFICATIONS"],
     },
-    plugins: ["expo-font", "expo-notifications"],
+    plugins: [
+      "expo-font",
+      "expo-notifications",
+      "expo-speech-recognition",
+      "./plugins/reveil-vocal",
+    ],
     extra: {
       supabaseUrl: process.env.SUPABASE_URL ?? "",
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? "",

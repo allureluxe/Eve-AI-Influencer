@@ -1,0 +1,24 @@
+Ce dossier attend UN fichier, fourni par l'operateur (Leny), genere sur
+console.picovoice.ai (compte gratuit) :
+
+    alluxe_android.ppn
+
+Etapes exactes sur le site :
+1. Se connecter (ou creer un compte gratuit) sur https://console.picovoice.ai
+2. Aller dans "Porcupine" -> "Create Wake Word"
+3. Ecrire "Alluxe" comme mot de reveil, langue Anglais (English) --
+   garder l'anglais evite d'avoir besoin d'un 2e fichier de modele de
+   langue en plus du mot-cle.
+4. Choisir la plateforme "Android"
+5. Telecharger le fichier .ppn genere
+6. Le renommer exactement "alluxe_android.ppn" et le placer ICI,
+   dans app-alluxe-bot/assets/reveil/
+
+Sans ce fichier, l'application se construit et fonctionne quand meme
+normalement -- le reveil vocal se desactive juste tout seul (message
+dans le journal Android, jamais un plantage).
+
+Voir aussi : la cle d'acces Picovoice (AccessKey, sur la meme page du
+compte) va dans .env sous PICOVOICE_ACCESS_KEY -- jamais dans ce
+dossier, jamais commitee (voir mettre_a_jour_jeton_picovoice.py a la
+racine du depot).

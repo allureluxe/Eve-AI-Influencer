@@ -30,6 +30,12 @@ jobs:
       # secret), invisible dans le code source et dans les journaux.
       ALLUXE_BOT_SERVICE_EMAIL: alluxe-bot@service.interne
       ALLUXE_BOT_SERVICE_PASSWORD: ${{ secrets.ALLUXE_BOT_SERVICE_PASSWORD }}
+      # Reveil vocal "Alluxe" (voir plugins/reveil-vocal/) : cle d'acces
+      # Picovoice, gratuite mais toujours issue d'un compte personnel --
+      # meme regle que le mot de passe de service ci-dessus, jamais en
+      # clair ici. Absente : le build reussit quand meme, le reveil
+      # vocal se desactive tout seul (voir ServiceReveilVocal.kt).
+      PICOVOICE_ACCESS_KEY: ${{ secrets.PICOVOICE_ACCESS_KEY }}
 
     steps:
       - uses: actions/checkout@v4

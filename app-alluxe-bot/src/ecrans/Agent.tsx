@@ -7,14 +7,15 @@
  * pouvoir d'action (redemarrer le robot, changer un reglage) est une
  * decision separee, a prendre explicitement plus tard.
  *
- * Vraie conversation vocale complete (reveil au mot "Alluxe" + ecoute
- * en continu) PAS FAITE ici -- ca demanderait une detection de mot de
- * reveil qui tourne meme appli fermee (Picovoice ou equivalent),
- * chantier a part entiere avec ses propres coibts/permissions. Ce qui
- * EST fait : un chat texte (le clavier du telephone a deja un micro
- * pour dicter), et Alluxe LIT sa reponse a voix haute automatiquement
- * (expo-speech, sur l'appareil, gratuit) -- la moitie "vocale" qui ne
- * demande aucune nouvelle infrastructure.
+ * REVEIL VOCAL AJOUTE (2e passage, meme soir) : dire "Alluxe" ouvre
+ * l'application (ServiceReveilVocal.kt, Porcupine en arriere-plan) et
+ * cet ecran lance alors tout seul l'ecoute (expo-speech-recognition) --
+ * la question est transcrite, envoyee, et la reponse lue a voix haute
+ * (expo-speech). Un bouton micro permet aussi de dicter a la demande,
+ * sans etre passe par le mot de reveil. AUCUN TELEPHONE POUR TESTER LE
+ * REVEIL EN CONDITIONS REELLES -- le code compile et suit la
+ * documentation Porcupine/expo-speech-recognition, mais seul un essai
+ * reel sur l'appareil de l'operateur confirmera que ca marche.
  *
  * Poll toutes les 2 s tant que l'ecran est ouvert (comme Luna/Alertes),
  * pas de Supabase Realtime : aucune autre partie de l'app ne l'utilise
@@ -23,10 +24,17 @@
  */
 import React from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
+import { useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Speech from "expo-speech";
+import {
+  ExpoSpeechRecognitionModule, useSpeechRecognitionEvent,
+} from "expo-speech-recognition";
 import { Ionicons } from "@expo/vector-icons";
 import { Message, conversation, envoyerMessage } from "../services/agent";
+import {
+  arreterReveilVocal, demarrerReveilVocal, reveilVocalActif, reveilVocalDisponible,
+} from "../services/reveilVocal";
 import { espace, rayon, TRAIT } from "../theme";
 import { Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 
@@ -49,12 +57,62 @@ function Bulle({ m }: { m: Message }) {
   );
 }
 
+/** Bandeau discret pour activer/desactiver le reveil vocal en arriere-plan. */
+function BandeauReveilVocal() {
+  const c = useCouleurs();
+  const [actif, setActif] = React.useState<boolean | null>(null);
+  const [enCours, setEnCours] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!reveilVocalDisponible) { setActif(false); return; }
+    reveilVocalActif().then(setActif);
+  }, []);
+
+  if (!reveilVocalDisponible) {
+    return (
+      <T v="legende" style={{ paddingHorizontal: espace.l, marginBottom: espace.s }}>
+        Reveil vocal : indisponible sur cet appareil.
+      </T>
+    );
+  }
+  if (actif === null) return null;
+
+  const basculer = async () => {
+    setEnCours(true);
+    try {
+      if (actif) { await arreterReveilVocal(); setActif(false); }
+      else { await demarrerReveilVocal(); setActif(true); }
+    } catch {
+      // Le service natif journalise deja la vraie cause (cle/modele absents).
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <Pressable onPress={basculer} disabled={enCours} style={{
+      flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      backgroundColor: c.creux, borderRadius: rayon.s,
+      paddingVertical: espace.s, paddingHorizontal: espace.m,
+      marginHorizontal: espace.l, marginBottom: espace.m,
+    }}>
+      <T v="petit">
+        Reveil vocal ("Alluxe") : {actif ? "actif" : "coupe"}
+      </T>
+      <Ionicons name={actif ? "mic" : "mic-off-outline"}
+                size={18} color={actif ? c.gain : c.encrePale} />
+    </Pressable>
+  );
+}
+
 export function EcranAgent() {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
+  const route = useRoute<any>();
   const [liste, setListe] = React.useState<Message[] | null>(null);
   const [texte, setTexte] = React.useState("");
   const [envoi, setEnvoi] = React.useState(false);
+  const [ecoute, setEcoute] = React.useState(false);
   const [erreur, setErreur] = React.useState("");
   const derniereLue = React.useRef<number>(0);
   const scrollRef = React.useRef<ScrollView>(null);
@@ -89,20 +147,59 @@ export function EcranAgent() {
     return () => { clearInterval(id); Speech.stop(); };
   }, [charger]);
 
-  const surEnvoyer = async () => {
-    if (!texte.trim() || envoi) return;
+  const envoyer = React.useCallback(async (contenu: string) => {
+    if (!contenu.trim() || envoi) return;
     setEnvoi(true);
-    const contenu = texte.trim();
     setTexte("");
     try {
-      await envoyerMessage(contenu);
+      await envoyerMessage(contenu.trim());
       await charger();
     } catch (err: any) {
       setErreur(err?.message ?? "Impossible d'envoyer le message");
     } finally {
       setEnvoi(false);
     }
-  };
+  }, [envoi, charger]);
+
+  const surEnvoyer = () => envoyer(texte);
+
+  const ecouter = React.useCallback(async () => {
+    try {
+      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!permission.granted) {
+        setErreur("Micro refuse -- autorise-le dans les reglages du telephone.");
+        return;
+      }
+      setEcoute(true);
+      ExpoSpeechRecognitionModule.start({ lang: "fr-FR", interimResults: false });
+    } catch (err: any) {
+      setEcoute(false);
+      setErreur(err?.message ?? "Impossible de demarrer l'ecoute");
+    }
+  }, []);
+
+  useSpeechRecognitionEvent("result", (e) => {
+    const transcription = e.results[0]?.transcript;
+    if (e.isFinal && transcription) {
+      setTexte("");
+      envoyer(transcription);
+    }
+  });
+  useSpeechRecognitionEvent("end", () => setEcoute(false));
+  useSpeechRecognitionEvent("error", (e) => {
+    setEcoute(false);
+    if (e.error !== "no-speech" && e.error !== "aborted") {
+      setErreur(`Ecoute : ${e.message || e.error}`);
+    }
+  });
+
+  // Ouvert via le reveil vocal ("alluxebot://reveil", voir App.tsx) :
+  // lance l'ecoute tout seul, une seule fois par ouverture.
+  const deriveDuReveil = route?.params?.autoEcoute === true;
+  React.useEffect(() => {
+    if (deriveDuReveil) ecouter();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deriveDuReveil, route?.params?.horodatage]);
 
   return (
     <View style={{ flex: 1, backgroundColor: c.fond, paddingTop: marges.top + espace.s }}>
@@ -112,6 +209,8 @@ export function EcranAgent() {
         <T v="titreGrand">Alluxe</T>
         <Logo hauteur={40} />
       </View>
+
+      <BandeauReveilVocal />
 
       {!!erreur && (
         <T v="petit" couleur={c.perte} style={{ marginBottom: espace.m, paddingHorizontal: espace.l }}>
@@ -143,15 +242,28 @@ export function EcranAgent() {
         <TextInput
           value={texte}
           onChangeText={setTexte}
-          placeholder="Ecris (ou dicte avec le micro du clavier)..."
+          placeholder={ecoute ? "Je t'ecoute..." : "Ecris, ou appuie sur le micro..."}
           placeholderTextColor={c.encrePale}
           multiline
+          editable={!ecoute}
           style={{
             flex: 1, borderWidth: TRAIT, borderColor: c.filet, borderRadius: rayon.s,
             padding: espace.m, minHeight: 44, maxHeight: 120, color: c.encre,
             marginRight: espace.s, textAlignVertical: "top",
+            backgroundColor: ecoute ? c.creux : "transparent",
           }}
         />
+        <Pressable
+          onPress={ecoute ? () => ExpoSpeechRecognitionModule.stop() : ecouter}
+          style={{
+            width: 44, height: 44, borderRadius: rayon.s,
+            backgroundColor: ecoute ? c.perte : c.creux,
+            alignItems: "center", justifyContent: "center", marginRight: espace.s,
+          }}
+        >
+          <Ionicons name={ecoute ? "stop" : "mic-outline"} size={20}
+                    color={ecoute ? "#fff" : c.encre} />
+        </Pressable>
         <Pressable
           onPress={surEnvoyer}
           disabled={envoi || !texte.trim()}

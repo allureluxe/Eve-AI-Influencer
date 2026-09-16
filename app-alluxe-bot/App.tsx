@@ -16,8 +16,9 @@
  */
 import React from "react";
 import { View } from "react-native";
-import { NavigationContainer, DefaultTheme, DarkTheme }
+import { NavigationContainer, DefaultTheme, DarkTheme, createNavigationContainerRef }
   from "@react-navigation/native";
+import * as Linking from "expo-linking";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
@@ -54,6 +55,22 @@ import { EcranAnalyseEtMarche as EcranAnalyseAllure } from "./src/allure/ecrans/
 import { EcranCompteEtBitvavo as EcranCompteAllure } from "./src/allure/ecrans/CompteEtBitvavo";
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string>;
+
+const navigationRef = createNavigationContainerRef<any>();
+
+/**
+ * Le reveil vocal (ServiceReveilVocal.kt, natif) ouvre l'application via
+ * `alluxebot://reveil` quand il entend "Alluxe". Meme mecanisme de lien
+ * profond qu'app-signaux (Allure) pour la confirmation d'e-mail --
+ * `Linking`, pas de dependance nouvelle.
+ */
+function traiterLienReveil(url: string) {
+  if (!url.includes("reveil")) return;
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate({
+    name: "Agent", params: { autoEcoute: true, horodatage: Date.now() },
+  } as never);
+}
 
 // Affiche la notification meme quand l'appli est deja ouverte -- sinon
 // "achat/vente/robot suspendu" n'apparaitrait que si le telephone etait
@@ -196,8 +213,23 @@ function Navigation() {
   // Allure qui affichent un e-mail (Compte) montrent donc le sien.
   const email = extra.serviceEmail ?? "";
 
+  // Reveil vocal : le service natif ouvre l'app via "alluxebot://reveil".
+  // Attend que la pile de navigation soit prete (`onReady`) avant de
+  // consommer l'URL de lancement -- sinon un demarrage a froid (app
+  // tuee, reveillee par le mot-cle) perdrait le lien parce que le
+  // navigateur n'existe pas encore au moment ou getInitialURL() repond.
+  React.useEffect(() => {
+    const abonnement = Linking.addEventListener("url", ({ url }) => traiterLienReveil(url));
+    return () => abonnement.remove();
+  }, []);
+
   return (
-    <NavigationContainer theme={{
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        Linking.getInitialURL().then((url) => { if (url) traiterLienReveil(url); });
+      }}
+      theme={{
       ...base,
       colors: { ...base.colors, background: c.fond, card: c.surface,
                 text: c.encre, border: c.filetDoux, primary: c.jaune },
