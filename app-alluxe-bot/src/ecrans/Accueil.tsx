@@ -1,0 +1,114 @@
+/**
+ * Page d'accueil -- le point d'entree unique de l'application.
+ *
+ * DECISION DU 15 SEPTEMBRE, APPLIQUEE LE 16 : au lieu de plusieurs
+ * applications separees (Alluxbot, Allure, Luna, l'agent), une seule
+ * application avec 4 gros boutons empiles verticalement. Chaque bouton
+ * ouvre son propre sous-navigateur (voir App.tsx). Luna et l'Agent ne
+ * sont pas encore construits -- meme etat "bientot disponible" que
+ * Discussion.tsx, pas de fausse promesse de contenu.
+ */
+import React from "react";
+import { Pressable, ScrollView, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { espace, rayon } from "../theme";
+import { Logo, T, useCouleurs } from "../composants/base";
+
+interface Section {
+  cle: "Alluxbot" | "Allure" | "Luna" | "Agent";
+  titre: string;
+  detail: string;
+  icone: keyof typeof Ionicons.glyphMap;
+  disponible: boolean;
+}
+
+const SECTIONS: Section[] = [
+  {
+    cle: "Alluxbot", titre: "Alluxbot",
+    detail: "Le pilotage prive du robot : positions, historique, objectifs, alertes.",
+    icone: "flash-outline", disponible: true,
+  },
+  {
+    cle: "Allure", titre: "Allure",
+    detail: "L'application publique des signaux, en mode administrateur.",
+    icone: "list-outline", disponible: true,
+  },
+  {
+    cle: "Luna", titre: "Luna",
+    detail: "L'influenceuse IA -- interface mobile a venir.",
+    icone: "sparkles-outline", disponible: false,
+  },
+  {
+    cle: "Agent", titre: "Agent",
+    detail: "Alluxe : l'assistant vocal personnel, connecte a tous les projets.",
+    icone: "mic-outline", disponible: false,
+  },
+];
+
+function BoutonSection({ section, onPress }: {
+  section: Section; onPress: () => void;
+}) {
+  const c = useCouleurs();
+  return (
+    <Pressable
+      onPress={section.disponible ? onPress : undefined}
+      accessibilityRole="button"
+      style={({ pressed }) => ({
+        flexDirection: "row", alignItems: "center",
+        backgroundColor: c.surface,
+        borderRadius: rayon.l,
+        padding: espace.l,
+        marginBottom: espace.m,
+        minHeight: 96,
+        opacity: section.disponible ? (pressed ? 0.8 : 1) : 0.55,
+        shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 }, elevation: 2,
+      })}
+    >
+      <View style={{
+        width: 56, height: 56, borderRadius: rayon.m,
+        backgroundColor: c.jaune, alignItems: "center", justifyContent: "center",
+        marginRight: espace.l,
+      }}>
+        <Ionicons name={section.icone} size={28} color={c.surJaune} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <T v="sousTitre">{section.titre}</T>
+        <T v="petit" couleur={c.encreDouce} style={{ marginTop: 2 }}>
+          {section.disponible ? section.detail : "Bientot disponible"}
+        </T>
+      </View>
+      {section.disponible && (
+        <Ionicons name="chevron-forward" size={22} color={c.encrePale} />
+      )}
+    </Pressable>
+  );
+}
+
+export function EcranAccueil({ surChoix }: {
+  surChoix: (cle: Section["cle"]) => void;
+}) {
+  const c = useCouleurs();
+  const marges = useSafeAreaInsets();
+  return (
+    <ScrollView
+      style={{ backgroundColor: c.fond }}
+      contentContainerStyle={{
+        padding: espace.l, paddingTop: marges.top + espace.m,
+        paddingBottom: marges.bottom + espace.xxl,
+      }}
+    >
+      <View style={{ alignItems: "center", marginBottom: espace.xl }}>
+        <Logo hauteur={84} />
+        <T v="titreGrand" style={{ marginTop: espace.m }}>Alluxe</T>
+        <T v="corps" couleur={c.encreDouce} style={{ textAlign: "center", marginTop: espace.xs }}>
+          Tout le projet, au meme endroit.
+        </T>
+      </View>
+      {SECTIONS.map((s) => (
+        <BoutonSection key={s.cle} section={s} onPress={() => surChoix(s.cle)} />
+      ))}
+    </ScrollView>
+  );
+}

@@ -18,6 +18,7 @@ import React from "react";
 import { View } from "react-native";
 import { NavigationContainer, DefaultTheme, DarkTheme }
   from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -36,12 +37,19 @@ import { supabase } from "./src/services/supabase";
 import { FournisseurTheme, Logo, T, useCouleurs, useTheme }
   from "./src/composants/base";
 import { EcranVerification } from "./src/ecrans/Verification";
+import { EcranAccueil } from "./src/ecrans/Accueil";
 import { EcranDirect } from "./src/ecrans/Direct";
 import { EcranHistorique } from "./src/ecrans/Historique";
 import { EcranObjectifs } from "./src/ecrans/Objectifs";
 import { EcranAlertes } from "./src/ecrans/Alertes";
 import { EcranDiscussion } from "./src/ecrans/Discussion";
 import { espace, polices, TRAIT } from "./src/theme";
+
+import { EcranAccueil as EcranAccueilAllure } from "./src/allure/ecrans/Accueil";
+import { EcranDirect as EcranDirectAllure } from "./src/allure/ecrans/Direct";
+import { EcranSignaux as EcranSignauxAllure } from "./src/allure/ecrans/Signaux";
+import { EcranAnalyseEtMarche as EcranAnalyseAllure } from "./src/allure/ecrans/AnalyseEtMarche";
+import { EcranCompteEtBitvavo as EcranCompteAllure } from "./src/allure/ecrans/CompteEtBitvavo";
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string>;
 
@@ -54,9 +62,11 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const Onglets = createBottomTabNavigator();
+const Pile = createNativeStackNavigator();
+const OngletsAlluxbot = createBottomTabNavigator();
+const OngletsAllure = createBottomTabNavigator();
 
-const ICONES_ONGLET: Record<string, keyof typeof Ionicons.glyphMap> = {
+const ICONES_ALLUXBOT: Record<string, keyof typeof Ionicons.glyphMap> = {
   Direct: "flash-outline",
   Historique: "time-outline",
   Objectifs: "trending-up-outline",
@@ -64,7 +74,18 @@ const ICONES_ONGLET: Record<string, keyof typeof Ionicons.glyphMap> = {
   Discussion: "chatbubble-ellipses-outline",
 };
 
-function IconeOnglet({ route, actif }: { route: string; actif: boolean }) {
+const ICONES_ALLURE: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Accueil: "home-outline",
+  Direct: "flash-outline",
+  Signaux: "list-outline",
+  Analyse: "analytics-outline",
+  Compte: "person-outline",
+};
+
+function IconeOnglet({ icones, route, actif }: {
+  icones: Record<string, keyof typeof Ionicons.glyphMap>;
+  route: string; actif: boolean;
+}) {
   const c = useCouleurs();
   return (
     <View style={{
@@ -73,7 +94,7 @@ function IconeOnglet({ route, actif }: { route: string; actif: boolean }) {
       backgroundColor: actif ? c.jaune : "transparent",
     }}>
       <Ionicons
-        name={ICONES_ONGLET[route] ?? "ellipse-outline"}
+        name={icones[route] ?? "ellipse-outline"}
         size={20}
         color={actif ? c.surJaune : c.encrePale}
       />
@@ -81,10 +102,97 @@ function IconeOnglet({ route, actif }: { route: string; actif: boolean }) {
   );
 }
 
+/** Options communes aux deux barres d'onglets (Alluxbot et Allure). */
+function optionsOnglets(
+  c: ReturnType<typeof useCouleurs>,
+  icones: Record<string, keyof typeof Ionicons.glyphMap>,
+) {
+  return ({ route }: { route: { name: string } }) => ({
+    headerShown: false,
+    tabBarActiveTintColor: c.encre,
+    tabBarInactiveTintColor: c.encrePale,
+    tabBarStyle: {
+      backgroundColor: c.surface,
+      borderTopColor: c.filet,
+      borderTopWidth: TRAIT,
+      height: 64, paddingTop: 8, paddingBottom: 10,
+    },
+    tabBarLabelStyle: {
+      fontFamily: polices.interfaceGras, fontSize: 10,
+      letterSpacing: 0.4,
+    },
+    tabBarIcon: ({ focused }: { focused: boolean }) => (
+      <IconeOnglet icones={icones} route={route.name} actif={focused} />
+    ),
+  });
+}
+
+/** Alluxbot -- l'outil de pilotage deja construit le 15 septembre. */
+function NavigationAlluxbot() {
+  const c = useCouleurs();
+  return (
+    <OngletsAlluxbot.Navigator screenOptions={optionsOnglets(c, ICONES_ALLUXBOT)}>
+      <OngletsAlluxbot.Screen name="Direct" component={EcranDirect} />
+      <OngletsAlluxbot.Screen name="Historique" component={EcranHistorique} />
+      <OngletsAlluxbot.Screen name="Objectifs" component={EcranObjectifs} />
+      <OngletsAlluxbot.Screen name="Alertes" component={EcranAlertes} />
+      <OngletsAlluxbot.Screen name="Discussion" component={EcranDiscussion} />
+    </OngletsAlluxbot.Navigator>
+  );
+}
+
+/**
+ * Allure -- l'application publique, integree telle quelle en mode
+ * administrateur. Pas d'ecran de connexion propre : la session du
+ * compte de service, deja ouverte par Alluxe Bot, sert directement
+ * (decision du 16 sept., voir REPRISE du 15 sept. point 5 -- c'est deja
+ * un mode administrateur, une 2e authentification n'aurait aucun sens).
+ */
+function NavigationAllure({ email }: { email: string }) {
+  const c = useCouleurs();
+  return (
+    <OngletsAllure.Navigator screenOptions={optionsOnglets(c, ICONES_ALLURE)}>
+      <OngletsAllure.Screen name="Accueil" component={EcranAccueilAllure} />
+      <OngletsAllure.Screen name="Direct">
+        {({ navigation }) => (
+          <EcranDirectAllure
+            versAbonnement={() => navigation.navigate("Compte" as never)} />
+        )}
+      </OngletsAllure.Screen>
+      <OngletsAllure.Screen name="Signaux">
+        {({ navigation }) => (
+          <EcranSignauxAllure
+            versAbonnement={() => navigation.navigate("Compte" as never)} />
+        )}
+      </OngletsAllure.Screen>
+      <OngletsAllure.Screen name="Analyse">
+        {({ navigation }) => (
+          <EcranAnalyseAllure
+            versAbonnement={() => navigation.navigate("Compte" as never)} />
+        )}
+      </OngletsAllure.Screen>
+      <OngletsAllure.Screen name="Compte">
+        {() => <EcranCompteAllure email={email} />}
+      </OngletsAllure.Screen>
+    </OngletsAllure.Navigator>
+  );
+}
+
+/**
+ * La pile racine : Accueil (4 boutons) -> Alluxbot ou Allure.
+ *
+ * Le bouton retour flotte au-dessus du contenu (`headerTransparent`)
+ * plutot que d'ajouter une 2e barre de titre -- chaque ecran gere deja
+ * la sienne (logo + titre) en respectant les marges de securite, et un
+ * vrai header natif ici doublonnerait ce qui existe.
+ */
 function Navigation() {
   const c = useCouleurs();
   const theme = useTheme();
   const base = theme === "clair" ? DefaultTheme : DarkTheme;
+  // Une seule session possible ici : le compte de service. Les ecrans
+  // Allure qui affichent un e-mail (Compte) montrent donc le sien.
+  const email = extra.serviceEmail ?? "";
 
   return (
     <NavigationContainer theme={{
@@ -92,32 +200,31 @@ function Navigation() {
       colors: { ...base.colors, background: c.fond, card: c.surface,
                 text: c.encre, border: c.filetDoux, primary: c.jaune },
     }}>
-      <Onglets.Navigator
-        screenOptions={({ route }) => ({
+      <Pile.Navigator
+        screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: c.encre,
-          tabBarInactiveTintColor: c.encrePale,
-          tabBarStyle: {
-            backgroundColor: c.surface,
-            borderTopColor: c.filet,
-            borderTopWidth: TRAIT,
-            height: 64, paddingTop: 8, paddingBottom: 10,
-          },
-          tabBarLabelStyle: {
-            fontFamily: polices.interfaceGras, fontSize: 10,
-            letterSpacing: 0.4,
-          },
-          tabBarIcon: ({ focused }) => (
-            <IconeOnglet route={route.name} actif={focused} />
-          ),
-        })}
+        }}
       >
-        <Onglets.Screen name="Direct" component={EcranDirect} />
-        <Onglets.Screen name="Historique" component={EcranHistorique} />
-        <Onglets.Screen name="Objectifs" component={EcranObjectifs} />
-        <Onglets.Screen name="Alertes" component={EcranAlertes} />
-        <Onglets.Screen name="Discussion" component={EcranDiscussion} />
-      </Onglets.Navigator>
+        <Pile.Screen name="Accueil">
+          {({ navigation }) => (
+            <EcranAccueil surChoix={(cle) => navigation.navigate(cle)} />
+          )}
+        </Pile.Screen>
+        <Pile.Screen name="Alluxbot" component={NavigationAlluxbot}
+          options={{
+            headerShown: true, headerTransparent: true, headerTitle: "",
+            headerTintColor: c.encre, headerShadowVisible: false,
+            headerBackTitleVisible: false,
+          }} />
+        <Pile.Screen name="Allure"
+          options={{
+            headerShown: true, headerTransparent: true, headerTitle: "",
+            headerTintColor: c.encre, headerShadowVisible: false,
+            headerBackTitleVisible: false,
+          }}>
+          {() => <NavigationAllure email={email} />}
+        </Pile.Screen>
+      </Pile.Navigator>
     </NavigationContainer>
   );
 }
