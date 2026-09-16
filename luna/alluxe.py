@@ -31,6 +31,7 @@ import logging
 import os
 import shutil
 import subprocess
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -99,6 +100,13 @@ class Resultat:
         return "\n".join(lignes)
 
 
+def _debut(ligne: str, prefixe: str) -> bool:
+    """`ligne` commence-t-elle par `prefixe`, en ignorant accents/majuscules ?"""
+    sans_accent = "".join(c for c in unicodedata.normalize("NFKD", ligne)
+                           if not unicodedata.combining(c))
+    return sans_accent.upper().startswith(prefixe)
+
+
 def _ecrire_script(demande: str, moteur, persona: Persona = LUNA) -> tuple[str, str]:
     """Rend (legende, scene_prompt). Leve ErreurMoteur si le moteur echoue.
 
@@ -117,9 +125,13 @@ def _ecrire_script(demande: str, moteur, persona: Persona = LUNA) -> tuple[str, 
     brut = moteur.repondre(systeme, tours)
     legende, scene = "", ""
     for ligne in brut.splitlines():
-        if ligne.upper().startswith("LEGENDE:"):
+        # Le moteur derive parfois vers "LEGEND:" (anglais) au lieu de
+        # "LEGENDE:" -- constate le 16 sept. sur une reponse Groq par
+        # ailleurs correcte. `_debut()` ignore accents/E final pour ne
+        # pas jeter tout un script a cause d'une seule lettre en trop.
+        if _debut(ligne, "LEGEND"):
             legende = ligne.split(":", 1)[1].strip()
-        elif ligne.upper().startswith("SCENE:"):
+        elif _debut(ligne, "SCEN"):
             scene = ligne.split(":", 1)[1].strip()
     if not legende or not scene:
         raise ErreurMoteur(f"reponse inattendue du moteur : {brut[:200]}")
