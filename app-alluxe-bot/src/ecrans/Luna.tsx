@@ -3,20 +3,24 @@
  *
  * PREMIERE VERSION (16 sept.) : affiche le personnage (luna/persona.py,
  * republie par ops/executer_luna.py) et l'historique des generations
- * demandees, avec la photo quand elle existe. Volontairement SANS
- * lecteur audio/video integre pour l'instant -- ca demanderait
- * expo-av, une dependance native de plus, pour un premier passage dont
- * le but est de rendre la file utilisable (voir ce qui a ete genere,
- * en demander une nouvelle). Meme discipline que Discussion.tsx :
- * livrer un morceau vrai et utile plutot qu'une promesse complete.
+ * demandees, avec la photo quand elle existe. Meme discipline que
+ * Discussion.tsx : livrer un morceau vrai et utile plutot qu'une
+ * promesse complete.
+ *
+ * Lecture audio/video ajoutee dans un 2e passage (expo-av) : un simple
+ * bouton lecture/pause pour la voix, un lecteur natif avec controles
+ * pour la video -- pas de lecteur personnalise, `expo-av` fournit deja
+ * les controles standard.
  *
  * Generer un post prend du temps reel (LLM + image + voix + video, sur
  * le VPS, via cron toutes les 2 min) -- l'ecran ne bloque jamais en
  * l'attendant, il rafraichit la liste toutes les 15 s comme Alertes.tsx.
  */
 import React from "react";
-import { Image, RefreshControl, ScrollView, TextInput, View } from "react-native";
+import { Image, Pressable, RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Audio, ResizeMode, Video } from "expo-av";
+import { Ionicons } from "@expo/vector-icons";
 import {
   Publication, Persona, StatutPublication,
   demanderGeneration, persona as chargerPersona, publications, urlSignee,
@@ -84,6 +88,80 @@ function PhotoPublication({ chemin }: { chemin: string }) {
   );
 }
 
+function LecteurVoix({ chemin }: { chemin: string }) {
+  const c = useCouleurs();
+  const [url, setUrl] = React.useState<string | null>(null);
+  const [enLecture, setEnLecture] = React.useState(false);
+  const son = React.useRef<Audio.Sound | null>(null);
+
+  React.useEffect(() => {
+    let vivant = true;
+    urlSignee(chemin).then((u) => { if (vivant) setUrl(u); });
+    return () => {
+      vivant = false;
+      son.current?.unloadAsync();
+    };
+  }, [chemin]);
+
+  const basculer = async () => {
+    if (!url) return;
+    if (!son.current) {
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: url }, { shouldPlay: true },
+        (statut) => { if (statut.isLoaded && statut.didJustFinish) setEnLecture(false); });
+      son.current = sound;
+      setEnLecture(true);
+      return;
+    }
+    const statut = await son.current.getStatusAsync();
+    if (statut.isLoaded && statut.isPlaying) {
+      await son.current.pauseAsync();
+      setEnLecture(false);
+    } else {
+      await son.current.playFromPositionAsync(
+        statut.isLoaded && statut.didJustFinish ? 0 : (statut.isLoaded ? statut.positionMillis : 0));
+      setEnLecture(true);
+    }
+  };
+
+  return (
+    <Pressable onPress={basculer} disabled={!url} style={{
+      flexDirection: "row", alignItems: "center", backgroundColor: c.creux,
+      borderRadius: rayon.s, paddingVertical: espace.s, paddingHorizontal: espace.m,
+      marginTop: espace.s, alignSelf: "flex-start", opacity: url ? 1 : 0.5,
+    }}>
+      <Ionicons name={enLecture ? "pause" : "play"} size={16} color={c.encre} />
+      <T v="petit" style={{ marginLeft: espace.xs }}>Voix</T>
+    </Pressable>
+  );
+}
+
+function LecteurVideo({ chemin }: { chemin: string }) {
+  const c = useCouleurs();
+  const [url, setUrl] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let vivant = true;
+    urlSignee(chemin).then((u) => { if (vivant) setUrl(u); });
+    return () => { vivant = false; };
+  }, [chemin]);
+
+  if (!url) {
+    return (
+      <View style={{ width: "100%", aspectRatio: 9 / 16, borderRadius: rayon.m,
+                     backgroundColor: c.creux, marginTop: espace.m }} />
+    );
+  }
+  return (
+    <Video
+      source={{ uri: url }}
+      style={{ width: "100%", aspectRatio: 9 / 16, borderRadius: rayon.m, marginTop: espace.m }}
+      useNativeControls
+      resizeMode={ResizeMode.COVER}
+      isLooping
+    />
+  );
+}
+
 function CartePublication({ pub }: { pub: Publication }) {
   const c = useCouleurs();
   const quand = new Date(pub.created_at).toLocaleString("fr-FR", {
@@ -101,12 +179,15 @@ function CartePublication({ pub }: { pub: Publication }) {
         {LIBELLE_STATUT[pub.statut]}
       </T>
       {!!pub.legende && <T v="corps" style={{ marginTop: espace.s }}>{pub.legende}</T>}
-      {pub.chemin_photo && <PhotoPublication chemin={pub.chemin_photo} />}
-      {pub.chemin_voix && (
-        <T v="legende" style={{ marginTop: espace.s }}>🔊 voix generee (lecture dans l'app : bientot)</T>
-      )}
-      {pub.chemin_video && (
-        <T v="legende" style={{ marginTop: 2 }}>🎬 video generee (lecture dans l'app : bientot)</T>
+      {pub.chemin_video ? (
+        // La video contient deja photo + voix assemblees -- pas besoin
+        // de les montrer une 2e fois a cote.
+        <LecteurVideo chemin={pub.chemin_video} />
+      ) : (
+        <>
+          {pub.chemin_photo && <PhotoPublication chemin={pub.chemin_photo} />}
+          {pub.chemin_voix && <LecteurVoix chemin={pub.chemin_voix} />}
+        </>
       )}
       {Object.keys(pub.erreurs ?? {}).length > 0 && (
         <View style={{ marginTop: espace.s }}>
