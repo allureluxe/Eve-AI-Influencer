@@ -36,8 +36,8 @@ const SECTIONS: Section[] = [
   },
   {
     cle: "Luna", titre: "Luna",
-    detail: "L'influenceuse IA -- interface mobile a venir.",
-    icone: "sparkles-outline", disponible: false,
+    detail: "L'influenceuse IA : son personnage, ses posts generes.",
+    icone: "sparkles-outline", disponible: true,
   },
   {
     cle: "Agent", titre: "Agent",
