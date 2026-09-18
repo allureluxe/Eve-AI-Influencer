@@ -82,6 +82,26 @@ class PaperBroker(Broker):
     def positions(self) -> list[Position]:
         return list(self._positions.values())
 
+    def reprendre(self, position: Position) -> bool:
+        """Redeclare une position memorisee apres un redemarrage.
+
+        Sans ceci (l'implementation par defaut de `Broker.reprendre` rend
+        toujours False), une simulation qui redemarre abandonne
+        silencieusement toute position ouverte -- ni trailing, ni
+        break-even, ni cloture ne lui arrivent plus jamais, exactement le
+        piege deja rencontre avec le vrai courtier Bitvavo sur un
+        instrument absent du catalogue statique. Trouve le 18 sept. en
+        redemarrant `robot-demo.service` pour deployer un correctif : 10
+        positions simulees abandonnees d'un coup.
+
+        Le solde reste approximatif apres reprise (les frais deja payes
+        sur ces positions ne sont pas retranches, `self.balance` repart de
+        `start_balance` a chaque demarrage) -- acceptable pour un capital
+        purement virtuel, l'ecart se limite a quelques centimes de frais.
+        """
+        self._positions[position.id] = position
+        return True
+
     # ---------------------------------------------------------------
     def open_position(self, instrument: Instrument, side: Side, lots: float,
                       stop_loss: float, take_profit: float, comment: str = "") -> Position:

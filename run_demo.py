@@ -107,6 +107,20 @@ def main() -> int:
     #    quoi que contienne .env ou l'environnement herite.
     os.environ["GB_STATE_FILE"] = "data/state-demo.json"
     os.environ["GB_TRADES_FILE"] = "data/trades-demo.jsonl"
+    # 3e fuite trouvee le meme soir : `ObjectiveTracker` (gold_bot/objectives.py)
+    # a SON PROPRE fichier, `data/objectives.json`, jamais isole non plus --
+    # la demo y a ecrit un "objectif hebdomadaire" fictif de +170 EUR par-
+    # dessus celui, reel, du robot (restaure a la main : -14,72 EUR sur 17
+    # trades). Sans l'isoler, ce chiffre fictif aurait fini archive dans
+    # l'historique REEL du robot au prochain changement de semaine ISO, et
+    # aurait meme pu declencher une PROMOTION DE PALIER DE RISQUE reelle sur
+    # un objectif entierement invente. Journal de notifications et boite
+    # d'envoi isoles aussi par la meme occasion, par prudence (moins
+    # critique -- ce ne sont que des lignes de texte, jamais lues pour une
+    # decision -- mais autant ne plus jamais devoir chercher une 4e fuite).
+    os.environ["GB_OBJECTIVE_FILE"] = "data/objectives-demo.json"
+    os.environ["GB_JOURNAL_FILE"] = "data/journal-demo.jsonl"
+    os.environ["GB_OUTBOX_FILE"] = "data/outbox-demo.jsonl"
 
     cfg = BotConfig.load(args.config)
     if cfg.engine.broker != "paper":
@@ -121,10 +135,11 @@ def main() -> int:
     engine = DualScalpingEngine(cfg, notifier=NotifierDemo())
 
     # Filet de securite : si un futur changement (ici ou dans
-    # gold_bot/state.py) reintroduit un chemin partage, on s'arrete tout
-    # de suite plutot que d'ecrire une 3e fois dans les fichiers du
-    # robot reel. "demo" doit apparaitre dans les deux chemins reels.
-    for nom, chemin in (("etat", engine.store.path), ("journal", engine.journal.path)):
+    # gold_bot/state.py / objectives.py) reintroduit un chemin partage, on
+    # s'arrete tout de suite plutot que d'ecrire encore dans un fichier du
+    # robot reel. "demo" doit apparaitre dans chacun des chemins reels.
+    for nom, chemin in (("etat", engine.store.path), ("journal", engine.journal.path),
+                        ("objectifs", engine.objectives.state_file)):
         if "demo" not in os.path.basename(chemin):
             logging.error(
                 "SECURITE : le fichier de %s (%s) n'est pas isole a la "
