@@ -122,6 +122,28 @@ def main() -> int:
     os.environ["GB_JOURNAL_FILE"] = "data/journal-demo.jsonl"
     os.environ["GB_OUTBOX_FILE"] = "data/outbox-demo.jsonl"
 
+    # 5e fuite, la plus visible : `TradingEngine` publie CHAQUE ouverture/
+    # cloture de position vers la table Supabase `signals` (SignalPublisher,
+    # gold_bot/signal_publisher.py) -- c'est elle qui alimente l'application
+    # publique (Allure) ET Alluxbot. Aucun instance-suffixe ici, aucune
+    # notion de "demo" : la simulation a publie ses 10 positions virtuelles
+    # comme si c'etaient de vraies positions du robot, visibles par
+    # l'operateur (et n'importe quel utilisateur d'Allure) dans l'app en
+    # temps reel -- trouve le 18 sept. seulement parce que l'operateur a vu
+    # une position fermee a 600 % de "benefice" dans l'app et a su que ca
+    # ne collait pas. 21 lignes nettoyees a la main dans Supabase.
+    #
+    # `SignalPublisher.depuis_env()` et `AlluxeBotChannel`/
+    # `FirebasePushChannel` (gold_bot/notifiers.py) se rendent tous
+    # volontairement INERTES sans cle Supabase dans l'environnement (deja
+    # documente comme comportement sur : "le moteur se comporte exactement
+    # comme avant"). Les vider ICI coupe donc les trois d'un coup, sans
+    # toucher aux fichiers partages -- Telegram (cles separees) continue de
+    # fonctionner normalement, c'est le seul canal que l'operateur a demande
+    # pour la demo.
+    os.environ["SUPABASE_URL"] = ""
+    os.environ["SUPABASE_SERVICE_KEY"] = ""
+
     cfg = BotConfig.load(args.config)
     if cfg.engine.broker != "paper":
         logging.error("run_demo.py exige engine.broker=\"paper\" -- "
@@ -146,6 +168,11 @@ def main() -> int:
                 "simulation -- arret avant d'ecrire quoi que ce soit.",
                 nom, chemin)
             return 2
+    if engine.publisher.actif:
+        logging.error(
+            "SECURITE : le publieur Supabase (signals) est actif -- la "
+            "simulation publierait ses positions dans l'app reelle. Arret.")
+        return 2
 
     engine.run()
     return 0
