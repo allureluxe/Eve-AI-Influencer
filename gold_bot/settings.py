@@ -36,6 +36,12 @@ class EngineConfig:
     verbose_scan: bool = False
     scan_workers: int = 8
     scan_max_instruments: int = 8
+    # Defaut False partout : un `broker: "paper"` construit dans un test
+    # (tests/test_money_management.py notamment) ne doit jamais declencher
+    # d'appel reseau vers Bitvavo. Seule une configuration qui l'active
+    # explicitement (ex. robot.demo.json) fait tourner le simulateur sur le
+    # vrai univers dynamique de Bitvavo plutot que le catalogue statique.
+    univers_dynamique_bitvavo: bool = False
 
 @dataclass(slots=True)
 class BotConfig:

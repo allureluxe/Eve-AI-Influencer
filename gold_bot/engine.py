@@ -148,7 +148,8 @@ class TradingEngine:
         #
         # En cas de panne reseau elle rend le catalogue ecrit en dur : une
         # API muette ne doit pas retrecir l'univers d'un robot en service.
-        if cfg.engine.broker in ("bitvavo", "bitvavo_margin"):
+        if (cfg.engine.broker in ("bitvavo", "bitvavo_margin")
+                or (cfg.engine.broker == "paper" and cfg.engine.univers_dynamique_bitvavo)):
             self.universe = Universe(univers_bitvavo())
         else:
             self.universe = Universe()
@@ -1237,6 +1238,16 @@ class TradingEngine:
                 self.scanner.sleep_symbol(ev.symbol, 3600.0, sizing.reason.split(":")[0].strip())
             return
 
+        if isinstance(self.broker, PaperBroker):
+            # Le simulateur n'a pas de flux de prix propre (voir
+            # PaperBroker.set_price) : il n'etait alimente que pour GERER
+            # les positions deja ouvertes (plus bas dans ce fichier), jamais
+            # pour en OUVRIR une nouvelle en direct. Sans cette ligne,
+            # `open_position` levait systematiquement "aucune cotation pour
+            # X" -- trouve le 18 sept. en cablant la simulation a 500 EUR.
+            tick = self.registry.tick(ev.symbol, instrument.asset_class)
+            if tick:
+                self.broker.set_price(ev.symbol, tick, ev.atr or 0.0)
         try:
             pos = self.broker.open_position(
                 instrument, ev.side, sizing.lots, ev.stop_loss, ev.take_profit,
