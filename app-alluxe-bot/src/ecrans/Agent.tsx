@@ -12,10 +12,25 @@
  * cet ecran lance alors tout seul l'ecoute (expo-speech-recognition) --
  * la question est transcrite, envoyee, et la reponse lue a voix haute
  * (expo-speech). Un bouton micro permet aussi de dicter a la demande,
- * sans etre passe par le mot de reveil. AUCUN TELEPHONE POUR TESTER LE
- * REVEIL EN CONDITIONS REELLES -- le code compile et suit la
- * documentation Porcupine/expo-speech-recognition, mais seul un essai
- * reel sur l'appareil de l'operateur confirmera que ca marche.
+ * sans etre passe par le mot de reveil.
+ *
+ * ECOUTE EN CONTINU AJOUTEE (18 sept.) : repli gratuit au reveil vocal
+ * pour l'operateur qui n'a pas pu creer de compte Picovoice (leur
+ * inscription exige un e-mail "professionnel", refuse Gmail/Yahoo/
+ * Outlook -- aucun frais, juste un mur d'inscription). Sans Porcupine,
+ * pas d'ecoute possible appli fermee -- mais tant que cet ecran est
+ * OUVERT, un bouton bascule une ecoute en boucle (expo-speech-
+ * recognition, deja utilise pour la dictee) qui ne reagit que si la
+ * phrase reconnue contient "Alluxe" (variantes phonetiques tolerees,
+ * voir `_apresAlluxe`) -- tout le reste est ignore, jamais envoye. Dire
+ * "Alluxe, [question]" en une seule phrase.
+ *
+ * AUCUN TELEPHONE POUR TESTER NI L'UN NI L'AUTRE EN CONDITIONS REELLES
+ * -- le code compile et suit la documentation Porcupine/expo-speech-
+ * recognition, mais seul un essai reel sur l'appareil de l'operateur
+ * confirmera que ca marche, et la liste de variantes phonetiques de
+ * "Alluxe" ci-dessous devra probablement s'affiner sur ce qu'il
+ * entendra vraiment reconnu.
  *
  * Poll toutes les 2 s tant que l'ecran est ouvert (comme Luna/Alertes),
  * pas de Supabase Realtime : aucune autre partie de l'app ne l'utilise
@@ -39,6 +54,32 @@ import { espace, rayon, TRAIT } from "../theme";
 import { Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 
 const RYTHME_MS = 2_000;
+
+// Variantes plausibles de ce que la reconnaissance vocale peut transcrire
+// pour "Alluxe" -- un mot invente, donc pas dans son dictionnaire. Liste
+// a affiner une fois de vrais essais faits sur l'appareil de l'operateur.
+const VARIANTES_ALLUXE = [
+  "alluxe", "aluxe", "allux", "alux", "alloxe", "aluxes", "alluxes", "aluxx",
+];
+
+function _normaliserMot(mot: string): string {
+  return mot
+    .normalize("NFD").replace(/[̀-ͯ]/g, "") // enleve les accents
+    .toLowerCase().replace(/[^a-z]/g, "");
+}
+
+/**
+ * Si la phrase reconnue contient "Alluxe" (ou une variante proche), rend
+ * ce qui suit ce mot (peut etre une chaine vide si seul le mot a ete dit).
+ * Rend `null` si le mot de reveil n'apparait pas du tout -- la phrase est
+ * alors ignoree, jamais envoyee a l'agent.
+ */
+function _apresAlluxe(transcription: string): string | null {
+  const mots = transcription.split(/\s+/).filter(Boolean);
+  const index = mots.findIndex((m) => VARIANTES_ALLUXE.includes(_normaliserMot(m)));
+  if (index === -1) return null;
+  return mots.slice(index + 1).join(" ").trim();
+}
 
 function Bulle({ m }: { m: Message }) {
   const c = useCouleurs();
@@ -113,9 +154,17 @@ export function EcranAgent() {
   const [texte, setTexte] = React.useState("");
   const [envoi, setEnvoi] = React.useState(false);
   const [ecoute, setEcoute] = React.useState(false);
+  const [ecouteContinue, setEcouteContinue] = React.useState(false);
   const [erreur, setErreur] = React.useState("");
   const derniereLue = React.useRef<number>(0);
   const scrollRef = React.useRef<ScrollView>(null);
+  // Quel mode a demarre la reconnaissance EN COURS -- necessaire car les
+  // evenements "result"/"end" sont partages entre la dictee ponctuelle
+  // (bouton micro / reveil Picovoice) et l'ecoute en continu, qui ne se
+  // comportent pas pareil (l'une envoie tout, l'autre filtre sur "Alluxe").
+  const modeEcouteRef = React.useRef<"unique" | "continu" | null>(null);
+  const ecouteContinueRef = React.useRef(false);
+  React.useEffect(() => { ecouteContinueRef.current = ecouteContinue; }, [ecouteContinue]);
 
   const charger = React.useCallback(async () => {
     try {
@@ -144,7 +193,15 @@ export function EcranAgent() {
       setListe(msgs);
     }).catch(() => {});
     const id = setInterval(charger, RYTHME_MS);
-    return () => { clearInterval(id); Speech.stop(); };
+    return () => {
+      clearInterval(id);
+      Speech.stop();
+      // Coupe le micro en quittant l'ecran -- sinon l'ecoute en continu
+      // (si active) continuerait en arriere-plan sans que rien ne le
+      // montre, ce qu'on ne veut jamais.
+      ecouteContinueRef.current = false;
+      ExpoSpeechRecognitionModule.stop();
+    };
   }, [charger]);
 
   const envoyer = React.useCallback(async (contenu: string) => {
@@ -163,34 +220,69 @@ export function EcranAgent() {
 
   const surEnvoyer = () => envoyer(texte);
 
-  const ecouter = React.useCallback(async () => {
+  const demarrerReconnaissance = React.useCallback(async (mode: "unique" | "continu") => {
     try {
       const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!permission.granted) {
         setErreur("Micro refuse -- autorise-le dans les reglages du telephone.");
+        if (mode === "continu") setEcouteContinue(false);
         return;
       }
-      setEcoute(true);
+      modeEcouteRef.current = mode;
+      if (mode === "unique") setEcoute(true);
       ExpoSpeechRecognitionModule.start({ lang: "fr-FR", interimResults: false });
     } catch (err: any) {
-      setEcoute(false);
+      if (mode === "unique") setEcoute(false); else setEcouteContinue(false);
       setErreur(err?.message ?? "Impossible de demarrer l'ecoute");
     }
   }, []);
 
+  const ecouter = React.useCallback(() => demarrerReconnaissance("unique"), [demarrerReconnaissance]);
+
+  const basculerEcouteContinue = React.useCallback(() => {
+    if (ecouteContinue) {
+      setEcouteContinue(false);
+      if (modeEcouteRef.current === "continu") ExpoSpeechRecognitionModule.stop();
+    } else {
+      setEcouteContinue(true);
+      demarrerReconnaissance("continu");
+    }
+  }, [ecouteContinue, demarrerReconnaissance]);
+
   useSpeechRecognitionEvent("result", (e) => {
     const transcription = e.results[0]?.transcript;
-    if (e.isFinal && transcription) {
-      setTexte("");
-      envoyer(transcription);
+    if (!e.isFinal || !transcription) return;
+    if (modeEcouteRef.current === "continu") {
+      const question = _apresAlluxe(transcription);
+      if (question === null) return; // pas de "Alluxe" entendu -- ignore, jamais envoye
+      if (question) envoyer(question);
+      else Speech.speak("Oui ?", { language: "fr-FR" }); // mot seul, sans question derriere
+      return;
     }
+    setTexte("");
+    envoyer(transcription);
   });
-  useSpeechRecognitionEvent("end", () => setEcoute(false));
-  useSpeechRecognitionEvent("error", (e) => {
-    setEcoute(false);
-    if (e.error !== "no-speech" && e.error !== "aborted") {
-      setErreur(`Ecoute : ${e.message || e.error}`);
+  useSpeechRecognitionEvent("end", () => {
+    if (modeEcouteRef.current === "continu" && ecouteContinueRef.current) {
+      // Boucle : la reconnaissance s'arrete seule apres chaque silence,
+      // meme avec continuous:true sur certaines versions d'Android. Tant
+      // que l'operateur n'a pas coupe le bouton, on relance aussitot.
+      ExpoSpeechRecognitionModule.start({ lang: "fr-FR", interimResults: false });
+      return;
     }
+    setEcoute(false);
+  });
+  useSpeechRecognitionEvent("error", (e) => {
+    const enContinu = modeEcouteRef.current === "continu";
+    if (e.error === "no-speech" || e.error === "aborted") {
+      // Frequent et normal en ecoute continue (silence entre deux phrases) :
+      // le gestionnaire "end" se charge deja de relancer, rien a signaler.
+      if (!enContinu) setEcoute(false);
+      return;
+    }
+    setEcoute(false);
+    if (enContinu) setEcouteContinue(false); // vraie erreur : ne pas boucler dessus
+    setErreur(`Ecoute : ${e.message || e.error}`);
   });
 
   // Ouvert via le reveil vocal ("alluxebot://reveil", voir App.tsx) :
@@ -211,6 +303,20 @@ export function EcranAgent() {
       </View>
 
       <BandeauReveilVocal />
+      <Pressable onPress={basculerEcouteContinue} style={{
+        flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+        backgroundColor: c.creux, borderRadius: rayon.s,
+        paddingVertical: espace.s, paddingHorizontal: espace.m,
+        marginHorizontal: espace.l, marginBottom: espace.m,
+      }}>
+        <T v="petit" style={{ flex: 1, marginRight: espace.s }}>
+          {ecouteContinue
+            ? "Ecoute en continu : active -- dis \"Alluxe, ...\""
+            : "Ecoute en continu sur cet ecran (sans reveil vocal)"}
+        </T>
+        <Ionicons name={ecouteContinue ? "ear" : "ear-outline"}
+                  size={18} color={ecouteContinue ? c.gain : c.encrePale} />
+      </Pressable>
 
       {!!erreur && (
         <T v="petit" couleur={c.perte} style={{ marginBottom: espace.m, paddingHorizontal: espace.l }}>
@@ -242,23 +348,28 @@ export function EcranAgent() {
         <TextInput
           value={texte}
           onChangeText={setTexte}
-          placeholder={ecoute ? "Je t'ecoute..." : "Ecris, ou appuie sur le micro..."}
+          placeholder={
+            ecouteContinue ? "Ecoute en continu -- dis \"Alluxe, ...\""
+              : ecoute ? "Je t'ecoute..." : "Ecris, ou appuie sur le micro..."
+          }
           placeholderTextColor={c.encrePale}
           multiline
-          editable={!ecoute}
+          editable={!ecoute && !ecouteContinue}
           style={{
             flex: 1, borderWidth: TRAIT, borderColor: c.filet, borderRadius: rayon.s,
             padding: espace.m, minHeight: 44, maxHeight: 120, color: c.encre,
             marginRight: espace.s, textAlignVertical: "top",
-            backgroundColor: ecoute ? c.creux : "transparent",
+            backgroundColor: (ecoute || ecouteContinue) ? c.creux : "transparent",
           }}
         />
         <Pressable
           onPress={ecoute ? () => ExpoSpeechRecognitionModule.stop() : ecouter}
+          disabled={ecouteContinue}
           style={{
             width: 44, height: 44, borderRadius: rayon.s,
             backgroundColor: ecoute ? c.perte : c.creux,
             alignItems: "center", justifyContent: "center", marginRight: espace.s,
+            opacity: ecouteContinue ? 0.4 : 1,
           }}
         >
           <Ionicons name={ecoute ? "stop" : "mic-outline"} size={20}
