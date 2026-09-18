@@ -382,7 +382,11 @@ class TradeManager:
             # On le CALCULE donc au lieu de le choisir, comme le plafond de
             # cout et la borne de spread ailleurs dans ce depot. Le reglage
             # reste un PLANCHER : si quelqu'un veut plus de marge, il l'a.
-            distance = abs(position.initial_risk / position.volume) if position.volume else 0.0
+            # `initial_risk` est DEJA la distance prix (= 1R, voir core.py),
+            # jamais un total a diviser par le volume (bug corrige le
+            # 18 sept. : ca ecrasait le calcul sur les altcoins a gros
+            # volume, cf. TestBreakEven::test_le_break_even_reste_sain_sur_un_gros_volume).
+            distance = abs(position.initial_risk)
             cout_r = 0.0
             if distance > 0 and position.entry_price > 0:
                 # Frais des deux cotes, plus la limite posee sous le

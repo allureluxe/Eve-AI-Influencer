@@ -78,6 +78,31 @@ class TestBreakEven(unittest.TestCase):
         self.assertFalse(pos.breakeven_done)
         self.assertLess(pos.stop_loss, pos.entry_price)
 
+    def test_le_break_even_reste_sain_sur_un_gros_volume(self):
+        """Trouve le 18 sept. en demo : `initial_risk` est deja la distance
+        prix (1R), diviser par le volume l'ecrasait sur les altcoins a gros
+        volume/prix unitaire bas (des milliers d'unites, ex. STRK, ROSE) --
+        `cout_r` explosait, le stop de break-even partait a des annees-
+        lumiere du prix reel, et la position se cloturait aussitot sur un
+        "profit" fictif de plusieurs dizaines de R. Les positions a volume
+        < 1 (BTC, ETH) masquaient le bug par coincidence (diviser AUGMENTE
+        la distance dans ce sens, ce qui fait retomber sous le plancher)."""
+        ind = trending_indicators(1)
+        tm = TradeManager(TradeManagerConfig(breakeven_at_r=0.8, partial_enabled=False,
+                                             breakeven_offset_r=0.08))
+        entry, risk = 0.0388, 0.003   # ordre de grandeur STRKUSD reel
+        pos = Position(id="T1", symbol="STRKUSD", side=Side.BUY, volume=900.0,
+                       entry_price=entry, stop_loss=entry - risk,
+                       take_profit=entry + risk * 2.0, opened_at=0.0)
+        # spread par defaut de tick_at() (0,30) est pense pour l'or a 2600 --
+        # sur un prix a 0,04 ca ecraserait tout, d'ou un spread realiste ici.
+        tm.manage(pos, tick_at(entry + risk * 0.85, spread=0.0001), ind)   # 0.85R
+        self.assertTrue(pos.breakeven_done)
+        # Le stop de break-even doit rester tout pres de l'entree (quelques
+        # % au plus) -- jamais a des multiples du prix lui-meme.
+        self.assertLess(pos.stop_loss, entry * 1.05)
+        self.assertGreaterEqual(pos.stop_loss, entry)
+
 
 class TestExtensionObjectif(unittest.TestCase):
     """Le comportement demande : TP repousse + stop remonte, automatiquement."""
@@ -165,7 +190,16 @@ class TestExtensionObjectif(unittest.TestCase):
 class TestTrailing(unittest.TestCase):
     def test_le_stop_suit_le_prix_au_dela_de_1r(self):
         ind = trending_indicators(1)
-        tm = TradeManager(TradeManagerConfig(partial_enabled=False, extend_enabled=False))
+        # breakeven_at_r desarme (hors de portee des prix testes) : ce test
+        # verifie le SUIVEUR seul. Sans ca, le premier tick (1.5R, au-dessus
+        # du seuil de break-even par defaut) declenche AUSSI le break-even --
+        # et sur ce risque de 4,0 (0,15 % de 2600), les frais (0,7 % en
+        # aller-retour) dominent largement la distance de stop, ce qui est
+        # un cas reel et desormais correctement gere (voir
+        # TestBreakEven::test_le_break_even_reste_sain_sur_un_gros_volume)
+        # mais qui n'a rien a voir avec ce que ce test-ci verifie.
+        tm = TradeManager(TradeManagerConfig(partial_enabled=False, extend_enabled=False,
+                                             breakeven_at_r=99.0))
         pos = make_position(Side.BUY, 2600.0, risk=4.0, tp_r=6.0)
 
         tm.manage(pos, tick_at(2606.0), ind)
