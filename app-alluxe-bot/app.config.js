@@ -20,7 +20,7 @@ module.exports = () => ({
     },
     android: {
       package: "fr.allure.alluxebot",
-      versionCode: 1,
+      versionCode: 2,
       googleServicesFile: "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/icone-adaptative.png",
