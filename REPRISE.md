@@ -1,4 +1,4 @@
-# Ou on en est — mis a jour le 16 septembre 2026 (soir)
+# Ou on en est — mis a jour le 18 septembre 2026 (soir)
 
 **Ce fichier est lu automatiquement au demarrage de chaque session Claude Code**
 (hook `SessionStart`, voir `.claude/reprise.py`). Il evite de tout re-expliquer.
@@ -12,114 +12,122 @@ en cours, ce qui attend, ce qui vient de changer. Les deux sont complementaires.
 
 ---
 
-## Le robot
+## Le robot reel — A L'ARRET, volontairement
 
-Arme en reel sur Bitvavo, configuration `robot.bitvavo.json` (cle
-`_arme_en_reel`). Strategie D1 Donchian-20, pyramidage Turtle 3 etages, stop
-temporel 5 jours. Voir CLAUDE.md pour le detail et l'interdiction d'y toucher
-sans repasser par `comparer.py`.
+`robot-dual-live.service` est **inactif**. Le 16 sept., l'operateur a retire
+la quasi-totalite du capital (44,49 + 50 + 50 EUR), confirme explicitement
+le 18 sept. ("j'ai tout retire"). Capital reel actuel : quasiment zero
+(~1e-08 EUR, verifie par lecture directe du solde Bitvavo). Voir memoire
+`retrait-total-16-sept`.
 
-    python3 etat.py
-    python3 bilan_journee.py
-    systemctl status robot-dual-live
+**Ne PAS redemarrer `robot-dual-live` sans confirmation d'un nouveau depot
+de l'operateur.** Quand il redepose : `ops/chien_de_garde.py --recaler`
+(sur le compte reellement approvisionne) PUIS `sudo systemctl start
+robot-dual-live`. `data/state.json` porte deja `halted: true` avec un motif
+explicite ("compte vide -- lever a la main apres un nouveau depot").
 
-**Capital reel au 16 sept. au soir : ~100 EUR** (apres un retrait de
-44,49 EUR fait par l'operateur ce jour-la). Chien de garde recale sur cette
-base (plancher 45 EUR).
+Configuration : `robot.bitvavo.json`, D1 Donchian-20, pyramidage Turtle 3
+etages, stop temporel 5 jours. Voir CLAUDE.md, ne pas y toucher sans repasser
+par `comparer.py`.
 
-**L'echantillon des 40 trades de preuve est ATTEINT** (exactement 40, puis
-au-dela — l'operateur a decide le 16 sept. de laisser accumuler plutot que de
-remettre a zero si l'espérance reste negative, voir CLAUDE.md/memoire
-correspondante). Espérance encore negative a ce stade — normal, le palier
-reste "preuve" (0,6 % de risque). Ne pas monter le risque tant que l'espérance
-nette n'est pas positive.
+**L'echantillon des 40 trades de preuve est ATTEINT** (40+, l'operateur a
+decide le 16 sept. de laisser accumuler plutot que remettre a zero).
+Espérance encore negative — palier reste "preuve" (0,6 % de risque).
 
-## INCIDENT du 16 sept. — RESOLU, mais a surveiller
+## Le robot DEMO — actif, capital virtuel
 
-Vers 18h (heure francaise), un retrait de 44,49 EUR a declenche a tort le
-chien de garde (il ne peut pas distinguer un retrait d'une perte, et c'est
-volontaire — voir l'en-tete d'`ops/chien_de_garde.py`). Le robot s'est arrete
-tout seul. Diagnostic + recalage + redemarrage faits le soir meme avec
-confirmation de l'operateur :
+`robot-demo.service` tourne en continu depuis le 18 sept. : simulation a
+500 EUR virtuels, sur les VRAIES cotations Bitvavo en direct, AUCUN ordre
+reel. Demande par l'operateur pour valider la strategie avant de deposer
+les 500 EUR reellement. Notifications (Telegram compris, meme salon que le
+robot reel) toutes prefixees **"[DEMO]"**.
 
-    python3 ops/chien_de_garde.py --recaler
-    sudo systemctl start robot-dual-live
+    systemctl status robot-demo
+    journalctl -u robot-demo -n 50
 
-**Au passage, un vrai bug decouvert** : `etat.py` affichait ZETAUSD comme
-"ouvert depuis 63h" alors que son stop avait REELEMENT ete declenche chez
-Bitvavo plus d'une journee avant (perdu au fil de plusieurs redemarrages
-anterieurs). Le redemarrage du 16 sept. a spontanement corrige la
-reconciliation (voir le journal : "RAPPROCHEMENT ZETA-EUR"), donc rien a
-faire cote code dans l'immediat -- mais **si une position affiche a nouveau
-un age suspect, verifier avec** :
+Fichiers completement isoles du robot reel : `data/state-demo.json`,
+`data/trades-demo.jsonl` (jamais `data/state.json`/`data/trades.jsonl`).
 
-    python3 verifier_positions_orphelines.py SYMBOLE
+**INCIDENT pendant la mise au point (corrige)** : les deux premiers essais
+de `run_demo.py` ont ECRIT DANS `data/state.json` (celui du VRAI robot) --
+`os.environ.setdefault()` ne suffisait pas car `.env` definit deja
+`GB_STATE_FILE`/`GB_TRADES_FILE` (partage via `EnvironmentFile=` avec
+`robot-dual-live.service`), et `setdefault()` n'ecrase jamais une valeur
+deja presente. Corrige par une assignation DIRECTE + un filet de securite
+qui refuse de demarrer si "demo" n'apparait pas dans les chemins resolus.
+`data/trades.jsonl` (les trades REELS clotures) n'a jamais ete touche.
+Voir memoire `demo-500eur-18-sept` — **lecon generale : ne jamais utiliser
+`setdefault()` pour isoler un processus d'un `.env` partage.**
 
-(lecture seule chez Bitvavo -- avoirs et ordres reels, aucun ordre envoye).
-Le mecanisme exact qui a laisse ZETA orphelin plusieurs jours n'a pas ete
-completement instrumente/corrige a la racine (piste : `ACTIFS_PAR_SYMBOLE`
-dans `gold_bot/universe.py`, catalogue STATIQUE de 85 symboles, potentiellement
-desynchronise avec l'univers DYNAMIQUE de ~215 cryptos utilise par le scanner
--- a verifier si le probleme revient).
+Deux bugs latents du simulateur (`PaperBroker`, jamais utilise en direct
+avant, seulement en backtest) corriges au passage dans `gold_bot/engine.py`,
+tous deux proteges par `isinstance(broker, PaperBroker)` (zero effet sur le
+robot reel) : il n'etait jamais alimente en prix pour OUVRIR une position,
+et sans methode `supports()` il scannait aussi le forex/l'or en plus des
+cryptos.
+
+**Reste a faire, explicitement reporte par l'operateur** ("sur la nouvelle
+application quand elle sera terminee") : publier l'etat de la demo vers
+Supabase et l'afficher dans Alluxe Bot, clairement distingue du reel. Pas
+avant que l'app soit jugee terminee (le reveil vocal reste le seul morceau
+manquant).
 
 ## L'application (Alluxe Bot) — fusion terminee le 16 sept.
 
-Plan du 15 sept. (voir memoire `fusion-app-unique-et-agent-alluxe-15-sept`)
-**REALISE EN ENTIER** le 16 sept. : une seule application, 4 gros boutons
-sur l'accueil.
-
-1. **Alluxbot** — pilotage du robot (deja livre le 15 sept.)
-2. **Allure** — l'app publique integree en mode administrateur (session du
-   compte de service, pas de 2e connexion)
-3. **Luna** — personnage + file de generation de contenu (texte/photo/voix/
-   video), declenchable depuis le telephone, lecture audio/video incluse.
-   Le pipeline de contenu (script alluxe.py) a ete RENOMME `alluxe_v2.py`
-   (racine ET `luna/alluxe_v2.py`) pour ne pas se confondre avec le nouvel
-   agent -- toute reference future doit utiliser ce nouveau nom.
-4. **Agent (Alluxe)** — assistant personnel, PREMIERE VERSION LECTURE SEULE
-   (etat du robot/alertes/Luna, jamais d'action). Chat texte + reponses lues
-   a voix haute (expo-speech). **Reveil vocal en arriere-plan ("dire Alluxe")
-   code et compile (Picovoice Porcupine, service Android natif custom,
-   voir `app-alluxe-bot/plugins/reveil-vocal/`), mais BLOQUE en attente de
-   deux elements que seul l'operateur peut fournir** :
-   - `PICOVOICE_ACCESS_KEY` (compte gratuit sur console.picovoice.ai)
-   - `app-alluxe-bot/assets/reveil/alluxe_android.ppn` (mot-cle "Alluxe"
-     genere sur la meme console, langue anglais, plateforme Android)
-
-   Voir `app-alluxe-bot/assets/reveil/LISEZMOI.txt` pour les etapes exactes.
-   Une fois recus : `python3 mettre_a_jour_jeton_picovoice.py <cle>`, ajouter
-   le meme secret dans GitHub Actions, placer le fichier .ppn, committer,
-   pousser (le build se relance tout seul sur `app-alluxe-bot/**`).
-
-   **Aucun test reel sur telephone n'a ete possible depuis ce serveur**
-   (pas de SDK Android, pas d'appareil) -- le code compile (verifie sur
-   GitHub Actions apres 2 vrais bugs de version de dependances corriges),
-   mais seul un essai reel confirmera que la detection fonctionne et que la
-   notification permanente imposee par Android est acceptable.
-
-**Service serveur ajoute** : `alluxe-agent.service` (systemd, permanent,
-PAS un cron), poll toutes les 2 s sur `alluxe_agent_messages` (Supabase),
-lecture seule. Verifie actif et sans interference avec le robot.
-
-**Lien de build stable** (inchange depuis le debut) :
+Une seule application, 4 gros boutons sur l'accueil : Alluxbot / Allure /
+Luna / Agent. Tout fonctionne, y compris apres correction d'un bug de mot
+de passe de service (voir plus bas). Lien de build stable (inchange) :
 https://github.com/allureluxe/Eve-AI-Influencer/releases/tag/dernier-build-alluxe-bot
 
-**Delibérement PAS fait** : donner a l'Agent un pouvoir d'action (redemarrer
-le robot, changer un reglage) -- decision separee a prendre explicitement
-avec l'operateur, avec un perimetre precis. Ne pas l'ajouter sur un
-"continue, fais tout" generique.
+1. **Alluxbot** — pilotage du robot
+2. **Allure** — l'app publique integree en mode administrateur
+3. **Luna** — personnage + file de generation de contenu, lecture audio/
+   video incluse. Pipeline de contenu RENOMME `alluxe_v2.py` (racine ET
+   `luna/alluxe_v2.py`) pour ne pas se confondre avec l'agent.
+4. **Agent (Alluxe)** — assistant personnel, LECTURE SEULE (etat du robot/
+   alertes/Luna, jamais d'action). Chat texte + reponses lues a voix haute.
+   **Reveil vocal en arriere-plan code et compile, mais BLOQUE en attente
+   de deux elements que seul l'operateur peut fournir** : `PICOVOICE_ACCESS_KEY`
+   et `app-alluxe-bot/assets/reveil/alluxe_android.ppn` (voir
+   `app-alluxe-bot/assets/reveil/LISEZMOI.txt` pour les etapes exactes sur
+   console.picovoice.ai). Aucun test reel sur telephone possible depuis ce
+   serveur.
 
-## Outil utile decouvert/cree ce soir
+**Delibérement PAS fait** : donner a l'Agent un pouvoir d'action -- decision
+separee a prendre explicitement avec l'operateur.
 
-Un jeton GitHub personnel en lecture seule (Actions: Read-only, ce seul
-depot) est maintenant dans `.env` sous `GITHUB_ACTIONS_READ_TOKEN` -- permet
-de lire les VRAIS journaux d'un build GitHub Actions echoue (l'API refuse
-`/actions/jobs/{id}/logs` sans authentification, meme sur un depot public).
-Methode : requete avec le jeton, header Authorization, en desactivant le
-suivi de redirection HTTP (le Location pointe vers une URL Azure Blob
-signee qui refuse le header d'auth) -- capturer le Location, puis refaire
-un GET simple SANS le header vers cette URL. Bien plus fiable que deviner
-la cause d'un echec de build.
+**Service serveur** : `alluxe-agent.service` (systemd, permanent), lecture
+seule, verifie actif.
+
+## BUG CORRIGE le 18 sept. : mot de passe de service desynchronise
+
+L'APK affichait "Compte de service non configure." -- le secret GitHub
+`ALLUXE_BOT_SERVICE_PASSWORD` ne correspondait plus a celui de `.env`.
+Corrige en definissant un nouveau mot de passe (choisi par l'operateur,
+jamais affiche dans la conversation -- une protection automatique bloque
+l'affichage de credentials) applique aux deux endroits via
+`definir_mdp_service_alluxe_bot.py` (Supabase Admin API) + l'operateur
+lui-meme cote GitHub. Verifie par une vraie connexion Supabase reussie.
+
+## Outils utiles crees cette semaine
+
+- **`GITHUB_ACTIONS_READ_TOKEN`** (.env) : jeton GitHub lecture seule
+  (Actions: Read-only) pour lire les VRAIS journaux d'un build echoue.
+  L'API refuse `/actions/jobs/{id}/logs` sans authentification meme sur
+  un depot public, et il faut desactiver le suivi de redirection HTTP
+  (le Location vers Azure Blob refuse le header d'auth) -- capturer le
+  Location, puis GET simple SANS le header.
+- **`GITHUB_ACTIONS_WRITE_TOKEN`** (.env) : jeton GitHub Secrets:
+  Read-and-write, pour corriger un secret directement
+  (`corriger_secret_github.py`, chiffrement libsodium/PyNaCl cote
+  client) -- mais voir plus haut, cette action precise est BLOQUEE par
+  la protection anti-credentials si la valeur est LUE depuis un secret
+  EXISTANT ; fonctionne seulement pour une valeur FRAICHEMENT fournie
+  par l'operateur.
+- **`verifier_positions_orphelines.py SYMBOLE`** : lecture seule des
+  avoirs/ordres reels Bitvavo, pour verifier si une position affichee
+  "ouverte depuis X h" est en fait deja fermee sans que le robot le
+  sache (trouve le 16 sept. sur ZETAUSD).
 
 ## Regle a ne plus oublier
 
@@ -127,3 +135,7 @@ la cause d'un echec de build.
 session lancee directement dans le shell SSH meurt avec le SSH, et la
 conversation est archivee cote application. Se detacher avec `Ctrl+b` puis `d`.
 Detail complet dans CLAUDE.md, section « Les conversations archivees ».
+
+**Ne jamais `os.environ.setdefault()` pour isoler un nouveau processus d'un
+`.env` partage** -- une cle deja definie globalement rend le setdefault
+silencieusement inoperant. Assignation directe + verification apres coup.
