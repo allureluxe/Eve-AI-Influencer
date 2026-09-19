@@ -321,7 +321,22 @@ class Notifier:
 
     def __init__(self, channels: Optional[list[Channel]] = None) -> None:
         if channels is None:
-            channels = [ConsoleChannel(), FileChannel(), TelegramChannel(),
+            # TELEGRAM EST RETIRE -- decision de l'operateur, 19 sept. :
+            # « je veux que tu mettes tout comme Telegram, comme ca je
+            # supprime Telegram, j'aurai plus besoin de lui ».
+            #
+            # `AlluxeBotChannel` le remplace trait pour trait : meme
+            # seuil (`trade`), meme garde-fou `telephone=False`.
+            # L'equivalence est verrouillee par
+            # `tests/test_rien_ne_se_perd_sans_telegram.py` -- elle ne
+            # pouvait pas rester une affirmation, puisque le compte
+            # Telegram, une fois supprime, ne previendrait pas qu'il est
+            # muet.
+            #
+            # La CLASSE reste en place et testee : la rebrancher est une
+            # ligne, et la supprimer ferait perdre le raisonnement
+            # anti-spam du 10 septembre qu'elle documente.
+            channels = [ConsoleChannel(), FileChannel(),
                         AlluxeBotChannel(), FirebasePushChannel(),
                         WebhookChannel(), OutboxChannel()]
         self.channels = [c for c in channels if c.enabled()]

@@ -153,11 +153,13 @@ def main() -> int:
             logging.error("configuration : %s", pmsg)
         return 2
 
-    from gold_bot.notifiers import (AlluxeBotChannel, ConsoleChannel, FileChannel,
-                                    FirebasePushChannel, TelegramChannel)
+    from gold_bot.notifiers import (AlluxeBotChannel, ConsoleChannel,
+                                    FileChannel, FirebasePushChannel)
     canaux_demo = NotifierDemo([
         ConsoleChannel(), FileChannel(),
-        TelegramChannel(), AlluxeBotChannel(est_demo=True), FirebasePushChannel(),
+        # Telegram retire le 19 sept. (voir notifiers.py) : l'operateur
+        # supprime le compte, tout passe par l'application.
+        AlluxeBotChannel(est_demo=True), FirebasePushChannel(),
     ])
     engine = DualScalpingEngine(cfg, notifier=canaux_demo)
 

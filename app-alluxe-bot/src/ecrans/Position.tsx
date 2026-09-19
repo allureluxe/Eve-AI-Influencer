@@ -199,14 +199,21 @@ export function EcranPosition({ route }: any) {
         <Ligne libelle="Prix d'achat" valeur={fmtPrix(p.entry_price)} />
         <Ligne libelle="Prix actuel"
                valeur={prixActuel != null ? fmtPrix(prixActuel) : "—"} />
-        <Ligne libelle="Quantité"
-               valeur={p.volume != null ? p.volume.toLocaleString("fr-FR",
-                 { maximumFractionDigits: 8 }) : "—"}
-               aide={p.volume == null
-                 ? "non publiée pour cette position"
-                 : `unités de ${p.pair.split("/")[0]}`} />
+        {/* EN EUROS, TOUJOURS. « 7 489 777 unités de PEPE » ne dit rien a
+            personne ; « 25,02 € » se comprend sans effort. Consigne de
+            l'operateur, deja notee pour les ATR et les R : on ne lui
+            montre jamais une grandeur qu'il devrait convertir lui-meme.
+            La quantite reste affichee en petit, parce qu'il l'a demandee
+            -- mais c'est l'euro qui porte le chiffre. */}
         <Ligne libelle="Somme misée"
-               valeur={ch != null && ch.mise > 0 ? euros(ch.mise) : "—"} />
+               valeur={ch != null && ch.mise > 0 ? euros(ch.mise) : "—"}
+               aide={p.volume != null
+                 ? `${p.volume.toLocaleString("fr-FR", { maximumFractionDigits: 8 })} ${p.pair.split("/")[0]}`
+                 : undefined} />
+        <Ligne libelle="Vaut aujourd'hui"
+               valeur={p.volume != null && prixActuel != null
+                 ? euros(p.volume * prixActuel) : "—"}
+               couleur={ch != null && ch.eur >= 0 ? c.gain : c.perte} />
         <Ligne libelle="Ouverte" valeur={quand(p.published_at)} />
       </Carte>
 
