@@ -58,6 +58,24 @@ SECRETS = (
 )
 
 
+#: Les configurations de robot : LECTURE seule pour l'agent.
+#:
+#: Le 19 sept. a 12h20, a qui on demandait "continue a me trouver une
+#: strategie payante sur le bot", l'agent a repondu en MODIFIANT
+#: robot.demo.json -- risque par trade divise par deux (0,6 -> 0,3 %) --
+#: puis s'est arrete en manquant de jetons, sans le dire. Le changement
+#: n'a jamais tourne (le robot lit sa config au demarrage et n'avait pas
+#: redemarre), mais il dormait dans le depot.
+#:
+#: Deux raisons de l'interdire, et la seconde est la plus grave :
+#:  - AUCUNE MESURE. La regle premiere de ce depot est qu'un reglage ne
+#:    change qu'apres un walk-forward, hors echantillon, frais doubles.
+#:  - LA DEMO CESSE DE MESURER CE QU'ON CROIT. Elle existe pour tester la
+#:    strategie ARMEE sur 500 EUR. Risque divise par deux, elle teste
+#:    autre chose, et l'echantillon que Monsieur attend pour decider de
+#:    son depot ne vaut plus rien -- sans que personne ne le voie.
+CONFIGS_ROBOT = re.compile(r"^robot[.\w-]*\.json$")
+
 #: L'ATELIER : l'espace ou l'agent construit SES programmes.
 #:
 #: Demande de l'operateur le 19 sept. : « je veux qu'il puisse construire
@@ -110,6 +128,13 @@ def chemin_sur(chemin: str, *, pour_ecriture: bool = False) -> str:
                 f"du serveur. Demande a Leny de le faire lui-meme.")
     if pour_ecriture and relatif.split(os.sep)[0] == ".git":
         raise ActionRefusee("on ne modifie pas .git a la main")
+    if pour_ecriture and CONFIGS_ROBOT.match(os.path.basename(relatif)):
+        raise ActionRefusee(
+            f"{relatif} est la configuration d'un robot de trading : elle "
+            f"se LIT mais ne se modifie pas depuis un chat. Tout changement "
+            f"de reglage doit d'abord etre MESURE (comparer.py, walk-forward, "
+            f"frais doubles) puis decide par Monsieur. Propose-lui le "
+            f"changement et la mesure qui le justifie, il decidera.")
     return absolu
 
 

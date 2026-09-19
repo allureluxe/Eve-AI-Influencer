@@ -86,6 +86,28 @@ class TestLesClesSontIntouchables(unittest.TestCase):
             executer({"commande": "cat .env"})
 
 
+class TestLesConfigsDeRobotNeSeModifientPas(unittest.TestCase):
+    """Arrive pour de vrai le 19 sept. : a qui on demandait "continue a me
+    trouver une strategie payante", l'agent a repondu en divisant par deux
+    le risque par trade de la demo, puis s'est arrete sans le dire. Le
+    changement n'a jamais tourne, mais il dormait dans le depot."""
+
+    def test_on_ne_peut_pas_ecrire_dans_une_config(self):
+        for chemin in ("robot.demo.json", "robot.bitvavo.json",
+                       "robot.candidat.json"):
+            with self.assertRaises(ActionRefusee, msg=chemin):
+                chemin_sur(chemin, pour_ecriture=True)
+
+    def test_mais_on_peut_toujours_les_lire(self):
+        """Un agent qui ne peut pas LIRE la config ne peut plus rien
+        expliquer ni proposer. Seule l'ecriture est fermee."""
+        for chemin in ("robot.demo.json", "robot.bitvavo.json"):
+            self.assertTrue(chemin_sur(chemin))
+
+    def test_un_json_ordinaire_reste_modifiable(self):
+        chemin_sur("app-alluxe-bot/package.json", pour_ecriture=True)
+
+
 class TestOnNeSortPasDuDepot(unittest.TestCase):
     def test_remonter_hors_du_depot_est_refuse(self):
         for chemin in ("../../etc/passwd", "/etc/passwd", "../autre-projet"):
