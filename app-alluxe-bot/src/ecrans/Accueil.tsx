@@ -13,7 +13,7 @@ import { Pressable, ScrollView, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { espace, rayon } from "../theme";
-import { Logo, T, useCouleurs } from "../composants/base";
+import { Logo, T, useCouleurs, useReglageTheme, Preference } from "../composants/base";
 
 interface Section {
   cle: "Alluxbot" | "Allure" | "Luna" | "Agent";
@@ -86,6 +86,42 @@ function BoutonSection({ section, onPress }: {
   );
 }
 
+/** Le choix du theme : clair, sombre, ou automatique la nuit.
+ *
+ *  Le theme sombre existait depuis toujours mais etait SUBI -- impose
+ *  par le reglage du telephone, d'ou son debranchement le 13 sept.
+ *  ("le fond blanc, pas noir"). Ici c'est un choix, avec "Auto" par
+ *  defaut : sombre de 20 h a 7 h, sans rien avoir a toucher. */
+function ChoixTheme() {
+  const c = useCouleurs();
+  const { preference, choisir } = useReglageTheme();
+  const options: { cle: Preference; libelle: string; icone: keyof typeof Ionicons.glyphMap }[] = [
+    { cle: "clair", libelle: "Clair", icone: "sunny-outline" },
+    { cle: "auto", libelle: "Auto", icone: "contrast-outline" },
+    { cle: "sombre", libelle: "Sombre", icone: "moon-outline" },
+  ];
+  return (
+    <View style={{ flexDirection: "row", gap: espace.xs,
+                   justifyContent: "center", marginBottom: espace.l }}>
+      {options.map((o) => {
+        const actif = preference === o.cle;
+        return (
+          <Pressable key={o.cle} onPress={() => choisir(o.cle)} style={{
+            flexDirection: "row", alignItems: "center", gap: 6,
+            paddingVertical: espace.s, paddingHorizontal: espace.m,
+            borderRadius: rayon.s,
+            backgroundColor: actif ? c.jaune : c.creux,
+          }}>
+            <Ionicons name={o.icone} size={15}
+                      color={actif ? c.surJaune : c.encreDouce} />
+            <T v="petit" couleur={actif ? c.surJaune : c.encreDouce}>{o.libelle}</T>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function EcranAccueil({ surChoix }: {
   surChoix: (cle: Section["cle"]) => void;
 }) {
@@ -106,6 +142,7 @@ export function EcranAccueil({ surChoix }: {
           Tout le projet, au meme endroit.
         </T>
       </View>
+      <ChoixTheme />
       {SECTIONS.map((s) => (
         <BoutonSection key={s.cle} section={s} onPress={() => surChoix(s.cle)} />
       ))}

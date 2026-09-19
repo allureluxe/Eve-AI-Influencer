@@ -18,32 +18,77 @@ import {
   ActivityIndicator, Animated, Image, Pressable, StyleSheet, Text,
   View, ViewStyle,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { espace, palettes, polices, rayon, taille, Theme, TRAIT }
   from "../theme";
 
 // ------------------------------------------------------------ theme
 
-const ContexteTheme = createContext<Theme>("clair");
+export type Preference = "clair" | "sombre" | "auto";
+
+const CLE_THEME = "alluxe_bot_theme";
+
+/** En mode auto : sombre de 20 h a 7 h. */
+export function themeSelonHeure(): Theme {
+  const h = new Date().getHours();
+  return h >= 20 || h < 7 ? "sombre" : "clair";
+}
+
+const ContexteTheme = createContext<{
+  theme: Theme; preference: Preference; choisir: (p: Preference) => void;
+}>({ theme: "clair", preference: "auto", choisir: () => {} });
 
 export function FournisseurTheme({ children }: { children: React.ReactNode }) {
-  // Toujours clair, meme si le telephone est en mode sombre : demande
-  // explicite de l'operateur le 13 sept. (« le fond blanc, pas noir »).
-  // Le theme sombre reste code et fonctionnel (palettes.sombre) au cas
-  // ou on le rebranche un jour derriere un reglage choisi par
-  // l'utilisateur plutot que subi via le systeme.
+  // Le 13 sept., l'operateur avait demande "le fond blanc, pas noir" et
+  // le theme sombre avait ete débranché -- mais il etait SUBI, impose par
+  // le reglage du telephone. Le 19 sept. il demande "un theme sombre pour
+  // la nuit" : c'est le meme theme, rebranche derriere un CHOIX, comme le
+  // commentaire d'alors le prevoyait.
+  //
+  // Par defaut "auto" : sombre de 20 h a 7 h, sans rien avoir a toucher.
+  const [preference, setPreference] = React.useState<Preference>("auto");
+  const [maintenant, setMaintenant] = React.useState(() => themeSelonHeure());
+
+  React.useEffect(() => {
+    AsyncStorage.getItem(CLE_THEME)
+      .then((v) => { if (v === "clair" || v === "sombre" || v === "auto") setPreference(v); })
+      .catch(() => { /* pas grave : on reste en auto */ });
+  }, []);
+
+  // En auto, l'heure change pendant que l'appli est ouverte : on la
+  // reverifie chaque minute plutot qu'au seul demarrage.
+  React.useEffect(() => {
+    if (preference !== "auto") return;
+    const id = setInterval(() => setMaintenant(themeSelonHeure()), 60_000);
+    setMaintenant(themeSelonHeure());
+    return () => clearInterval(id);
+  }, [preference]);
+
+  const choisir = React.useCallback((p: Preference) => {
+    setPreference(p);
+    AsyncStorage.setItem(CLE_THEME, p).catch(() => {});
+  }, []);
+
+  const theme: Theme = preference === "auto" ? maintenant : preference;
+
   return (
-    <ContexteTheme.Provider value="clair">
+    <ContexteTheme.Provider value={{ theme, preference, choisir }}>
       {children}
     </ContexteTheme.Provider>
   );
 }
 
+/** Le reglage choisi, et de quoi en changer. */
+export function useReglageTheme() {
+  return useContext(ContexteTheme);
+}
+
 export function useCouleurs() {
-  return palettes[useContext(ContexteTheme)];
+  return palettes[useContext(ContexteTheme).theme];
 }
 
 export function useTheme() {
-  return useContext(ContexteTheme);
+  return useContext(ContexteTheme).theme;
 }
 
 // ------------------------------------------------------------ texte

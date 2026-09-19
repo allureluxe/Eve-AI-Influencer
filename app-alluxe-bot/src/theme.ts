@@ -101,8 +101,13 @@ const SOMBRE: Palette = {
   fond: "#15150F",
   surface: "#1D1D16",
   creux: "#26261D",
-  filet: "#E9E9DE",
-  filetDoux: "#33332A",
+  // 19 sept. : etait #E9E9DE, un blanc casse. Sur le fond #15150F, ca
+  // cernait chaque carte et chaque barre d'un trait clair, dur a l'oeil.
+  // Personne ne l'avait vu parce que ce theme n'avait JAMAIS ete affiche
+  // -- il etait code depuis le debut mais debranché (voir
+  // FournisseurTheme). Un theme qu'on n'affiche pas ne se relit pas.
+  filet: "#3E3E33",
+  filetDoux: "#2A2A22",
 
   encre: "#F2F2E8",
   encreDouce: "#A8A89A",
