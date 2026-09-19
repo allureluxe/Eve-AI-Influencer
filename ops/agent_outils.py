@@ -144,7 +144,15 @@ COMMANDES_INTERDITES = (
      "envoyer une cle vers l'exterieur"),
     (re.compile(r"\bcrontab\s+-r\b"),
      "crontab -r efface toutes les taches planifiees d'un coup"),
-    (re.compile(r"(^|[;|&(]\s*)(env|printenv|set)\s*($|[;|&)])"),
+    # Le `\s*` doit venir APRES l'alternative de debut, pas dedans : la
+    # commande est encadree d'espaces avant comparaison (voir
+    # `commande_sure`), donc `^` est toujours suivi d'un espace et le
+    # motif ne matchait JAMAIS un `printenv` seul. Trouve par les tests
+    # le 19 sept., dans la barriere meme que j'avais annoncee comme
+    # posee -- deuxieme fois dans la meme journee qu'un garde-fou de ce
+    # module s'avere decoratif. D'ou la regle : ce qui protege vraiment
+    # ici, c'est `environnement_sans_cles()`, pas ce filtre.
+    (re.compile(r"(^|[;|&(])\s*(env|printenv|set)\s*($|[;|&)])"),
      "afficher l'environnement. Les commandes tournent deja sans les "
      "cles (voir environnement_sans_cles), ceci est une seconde barriere"),
     (re.compile(r"os\.environ|getenv|ENVIRON"),

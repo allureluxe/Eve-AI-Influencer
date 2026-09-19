@@ -74,9 +74,16 @@ class TestLesClesSontIntouchables(unittest.TestCase):
                 commande_sure(commande)
 
     def test_l_outil_executer_refuse_vraiment(self):
-        resultat = executer({"commande": "cat .env"})
-        # L'exception doit remonter, pas rendre le contenu.
-        self.assertNotIn("SUPABASE", str(resultat))
+        """`executer` doit LEVER, pas rendre un resultat.
+
+        L'assertion d'origine attendait un dictionnaire sans le mot
+        "SUPABASE" dedans -- elle testait donc le mauvais comportement :
+        un outil qui rendrait poliment le contenu du .env sans ce mot
+        l'aurait passee. C'est l'assertion qui etait fausse, pas le code
+        (regle du depot : on corrige l'assertion, jamais le code correct).
+        """
+        with self.assertRaises(ActionRefusee):
+            executer({"commande": "cat .env"})
 
 
 class TestOnNeSortPasDuDepot(unittest.TestCase):
