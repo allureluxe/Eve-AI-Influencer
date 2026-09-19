@@ -55,7 +55,7 @@ HISTORIQUE_MESSAGES = 12  # tours de conversation gardes comme contexte
 # Un agent qui AGIT enchaine : lire un fichier, le modifier, lancer les
 # tests, lire l'erreur, recommencer. Trois allers-retours suffisaient a un
 # agent qui ne faisait que consulter ; ils ne suffisent plus.
-MAX_ALLERS_RETOURS_OUTILS = 14
+MAX_ALLERS_RETOURS_OUTILS = 8
 
 #: Les seules cles que l'agent garde en memoire. Le service recoit tout
 #: `.env` (systemd le lit en administrateur, voir installer_agent_isole.sh)
@@ -308,7 +308,7 @@ def _appeler_moteur(messages: list[dict]) -> dict:
         raise ErreurAgent("LUNA_API_URL ou LUNA_API_MODELE absent")
     endpoint = url if url.endswith("/chat/completions") else url + "/chat/completions"
     corps = {"model": modele, "messages": messages, "tools": OUTILS,
-              "max_tokens": 2000, "temperature": 0.3}
+              "max_tokens": 1100, "temperature": 0.3}
     entetes = {"content-type": "application/json",
                "user-agent": "Mozilla/5.0 (X11; Linux x86_64) alluxe-agent/1.0"}
     if cle:
@@ -316,13 +316,32 @@ def _appeler_moteur(messages: list[dict]) -> dict:
     requete = urllib.request.Request(
         endpoint, data=json.dumps(corps).encode("utf-8"),
         headers=entetes, method="POST")
-    try:
-        with urllib.request.urlopen(requete, timeout=45) as r:
-            return json.loads(r.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        raise ErreurAgent(f"HTTP {e.code} : {e.read().decode('utf-8', 'replace')[:300]}") from e
-    except (urllib.error.URLError, TimeoutError, OSError) as e:
-        raise ErreurAgent(f"reseau : {e}") from e
+
+    # LE PALIER GRATUIT A UNE LIMITE PAR MINUTE (8 000 mots-machine chez
+    # Groq). Un agent qui ENCHAINE les outils la touche forcement : chaque
+    # aller-retour renvoie tout le contexte. Sans cette reprise, Monsieur
+    # voyait « agent indisponible » pour une attente de six secondes.
+    # Le serveur dit lui-meme combien de temps patienter, on l'ecoute.
+    for tentative in range(4):
+        try:
+            with urllib.request.urlopen(requete, timeout=60) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", "replace")
+            if e.code == 429 and tentative < 3:
+                import re as _re
+                trouve = _re.search(r"try again in ([\d.]+)s", detail)
+                attente = min(float(trouve.group(1)) + 1.0 if trouve else 8.0, 30.0)
+                print(f"limite du moteur atteinte, reprise dans {attente:.0f}s")
+                time.sleep(attente)
+                continue
+            raise ErreurAgent(f"HTTP {e.code} : {detail[:300]}") from e
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            if tentative < 3:
+                time.sleep(3)
+                continue
+            raise ErreurAgent(f"reseau : {e}") from e
+    raise ErreurAgent("moteur injoignable apres plusieurs tentatives")
 
 
 def _repondre(rest_lecture: _Rest, tours: list[dict]) -> tuple[str, list[str]]:
