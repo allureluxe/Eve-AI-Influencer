@@ -1,10 +1,10 @@
-# Ou on en est — mis a jour le 18 septembre 2026 (soir)
+# Ou on en est — mis a jour le 19 septembre 2026 (matin)
 
 **Ce fichier est lu automatiquement au demarrage de chaque session Claude Code**
 (hook `SessionStart`, voir `.claude/reprise.py`). Il evite de tout re-expliquer.
 
-CLAUDE.md porte les **decisions** — pourquoi le D1, pourquoi 3 etages de
-pyramide, pourquoi pas IBKR. Ce fichier-ci porte l'**etat courant** : ce qui est
+CLAUDE.md porte les **decisions** — pourquoi le D1, pourquoi le pyramidage
+illimite, pourquoi pas IBKR. Ce fichier-ci porte l'**etat courant** : ce qui est
 en cours, ce qui attend, ce qui vient de changer. Les deux sont complementaires.
 
 > **A tenir a jour.** Toute session qui laisse un travail en suspens reecrit ce
@@ -26,9 +26,12 @@ de l'operateur.** Quand il redepose : `ops/chien_de_garde.py --recaler`
 robot-dual-live`. `data/state.json` porte deja `halted: true` avec un motif
 explicite ("compte vide -- lever a la main apres un nouveau depot").
 
-Configuration : `robot.bitvavo.json`, D1 Donchian-20, pyramidage Turtle 3
-etages, stop temporel 5 jours. Voir CLAUDE.md, ne pas y toucher sans repasser
-par `comparer.py`.
+Configuration : `robot.bitvavo.json`, D1 Donchian-**10**, pyramidage
+**illimite** (`pyramide_max: 99`) en mode « a l'abri »
+(`pyramide_locked_r_min: 0.01`), suiveur 3,0 ATR, stop temporel 5 jours.
+CLAUDE.md a ete remis d'accord avec ces valeurs le 19 sept. (il annoncait
+encore canal 20 et pyramidage 3) — ne pas y toucher sans repasser par
+`comparer.py`.
 
 **L'echantillon des 40 trades de preuve est ATTEINT** (40+, l'operateur a
 decide le 16 sept. de laisser accumuler plutot que remettre a zero).
@@ -66,11 +69,53 @@ robot reel) : il n'etait jamais alimente en prix pour OUVRIR une position,
 et sans methode `supports()` il scannait aussi le forex/l'or en plus des
 cryptos.
 
-**Reste a faire, explicitement reporte par l'operateur** ("sur la nouvelle
-application quand elle sera terminee") : publier l'etat de la demo vers
-Supabase et l'afficher dans Alluxe Bot, clairement distingue du reel. Pas
-avant que l'app soit jugee terminee (le reveil vocal reste le seul morceau
-manquant).
+**FAIT le 19 sept.** (l'operateur l'a redemande plus tot que prevu) : la
+demo publie vers Supabase avec `is_demo = true` sur chaque ligne, et un
+onglet **Demo** dedie l'affiche dans l'app. Les 11 positions ouvertes
+pendant la coupure ont ete rattrapees avec
+`publier_positions_demo_ouvertes.py`. Voir memoire
+`fuite-signals-app-18-sept` (section « etape 2 ») et
+`vue-direct-style-trading-19-sept`.
+
+## Ce qui a ete repare le 19 septembre au matin
+
+Quatre pannes que l'operateur a signalees, toutes diagnostiquees jusqu'a
+la cause reelle :
+
+1. **L'agent ne repondait ni en vocal ni en ecrit.** Il n'avait JAMAIS
+   rien recu : le declencheur de purge de `alluxe_agent_messages` n'etait
+   pas `security definer`, donc son DELETE tournait avec les droits de
+   l'appelant (qui n'a pas DELETE) et faisait echouer chaque INSERT en
+   403/42501. Migration `20260919094500_purge_security_definer.sql`.
+   Memoire : `agent-muet-purge-security-definer-19-sept`.
+2. **Luna ne generait plus de photo.** Le moteur renvoyait legende+scene
+   sans les etiquettes `LEGENDE:`/`SCENE:` et l'analyseur jetait tout.
+   Repli positionnel ajoute dans `luna/alluxe_v2.py`. A noter : le quota
+   Hugging Face gratuit est EPUISE (HTTP 402), le repli Cloudflare prend
+   le relais. Memoire : `luna-parseur-sans-etiquettes-19-sept`.
+3. **La « methode » affichee mentait** (canal 20 jours, pyramidage 3).
+   Le texte etait ecrit en dur ; il est desormais DEDUIT de la config.
+   `rapport_matin.py` faisait pire : il CALCULAIT le canal sur 20 bougies,
+   donc listait les mauvaises cryptos. Memoire :
+   `methode-affichee-mentait-19-sept`.
+4. **CLAUDE.md etait la source du mal** — corrige avec l'accord explicite
+   de l'operateur (5 reglages remis d'accord, 12 valeurs verifiees une a
+   une contre `robot.bitvavo.json`).
+
+Egalement livre : **deverrouillage par empreinte/Face ID** dans l'app
+(verifie par l'operateur : « si l'empreinte c'est bon »), et la **vue en
+direct style trading** (nom de la crypto / % / gain-perte en euros) sur
+les onglets Direct et Demo, via Supabase Realtime + cotations Bitvavo
+cote client.
+
+**Nettoyage fait au passage** : les 21 lignes de la fuite du 18 sept.
+sont toutes passees en `is_demo = true` (y compris la fameuse position
+« a 600 % de benefice » que l'operateur avait vue) ; la table `signals`
+cote reel ne contient plus que les 15 vraies positions du 13-15 sept.
+9 lignes fantomes ont ete supprimees avec accord explicite, apres
+sauvegarde locale (`data/sauvegarde-signals-fuite-18sept.json`).
+
+## L'application (Alluxe Bot) — fusion terminee le 16 sept.
 
 ## L'application (Alluxe Bot) — fusion terminee le 16 sept.
 
