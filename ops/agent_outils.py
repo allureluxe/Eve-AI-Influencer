@@ -485,7 +485,32 @@ def _proxy_web() -> str:
     return os.environ.get("PROXY_WEB", "").strip()
 
 
-def _telecharger(url: str, delai: int = 25) -> str:
+#: Passerelle vers Tor. `tor` parle SOCKS5, qu'urllib ne sait pas
+#: utiliser ; `privoxy` traduit du HTTP vers SOCKS et sait transmettre
+#: les noms en .onion a Tor au lieu d'essayer de les resoudre lui-meme
+#: (sans quoi aucune adresse .onion ne s'ouvre). Voir
+#: ops/installer_tor.sh.
+PROXY_TOR_DEFAUT = "http://127.0.0.1:8118"
+
+
+def _proxy_tor() -> str:
+    return os.environ.get("PROXY_TOR", PROXY_TOR_DEFAUT).strip()
+
+
+def tor_disponible() -> bool:
+    import socket
+    import urllib.parse
+
+    cible = urllib.parse.urlparse(_proxy_tor())
+    try:
+        with socket.create_connection(
+                (cible.hostname or "127.0.0.1", cible.port or 8118), timeout=3):
+            return True
+    except OSError:
+        return False
+
+
+def _telecharger(url: str, delai: int = 25, via_tor: bool = False) -> str:
     import urllib.error
     import urllib.request
 
@@ -493,7 +518,16 @@ def _telecharger(url: str, delai: int = 25) -> str:
         "user-agent": "Mozilla/5.0 (X11; Linux x86_64) alluxe-agent/2.0",
         "accept-language": "fr,en;q=0.8",
     })
-    proxy = _proxy_web()
+    # Une adresse .onion n'existe que dans Tor : la router autrement ne
+    # rate pas seulement, ca fait fuiter la demande vers le DNS public.
+    if ".onion" in url.lower():
+        via_tor = True
+    if via_tor and not tor_disponible():
+        raise ActionRefusee(
+            "Tor n'est pas installe ou pas demarre sur ce serveur. "
+            "Demande a Monsieur de lancer ops/installer_tor.sh.")
+
+    proxy = _proxy_tor() if via_tor else _proxy_web()
     ouvrir = urllib.request.urlopen
     if proxy:
         gestionnaire = urllib.request.ProxyHandler({"http": proxy, "https": proxy})
@@ -510,10 +544,13 @@ def _telecharger(url: str, delai: int = 25) -> str:
 
 
 def lire_page_web(args: dict) -> dict:
-    """Lit une page et rend son texte."""
+    """Lit une page et rend son texte. `via_tor` pour passer par Tor."""
     url = url_sure(str(args.get("url", "")))
-    texte = _texte_depuis_html(_telecharger(url))
-    return {"url": url, "texte": _tronquer(texte) or "(page vide)"}
+    via_tor = bool(args.get("via_tor"))
+    texte = _texte_depuis_html(_telecharger(url, via_tor=via_tor))
+    return {"url": url,
+            "reseau": "Tor" if (via_tor or ".onion" in url.lower()) else "direct",
+            "texte": _tronquer(texte) or "(page vide)"}
 
 
 def chercher_sur_le_web(args: dict) -> dict:
@@ -527,8 +564,9 @@ def chercher_sur_le_web(args: dict) -> dict:
     # aucun resultat exploitable (verifie le 19 sept., 0 lien trouve).
     # Et les attributs y sont en guillemets SIMPLES -- un motif ecrit pour
     # des guillemets doubles trouve zero resultat sans rien signaler.
+    via_tor = bool(args.get("via_tor"))
     url = "https://lite.duckduckgo.com/lite/?q=" + urllib.parse.quote(question)
-    html = _telecharger(url)
+    html = _telecharger(url, via_tor=via_tor)
     resultats = []
     for lien, titre in re.findall(
             r"""(?is)<a[^>]+href=["']([^"']*uddg=[^"']+)["'][^>]*>(.*?)</a>""",
@@ -539,7 +577,9 @@ def chercher_sur_le_web(args: dict) -> dict:
         titre_propre = _texte_depuis_html(titre).strip()
         if titre_propre:
             resultats.append({"titre": titre_propre, "lien": lien})
-    return {"question": question, "resultats": resultats or "(rien trouve)"}
+    return {"question": question,
+            "reseau": "Tor" if via_tor else "direct",
+            "resultats": resultats or "(rien trouve)"}
 
 
 def chercher_articles_scientifiques(args: dict) -> dict:
@@ -679,13 +719,21 @@ DESCRIPTION_OUTILS_ACTION = [
         "description": "Cherche sur internet et rend les meilleurs liens. "
                         "A utiliser des qu'une question sort du serveur : "
                         "actualite, documentation, prix, definitions.",
-        "parameters": _p(question={"type": "string"}),
+        "parameters": _p(
+            question={"type": "string"},
+            via_tor={"type": "boolean",
+                     "description": "passer par Tor (anonyme, plus lent, "
+                                    "certains sites le refusent). Par defaut non."}),
     }},
     {"type": "function", "function": {
         "name": "lire_page_web",
         "description": "Ouvre une page web et rend son texte. Sert apres "
                         "chercher_sur_le_web pour lire vraiment un resultat.",
-        "parameters": _p(url={"type": "string"}),
+        "parameters": _p(
+            url={"type": "string"},
+            via_tor={"type": "boolean",
+                     "description": "passer par Tor. Force automatiquement "
+                                    "pour une adresse .onion."}),
     }},
     {"type": "function", "function": {
         "name": "chercher_articles_scientifiques",

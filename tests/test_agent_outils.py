@@ -146,6 +146,33 @@ class TestCeQuiDoitResterPermis(unittest.TestCase):
             commande_sure(commande)   # ne doit rien lever
 
 
+class TestNavigationEtTor(unittest.TestCase):
+    def test_les_adresses_internes_sont_refusees(self):
+        """169.254.169.254 rend les identifiants de l'hebergeur sans mot
+        de passe. Un agent a qui on passe une URL piegee irait la lire."""
+        from ops.agent_outils import url_sure
+        for url in ("http://169.254.169.254/latest/meta-data/",
+                    "http://localhost:8000/", "http://127.0.0.1/",
+                    "http://192.168.1.1/", "http://10.0.0.5/",
+                    "file:///etc/passwd", "ftp://ailleurs/x"):
+            with self.assertRaises(ActionRefusee, msg=url):
+                url_sure(url)
+
+    def test_une_adresse_publique_passe(self):
+        from ops.agent_outils import url_sure
+        self.assertTrue(url_sure("https://arxiv.org/abs/1234.5678"))
+
+    def test_une_adresse_onion_exige_tor(self):
+        """Sans Tor, l'ouvrir en direct ferait fuiter la demande vers le
+        DNS public -- et echouerait de toute facon."""
+        from ops.agent_outils import lire_page_web, tor_disponible
+        if tor_disponible():
+            self.skipTest("Tor est installe : ce cas ne s'applique pas")
+        with self.assertRaises(ActionRefusee) as cas:
+            lire_page_web({"url": "http://exemplefaux7xyz.onion/"})
+        self.assertIn("Tor", str(cas.exception))
+
+
 class TestModificationDeFichier(unittest.TestCase):
     def setUp(self):
         self.dossier = tempfile.mkdtemp(dir=os.path.join(RACINE, "data"))
