@@ -203,7 +203,8 @@ class TradingEngine:
         # empecher un stop de partir.
         from .signal_publisher import SignalPublisher
         self.publisher = SignalPublisher.depuis_env(
-            fichier_file=Path(f"data/signaux_en_attente_{instance}.jsonl"))
+            fichier_file=Path(f"data/signaux_en_attente_{instance}.jsonl"),
+            est_demo=(cfg.engine.broker == "paper"))
         # L'agenda REUTILISE le filtre d'actualites du robot : c'est le
         # meme code qui bloque les entrees et qui redige la regle affichee
         # dans l'application. Ils ne peuvent donc pas diverger.

@@ -405,6 +405,12 @@ class SignalPublisher:
     client: Optional[SupabaseREST] = None
     fichier_file: Path = field(
         default_factory=lambda: Path("data/signaux_en_attente.jsonl"))
+    #: True pour la simulation a capital virtuel (run_demo.py) -- chaque
+    #: ligne deposee porte alors `is_demo=true` en base, pour que
+    #: l'application reelle ne la confonde jamais avec une vraie position
+    #: (voir la migration marquer_demo.sql, trouve le 18 sept. apres une
+    #: fuite ou la demo publiait sans distinction dans la table reelle).
+    est_demo: bool = False
     _file: List[Dict[str, Any]] = field(default_factory=list, init=False)
     _verrou: threading.Lock = field(default_factory=threading.Lock, init=False)
     _echecs: int = field(default=0, init=False)
@@ -451,10 +457,12 @@ class SignalPublisher:
                 log.debug("signal %s deja publie, ignore", signal.reference)
                 return True
             self._publies.add(signal.reference)
+        corps = signal.vers_supabase(publier=not brouillon)
+        corps["is_demo"] = self.est_demo
         return self._envoyer({
             "type": "ouverture",
             "table": "signals",
-            "corps": signal.vers_supabase(publier=not brouillon),
+            "corps": corps,
         })
 
     def publier_cloture(self, reference: str, status: str,

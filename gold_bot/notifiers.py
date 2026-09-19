@@ -154,10 +154,15 @@ class AlluxeBotChannel(Channel):
     """
     name = "alluxe_bot"
 
-    def __init__(self, min_level: str = "trade") -> None:
+    def __init__(self, min_level: str = "trade", est_demo: bool = False) -> None:
         self.url = os.getenv("SUPABASE_URL", "").rstrip("/")
         self.cle = os.getenv("SUPABASE_SERVICE_KEY", "")
         self.min_level = min_level
+        # Vrai pour la simulation a capital virtuel (voir run_demo.py) --
+        # marque la ligne pour que l'ecran "en direct" de l'app ne la
+        # confonde jamais avec une vraie alerte (trouve le 18 sept.,
+        # meme fuite que pour la table `signals`).
+        self.est_demo = est_demo
 
     def enabled(self) -> bool:
         return bool(self.url and self.cle)
@@ -171,7 +176,8 @@ class AlluxeBotChannel(Channel):
             http_json(
                 f"{self.url}/rest/v1/alluxe_bot_alertes", "POST",
                 {"niveau": note.level, "titre": note.title,
-                 "corps": note.body, "donnees": note.data},
+                 "corps": note.body, "donnees": note.data,
+                 "is_demo": self.est_demo},
                 headers={"apikey": self.cle, "Authorization": f"Bearer {self.cle}",
                          "Prefer": "return=minimal"},
                 timeout=10)

@@ -122,25 +122,26 @@ def main() -> int:
     os.environ["GB_JOURNAL_FILE"] = "data/journal-demo.jsonl"
     os.environ["GB_OUTBOX_FILE"] = "data/outbox-demo.jsonl"
 
-    # 5e fuite, la plus visible : `TradingEngine` publie CHAQUE ouverture/
-    # cloture de position vers la table Supabase `signals` (SignalPublisher,
-    # gold_bot/signal_publisher.py) -- c'est elle qui alimente l'application
-    # publique (Allure) ET Alluxbot. Aucun instance-suffixe ici, aucune
-    # notion de "demo" : la simulation a publie ses 10 positions virtuelles
-    # comme si c'etaient de vraies positions du robot, visibles par
-    # l'operateur (et n'importe quel utilisateur d'Allure) dans l'app en
-    # temps reel -- trouve le 18 sept. seulement parce que l'operateur a vu
-    # une position fermee a 600 % de "benefice" dans l'app et a su que ca
-    # ne collait pas. 21 lignes nettoyees a la main dans Supabase.
+    # 5e fuite, la plus visible, trouvee et d'abord colmatee en coupant
+    # purement et simplement SUPABASE_URL/KEY pour ce processus :
+    # `TradingEngine` publie CHAQUE ouverture/cloture de position vers la
+    # table Supabase `signals` (SignalPublisher) et vers `alluxe_bot_alertes`
+    # (AlluxeBotChannel) -- les memes tables que l'application publique
+    # (Allure) et Alluxbot. Sans distinction d'instance, la simulation a
+    # publie ses 10 positions virtuelles comme de vraies positions du robot
+    # -- l'operateur a vu une position fermee a 600 % de "benefice" dans
+    # l'app et a su que ca ne collait pas. 21 lignes nettoyees a la main.
     #
-    # `SignalPublisher.depuis_env()` et `AlluxeBotChannel`/
-    # `FirebasePushChannel` (gold_bot/notifiers.py) se rendent tous
-    # volontairement INERTES sans cle Supabase dans l'environnement (deja
-    # documente comme comportement sur : "le moteur se comporte exactement
-    # comme avant"). Les vider ICI coupe donc les trois d'un coup, sans
-    # toucher aux fichiers partages -- Telegram (cles separees) continue de
-    # fonctionner normalement, c'est le seul canal que l'operateur a demande
-    # pour la demo.
+    # Coupure devenue OBSOLETE le meme soir : l'operateur veut suivre la
+    # demo EN DIRECT dans l'app, notifications comprises. Tout le code cote
+    # Python est pret (`SignalPublisher.est_demo`, `AlluxeBotChannel(est_demo=True)`
+    # plus bas) mais la colonne `is_demo` elle-meme
+    # (supabase/migrations/20260918234500_marquer_demo.sql) n'est PAS ENCORE
+    # appliquee a la base reelle -- bloque sur un jeton
+    # SUPABASE_ACCESS_TOKEN expire. Republier maintenant enverrait
+    # `is_demo` a une table qui ne connait pas cette colonne. Les deux
+    # lignes ci-dessous restent donc vides JUSQU'A CE QUE la migration soit
+    # confirmee appliquee -- a retirer a ce moment-la, pas avant.
     os.environ["SUPABASE_URL"] = ""
     os.environ["SUPABASE_SERVICE_KEY"] = ""
 
@@ -154,7 +155,14 @@ def main() -> int:
         for pmsg in problems:
             logging.error("configuration : %s", pmsg)
         return 2
-    engine = DualScalpingEngine(cfg, notifier=NotifierDemo())
+
+    from gold_bot.notifiers import (AlluxeBotChannel, ConsoleChannel, FileChannel,
+                                    FirebasePushChannel, TelegramChannel)
+    canaux_demo = NotifierDemo([
+        ConsoleChannel(), FileChannel(),
+        TelegramChannel(), AlluxeBotChannel(est_demo=True), FirebasePushChannel(),
+    ])
+    engine = DualScalpingEngine(cfg, notifier=canaux_demo)
 
     # Filet de securite : si un futur changement (ici ou dans
     # gold_bot/state.py / objectives.py) reintroduit un chemin partage, on
@@ -168,10 +176,11 @@ def main() -> int:
                 "simulation -- arret avant d'ecrire quoi que ce soit.",
                 nom, chemin)
             return 2
-    if engine.publisher.actif:
+    if engine.publisher.actif and not engine.publisher.est_demo:
         logging.error(
-            "SECURITE : le publieur Supabase (signals) est actif -- la "
-            "simulation publierait ses positions dans l'app reelle. Arret.")
+            "SECURITE : le publieur Supabase (signals) n'est pas marque "
+            "is_demo -- la simulation publierait ses positions comme si "
+            "elles etaient reelles. Arret.")
         return 2
 
     engine.run()
