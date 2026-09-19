@@ -41,7 +41,7 @@ import React from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Speech from "expo-speech";
+import { parler, seTaire } from "../services/voix";
 import {
   ExpoSpeechRecognitionModule, useSpeechRecognitionEvent,
 } from "expo-speech-recognition";
@@ -176,7 +176,7 @@ export function EcranAgent() {
       if (derniere && derniere.id > derniereLue.current) {
         derniereLue.current = derniere.id;
         if (msgs.length > 0) {
-          Speech.speak(derniere.contenu, { language: "fr-FR" });
+          parler(derniere.contenu);
         }
       }
     } catch (err: any) {
@@ -195,7 +195,7 @@ export function EcranAgent() {
     const id = setInterval(charger, RYTHME_MS);
     return () => {
       clearInterval(id);
-      Speech.stop();
+      seTaire();
       // Coupe le micro en quittant l'ecran -- sinon l'ecoute en continu
       // (si active) continuerait en arriere-plan sans que rien ne le
       // montre, ce qu'on ne veut jamais.
@@ -256,7 +256,7 @@ export function EcranAgent() {
       const question = _apresAlluxe(transcription);
       if (question === null) return; // pas de "Alluxe" entendu -- ignore, jamais envoye
       if (question) envoyer(question);
-      else Speech.speak("Oui ?", { language: "fr-FR" }); // mot seul, sans question derriere
+      else parler("Oui, Monsieur ?"); // mot seul, sans question derriere
       return;
     }
     setTexte("");

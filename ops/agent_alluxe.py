@@ -5,14 +5,29 @@ Service PERMANENT (systemd, PAS un cron -- une conversation ne peut pas
 attendre 2 minutes entre deux phrases) qui repond aux messages deposes
 depuis l'app dans `alluxe_agent_messages`.
 
-PREMIERE VERSION, VOLONTAIREMENT LIMITEE A LA LECTURE. L'agent peut
-consulter l'etat du robot, les 40 trades de preuve, les alertes et
-Luna -- via les MEMES tables Supabase que le reste de l'application,
-jamais un acces direct au depot, a gold_bot, ou a un shell. Il ne peut
-RIEN changer. Donner un pouvoir d'action (redemarrer le robot, changer
-un reglage) est une decision distincte, avec ses propres garde-fous --
-voir la memoire du projet, ne pas l'ajouter ici sans en reparler avec
-l'operateur.
+IL AGIT, depuis le 19 sept. 2026. La premiere version (16 sept.) etait
+volontairement limitee a la lecture, et cette limite tenait « jusqu'a
+nouvelle discussion sur le perimetre ». La discussion a eu lieu :
+l'operateur veut « un clone de Claude Code qui sera le mien », capable
+d'ecrire du code, de lancer des commandes et d'aller sur internet.
+
+Il a donc maintenant, en plus des outils de consultation ci-dessous, le
+terminal, les fichiers et le web -- voir `ops/agent_outils.py`, qui
+porte aussi les garde-fous et leurs tests.
+
+CE QUI L'EMPECHE DE TOUT CASSER, en trois couches qui ne dependent pas
+les unes des autres :
+
+ 1. le SYSTEME : le service tourne sous un compte dedie `alluxe` qui n'a
+    pas le droit de lire les fichiers de cles (ops/installer_agent_isole.sh).
+    C'est la seule couche qui ne repose pas sur la justesse de ce code.
+ 2. la MEMOIRE : `_oublier_les_cles_inutiles()` efface au demarrage les
+    ~30 secrets dont l'agent n'a pas besoin (Bitvavo, GitHub, Instagram),
+    et `environnement_sans_cles()` retire les autres des commandes qu'il
+    lance. Ce qui n'est plus la ne peut pas fuir.
+ 3. les REGLES : une liste de gestes refuses (rm -rf, push force, arret
+    du robot reel...). La plus faible des trois -- un filtre de texte se
+    contourne -- d'ou les deux precedentes.
 
 Tourne sous .venv (pas .venv-luna) : aucune dependance native, juste
 urllib -- meme sobriete que les autres scripts de ops/.
@@ -37,30 +52,92 @@ charger_env()
 
 RYTHME_SECONDES = 2.0
 HISTORIQUE_MESSAGES = 12  # tours de conversation gardes comme contexte
-MAX_ALLERS_RETOURS_OUTILS = 3  # borne dure : jamais de boucle infinie
+# Un agent qui AGIT enchaine : lire un fichier, le modifier, lancer les
+# tests, lire l'erreur, recommencer. Trois allers-retours suffisaient a un
+# agent qui ne faisait que consulter ; ils ne suffisent plus.
+MAX_ALLERS_RETOURS_OUTILS = 14
 
-SYSTEME = """Tu es Alluxe, l'assistant personnel de Leny Ludovic. Tu vis \
-dans son application privee (le meme telephone qu'Alluxe Bot), et tu es \
-le seul agent qu'il consulte pour ses projets : le robot de trading \
-(Bitvavo), Luna (son IA-influenceuse) et Allure (l'application publique).
+#: Les seules cles que l'agent garde en memoire. Le service recoit tout
+#: `.env` (systemd le lit en administrateur, voir installer_agent_isole.sh)
+#: alors qu'il n'a besoin que de parler a Supabase et au moteur. Les 30
+#: autres -- Bitvavo, GitHub, Instagram, TikTok... -- sont effacees de sa
+#: memoire des le demarrage : ce qui n'est plus la ne peut pas fuir.
+CLES_UTILES = {
+    "SUPABASE_URL", "SUPABASE_SERVICE_KEY",
+    "LUNA_API_URL", "LUNA_API_KEY", "LUNA_API_MODELE",
+}
 
-Regles absolues :
-- Reponds TOUJOURS en euros ou en pourcentages, JAMAIS en ATR ni en \
-"R"/"R multiple" -- Leny ne connait pas ce vocabulaire, meme si les \
-outils te les donnent en interne. Un chiffre "R" (ex. -0.23) ne se \
-recopie jamais tel quel : dis "en ce moment le robot perd legerement \
-plus qu'il ne gagne en moyenne" plutot qu'un nombre en R. Ne prononce \
-jamais la lettre R comme unite, ni le mot "ATR".
-- Sois direct et concret. Leny raisonne en resultats, pas en code : \
-pas de jargon technique inutile.
-- Tu ne PEUX RIEN changer pour l'instant -- ni redemarrer le robot, ni \
-modifier un reglage, ni toucher au code. Tu lis seulement. Si Leny te \
-demande d'agir, dis-le clairement et propose de le faire lui-meme (ou \
-qu'il en parle a la session Claude Code sur le VPS), sans jamais \
-pretendre avoir agi.
-- Utilise les outils fournis pour repondre avec des chiffres reels, \
-jamais invente. Si tu ne sais pas, dis-le.
-- Reste bref : une reponse de chat, pas un rapport."""
+
+def _oublier_les_cles_inutiles() -> int:
+    """Retire de l'environnement tout secret dont l'agent n'a pas besoin."""
+    from ops.agent_outils import MOTS_SENSIBLES
+
+    oubliees = 0
+    for cle in list(os.environ):
+        if cle in CLES_UTILES:
+            continue
+        if any(mot in cle.upper() for mot in MOTS_SENSIBLES):
+            del os.environ[cle]
+            oubliees += 1
+    return oubliees
+
+SYSTEME = """Tu es Alluxe, l'assistant personnel de Leny Ludovic. Tu \
+l'appelles TOUJOURS "Monsieur" -- jamais par son prenom, jamais "vous" \
+tout seul en debut de phrase. C'est sa demande explicite.
+
+Tu vis dans son application privee et tu es le seul agent qu'il consulte \
+pour ses projets : le robot de trading (Bitvavo), Luna (son \
+IA-influenceuse) et Allure (l'application publique). Tu tournes sur son \
+serveur, tu as acces a son code et a un terminal.
+
+TON CARACTERE. Calme, competent, un peu sec. Tu ne t'excuses pas en \
+boucle, tu ne fais pas de politesses inutiles. Tu vas au fait. Si quelque \
+chose te parait une mauvaise idee, tu le dis une fois, clairement, puis \
+tu fais ce qu'on te demande -- c'est lui qui decide.
+
+REGLES ABSOLUES :
+- Parle TOUJOURS en euros ou en pourcentages, JAMAIS en ATR ni en \
+"R"/"R multiple". Monsieur ne connait pas ce vocabulaire, meme si les \
+outils te le donnent en interne. Un chiffre "R" (ex. -0.23) ne se \
+recopie jamais tel quel : dis "le robot perd un peu plus qu'il ne gagne \
+en moyenne" plutot qu'un nombre en R. Ne prononce jamais la lettre R \
+comme unite, ni le mot "ATR".
+- Sois direct et concret. Monsieur raisonne en resultats, pas en code.
+- N'INVENTE JAMAIS un chiffre. Tu as des outils pour lire le reel : \
+utilise-les. Si tu ne sais pas, dis "je ne sais pas" et va verifier.
+- Ne pretends JAMAIS avoir fait quelque chose que tu n'as pas fait. Si \
+une commande echoue, dis-le avec l'erreur.
+- Reste bref : une reponse de chat, pas un rapport. Sauf s'il demande le \
+detail.
+
+CE QUE TU PEUX FAIRE. Tu as le terminal, les fichiers et internet : \
+lire, ecrire, modifier du code, chercher sur le web, consulter des \
+publications universitaires, lancer les tests, lire les journaux, \
+piloter la simulation. Quand Monsieur demande une modification, FAIS-LA \
+puis verifie (lance les tests concernes), ne te contente pas de decrire \
+ce qu'il faudrait faire.
+
+TU AS DEUX ESPACES, ne les confonds jamais :
+- LE DEPOT (~/Eve-AI-Influencer) : le robot de trading et les \
+applications, en production. On y touche avec precaution, on lance les \
+tests apres chaque modification.
+- TON ATELIER (~/atelier) : a toi. C'est la que tu construis les \
+programmes que Monsieur te demande -- un projet par dossier. Tu y fais \
+ce que tu veux, y compris te tromper. Pour un programme Python qui a \
+besoin de bibliotheques, cree son propre environnement dedans \
+(python3 -m venv ~/atelier/<projet>/venv) : n'installe JAMAIS de \
+bibliotheque dans le .venv du depot, c'est celui du robot en marche.
+
+CE QUI T'EST REFUSE, ET C'EST NORMAL :
+- les fichiers de cles (.env) : ni lus ni ecrits. Le systeme te \
+l'interdit, ce n'est pas negociable. Si tu en as besoin, demande a \
+Monsieur de le faire lui-meme.
+- arreter ou redemarrer le robot REEL (robot-dual-live) : il porte de \
+l'argent et des positions ouvertes.
+- tout ce qui efface sans retour : rm -rf, git reset --hard, git push \
+--force, git clean.
+Si un outil te refuse quelque chose, explique-le simplement a Monsieur \
+au lieu de chercher un contournement -- ces limites le protegent."""
 
 OUTILS = [
     {
@@ -196,6 +273,17 @@ OUTILS_PAR_NOM = {
     "etat_luna": _outil_etat_luna,
 }
 
+# Les outils d'ACTION (fichiers, terminal, web) vivent a part -- c'est la
+# partie qui peut casser quelque chose, elle a ses propres garde-fous et
+# ses propres tests. Ils ne prennent pas le client Supabase en premier
+# argument, d'ou l'enveloppe ci-dessous.
+from ops.agent_outils import (ActionRefusee, DESCRIPTION_OUTILS_ACTION,  # noqa: E402
+                              OUTILS_ACTION)
+
+for _nom, _fonction in OUTILS_ACTION.items():
+    OUTILS_PAR_NOM[_nom] = (lambda f: lambda _rest, args: f(args))(_fonction)
+OUTILS = OUTILS + DESCRIPTION_OUTILS_ACTION
+
 
 # ------------------------------------------------------ le moteur LLM
 
@@ -214,7 +302,7 @@ def _appeler_moteur(messages: list[dict]) -> dict:
         raise ErreurAgent("LUNA_API_URL ou LUNA_API_MODELE absent")
     endpoint = url if url.endswith("/chat/completions") else url + "/chat/completions"
     corps = {"model": modele, "messages": messages, "tools": OUTILS,
-              "max_tokens": 700, "temperature": 0.4}
+              "max_tokens": 2000, "temperature": 0.3}
     entetes = {"content-type": "application/json",
                "user-agent": "Mozilla/5.0 (X11; Linux x86_64) alluxe-agent/1.0"}
     if cle:
@@ -233,7 +321,21 @@ def _appeler_moteur(messages: list[dict]) -> dict:
 
 def _repondre(rest_lecture: _Rest, tours: list[dict]) -> tuple[str, list[str]]:
     """Boucle outils -> reponse finale. Rend (texte, noms_des_outils_utilises)."""
-    messages = [{"role": "system", "content": SYSTEME}] + tours
+    from ops.agent_outils import index_memoire
+
+    systeme = SYSTEME
+    # CE QUI FAIT LE « MODE APPRENTISSAGE ». L'index de ses notes est
+    # injecte a CHAQUE conversation : il sait donc d'emblee ce qu'il a
+    # deja appris, sans avoir a fouiller. Seuls les titres et resumes
+    # passent ici ; il ouvre une note entiere avec `relire_memoire`
+    # quand il en a besoin.
+    memoire = index_memoire()
+    if memoire:
+        systeme += ("\n\nCE QUE TU AS DEJA APPRIS (tes notes). Utilise "
+                     "`relire_memoire` pour en ouvrir une en entier, et "
+                     "`noter_en_memoire` des que tu apprends du neuf :\n"
+                     + memoire)
+    messages = [{"role": "system", "content": systeme}] + tours
     outils_utilises: list[str] = []
 
     for _ in range(MAX_ALLERS_RETOURS_OUTILS):
@@ -257,8 +359,16 @@ def _repondre(rest_lecture: _Rest, tours: list[dict]) -> tuple[str, list[str]]:
                 try:
                     resultat = fonction(rest_lecture, args)
                     outils_utilises.append(nom)
-                except (urllib.error.HTTPError, urllib.error.URLError) as e:
-                    resultat = {"erreur": str(e)}
+                except ActionRefusee as e:
+                    # Un garde-fou, pas une panne : le modele doit
+                    # comprendre POURQUOI c'est refuse et l'expliquer a
+                    # Monsieur, au lieu de reessayer autrement.
+                    resultat = {"refuse": str(e)}
+                    outils_utilises.append(f"{nom} (refuse)")
+                except Exception as e:                       # noqa: BLE001
+                    # Un outil qui casse ne doit jamais tuer le service :
+                    # l'agent doit pouvoir dire qu'il a echoue.
+                    resultat = {"erreur": f"{type(e).__name__} : {e}"}
             messages.append({
                 "role": "tool", "tool_call_id": appel["id"],
                 "content": json.dumps(resultat, ensure_ascii=False),
@@ -311,8 +421,10 @@ def main() -> int:
     if not url or not cle:
         print("SUPABASE_URL ou SUPABASE_SERVICE_KEY absent, arret")
         return 1
+    oubliees = _oublier_les_cles_inutiles()
     rest = _Rest(url, cle)
-    print("agent Alluxe demarre, lecture seule, poll toutes les "
+    print(f"agent Alluxe demarre -- outils d'action actifs, {oubliees} cle(s) "
+          f"inutile(s) effacee(s) de la memoire, poll toutes les "
           f"{RYTHME_SECONDES}s")
     while True:
         try:
