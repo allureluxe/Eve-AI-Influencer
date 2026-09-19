@@ -41,11 +41,20 @@ export async function etatCapital(): Promise<EtatCapital | null> {
 
 const COLONNES_POSITION = "id, pair, side, entry_price, stop_loss, take_profit_1, take_profit_2, position_size_pct, published_at, status, closed_at, result_pct";
 
+// `is_demo` est EXPLICITE sur chaque requete ci-dessous, jamais implicite
+// -- fuite du 18 sept. : la simulation a 500 EUR virtuels a publie ses
+// positions dans ces memes tables sans distinction, et une position
+// fictive est apparue dans l'app comme si elle etait reelle. La colonne
+// existe depuis (supabase/migrations/20260918234500_marquer_demo.sql) ;
+// les fonctions REELLES filtrent `is_demo=false`, les fonctions DEMO
+// filtrent `is_demo=true` -- jamais l'un sans l'autre, jamais melange.
+
 export async function positionsOuvertes(): Promise<Position[]> {
   const { data, error } = await supabase
     .from("signals")
     .select(COLONNES_POSITION)
     .eq("status", "active")
+    .eq("is_demo", false)
     .not("published_at", "is", null)
     .order("published_at", { ascending: false });
   if (error) throw error;
@@ -57,6 +66,33 @@ export async function historique(limite = 100): Promise<Position[]> {
     .from("signals")
     .select(COLONNES_POSITION)
     .in("status", ["closed_tp", "closed_sl", "cancelled"])
+    .eq("is_demo", false)
+    .not("published_at", "is", null)
+    .order("closed_at", { ascending: false })
+    .limit(limite);
+  if (error) throw error;
+  return (data ?? []) as unknown as Position[];
+}
+
+/** Memes positions, cote simulation a capital virtuel (voir run_demo.py). */
+export async function positionsOuvertesDemo(): Promise<Position[]> {
+  const { data, error } = await supabase
+    .from("signals")
+    .select(COLONNES_POSITION)
+    .eq("status", "active")
+    .eq("is_demo", true)
+    .not("published_at", "is", null)
+    .order("published_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as Position[];
+}
+
+export async function historiqueDemo(limite = 100): Promise<Position[]> {
+  const { data, error } = await supabase
+    .from("signals")
+    .select(COLONNES_POSITION)
+    .in("status", ["closed_tp", "closed_sl", "cancelled"])
+    .eq("is_demo", true)
     .not("published_at", "is", null)
     .order("closed_at", { ascending: false })
     .limit(limite);
@@ -107,6 +143,19 @@ export async function alertes(limite = 100): Promise<Alerte[]> {
   const { data, error } = await supabase
     .from("alluxe_bot_alertes")
     .select("id, created_at, niveau, titre, corps")
+    .eq("is_demo", false)
+    .order("created_at", { ascending: false })
+    .limit(limite);
+  if (error) throw error;
+  return (data ?? []) as unknown as Alerte[];
+}
+
+/** Memes alertes, cote simulation -- deja prefixees "[DEMO]" par NotifierDemo. */
+export async function alertesDemo(limite = 100): Promise<Alerte[]> {
+  const { data, error } = await supabase
+    .from("alluxe_bot_alertes")
+    .select("id, created_at, niveau, titre, corps")
+    .eq("is_demo", true)
     .order("created_at", { ascending: false })
     .limit(limite);
   if (error) throw error;

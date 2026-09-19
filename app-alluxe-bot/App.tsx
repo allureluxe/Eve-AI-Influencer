@@ -40,6 +40,7 @@ import { FournisseurTheme, Logo, T, useCouleurs, useTheme }
 import { EcranVerification } from "./src/ecrans/Verification";
 import { EcranAccueil } from "./src/ecrans/Accueil";
 import { EcranDirect } from "./src/ecrans/Direct";
+import { EcranDemo } from "./src/ecrans/Demo";
 import { EcranHistorique } from "./src/ecrans/Historique";
 import { EcranObjectifs } from "./src/ecrans/Objectifs";
 import { EcranAlertes } from "./src/ecrans/Alertes";
@@ -87,6 +88,7 @@ const OngletsAllure = createBottomTabNavigator();
 
 const ICONES_ALLUXBOT: Record<string, keyof typeof Ionicons.glyphMap> = {
   Direct: "flash-outline",
+  Demo: "flask-outline",
   Historique: "time-outline",
   Objectifs: "trending-up-outline",
   Alertes: "notifications-outline",
@@ -152,6 +154,7 @@ function NavigationAlluxbot() {
   return (
     <OngletsAlluxbot.Navigator screenOptions={optionsOnglets(c, ICONES_ALLUXBOT)}>
       <OngletsAlluxbot.Screen name="Direct" component={EcranDirect} />
+      <OngletsAlluxbot.Screen name="Demo" component={EcranDemo} />
       <OngletsAlluxbot.Screen name="Historique" component={EcranHistorique} />
       <OngletsAlluxbot.Screen name="Objectifs" component={EcranObjectifs} />
       <OngletsAlluxbot.Screen name="Alertes" component={EcranAlertes} />

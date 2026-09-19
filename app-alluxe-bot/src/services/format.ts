@@ -106,3 +106,41 @@ export function miseConseillee(
   if (distance <= 0) return 0;
   return perteMax(partRisqueePct, capital) / distance;
 }
+
+export interface ResultatDirect {
+  /** Variation du PRIX lui-meme, signee selon le sens (achat/vente). */
+  pctPrix: number;
+  /** Gain ou perte en euros, EN DIRECT, pendant que la position est ouverte. */
+  eur: number;
+}
+
+/**
+ * Le resultat d'une position OUVERTE, en direct -- demande explicite de
+ * l'operateur (18 sept.) : « style trading, juste le nom de la crypto,
+ * le pourcentage et le benefice ou negatif en euro ».
+ *
+ * Le robot ne publie ni le volume ni la mise engagee (voir `perteMax` :
+ * seul `position_size_pct`, le RISQUE, part vers l'application). Le
+ * calcul reste exact malgre ça : chaque position est dimensionnee pour
+ * que perdre jusqu'au stop coute exactement `perteMax()` -- donc, quel
+ * que soit le prix actuel :
+ *
+ *     R_courant = (prix_actuel - entree) / (entree - stop) x sens
+ *     gain_eur  = R_courant x perteMax(risque, capital)
+ *
+ * Pas une approximation : le meme calcul que celui qui a servi a
+ * dimensionner la position (`gold_bot/trade_manager.py`), juste relu
+ * depuis l'autre bout.
+ */
+export function resultatEnDirect(
+  entree: number, stop: number, prixActuel: number,
+  side: "buy" | "sell", partRisqueePct: number, capital: number,
+): ResultatDirect {
+  const sens = side === "sell" ? -1 : 1;
+  const pctPrix = entree > 0 ? ((prixActuel - entree) / entree) * 100 * sens : 0;
+  const distanceStop = Math.abs(entree - stop);
+  if (distanceStop <= 0) return { pctPrix, eur: 0 };
+  const rCourant = ((prixActuel - entree) * sens) / distanceStop;
+  const eur = rCourant * perteMax(partRisqueePct ?? 0, capital);
+  return { pctPrix, eur };
+}

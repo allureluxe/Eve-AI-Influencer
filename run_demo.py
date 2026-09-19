@@ -133,17 +133,14 @@ def main() -> int:
     # l'app et a su que ca ne collait pas. 21 lignes nettoyees a la main.
     #
     # Coupure devenue OBSOLETE le meme soir : l'operateur veut suivre la
-    # demo EN DIRECT dans l'app, notifications comprises. Tout le code cote
-    # Python est pret (`SignalPublisher.est_demo`, `AlluxeBotChannel(est_demo=True)`
-    # plus bas) mais la colonne `is_demo` elle-meme
-    # (supabase/migrations/20260918234500_marquer_demo.sql) n'est PAS ENCORE
-    # appliquee a la base reelle -- bloque sur un jeton
-    # SUPABASE_ACCESS_TOKEN expire. Republier maintenant enverrait
-    # `is_demo` a une table qui ne connait pas cette colonne. Les deux
-    # lignes ci-dessous restent donc vides JUSQU'A CE QUE la migration soit
-    # confirmee appliquee -- a retirer a ce moment-la, pas avant.
-    os.environ["SUPABASE_URL"] = ""
-    os.environ["SUPABASE_SERVICE_KEY"] = ""
+    # demo EN DIRECT dans l'app, notifications comprises. La colonne
+    # `is_demo` (supabase/migrations/20260918234500_marquer_demo.sql) est
+    # CONFIRMEE appliquee en base le 19 sept. (verifie via
+    # information_schema.columns avant de republier) -- SUPABASE_URL/KEY
+    # ne sont donc plus vides ici : le processus herite de .env comme le
+    # robot reel, et chaque ligne qu'il publie porte `is_demo=true` (voir
+    # `SignalPublisher.est_demo` et `AlluxeBotChannel(est_demo=True)` plus
+    # bas), jamais confondue avec le reel par l'application.
 
     cfg = BotConfig.load(args.config)
     if cfg.engine.broker != "paper":

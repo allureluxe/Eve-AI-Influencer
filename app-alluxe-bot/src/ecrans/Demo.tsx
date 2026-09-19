@@ -1,25 +1,29 @@
 /**
- * Onglet Direct -- le capital reel et les positions en cours, EN DIRECT.
+ * Onglet Demo -- la simulation a 500 EUR virtuels, EN DIRECT.
  *
- * Contrairement a Allure, aucun masquage : c'est l'outil prive de
- * l'operateur, les chiffres sont ceux du compte reel.
- *
- * Refonte du 18-19 sept., sur retour direct de l'operateur : "style
- * trading, juste le nom de la crypto, le pourcentage et le benefice ou
- * negatif en euro, en direct, pas toutes les 10 secondes". Voir
- * `useSuiviPositions` (Realtime pour la liste, prix Bitvavo en direct
- * pour le calcul) et `resultatEnDirect` (le calcul lui-meme).
+ * Demandee le 18 sept. pour valider la strategie D1 Turtle sur un
+ * capital cible avant de le deposer reellement (voir run_demo.py).
+ * Meme presentation que l'onglet Direct (nom / % / gain-perte en euros,
+ * en direct), sur les VRAIES cotations Bitvavo mais SANS aucun ordre
+ * reel -- jamais melangee avec le robot reel (colonne `is_demo`, voir
+ * supabase/migrations/20260918234500_marquer_demo.sql, apres la fuite du
+ * 18 sept. ou une position simulee etait apparue dans l'app comme si
+ * elle etait reelle).
  */
 import React from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { EtatCapital, Position, etatCapital } from "../services/robot";
+import { Position } from "../services/robot";
 import { useSuiviPositions } from "../services/suiviPositions";
 import { euros, nomCrypto, pourcent, resultatEnDirect } from "../services/format";
 import { espace, rayon } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 
-function LignePositionDirecte({ p, capital, prixActuel }: {
+// Capital de depart de la simulation (voir robot.demo.json, start_balance).
+// Aucune table ne le publie -- c'est une constante, pas un compte reel.
+const CAPITAL_DEMO_EUR = 500;
+
+function LignePositionDemo({ p, capital, prixActuel }: {
   p: Position; capital: number; prixActuel: number | undefined;
 }) {
   const c = useCouleurs();
@@ -61,20 +65,27 @@ function LignePositionDirecte({ p, capital, prixActuel }: {
   );
 }
 
-export function EcranDirect() {
+export function EcranDemo() {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
-  const [capitalEtat, setCapitalEtat] = React.useState<EtatCapital | null>(null);
   const [rafraichit, setRafraichit] = React.useState(false);
-  const { positions, capital, prixLive, erreur, rafraichir } = useSuiviPositions(false, 0);
+  const { positions, capital, prixLive, erreur, rafraichir } =
+    useSuiviPositions(true, CAPITAL_DEMO_EUR);
 
-  React.useEffect(() => {
-    etatCapital().then(setCapitalEtat).catch(() => {});
-  }, []);
+  const gainTotal = React.useMemo(() => {
+    if (!positions) return 0;
+    return positions.reduce((somme, p) => {
+      const prixActuel = prixLive[p.pair];
+      if (prixActuel == null) return somme;
+      return somme + resultatEnDirect(
+        p.entry_price, p.stop_loss, prixActuel, p.side, p.position_size_pct ?? 0, capital,
+      ).eur;
+    }, 0);
+  }, [positions, prixLive, capital]);
 
   const surRafraichir = async () => {
     setRafraichit(true);
-    await Promise.all([rafraichir(), etatCapital().then(setCapitalEtat).catch(() => {})]);
+    await rafraichir();
     setRafraichit(false);
   };
 
@@ -87,24 +98,18 @@ export function EcranDirect() {
     >
       <View style={{ flexDirection: "row", alignItems: "center",
                      justifyContent: "space-between", marginBottom: espace.l }}>
-        <T v="titreGrand">Direct</T>
+        <T v="titreGrand">Demo</T>
         <Logo hauteur={40} />
       </View>
 
       <Carte accent style={{ marginBottom: espace.l, alignItems: "center" }}>
-        <T v="petit" couleur={c.encreDouce}>Capital reel</T>
-        {capitalEtat ? (
-          <>
-            <T v="titreGrand" style={{ marginTop: espace.xs }}>
-              {euros(capitalEtat.capital_eur)}
-            </T>
-            <T v="petit"
-               couleur={capitalEtat.variation_jour_pct >= 0 ? c.gain : c.perte}
-               style={{ marginTop: espace.xs }}>
-              {pourcent(capitalEtat.variation_jour_pct)} aujourd'hui
-            </T>
-          </>
-        ) : <Chargement />}
+        <T v="petit" couleur={c.encreDouce}>Capital virtuel (500 EUR de depart)</T>
+        <T v="titreGrand" style={{ marginTop: espace.xs }}>
+          {euros(capital + gainTotal)}
+        </T>
+        <T v="petit" couleur={gainTotal >= 0 ? c.gain : c.perte} style={{ marginTop: espace.xs }}>
+          {euros(gainTotal)} sur les positions ouvertes
+        </T>
       </Carte>
 
       <T v="sousTitre" style={{ marginBottom: espace.s }}>
@@ -115,11 +120,11 @@ export function EcranDirect() {
         <Chargement />
       ) : positions.length === 0 ? (
         <Vide titre="Aucune position ouverte"
-              detail="Le robot attend une occasion qui passe ses filtres." />
+              detail="Meme moteur que le robot reel, sur capital virtuel." />
       ) : (
         positions.map((p) => (
-          <LignePositionDirecte key={p.id} p={p} capital={capital}
-                                 prixActuel={prixLive[p.pair]} />
+          <LignePositionDemo key={p.id} p={p} capital={capital}
+                              prixActuel={prixLive[p.pair]} />
         ))
       )}
     </ScrollView>
