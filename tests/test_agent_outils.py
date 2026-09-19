@@ -204,7 +204,12 @@ class TestNavigationEtTor(unittest.TestCase):
 
 class TestModificationDeFichier(unittest.TestCase):
     def setUp(self):
-        self.dossier = tempfile.mkdtemp(dir=os.path.join(RACINE, "data"))
+        # L'outil refuse d'ecrire hors du depot : le bac a sable doit donc
+        # etre DANS le depot. `data/` est ignore par git, donc absent d'une
+        # machine fraiche (l'integration continue) -- on le cree au besoin.
+        bac = os.path.join(RACINE, "data")
+        os.makedirs(bac, exist_ok=True)
+        self.dossier = tempfile.mkdtemp(dir=bac)
         self.nom = os.path.relpath(
             os.path.join(self.dossier, "essai.txt"), RACINE)
         with open(os.path.join(RACINE, self.nom), "w") as f:
