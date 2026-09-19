@@ -704,7 +704,7 @@ def _p(**proprietes):
 DESCRIPTION_OUTILS_ACTION = [
     {"type": "function", "function": {
         "name": "lire_fichier",
-        "description": "Lit un fichier du depot, avec numeros de ligne.",
+        "description": "Lit un fichier, avec numeros de ligne.",
         "parameters": _p(
             chemin={"type": "string", "description": "chemin relatif au depot"},
             depuis_la_ligne={"type": "integer"},
@@ -712,46 +712,40 @@ DESCRIPTION_OUTILS_ACTION = [
     }},
     {"type": "function", "function": {
         "name": "ecrire_fichier",
-        "description": "Cree un fichier ou remplace entierement son contenu. "
-                        "Pour une petite retouche, prefere modifier_fichier.",
+        "description": "Cree un fichier ou remplace tout son contenu.",
         "parameters": _p(chemin={"type": "string"}, contenu={"type": "string"}),
     }},
     {"type": "function", "function": {
         "name": "modifier_fichier",
-        "description": "Remplace un extrait exact par un autre, dans un "
-                        "fichier. L'extrait doit etre unique dans le fichier.",
+        "description": "Remplace un extrait exact (unique) dans un fichier.",
         "parameters": _p(chemin={"type": "string"},
                           ancien_texte={"type": "string"},
                           nouveau_texte={"type": "string"}),
     }},
     {"type": "function", "function": {
         "name": "lister",
-        "description": "Liste le contenu d'un dossier du depot.",
+        "description": "Liste un dossier.",
         "parameters": _p(chemin={"type": "string"}),
     }},
     {"type": "function", "function": {
         "name": "chercher",
-        "description": "Cherche un texte dans tout le depot (grep).",
+        "description": "Cherche un texte dans le depot (grep).",
         "parameters": _p(motif={"type": "string"}, dossier={"type": "string"}),
     }},
     {"type": "function", "function": {
         "name": "executer",
-        "description": "Execute une commande shell dans le depot : tests "
-                        "(python3 -m pytest), git, python3, npm, journalctl... "
-                        "C'est l'outil principal pour agir.",
+        "description": "Commande shell : tests, git, python3, npm, journalctl. L'outil principal.",
         "parameters": _p(commande={"type": "string"},
                           delai_secondes={"type": "integer"}),
     }},
     {"type": "function", "function": {
         "name": "etat_services",
-        "description": "Dit quels services du projet tournent.",
+        "description": "Quels services tournent.",
         "parameters": _p(),
     }},
     {"type": "function", "function": {
         "name": "chercher_sur_le_web",
-        "description": "Cherche sur internet et rend les meilleurs liens. "
-                        "A utiliser des qu'une question sort du serveur : "
-                        "actualite, documentation, prix, definitions.",
+        "description": "Recherche web. Des qu'une question sort du serveur.",
         "parameters": _p(
             question={"type": "string"},
             via_tor={"type": "boolean",
@@ -760,8 +754,7 @@ DESCRIPTION_OUTILS_ACTION = [
     }},
     {"type": "function", "function": {
         "name": "lire_page_web",
-        "description": "Ouvre une page web et rend son texte. Sert apres "
-                        "chercher_sur_le_web pour lire vraiment un resultat.",
+        "description": "Ouvre une page web et rend son texte.",
         "parameters": _p(
             url={"type": "string"},
             via_tor={"type": "boolean",
@@ -770,20 +763,13 @@ DESCRIPTION_OUTILS_ACTION = [
     }},
     {"type": "function", "function": {
         "name": "chercher_articles_scientifiques",
-        "description": "Cherche dans les publications universitaires "
-                        "(arXiv, Semantic Scholar) : recherche academique, "
-                        "strategies de trading publiees, methodes mesurees. "
-                        "Gratuit et sans compte.",
+        "description": "Publications universitaires (arXiv, Semantic Scholar).",
         "parameters": _p(sujet={"type": "string"},
                           combien={"type": "integer"}),
     }},
     {"type": "function", "function": {
         "name": "noter_en_memoire",
-        "description": "Retient quelque chose pour les PROCHAINES "
-                        "conversations : une preference de Monsieur, une "
-                        "decision prise, un piege rencontre, comment marche "
-                        "une partie du projet. A utiliser des que tu apprends "
-                        "quelque chose que tu voudrais savoir la prochaine fois.",
+        "description": "Retient pour les prochaines conversations : preference de Monsieur, decision, piege. Des que tu apprends du neuf.",
         "parameters": _p(titre={"type": "string"},
                           contenu={"type": "string"},
                           categorie={"type": "string",
@@ -791,13 +777,12 @@ DESCRIPTION_OUTILS_ACTION = [
     }},
     {"type": "function", "function": {
         "name": "relire_memoire",
-        "description": "Relit une note en entier (avec son titre), ou la "
-                        "liste de tout ce dont tu te souviens (sans titre).",
+        "description": "Relit une note (avec titre) ou la liste (sans titre).",
         "parameters": _p(titre={"type": "string"}),
     }},
     {"type": "function", "function": {
         "name": "oublier",
-        "description": "Efface une note devenue fausse ou perimee.",
+        "description": "Efface une note perimee.",
         "parameters": _p(titre={"type": "string"}),
     }},
 ]

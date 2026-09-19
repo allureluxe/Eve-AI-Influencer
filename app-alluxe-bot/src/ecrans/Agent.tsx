@@ -62,7 +62,10 @@ import {
 import { espace, rayon, TRAIT } from "../theme";
 import { Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 
-const RYTHME_MS = 2_000;
+// 800 ms : l'operateur voulait qu'il reponde "du tac au tac". Le moteur
+// repond en 0,3 s -- c'est l'attente du sondage qui se voyait, des deux
+// cotes (2 s ici, 2 s cote serveur avant de voir le message).
+const RYTHME_MS = 800;
 
 // Variantes plausibles de ce que la reconnaissance vocale peut transcrire
 // pour "Alluxe" -- un mot invente, donc pas dans son dictionnaire. Liste
