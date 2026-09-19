@@ -79,6 +79,70 @@ const VARIANTES_ALLUXE = [
   "haluxe", "allukse", "alusque", "aluxque", "alluc", "alouxe", "aloux",
 ];
 
+/**
+ * Distance d'edition : combien de lettres il faut changer pour passer
+ * d'un mot a l'autre. "aluxe" -> "alluxe" vaut 1, "alusse" -> "alluxe"
+ * vaut 2.
+ *
+ * Pourquoi ca remplace la liste de variantes (19 sept.) : "il entend mais
+ * ne repond pas". La transcription arrivait bien, mais aucune de mes
+ * variantes devinees ne tombait juste -- et j'en devinais depuis le
+ * debut, faute de telephone pour essayer. Une liste ne peut pas couvrir
+ * ce qu'un correcteur francais invente pour un mot qui n'existe pas ;
+ * une mesure de ressemblance, si.
+ */
+function _distance(a: string, b: string): number {
+  const precedente = new Array(b.length + 1);
+  for (let j = 0; j <= b.length; j++) precedente[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    let coinHautGauche = precedente[0];
+    precedente[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const memoire = precedente[j];
+      precedente[j] = Math.min(
+        precedente[j] + 1,            // suppression
+        precedente[j - 1] + 1,        // insertion
+        coinHautGauche + (a[i - 1] === b[j - 1] ? 0 : 1), // substitution
+      );
+      coinHautGauche = memoire;
+    }
+  }
+  return precedente[b.length];
+}
+
+/**
+ * Replie les graphies d'un meme SON. Le correcteur francais ecrit le "x"
+ * de "Alluxe" de cinq facons au moins -- x, ks, cs, ss, c -- et double
+ * les consonnes au hasard. Apres ce repli, "alluxe", "alusse", "alukse"
+ * et "alucse" deviennent tous "aluse" : le meme mot a l'oreille, ecrit
+ * de quatre facons.
+ *
+ * C'est ce repli qui remplace la liste de variantes devinees. Comparer
+ * les sons plutot que les lettres evite d'elargir la tolerance, ce qui
+ * ferait declencher sur "alarme" ou "alerte" -- deux mots qu'il va
+ * forcement prononcer en parlant du robot.
+ */
+function _phonetique(mot: string): string {
+  return mot
+    .replace(/que$/, "")
+    .replace(/x|ks|cs|ss|c/g, "s")
+    .replace(/(.)\1+/g, "$1");
+}
+
+/** Ce mot ressemble-t-il assez a "Alluxe" pour etre son nom ? */
+function _cestSonNom(mot: string): boolean {
+  const m = _normaliserMot(mot);
+  // Trop court : "a", "al", "lu" declencheraient sur n'importe quoi.
+  if (m.length < 4) return false;
+  // Son nom commence par un A (le H de "hallux" est muet). Sans cette
+  // regle, "de luxe" -- deux mots courants recolles -- passait pour son
+  // nom a deux lettres pres.
+  const debut = m[0] === "h" ? m.slice(1) : m;
+  if (debut[0] !== "a") return false;
+  const son = _phonetique(debut);
+  return _distance(son, "aluse") <= 1 || _distance(son, "alus") <= 1;
+}
+
 function _normaliserMot(mot: string): string {
   return mot
     .normalize("NFD").replace(/[̀-ͯ]/g, "") // enleve les accents
@@ -105,13 +169,12 @@ function _apresAlluxe(transcription: string): string | null {
   let index = -1;
   let motsConsommes = 1;
   for (let i = 0; i < mots.length; i++) {
-    if (VARIANTES_ALLUXE.includes(_normaliserMot(mots[i]))) {
+    if (_cestSonNom(mots[i])) {
       index = i;
       motsConsommes = 1;
       break;
     }
-    if (i + 1 < mots.length
-        && VARIANTES_ALLUXE.includes(_normaliserMot(mots[i] + mots[i + 1]))) {
+    if (i + 1 < mots.length && _cestSonNom(mots[i] + mots[i + 1])) {
       index = i;
       motsConsommes = 2;
       break;
@@ -312,6 +375,23 @@ export function EcranAgent() {
 
   const ecouter = React.useCallback(() => demarrerReconnaissance("unique"), [demarrerReconnaissance]);
 
+  /** Ouvre l'echange sans avoir a prononcer son nom.
+   *
+   *  Filet de securite pose le 19 sept. : "il entend mais ne repond pas".
+   *  Le mot de reveil reste pratique, mais il ne doit pas etre le SEUL
+   *  chemin -- s'il n'est pas reconnu sur un appareil, tout le mode
+   *  conversation devient inutilisable, et c'est exactement ce qui s'est
+   *  passe. Un appui remplace le mot. */
+  const ouvrirConversation = React.useCallback(() => {
+    ouverteJusqua.current = Date.now() + DUREE_CONVERSATION_MS;
+    setConversationOuverte(true);
+    if (!ecouteContinueRef.current) {
+      setEcouteContinue(true);
+      demarrerReconnaissance("continu");
+    }
+    parler("Je vous ecoute, Monsieur.");
+  }, [demarrerReconnaissance]);
+
   const basculerEcouteContinue = React.useCallback(() => {
     if (ecouteContinue) {
       setEcouteContinue(false);
@@ -430,6 +510,21 @@ export function EcranAgent() {
           size={18}
           color={conversationOuverte ? c.gain
                  : ecouteContinue ? c.jaune : c.encrePale} />
+      </Pressable>
+
+      <Pressable onPress={ouvrirConversation} style={{
+        flexDirection: "row", alignItems: "center", justifyContent: "center",
+        gap: espace.xs,
+        backgroundColor: conversationOuverte ? c.jaune : c.creux,
+        borderRadius: rayon.s, paddingVertical: espace.m,
+        marginHorizontal: espace.l, marginBottom: espace.m,
+      }}>
+        <Ionicons name="mic" size={18}
+                  color={conversationOuverte ? c.surJaune : c.encre} />
+        <T v="petit" couleur={conversationOuverte ? c.surJaune : c.encre}>
+          {conversationOuverte ? "Parlez, je vous ecoute"
+                               : "Parler a Alluxe (sans dire son nom)"}
+        </T>
       </Pressable>
 
       {/* CE QUE LE TELEPHONE A VRAIMENT ENTENDU.
