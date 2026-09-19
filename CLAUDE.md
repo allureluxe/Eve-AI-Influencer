@@ -251,6 +251,113 @@ la configuration plutôt que le recopier (corrigé le 19 sept. dans
 
 ---
 
+## `comparer.py` mesure des COMPTES SÉPARÉS — 19 septembre
+
+**À lire avant d'interpréter le moindre chiffre de ce fichier.**
+
+`comparer.py` ouvre un compte **neuf par instrument**, doté du capital
+entier et du budget de risque entier, puis **additionne les profits** :
+
+    for sym in symboles:
+        res = Backtester(cfg).run(sym, start_balance=args.capital)
+        profit += res.end_balance - res.start_balance
+
+Mesurer 70 paires ainsi, ce sont **70 comptes**, pas un robot qui les
+arbitre. Chaque crypto y pyramide jusqu'à 8 étages sans jamais croiser
+les autres. Le robot réel, lui, n'a qu'une enveloppe : mesuré le
+19 septembre sur la démo, **165,07 EUR de risque engagé pour 165,00
+autorisés** — plein au centime, « risque total déjà engagé (5,00 %) » à
+chaque cycle.
+
+L'écart mesuré, 55 paires et 900 bougies :
+
+    comptes separes   581 trades   +1 766 EUR   sur 181 500 EUR engages
+    UN SEUL compte     11 trades     +270 EUR   sur   3 300 EUR
+
+Le rendement par euro est **meilleur** sur un compte (+8,2 % contre
++1,0 %) : la concentration travaille. Mais **11 trades en deux ans et
+demi**, dont un seul — une pyramide à 7 étages, +354 EUR — fait 131 % du
+bénéfice. Sans lui, la période est négative. Le budget se remplit avec
+les cinq premières cryptos qui se présentent, puis plus rien pendant des
+semaines.
+
+`gold_bot/backtest_portefeuille.py` répond à l'autre question : « que
+donne ce réglage sur UN compte ? ». Les instruments y défilent
+chronologiquement (tas ordonné) en partageant un courtier et un
+`RiskManager`. **Il ne remplace pas `comparer.py`**, qui reste le bon
+outil pour comparer deux réglages à armes égales, sans que la
+concurrence entre paires brouille le signal.
+
+Le verrou qui empêche ce second moteur de mentir : **à un seul
+instrument, il doit rendre exactement le résultat de `Backtester.run`**
+(`tests/test_backtest_portefeuille.py`). D'où le refactor de
+`Backtester.preparer()` en parcours pilotable — un seul corps de bougie,
+deux pilotes. Dupliquer ce corps aurait refait l'erreur que ce fichier
+raconte quatre fois déjà.
+
+### Le simulateur ne pyramidait pas du tout
+
+Trouvé en cherchant pourquoi aucune position ne dépassait l'étage 1,
+**même avec le budget entier disponible** : 860 trades, aucun étage 2.
+
+`PaperBroker.open_position` créait une position **neuve** à chaque achat.
+Au comptant Bitvavo ne connaît qu'un avoir par actif, et le vrai
+courtier fusionne (`bitvavo.py` : volume cumulé, entrée moyenne
+pondérée, **un seul stop** pour tout l'avoir). Le simulateur, lui,
+empilait des lignes indépendantes portant chacune « étage 1 ».
+
+Constaté dans la démo en service : AVAX, NEO et OP portaient chacun DEUX
+lignes, la seconde achetée plus cher — du pyramidage manuel du livre —
+et l'application affichait « étage 1 » partout.
+
+Le plus grave n'est pas l'affichage : **deux lignes = deux stops
+indépendants**, là où le compte réel n'en a qu'un, posé sous la dernière
+unité. La démo ne mesurait pas le risque que l'argent réel porterait.
+
+`ClosedTrade.etages` a été ajouté dans la foulée : le chiffre sur lequel
+repose le pyramidage illimité n'était enregistré **nulle part** — ni au
+journal, ni au rejeu. La mesure du 9 septembre était irreproductible.
+Elle a été refaite, et elle tient :
+
+    etages   trades    resultat    par trade
+      1        400     -2 295 E     -5,74 E     <- 69 % des trades
+      2        112       +954 E     +8,52 E
+      3         45     +1 500 E    +33,32 E
+      4         16       +935 E    +58,45 E
+      5          7       +748 E   +106,86 E
+      7          1       +405 E   +404,55 E
+
+### `reserve_pyramide_pct` — décidé, pas encore armé
+
+Décision de l'opérateur le 19 septembre : « tu bloques désormais un
+tiers du capital aux pyramides ». Une nouvelle ligne et un étage
+puisaient dans la même enveloppe, premier arrivé premier servi — donc le
+robot dépensait tout son budget sur la catégorie qui perd.
+
+`risk.reserve_pyramide_pct` met de côté une part que **seul** un
+renforcement peut utiliser. Garde-fou : elle ne descend jamais le
+plafond des nouvelles lignes sous le risque d'un seul trade, sinon
+aucune première entrée ne passerait, donc aucune pyramide ne naîtrait —
+la réserve se mordrait la queue.
+
+**Valeur armée : 0.** `mesurer_reserve.py` tranche avant.
+
+### « Presque aucune position fermée en perte » — ce qu'il faut répondre
+
+Demande de l'opérateur, le même soir. C'est faisable et c'est le piège
+le plus cher du métier : **cette stratégie gagne parce qu'elle perd
+souvent.** 69 % des trades perdent 2 295 EUR ; les rares pyramides
+rapportent 4 542 EUR. Les petites pertes sont le prix d'entrée des
+grosses pyramides — c'est le même geste, et on ne sait pas au moment
+d'entrer laquelle des deux on achète.
+
+Le seul vrai levier est `breakeven_at_r` (0,7 aujourd'hui) : remonter le
+stop au prix d'achat plus tôt réduit les perdantes et coupe des
+gagnantes avant qu'elles ne courent. Ne jamais donner le nombre de
+perdantes sans le résultat en euros à côté.
+
+---
+
 ## D1 « Turtle » — armé le 3 septembre, remplace le M30
 
 **Le M30 était perdant, et la mesure est certaine :** −0,158 R sur
