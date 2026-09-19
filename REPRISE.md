@@ -1,3 +1,52 @@
+# Ou on en est — mis a jour le 19 septembre 2026 (23h)
+
+## EN COURS CE SOIR : simulation de 48 h a 3 300 EUR, avec le tiers reserve
+
+Le robot demo tourne depuis **21h06 UTC le 19 sept.** avec deux nouveautes
+armees a la demande de l'operateur :
+
+  - capital **3 300 EUR** (il a ajoute 2 800 EUR virtuels ; le depot ne doit
+    apparaitre nulle part dans l'application) ;
+  - **`reserve_pyramide_pct: 1.67`** dans `robot.demo.json` — un tiers du
+    budget de risque que SEUL un renforcement peut utiliser.
+
+Verifie au journal : « budget des nouvelles lignes epuise (5.00% engage,
+plafond 3.33% — 1.67% reserve aux renforcements) ». 21 positions reprises,
+solde conserve (3 300,00 au centime).
+
+**Premier point a lui donner demain matin**, et a comparer a ce que
+500 EUR reels auraient donne : c'est cette mesure qui decide du depot du
+28 septembre.
+
+Sauvegardes avant armement : `robot.demo.json.avant-reserve-tiers`,
+`data/state-demo.json.avant-reserve-tiers`.
+
+### Ce qui reste a mesurer
+
+`mesurer_point_mort.py` tourne sur 0,4 / 0,5 / 0,7 / 1,0 / 1,5 R, PAR
+INSTRUMENT (des centaines de trades, la ou le compte unique n'en donne que
+huit). Resultats a lire dans
+`/tmp/.../scratchpad/point_mort.jsonl` s'ils y sont encore, sinon relancer.
+
+Deja acquis, sur compte unique (8 trades, donc indicatif seulement) :
+point mort a **0,4 R fait tomber le benefice de 321 a 17 EUR** et l'etage
+maximum de 7 a 4 — le stop remonte trop tot tue les pyramides qui payent.
+Reponse a « presque aucune position fermee en perte » : c'est faisable et
+ca coute 95 % du gain. Ne jamais donner le nombre de perdantes sans le
+resultat en euros a cote.
+
+### Memoire du serveur — deux morts le 19 sept.
+
+`robot-demo` a ete tue a 10h28 (OOM global) et 19h45 (plafond cgroup). Il
+veut ~1,9 Go a lui seul. Corrige : **swap de 2 Go** (`/swapfile`, dans
+`/etc/fstab`) et `MemoryMax=2400M`. Surveiller avec
+`systemctl show robot-demo -p MemoryPeak -p NRestarts`.
+
+Toute mesure lourde se lance donc **un processus par variante**
+(`ops/mesurer_reserve_une_a_une.sh`) : enchainees, elles se font tuer.
+
+---
+
 # Ou on en est — mis a jour le 19 septembre 2026 (soir)
 
 **Ce fichier est lu automatiquement au demarrage de chaque session Claude Code**
