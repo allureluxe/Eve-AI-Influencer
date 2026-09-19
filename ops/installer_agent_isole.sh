@@ -82,7 +82,13 @@ if sudo -u "$COMPTE" test -r "$DEPOT/.env"; then
 fi
 echo "    OK : le compte $COMPTE ne peut PAS lire .env"
 
-if sudo -u "$COMPTE" test -w "$DEPOT/gold_bot/engine.py"; then
+# On VERIFIE EN ECRIVANT, pas en demandant. `test -w` a repondu "non"
+# le 19 sept. sur un fichier ou l'ecriture marchait parfaitement --
+# /usr/bin/test et le builtin de bash ne donnaient meme pas la meme
+# reponse. Un fichier reellement cree puis efface ne ment pas.
+TEMOIN="$DEPOT/data/.essai-ecriture-alluxe"
+if sudo -u "$COMPTE" bash -c "echo ok > '$TEMOIN'" 2>/dev/null; then
+    sudo rm -f "$TEMOIN"
     echo "    OK : il peut travailler dans le depot"
 else
     echo "    ATTENTION : il ne peut pas ecrire dans le depot, il ne servira a rien"
