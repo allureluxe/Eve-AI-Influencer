@@ -15,8 +15,8 @@ import { RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Position, etagePyramide, historiqueDemo } from "../services/robot";
 import { useSuiviPositions } from "../services/suiviPositions";
-import { euros, miseConseillee, nomCrypto, pourcent, quand, resultatEnDirect }
-  from "../services/format";
+import { euros, gainEnEuros, miseConseillee, nomCrypto, pourcent, quand,
+         resultatEnDirect } from "../services/format";
 import { espace, rayon } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 
@@ -94,9 +94,11 @@ const LIBELLE_STATUT: Record<string, string> = {
 
 /** Une position DEMO deja fermee. Meme presentation que l'onglet
  *  Historique du reel, pour que les deux se lisent pareil. */
-function LigneFermee({ p }: { p: Position }) {
+function LigneFermee({ p, capital }: { p: Position; capital: number }) {
   const c = useCouleurs();
   const gagnant = (p.result_pct ?? 0) > 0;
+  const gain = gainEnEuros(p.entry_price, p.stop_loss, p.result_pct,
+                            p.position_size_pct, capital);
   const couleur = p.result_pct == null ? c.encreDouce : gagnant ? c.gain : c.perte;
   return (
     <View style={{
@@ -111,9 +113,14 @@ function LigneFermee({ p }: { p: Position }) {
           {p.closed_at ? " · " + quand(p.closed_at) : ""}
         </T>
       </View>
-      <T v="chiffre" couleur={couleur}>
-        {p.result_pct != null ? pourcent(p.result_pct) : "—"}
-      </T>
+      <View style={{ alignItems: "flex-end" }}>
+        <T v="chiffre" couleur={couleur}>
+          {gain != null ? euros(gain) : "—"}
+        </T>
+        <T v="petit" couleur={couleur}>
+          {p.result_pct != null ? pourcent(p.result_pct) : ""}
+        </T>
+      </View>
     </View>
   );
 }
@@ -204,7 +211,7 @@ export function EcranDemo() {
             {fermees.filter((t) => (t.result_pct ?? 0) > 0).length} gagnant(s),{" "}
             {fermees.filter((t) => (t.result_pct ?? 0) <= 0).length} perdant(s)
           </T>
-          {fermees.map((t) => <LigneFermee key={t.id} p={t} />)}
+          {fermees.map((t) => <LigneFermee key={t.id} p={t} capital={capital} />)}
         </>
       )}
     </ScrollView>

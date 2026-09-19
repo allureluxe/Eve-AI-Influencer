@@ -103,10 +103,18 @@ function reglagesEcoute(continu: boolean) {
     maxAlternatives: 3,
     contextualStrings: VOCABULAIRE,
     androidIntentOptions: {
-      // Sans ca, Android coupe apres ~1 s de silence : le temps de dire
-      // "Alluxe" puis de formuler sa question, c'est deja fini.
-      EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
-      EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+      // Android coupe par defaut apres ~1 s de silence. 3 s ne
+      // suffisaient pas non plus : le 19 sept., les phrases de
+      // l'operateur arrivaient tronquees en plein milieu ("s'il te plait
+      // arrete de dire" -- coupe la). Quelqu'un qui cherche ses mots
+      // marque facilement 3 s de pause.
+      //
+      // 4,5 s. Le prix a payer est un leger delai avant la reponse quand
+      // on a fini de parler ; c'est preferable a une phrase amputee, qui
+      // oblige a tout recommencer.
+      EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 4500,
+      EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 4500,
+      EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 2000,
     },
   };
 }

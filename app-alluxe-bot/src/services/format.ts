@@ -144,3 +144,26 @@ export function resultatEnDirect(
   const eur = rCourant * perteMax(partRisqueePct ?? 0, capital);
   return { pctPrix, eur };
 }
+
+/**
+ * Ce qu'un trade DEJA FERME a rapporte, en euros.
+ *
+ * L'historique n'affichait qu'un pourcentage -- or `result_pct` est la
+ * variation du PRIX, pas le gain. Un "+2 %" ne dit rien tant qu'on ne
+ * sait pas combien etait engage dessus. Demande de l'operateur le
+ * 19 sept. : "dans historique on n'a pas les montants en euros".
+ *
+ * Le gain se deduit de la mise, qui se deduit elle-meme du risque
+ * publie et de la distance au stop (voir `miseConseillee`) :
+ *
+ *     gain = mise x variation_du_prix
+ */
+export function gainEnEuros(
+  entree: number, stop: number, resultatPct: number | null,
+  partRisqueePct: number | null, capital: number,
+): number | null {
+  if (resultatPct == null) return null;
+  const mise = miseConseillee(entree, stop, partRisqueePct ?? 0, capital);
+  if (mise <= 0) return null;
+  return mise * (resultatPct / 100);
+}

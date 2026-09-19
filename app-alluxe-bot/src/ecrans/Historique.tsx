@@ -4,8 +4,8 @@
 import React from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Position, historique } from "../services/robot";
-import { nomCrypto, pourcent, quand } from "../services/format";
+import { Position, etatCapital, historique } from "../services/robot";
+import { euros, gainEnEuros, nomCrypto, pourcent, quand } from "../services/format";
 import { espace, rayon } from "../theme";
 import { Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 
@@ -15,9 +15,13 @@ const LIBELLE_STATUT: Record<string, string> = {
   cancelled: "Annule",
 };
 
-function LigneHistorique({ p }: { p: Position }) {
+function LigneHistorique({ p, capital }: { p: Position; capital: number }) {
   const c = useCouleurs();
   const gagnant = (p.result_pct ?? 0) > 0;
+  // Un "+2 %" ne dit rien tant qu'on ignore combien etait engage dessus.
+  // Demande du 19 sept. : les montants en euros, comme partout ailleurs.
+  const gain = gainEnEuros(p.entry_price, p.stop_loss, p.result_pct,
+                            p.position_size_pct, capital);
   const couleur = p.result_pct == null ? c.encreDouce : gagnant ? c.gain : c.perte;
   return (
     <View style={{
@@ -32,9 +36,14 @@ function LigneHistorique({ p }: { p: Position }) {
           {p.closed_at ? " · " + quand(p.closed_at) : ""}
         </T>
       </View>
-      <T v="chiffre" couleur={couleur}>
-        {p.result_pct != null ? pourcent(p.result_pct) : "—"}
-      </T>
+      <View style={{ alignItems: "flex-end" }}>
+        <T v="chiffre" couleur={couleur}>
+          {gain != null ? euros(gain) : "—"}
+        </T>
+        <T v="petit" couleur={couleur}>
+          {p.result_pct != null ? pourcent(p.result_pct) : ""}
+        </T>
+      </View>
     </View>
   );
 }
@@ -45,6 +54,10 @@ export function EcranHistorique() {
   const [trades, setTrades] = React.useState<Position[] | null>(null);
   const [rafraichit, setRafraichit] = React.useState(false);
   const [erreur, setErreur] = React.useState("");
+  const [capital, setCapital] = React.useState(0);
+  React.useEffect(() => {
+    etatCapital().then((e) => { if (e) setCapital(e.capital_eur); }).catch(() => {});
+  }, []);
 
   const charger = React.useCallback(async () => {
     try {
@@ -91,7 +104,7 @@ export function EcranHistorique() {
       ) : trades.length === 0 ? (
         <Vide titre="Aucun trade cloture pour l'instant" />
       ) : (
-        trades.map((t) => <LigneHistorique key={t.id} p={t} />)
+        trades.map((t) => <LigneHistorique key={t.id} p={t} capital={capital} />)
       )}
     </ScrollView>
   );

@@ -152,12 +152,15 @@ export function Logo({ hauteur = 28 }: { hauteur?: number }) {
   // detoures (fond transparent) selon le theme : traits noirs sur clair,
   // traits blancs sur sombre — sinon le texte "ALLURE" et l'illustration
   // se fondent dans le fond sombre et deviennent illisibles.
-  const sombre = useTheme() === "sombre";
+  // LE MEME LOGO PARTOUT, clair ou sombre. Il basculait sur une variante
+  // "logo-sombre" a palette inversee -- l'operateur, le 19 sept., en
+  // voyant le theme sombre pour la premiere fois : "le logo ne doit pas
+  // changer dans le mode sombre, ca fait moche, laisse-le identique
+  // partout". Le logo detoure tient sur les deux fonds (le jaune et le
+  // gris ressortent aussi bien), la variante n'avait pas lieu d'etre.
   return (
     <Image
-      source={sombre
-        ? require("../../assets/logo-sombre.png")
-        : require("../../assets/logo-detoure.png")}
+      source={require("../../assets/logo-detoure.png")}
       style={{ height: hauteur, width: hauteur * (646 / 622),
                resizeMode: "contain" }}
       accessibilityLabel="Allure"
