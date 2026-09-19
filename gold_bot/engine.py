@@ -1083,6 +1083,12 @@ class TradingEngine:
                                     action.reason,
                                     "" if pose_apres is None else
                                     (" [ordre repose]" if repose else " [interne, ordre inchange]"))
+                        # L'application montrait le stop d'OUVERTURE en
+                        # croyant montrer la protection actuelle. On la
+                        # previent ici, et seulement quand le niveau a
+                        # bouge a l'affichage : publier chaque increment
+                        # de 1e-8 inonderait la base pour rien.
+                        self._publier_le_stop_suiveur(pos, action.price)
                     else:
                         logger.debug("%s : stop interne -> %.8f (%s)",
                                      pos.symbol, action.price, action.reason)
@@ -1374,6 +1380,30 @@ class TradingEngine:
         except Exception as exc:                            # noqa: BLE001
             logger.warning("publication de la cloture impossible : %s", exc)
 
+    def _publier_le_stop_suiveur(self, pos: Position, niveau: float) -> None:
+        """Previent l'application que le stop a bouge. Ne peut pas echouer.
+
+        UN STOP, PLUSIEURS LIGNES. Chaque etage de pyramide est publie
+        comme un signal a part entiere (`<id>:1`, `<id>:2`...) parce que
+        c'est un signal a part entiere pour l'operateur. Mais au
+        comptant il n'y a qu'UN avoir, donc UN stop, qui couvre toute la
+        pyramide : il faut donc mettre a jour toutes les lignes, sinon
+        les etages hauts afficheraient encore leur stop d'origine alors
+        qu'ils sont proteges par celui-ci.
+
+        Enveloppe comme `_publier_le_signal` : le confort de
+        l'application ne doit jamais pouvoir interrompre la gestion
+        d'une position reelle.
+        """
+        if not self.publisher.actif:
+            return
+        try:
+            etages = int(getattr(pos, "etages", 1) or 1)
+            for etage in range(1, etages + 1):
+                self.publisher.publier_suivi(f"{pos.id}:{etage}", niveau)
+        except Exception as exc:                            # noqa: BLE001
+            logger.warning("publication du stop suiveur impossible : %s", exc)
+
     def _publier_le_signal(self, ev, pos, sizing) -> None:
         """Recopie l'ouverture vers l'application. Ne peut pas echouer.
 
@@ -1411,6 +1441,12 @@ class TradingEngine:
                 # Fige le capital du moment : la ligne gardera son sens
                 # meme apres un depot ou un retrait.
                 capital_eur=float(getattr(self.broker.account(), "equity", 0.0) or 0.0),
+                # Le volume APRES l'ouverture, pas celui demande : sur un
+                # etage de pyramide, `pos.volume` porte deja le cumul de
+                # tout l'avoir, qui est ce que l'operateur detient
+                # reellement. `sizing.lots` ne donnerait que la derniere
+                # tranche.
+                volume=float(getattr(pos, "volume", 0.0) or 0.0) or None,
                 conviction=conviction_depuis_score(float(ev.score)),
                 rationale=rediger_rationale(
                     paire, canal, etage=etage, graine=f"{pos.id}:{etage}",

@@ -31,6 +31,16 @@ export interface Position {
    *  qu'un pourcentage : sans lui, la mise recalculee devient fausse des
    *  qu'un depot a lieu. Nul sur les lignes d'avant le 19 sept. */
   capital_eur: number | null;
+  /** Quantite reellement achetee, en unites de la crypto. Le seul champ
+   *  qui reponde a « combien j'en ai » -- `position_size_pct` est un
+   *  pourcentage de RISQUE et la mise en euros s'en deduit. Nul avant le
+   *  19 sept. */
+  volume: number | null;
+  /** Le stop SUIVEUR courant. `stop_loss` reste le stop d'OUVERTURE et
+   *  ne bouge jamais (tout le calcul du R en depend). Nul tant que le
+   *  suiveur n'a pas deplace le stop -- l'ecran retombe alors sur
+   *  `stop_loss`. */
+  stop_loss_actuel: number | null;
   published_at: string;
   status: string;
   closed_at: string | null;
@@ -47,7 +57,57 @@ export async function etatCapital(): Promise<EtatCapital | null> {
   return data;
 }
 
-const COLONNES_POSITION = "id, reference, capital_eur, pair, side, entry_price, stop_loss, take_profit_1, take_profit_2, position_size_pct, published_at, status, closed_at, result_pct";
+/**
+ * L'APPLICATION ET LA BASE NE SE METTENT PAS A JOUR ENSEMBLE.
+ *
+ * L'APK part sur le telephone de l'operateur ; les colonnes arrivent en
+ * base par une migration. Rien ne garantit l'ordre, et PostgREST refuse
+ * la requete ENTIERE si une seule colonne demandee n'existe pas
+ * (erreur 42703). Une liste de positions vide, sans explication --
+ * exactement ce qui serait arrive le 19 sept. : les colonnes `volume`
+ * et `stop_loss_actuel` ont ete ajoutees au code alors que la migration
+ * n'avait pas pu etre appliquee (jeton Supabase expire).
+ *
+ * On demande donc le confort, et on retombe sur l'essentiel s'il n'est
+ * pas encore la. Le detail perd deux lignes ; la liste, elle, s'affiche
+ * toujours.
+ */
+const COLONNES_BASE = "id, reference, capital_eur, pair, side, entry_price, stop_loss, take_profit_1, take_profit_2, position_size_pct, published_at, status, closed_at, result_pct";
+const COLONNES_CONFORT = `${COLONNES_BASE}, volume, stop_loss_actuel`;
+
+/** Une fois la reponse connue, on ne retente plus : inutile de payer un
+ *  aller-retour rate a chaque rafraichissement. */
+let colonnesConfortDisponibles: boolean | null = null;
+
+function colonnesPosition(): string {
+  return colonnesConfortDisponibles === false ? COLONNES_BASE : COLONNES_CONFORT;
+}
+
+/** Vrai si l'erreur dit « cette colonne n'existe pas ». */
+function colonneAbsente(erreur: { code?: string; message?: string } | null): boolean {
+  if (!erreur) return false;
+  return erreur.code === "42703"
+    || /column .* does not exist/i.test(erreur.message ?? "");
+}
+
+/**
+ * Joue la requete avec les colonnes de confort, et la rejoue sans elles
+ * si la base ne les connait pas encore.
+ */
+async function lirePositions(
+  construire: (colonnes: string) => PromiseLike<{ data: unknown; error: any }>,
+): Promise<Position[]> {
+  const { data, error } = await construire(colonnesPosition());
+  if (!error) {
+    if (colonnesConfortDisponibles === null) colonnesConfortDisponibles = true;
+    return (data ?? []) as Position[];
+  }
+  if (!colonneAbsente(error)) throw error;
+  colonnesConfortDisponibles = false;
+  const repli = await construire(COLONNES_BASE);
+  if (repli.error) throw repli.error;
+  return (repli.data ?? []) as Position[];
+}
 
 // `is_demo` est EXPLICITE sur chaque requete ci-dessous, jamais implicite
 // -- fuite du 18 sept. : la simulation a 500 EUR virtuels a publie ses
@@ -58,41 +118,35 @@ const COLONNES_POSITION = "id, reference, capital_eur, pair, side, entry_price, 
 // filtrent `is_demo=true` -- jamais l'un sans l'autre, jamais melange.
 
 export async function positionsOuvertes(): Promise<Position[]> {
-  const { data, error } = await supabase
+  return lirePositions((colonnes) => supabase
     .from("signals")
-    .select(COLONNES_POSITION)
+    .select(colonnes)
     .eq("status", "active")
     .eq("is_demo", false)
     .not("published_at", "is", null)
-    .order("published_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as unknown as Position[];
+    .order("published_at", { ascending: false }));
 }
 
 export async function historique(limite = 100): Promise<Position[]> {
-  const { data, error } = await supabase
+  return lirePositions((colonnes) => supabase
     .from("signals")
-    .select(COLONNES_POSITION)
+    .select(colonnes)
     .in("status", ["closed_tp", "closed_sl", "cancelled"])
     .eq("is_demo", false)
     .not("published_at", "is", null)
     .order("closed_at", { ascending: false })
-    .limit(limite);
-  if (error) throw error;
-  return (data ?? []) as unknown as Position[];
+    .limit(limite));
 }
 
 /** Memes positions, cote simulation a capital virtuel (voir run_demo.py). */
 export async function positionsOuvertesDemo(): Promise<Position[]> {
-  const { data, error } = await supabase
+  return lirePositions((colonnes) => supabase
     .from("signals")
-    .select(COLONNES_POSITION)
+    .select(colonnes)
     .eq("status", "active")
     .eq("is_demo", true)
     .not("published_at", "is", null)
-    .order("published_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as unknown as Position[];
+    .order("published_at", { ascending: false }));
 }
 
 export async function historiqueDemo(limite = 100): Promise<Position[]> {
@@ -101,16 +155,14 @@ export async function historiqueDemo(limite = 100): Promise<Position[]> {
   // sont les 20 positions neutralisees A LA MAIN le 18 sept. pendant la
   // fuite (voir fuite-signals-app). Ce ne sont pas des trades, et elles
   // noieraient les vrais resultats sous des lignes sans chiffre.
-  const { data, error } = await supabase
+  return lirePositions((colonnes) => supabase
     .from("signals")
-    .select(COLONNES_POSITION)
+    .select(colonnes)
     .in("status", ["closed_tp", "closed_sl"])
     .eq("is_demo", true)
     .not("published_at", "is", null)
     .order("closed_at", { ascending: false })
-    .limit(limite);
-  if (error) throw error;
-  return (data ?? []) as unknown as Position[];
+    .limit(limite));
 }
 
 /** Les 40 trades de preuve + objectifs -- table privee, reservee admin.
@@ -175,10 +227,8 @@ export async function alertesDemo(limite = 100): Promise<Alerte[]> {
   return (data ?? []) as unknown as Alerte[];
 }
 
-/** L'etage de pyramide d'une position : 1 = position d'origine, 2 et
- *  au-dela = renforts ajoutes quand elle etait deja a l'abri. */
-export function etagePyramide(p: Position): number {
-  const fin = (p.reference ?? "").split(":").pop();
-  const n = Number.parseInt(fin ?? "", 10);
-  return Number.isFinite(n) && n > 0 ? n : 1;
-}
+// `etagePyramide` vit dans `composants/positionsTri` avec le reste du
+// calcul pur : il y etait recopie a l'identique, et deux definitions de
+// la meme regle finissent toujours par diverger. Reexporte ici pour que
+// les appelants historiques n'aient rien a changer.
+export { etagePyramide } from "../composants/positionsTri";

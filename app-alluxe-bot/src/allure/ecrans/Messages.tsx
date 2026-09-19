@@ -105,7 +105,7 @@ function EcranFil({ correspondantId, pseudo, onRetour }: {
             return (
               <View style={{
                 alignSelf: deMoi ? "flex-end" : "flex-start",
-                backgroundColor: deMoi ? c.jaune : c.creux,
+                backgroundColor: deMoi ? c.jauneAplat : c.creux,
                 borderRadius: rayon.m, paddingHorizontal: espace.m,
                 paddingVertical: espace.s, marginVertical: 4,
                 maxWidth: "80%",

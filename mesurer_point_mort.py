@@ -78,6 +78,12 @@ def principal() -> int:
         "par_etage": {k: {"n": v["n"], "profit": round(v["profit"], 2)}
                       for k, v in sorted(etages.items())},
         "secondes": round(time.time() - t0),
+        # Les profits un par un : sans eux impossible de savoir si un
+        # ecart entre deux reglages depasse le hasard. Cette strategie
+        # vit de quelques trades enormes, donc la moyenne bouge
+        # beaucoup pour rien -- c'est exactement le cas ou il faut
+        # calculer l'incertitude au lieu de lire le classement.
+        "profits": [round(t.profit, 4) for t in trades],
     }
     print(f"  point mort {args.valeur:>4.1f} R : {len(trades):>4} trades, "
           f"{perdantes:>4} perdantes ({ligne['pct_perdantes']:>4.1f} %), "

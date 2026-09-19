@@ -9,89 +9,30 @@
  * negatif en euro, en direct, pas toutes les 10 secondes". Voir
  * `useSuiviPositions` (Realtime pour la liste, prix Bitvavo en direct
  * pour le calcul) et `resultatEnDirect` (le calcul lui-meme).
+ *
+ * LA LIGNE DE POSITION ET LE TRI VIVENT DANS `composants/ListePositions`,
+ * partages avec l'onglet Demo. Demande de l'operateur le 19 sept. : « tu
+ * fais le mode demo et reel identiques, si je fais une modif sur l'un ca
+ * la fait sur l'autre ». Deux copies ne resteraient pas identiques
+ * longtemps ; un seul code, si.
  */
 import React from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { EtatCapital, Position, etagePyramide, etatCapital } from "../services/robot";
+import { EtatCapital, etatCapital } from "../services/robot";
 import { useSuiviPositions } from "../services/suiviPositions";
-import { euros, miseConseillee, nomCrypto, pourcent, resultatEnDirect }
-  from "../services/format";
-import { espace, rayon } from "../theme";
+import { euros, pourcent } from "../services/format";
+import { espace } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
+import { BarreDeTri, LignePosition, Tri, trier } from "../composants/ListePositions";
 
-function LignePositionDirecte({ p, capital, prixActuel }: {
-  p: Position; capital: number; prixActuel: number | undefined;
-}) {
-  const c = useCouleurs();
-
-  if (prixActuel == null) {
-    return (
-      <View style={{
-        flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-        backgroundColor: c.surface, borderRadius: rayon.l,
-        paddingVertical: espace.m, paddingHorizontal: espace.l, marginBottom: espace.s,
-      }}>
-        <T v="sousTitre">{nomCrypto(p.pair)}</T>
-        <T v="petit" couleur={c.encreDouce}>cotation...</T>
-      </View>
-    );
-  }
-
-  const { pctPrix, eur } = resultatEnDirect(
-    p.entry_price, p.stop_loss, prixActuel, p.side, p.position_size_pct ?? 0,
-    p.capital_eur ?? capital,
-  );
-  const positif = eur >= 0;
-  const couleur = positif ? c.gain : c.perte;
-  // La MISE, en euros : ce que la position engage reellement. Le robot ne
-  // publie que le RISQUE en pourcentage -- la somme engagee s'en deduit
-  // par la distance au stop (voir miseConseillee).
-  // Le capital FIGE a l'ouverture, pas le capital courant : sinon la
-  // mise d'une position ouverte a 500 EUR, relue avec 3 300, serait
-  // 6,6 fois trop grosse.
-  const capitalOuverture = p.capital_eur ?? capital;
-  const mise = miseConseillee(p.entry_price, p.stop_loss,
-                              p.position_size_pct ?? 0, capitalOuverture);
-  const etage = etagePyramide(p);
-
-  return (
-    <View style={{
-      flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-      backgroundColor: c.surface, borderRadius: rayon.l,
-      paddingVertical: espace.m, paddingHorizontal: espace.l, marginBottom: espace.s,
-    }}>
-      <View>
-        <T v="sousTitre">{nomCrypto(p.pair)}</T>
-        <T v="petit" couleur={c.encreDouce}>{p.side === "buy" ? "Achat" : "Vente"}</T>
-        <View style={{ flexDirection: "row", alignItems: "center",
-                       marginTop: espace.xs }}>
-          <T v="petit" couleur={c.encreDouce}>
-            {mise > 0 ? `${euros(mise)} misés` : "mise inconnue"}
-          </T>
-          {/* L'etage s'affiche TOUJOURS, meme au premier. Il n'apparaissait
-              au depart qu'a partir du 2e -- or toutes les positions sont au
-              1er tant que le pyramidage ne s'est pas declenche, donc
-              l'information n'etait jamais visible. Demande explicite de
-              l'operateur : "je ne vois toujours pas les etages 1 ou 2 ou 3". */}
-          <T v="petit" couleur={etage > 1 ? c.jaune : c.encreDouce}>
-            {" · étage " + etage}
-          </T>
-        </View>
-      </View>
-      <View style={{ alignItems: "flex-end" }}>
-        <T v="chiffre" couleur={couleur}>{euros(eur)}</T>
-        <T v="petit" couleur={couleur}>{pourcent(pctPrix)}</T>
-      </View>
-    </View>
-  );
-}
-
-export function EcranDirect() {
+export function EcranDirect({ navigation }: { navigation?: any }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
   const [capitalEtat, setCapitalEtat] = React.useState<EtatCapital | null>(null);
   const [rafraichit, setRafraichit] = React.useState(false);
+  const [tri, setTri] = React.useState<Tri>("gain");
+  const [descendant, setDescendant] = React.useState(true);
   const { positions, capital, prixLive, erreur, rafraichir } = useSuiviPositions(false, 0);
 
   React.useEffect(() => {
@@ -103,6 +44,11 @@ export function EcranDirect() {
     await Promise.all([rafraichir(), etatCapital().then(setCapitalEtat).catch(() => {})]);
     setRafraichit(false);
   };
+
+  const ordonnees = React.useMemo(
+    () => (positions ? trier(positions, tri, descendant, capital, prixLive) : null),
+    [positions, tri, descendant, capital, prixLive],
+  );
 
   return (
     <ScrollView
@@ -137,16 +83,23 @@ export function EcranDirect() {
         Positions en cours {positions ? `(${positions.length})` : ""}
       </T>
       {!!erreur && <T v="petit" couleur={c.perte}>{erreur}</T>}
-      {positions === null ? (
+      {ordonnees === null ? (
         <Chargement />
-      ) : positions.length === 0 ? (
+      ) : ordonnees.length === 0 ? (
         <Vide titre="Aucune position ouverte"
               detail="Le robot attend une occasion qui passe ses filtres." />
       ) : (
-        positions.map((p) => (
-          <LignePositionDirecte key={p.id} p={p} capital={capital}
-                                 prixActuel={prixLive[p.pair]} />
-        ))
+        <>
+          <BarreDeTri tri={tri} descendant={descendant}
+                      surChangement={(t, d) => { setTri(t); setDescendant(d); }} />
+          {ordonnees.map((p) => (
+            <LignePosition key={p.id} p={p} capital={capital}
+                           prixActuel={prixLive[p.pair]}
+                           surAppui={navigation ? () => navigation.navigate("Position", {
+                             position: p, capital, mode: "Réel",
+                           }) : undefined} />
+          ))}
+        </>
       )}
     </ScrollView>
   );

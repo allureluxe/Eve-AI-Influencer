@@ -68,7 +68,7 @@ function BoutonSection({ section, onPress }: {
     >
       <View style={{
         width: 56, height: 56, borderRadius: rayon.m,
-        backgroundColor: c.jaune, alignItems: "center", justifyContent: "center",
+        backgroundColor: c.jauneAplat, alignItems: "center", justifyContent: "center",
         marginRight: espace.l,
       }}>
         <Ionicons name={section.icone} size={28} color={c.surJaune} />
@@ -110,7 +110,7 @@ function ChoixTheme() {
             flexDirection: "row", alignItems: "center", gap: 6,
             paddingVertical: espace.s, paddingHorizontal: espace.m,
             borderRadius: rayon.s,
-            backgroundColor: actif ? c.jaune : c.creux,
+            backgroundColor: actif ? c.jauneAplat : c.creux,
           }}>
             <Ionicons name={o.icone} size={15}
                       color={actif ? c.surJaune : c.encreDouce} />

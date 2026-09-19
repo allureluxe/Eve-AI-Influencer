@@ -50,6 +50,26 @@ interface Palette {
 
   /** LE JAUNE ALLURE. Accent, selections, elements actifs. */
   jaune: string;
+  /**
+   * LE MEME JAUNE, POUR LES GRANDES SURFACES.
+   *
+   * `jaune` vaut #FCFF00, mesure au pixel dans le logo : saturation
+   * 100 %, luminosite 98 %, le jaune le plus lumineux qui existe. Sur un
+   * embleme entoure d'autre chose, il claque — c'est ce qu'on veut.
+   * Etale en aplat (pastille d'onglet, gros bouton, bulle de
+   * conversation), et surtout en theme sombre, il eblouit.
+   *
+   * Retour de l'operateur le 19 sept. : « les couleurs jaunes de
+   * l'application sont plus flashy que sur le logo, ca attaque les
+   * yeux ». La mesure dit pourtant que les deux couleurs sont
+   * IDENTIQUES — ce qui differe est la surface couverte.
+   *
+   * Regle : `jaune` pour le logo, les traits fins et les petits
+   * reperes ; `jauneAplat` des qu'une zone pleine depasse la taille
+   * d'une icone. Ne jamais toucher a `jaune` : c'est la marque, et
+   * l'operateur a deja demande le 14 sept. qu'elle colle au dessin.
+   */
+  jauneAplat: string;
   /** Le jaune tres pale, pour un fond d'element mis en avant. */
   jaunePale: string;
   /** L'olive : du texte lisible POSE SUR le jaune. */
@@ -79,6 +99,10 @@ const CLAIR: Palette = {
   // dessin : « je veux que les couleurs de l'appli soient avec ces
   // couleurs, ce que je ne vois toujours pas ».
   jaune: "#FCFF00",
+  // Un cran de saturation en moins, un cran de profondeur en plus. Assez
+  // proche pour rester la meme couleur de marque, assez calme pour
+  // couvrir un bouton entier sans fatiguer.
+  jauneAplat: "#EDEF3A",
   jaunePale: "#FDFFD0",
   olive: "#5C570C",
   surJaune: "#15150F",
@@ -114,6 +138,9 @@ const SOMBRE: Palette = {
   encrePale: "#77776B",
 
   jaune: "#FCFF00",
+  // Plus sourd encore que sur fond clair : c'est la nuit, sur un fond
+  // presque noir, qu'un aplat de #FCFF00 fait le plus mal aux yeux.
+  jauneAplat: "#D6D93A",
   jaunePale: "#2E2C10",
   olive: "#D6CE5A",
   surJaune: "#15150F",

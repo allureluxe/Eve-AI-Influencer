@@ -41,6 +41,7 @@ import { EcranVerification } from "./src/ecrans/Verification";
 import { EcranAccueil } from "./src/ecrans/Accueil";
 import { EcranDirect } from "./src/ecrans/Direct";
 import { EcranDemo } from "./src/ecrans/Demo";
+import { EcranPosition } from "./src/ecrans/Position";
 import { EcranHistorique } from "./src/ecrans/Historique";
 import { EcranObjectifs } from "./src/ecrans/Objectifs";
 import { EcranAlertes } from "./src/ecrans/Alertes";
@@ -112,7 +113,7 @@ function IconeOnglet({ icones, route, actif }: {
     <View style={{
       width: 40, height: 28, borderRadius: 14,
       alignItems: "center", justifyContent: "center",
-      backgroundColor: actif ? c.jaune : "transparent",
+      backgroundColor: actif ? c.jauneAplat : "transparent",
     }}>
       <Ionicons
         name={icones[route] ?? "ellipse-outline"}
@@ -153,8 +154,15 @@ function NavigationAlluxbot() {
   const c = useCouleurs();
   return (
     <OngletsAlluxbot.Navigator screenOptions={optionsOnglets(c, ICONES_ALLUXBOT)}>
-      <OngletsAlluxbot.Screen name="Direct" component={EcranDirect} />
-      <OngletsAlluxbot.Screen name="Demo" component={EcranDemo} />
+      {/* `navigation` est transmis explicitement : c'est lui qui ouvre
+          l'ecran de detail, declare sur la pile RACINE. Un onglet
+          imbrique y remonte tout seul. */}
+      <OngletsAlluxbot.Screen name="Direct">
+        {({ navigation }) => <EcranDirect navigation={navigation} />}
+      </OngletsAlluxbot.Screen>
+      <OngletsAlluxbot.Screen name="Demo">
+        {({ navigation }) => <EcranDemo navigation={navigation} />}
+      </OngletsAlluxbot.Screen>
       <OngletsAlluxbot.Screen name="Historique" component={EcranHistorique} />
       <OngletsAlluxbot.Screen name="Objectifs" component={EcranObjectifs} />
       <OngletsAlluxbot.Screen name="Alertes" component={EcranAlertes} />
@@ -262,6 +270,12 @@ function Navigation() {
           {() => <NavigationAllure email={email} />}
         </Pile.Screen>
         <Pile.Screen name="Luna" component={EcranLuna}
+          options={{
+            headerShown: true, headerTransparent: true, headerTitle: "",
+            headerTintColor: c.encre, headerShadowVisible: false,
+            headerBackTitleVisible: false,
+          }} />
+        <Pile.Screen name="Position" component={EcranPosition}
           options={{
             headerShown: true, headerTransparent: true, headerTitle: "",
             headerTintColor: c.encre, headerShadowVisible: false,

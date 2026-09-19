@@ -285,6 +285,12 @@ class SignalPublie:
     #: fausse des qu'un depot ou un retrait a lieu (facteur 6,6 entre une
     #: demo a 500 EUR relue a 3 300). Fige a la publication.
     capital_eur: Optional[float] = None
+    #: Quantite reellement achetee, en unites de la crypto. Le seul champ
+    #: qui dise « combien j'en ai » : `position_size_pct` est un
+    #: pourcentage de RISQUE, et la mise en euros s'en deduit par la
+    #: distance au stop. Aucun des deux ne donne le nombre d'unites, que
+    #: l'operateur a demande de voir (« la quantite de lot »).
+    volume: Optional[float] = None
     conviction: Optional[int] = None
     rationale: str = ""
     status: str = "active"
@@ -321,6 +327,12 @@ class SignalPublie:
             corps["position_size_pct"] = round(self.position_size_pct, 3)
         if self.capital_eur is not None:
             corps["capital_eur"] = round(self.capital_eur, 2)
+        if self.volume is not None:
+            # Pas d'arrondi serre : le PEPE se compte en millions
+            # d'unites et le BTC en millionnemes. Un arrondi unique
+            # serait faux a l'une des deux extremites -- c'est l'erreur
+            # que ce depot a deja payee avec `max_spread = 30`.
+            corps["volume"] = float(self.volume)
         return corps
 
 
@@ -473,6 +485,28 @@ class SignalPublisher:
             "corps": corps,
         })
 
+    def publier_suivi(self, reference: str, stop_loss_actuel: float) -> bool:
+        """Met a jour le stop SUIVEUR d'une position deja publiee.
+
+        `stop_loss` n'est jamais touche : c'est le stop d'OUVERTURE, et
+        tout le calcul du R en depend. L'application affichait donc
+        depuis toujours la protection d'origine en croyant montrer
+        l'actuelle -- alors que c'est justement quand le suiveur a
+        remonte au-dessus du prix d'achat que la position ne peut plus
+        perdre, l'information la plus utile de l'ecran.
+
+        Ne leve jamais : l'affichage ne doit pas pouvoir faire echouer la
+        gestion d'une position reelle.
+        """
+        if not self.actif:
+            return False
+        return self._envoyer({
+            "type": "suivi",
+            "table": "signals",
+            "filtre": f"reference=eq.{reference}",
+            "corps": {"stop_loss_actuel": float(stop_loss_actuel)},
+        })
+
     def publier_cloture(self, reference: str, status: str,
                         closed_at: float, result_pct: float) -> bool:
         """Ferme un signal deja publie. Seule modification autorisee."""
@@ -548,6 +582,23 @@ class SignalPublisher:
 
     def _empiler(self, tache: Dict[str, Any]) -> None:
         with self._verrou:
+            # UN SUIVI PERIME N'A AUCUNE VALEUR, et il est dangereux.
+            #
+            # Seul le DERNIER stop compte : rejouer les dix precedents ne
+            # ferait qu'ecrire dix fois la meme colonne, dans l'ordre, pour
+            # finir sur la meme valeur. Mais surtout, la file jette les
+            # plus ANCIENNES quand elle deborde -- donc un Supabase muet
+            # pendant que vingt stops suiveurs remontent aurait chasse les
+            # ouvertures et les clotures en attente, c'est-a-dire les deux
+            # seules publications qu'on ne peut pas reconstituer.
+            #
+            # On remplace donc le suivi en attente sur la meme ligne au
+            # lieu d'en empiler un second. La file reste bornee par le
+            # nombre de positions ouvertes, quoi qu'il arrive.
+            if tache.get("type") == "suivi":
+                self._file = [t for t in self._file
+                              if not (t.get("type") == "suivi"
+                                      and t.get("filtre") == tache.get("filtre"))]
             self._file.append(tache)
             if len(self._file) > FILE_MAX:
                 jetees = len(self._file) - FILE_MAX

@@ -254,7 +254,7 @@ export function Bouton({ titre, onPress, variante = "plein", desactive }: {
       style={({ pressed }) => ({
         // LE BOUTON PLEIN EST JAUNE ALLURE, texte encre dessus. C'est
         // l'element le plus reconnaissable de la charte.
-        backgroundColor: plein ? c.jaune : "transparent",
+        backgroundColor: plein ? c.jauneAplat : "transparent",
         borderColor: variante === "contour" ? c.filet : "transparent",
         borderWidth: variante === "contour" ? TRAIT : 0,
         borderRadius: rayon.s,

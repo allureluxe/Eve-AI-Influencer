@@ -6,6 +6,21 @@ robot.json
 
 # Secrets
 .env
+# TOUTE variante de .env, pas seulement le fichier lui-meme.
+#
+# Chaque changement de cle laisse une sauvegarde derriere lui
+# (`.env.avant-jeton-supabase`, `.env.bak.20260827-194850`...). Elles
+# portent les MEMES secrets que `.env` -- cles Bitvavo, Supabase, Meta --
+# et seule la ligne `.env` ci-dessus etait ignoree : elles apparaissaient
+# donc comme des fichiers non suivis, prets a etre ramasses par le
+# premier `git add -A`.
+#
+# C'est arrive le 19 septembre. Seule la protection de GitHub a arrete la
+# poussee, ce qui veut dire que le seul garde-fou etait chez quelqu'un
+# d'autre. Celui-ci est chez nous.
+.env.*
+!.env.example
+
 
 # Python
 __pycache__/

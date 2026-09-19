@@ -40,7 +40,7 @@ export function Segments<T extends string>({ options, choisi, onChoisir }: {
             onPress={() => onChoisir(cle)}
             style={{
               flex: 1, textAlign: "center", overflow: "hidden",
-              backgroundColor: actif ? c.jaune : "transparent",
+              backgroundColor: actif ? c.jauneAplat : "transparent",
               borderWidth: TRAIT,
               borderColor: actif ? c.jaune : c.filetDoux,
               borderRadius: rayon.s,

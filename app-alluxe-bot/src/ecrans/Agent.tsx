@@ -245,7 +245,7 @@ function Bulle({ m }: { m: Message }) {
   return (
     <View style={{
       alignSelf: deLui ? "flex-end" : "flex-start",
-      backgroundColor: deLui ? c.jaune : c.surface,
+      backgroundColor: deLui ? c.jauneAplat : c.surface,
       borderRadius: rayon.l, borderBottomRightRadius: deLui ? rayon.s : rayon.l,
       borderBottomLeftRadius: deLui ? rayon.l : rayon.s,
       paddingVertical: espace.m, paddingHorizontal: espace.l,
@@ -561,7 +561,7 @@ export function EcranAgent() {
       <Pressable onPress={ouvrirConversation} style={{
         flexDirection: "row", alignItems: "center", justifyContent: "center",
         gap: espace.xs,
-        backgroundColor: conversationOuverte ? c.jaune : c.creux,
+        backgroundColor: conversationOuverte ? c.jauneAplat : c.creux,
         borderRadius: rayon.s, paddingVertical: espace.m,
         marginHorizontal: espace.l, marginBottom: espace.m,
       }}>
@@ -647,7 +647,7 @@ export function EcranAgent() {
           onPress={surEnvoyer}
           disabled={envoi || !texte.trim()}
           style={{
-            width: 44, height: 44, borderRadius: rayon.s, backgroundColor: c.jaune,
+            width: 44, height: 44, borderRadius: rayon.s, backgroundColor: c.jauneAplat,
             alignItems: "center", justifyContent: "center",
             opacity: envoi || !texte.trim() ? 0.4 : 1,
           }}
