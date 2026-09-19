@@ -14,6 +14,15 @@
  * (expo-speech). Un bouton micro permet aussi de dicter a la demande,
  * sans etre passe par le mot de reveil.
  *
+ * CONVERSATION, PAS DICTEE (19 sept.). L'operateur : "si j'enregistre un
+ * message ca marche, mais avoir une conversation ca marche pas". Le micro,
+ * la reconnaissance et l'envoi fonctionnaient donc -- le defaut etait la
+ * REGLE : il fallait redire "Alluxe" avant chaque phrase. Le mot de
+ * reveil n'ouvre plus que l'echange ; pendant 90 s apres chaque reponse,
+ * tout ce qui est dit part directement, et chaque phrase relance le
+ * compte a rebours. Passe ce delai, il faut rappeler son nom -- sinon une
+ * conversation tenue a cote du telephone finirait envoyee.
+ *
  * ECOUTE EN CONTINU AJOUTEE (18 sept.) : repli gratuit au reveil vocal
  * pour l'operateur qui n'a pas pu creer de compte Picovoice (leur
  * inscription exige un e-mail "professionnel", refuse Gmail/Yahoo/
@@ -200,6 +209,22 @@ export function EcranAgent() {
   // comportent pas pareil (l'une envoie tout, l'autre filtre sur "Alluxe").
   const modeEcouteRef = React.useRef<"unique" | "continu" | null>(null);
   const ecouteContinueRef = React.useRef(false);
+  // CONVERSATION OUVERTE.
+  //
+  // Retour de l'operateur le 19 sept. : "si j'enregistre un message ca
+  // marche, mais avoir une conversation ca marche pas". La dictee
+  // fonctionnait donc (micro, reconnaissance, envoi), et le defaut etait
+  // ailleurs : il fallait redire "Alluxe" AVANT CHAQUE PHRASE. Ce n'est
+  // pas une conversation, c'est une suite d'ordres.
+  //
+  // Desormais le mot de reveil n'est exige que pour OUVRIR l'echange.
+  // Pendant les 90 s qui suivent chaque reponse, tout ce qui est dit part
+  // directement -- comme quand on parle a quelqu'un. Passe ce delai sans
+  // rien dire, il faut de nouveau l'appeler : sans cette fermeture, une
+  // conversation tenue a cote du telephone finirait envoyee.
+  const [conversationOuverte, setConversationOuverte] = React.useState(false);
+  const ouverteJusqua = React.useRef(0);
+  const DUREE_CONVERSATION_MS = 90_000;
   React.useEffect(() => { ecouteContinueRef.current = ecouteContinue; }, [ecouteContinue]);
 
   const charger = React.useCallback(async () => {
@@ -290,6 +315,8 @@ export function EcranAgent() {
   const basculerEcouteContinue = React.useCallback(() => {
     if (ecouteContinue) {
       setEcouteContinue(false);
+      setConversationOuverte(false);
+      ouverteJusqua.current = 0;
       if (modeEcouteRef.current === "continu") ExpoSpeechRecognitionModule.stop();
     } else {
       setEcouteContinue(true);
@@ -302,10 +329,22 @@ export function EcranAgent() {
     if (!e.isFinal || !transcription) return;
     setDernierEntendu(transcription);
     if (modeEcouteRef.current === "continu") {
-      const question = _apresAlluxe(transcription);
-      if (question === null) return; // pas de "Alluxe" entendu -- ignore, jamais envoye
-      if (question) envoyer(question);
-      else parler("Oui, Monsieur ?"); // mot seul, sans question derriere
+      const apres = _apresAlluxe(transcription);
+      const encoreOuverte = Date.now() < ouverteJusqua.current;
+
+      if (apres === null && !encoreOuverte) return; // ni "Alluxe", ni echange en cours
+
+      // Tout ce qui est dit relance le compte a rebours : on ne coupe pas
+      // quelqu'un qui reflechit entre deux phrases.
+      ouverteJusqua.current = Date.now() + DUREE_CONVERSATION_MS;
+      setConversationOuverte(true);
+      setTimeout(() => {
+        if (Date.now() >= ouverteJusqua.current) setConversationOuverte(false);
+      }, DUREE_CONVERSATION_MS + 500);
+
+      const question = apres === null ? transcription : apres;
+      if (question.trim()) envoyer(question.trim());
+      else parler("Oui, Monsieur ?"); // il a dit son nom, sans rien derriere
       return;
     }
     setTexte("");
@@ -379,12 +418,18 @@ export function EcranAgent() {
         marginHorizontal: espace.l, marginBottom: espace.m,
       }}>
         <T v="petit" style={{ flex: 1, marginRight: espace.s }}>
-          {ecouteContinue
-            ? "Ecoute en continu : active -- dis \"Alluxe, ...\""
-            : "Ecoute en continu sur cet ecran (sans reveil vocal)"}
+          {!ecouteContinue
+            ? "Ecoute en continu sur cet ecran (sans reveil vocal)"
+            : conversationOuverte
+              ? "Je vous ecoute, Monsieur -- parlez normalement"
+              : "Appelez-moi : dites \"Alluxe\""}
         </T>
-        <Ionicons name={ecouteContinue ? "ear" : "ear-outline"}
-                  size={18} color={ecouteContinue ? c.gain : c.encrePale} />
+        <Ionicons
+          name={conversationOuverte ? "chatbubbles"
+                : ecouteContinue ? "ear" : "ear-outline"}
+          size={18}
+          color={conversationOuverte ? c.gain
+                 : ecouteContinue ? c.jaune : c.encrePale} />
       </Pressable>
 
       {/* CE QUE LE TELEPHONE A VRAIMENT ENTENDU.
