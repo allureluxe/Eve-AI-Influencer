@@ -97,6 +97,33 @@ class RiskConfig:
     pyramide_locked_r_min: float = 0.05    # stop de l'etage precedent, en R
     pyramide_fraction_risque: float = 0.6  # chaque etage risque moins que le precedent
 
+    # PART DU BUDGET DE RISQUE RESERVEE AUX RENFORCEMENTS.
+    #
+    # Une nouvelle ligne et un etage de pyramide puisaient dans la meme
+    # enveloppe, premier arrive premier servi. Or ils ne valent pas la
+    # meme chose, et l'ecart est enorme — mesure le 19 septembre sur
+    # 55 paires et 900 bougies, frais reels :
+    #
+    #     1 etage    400 trades    -2 295 EUR     -5,74 EUR par trade
+    #     2 etages   112 trades      +954 EUR     +8,52 EUR
+    #     3 etages    45 trades    +1 500 EUR    +33,32 EUR
+    #     4 etages    16 trades      +935 EUR    +58,45 EUR
+    #     5 etages     7 trades      +748 EUR   +106,86 EUR
+    #     7 etages     1 trade       +405 EUR   +404,55 EUR
+    #
+    # Le robot depensait donc tout son budget sur la seule categorie qui
+    # perd, et n'avait plus rien pour renforcer celles qui gagnent. Sur
+    # la demo du 19 sept. : 165,07 EUR engages pour 165,00 autorises, et
+    # « risque total deja engage (5,00 %) » a chaque cycle.
+    #
+    # Ce reglage met de cote une part du budget que SEUL un renforcement
+    # peut utiliser. A zero, rien ne change.
+    #
+    # Ce qu'il coute, et il faut le savoir : moins de budget pour les
+    # nouvelles lignes, donc moins de cryptos differentes en portefeuille
+    # — plus de concentration sur celles qui marchent deja.
+    reserve_pyramide_pct: float = 0.0
+
     # ESPACEMENT ENTRE ETAGES, en ATR (regle Turtle : « +1 unite tous les
     # 0,5 N »). A zero, aucune distance n'est exigee et deux etages peuvent
     # s'ouvrir sur la meme bougie — ce qui n'est pas du renforcement, c'est
@@ -834,10 +861,26 @@ class RiskManager:
             factors.append(f"etage {etages + 1} de la pyramide (x{attenuation:.2f})")
 
         # Le risque deja engage plafonne le risque du nouveau trade.
+        #
+        # DEUX PLAFONDS, PAS UN. Une nouvelle ligne s'arrete avant la
+        # reserve ; un etage de pyramide a droit au budget entier. Voir
+        # `reserve_pyramide_pct` pour les chiffres qui justifient l'ecart.
         already = self.open_risk_pct(positions, lookup)
-        room = cfg.max_total_risk_pct - already
+        plafond = cfg.max_total_risk_pct
+        reserve = max(0.0, float(getattr(cfg, "reserve_pyramide_pct", 0.0)))
+        if reserve > 0 and not etages:
+            # Jamais sous le risque d'un seul trade : une reserve trop
+            # grosse bloquerait toute premiere entree, donc plus aucune
+            # pyramide ne pourrait naitre. Elle se mordrait la queue.
+            plafond = max(cfg.base_risk_pct, cfg.max_total_risk_pct - reserve)
+        room = plafond - already
         if room <= 0.05:
-            return SizingDecision(False, reason=f"risque total deja engage ({already:.2f}%)")
+            motif = ("budget des nouvelles lignes epuise "
+                     f"({already:.2f}% engage, plafond {plafond:.2f}% — "
+                     f"{reserve:.2f}% reserve aux renforcements)"
+                     if reserve > 0 and not etages
+                     else f"risque total deja engage ({already:.2f}%)")
+            return SizingDecision(False, reason=motif)
         if risk_pct > room:
             risk_pct = room
             factors.append(f"limite par le risque total restant ({room:.2f}%)")
