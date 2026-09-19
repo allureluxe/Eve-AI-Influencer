@@ -3,7 +3,7 @@
   "_note": "Cree le 18 sept. a la demande de l'operateur : simuler la strategie D1 Turtle avec 500 EUR virtuels, sur les VRAIES cotations Bitvavo en direct, avant de deposer les 500 EUR reels. Memes reglages strategie/risque/trade que robot.bitvavo.json -- seul le lieu d'execution change (paper au lieu de bitvavo). univers_dynamique_bitvavo=true pour scanner le meme univers ~215 cryptos que le robot reel (voir gold_bot/engine.py, ce reglage est desactive par defaut partout ailleurs pour ne jamais faire d'appel reseau dans les tests).",
   "engine": {
     "broker": "paper",
-    "start_balance": 500.0,
+    "start_balance": 3300.0,
     "currency": "EUR",
     "univers_dynamique_bitvavo": true,
     "dry_run": true,

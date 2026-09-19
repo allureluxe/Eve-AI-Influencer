@@ -1389,6 +1389,9 @@ class TradingEngine:
                 risk_reward=calculer_risk_reward(
                     pos.entry_price, pos.stop_loss, pos.take_profit),
                 position_size_pct=float(sizing.risk_pct),
+                # Fige le capital du moment : la ligne gardera son sens
+                # meme apres un depot ou un retrait.
+                capital_eur=float(getattr(self.broker.account(), "equity", 0.0) or 0.0),
                 conviction=conviction_depuis_score(float(ev.score)),
                 rationale=rediger_rationale(
                     paire, canal, etage=etage, graine=f"{pos.id}:{etage}",

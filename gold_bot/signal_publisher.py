@@ -279,6 +279,12 @@ class SignalPublie:
     #: (`perteMax` dans format.ts) ; l'interpreter comme une mise
     #: afficherait un chiffre trente fois trop grand.
     position_size_pct: Optional[float] = None
+    #: Capital du compte AU MOMENT DE L'OUVERTURE. `position_size_pct`
+    #: n'en est qu'un pourcentage : sans cette valeur, l'application
+    #: recalcule la mise avec le capital COURANT, et toute ligne devient
+    #: fausse des qu'un depot ou un retrait a lieu (facteur 6,6 entre une
+    #: demo a 500 EUR relue a 3 300). Fige a la publication.
+    capital_eur: Optional[float] = None
     conviction: Optional[int] = None
     rationale: str = ""
     status: str = "active"
@@ -313,6 +319,8 @@ class SignalPublie:
             corps["risk_reward"] = round(self.risk_reward, 2)
         if self.position_size_pct is not None:
             corps["position_size_pct"] = round(self.position_size_pct, 3)
+        if self.capital_eur is not None:
+            corps["capital_eur"] = round(self.capital_eur, 2)
         return corps
 
 

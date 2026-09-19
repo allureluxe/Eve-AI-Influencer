@@ -39,15 +39,20 @@ function LignePositionDirecte({ p, capital, prixActuel }: {
   }
 
   const { pctPrix, eur } = resultatEnDirect(
-    p.entry_price, p.stop_loss, prixActuel, p.side, p.position_size_pct ?? 0, capital,
+    p.entry_price, p.stop_loss, prixActuel, p.side, p.position_size_pct ?? 0,
+    p.capital_eur ?? capital,
   );
   const positif = eur >= 0;
   const couleur = positif ? c.gain : c.perte;
   // La MISE, en euros : ce que la position engage reellement. Le robot ne
   // publie que le RISQUE en pourcentage -- la somme engagee s'en deduit
   // par la distance au stop (voir miseConseillee).
+  // Le capital FIGE a l'ouverture, pas le capital courant : sinon la
+  // mise d'une position ouverte a 500 EUR, relue avec 3 300, serait
+  // 6,6 fois trop grosse.
+  const capitalOuverture = p.capital_eur ?? capital;
   const mise = miseConseillee(p.entry_price, p.stop_loss,
-                              p.position_size_pct ?? 0, capital);
+                              p.position_size_pct ?? 0, capitalOuverture);
   const etage = etagePyramide(p);
 
   return (

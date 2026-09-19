@@ -21,7 +21,7 @@ function LigneHistorique({ p, capital }: { p: Position; capital: number }) {
   // Un "+2 %" ne dit rien tant qu'on ignore combien etait engage dessus.
   // Demande du 19 sept. : les montants en euros, comme partout ailleurs.
   const gain = gainEnEuros(p.entry_price, p.stop_loss, p.result_pct,
-                            p.position_size_pct, capital);
+                            p.position_size_pct, p.capital_eur ?? capital);
   const couleur = p.result_pct == null ? c.encreDouce : gagnant ? c.gain : c.perte;
   return (
     <View style={{

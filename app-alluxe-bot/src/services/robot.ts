@@ -27,6 +27,10 @@ export interface Position {
   take_profit_1: number | null;
   take_profit_2: number | null;
   position_size_pct: number | null;
+  /** Capital au moment de l'ouverture. `position_size_pct` n'en est
+   *  qu'un pourcentage : sans lui, la mise recalculee devient fausse des
+   *  qu'un depot a lieu. Nul sur les lignes d'avant le 19 sept. */
+  capital_eur: number | null;
   published_at: string;
   status: string;
   closed_at: string | null;
@@ -43,7 +47,7 @@ export async function etatCapital(): Promise<EtatCapital | null> {
   return data;
 }
 
-const COLONNES_POSITION = "id, reference, pair, side, entry_price, stop_loss, take_profit_1, take_profit_2, position_size_pct, published_at, status, closed_at, result_pct";
+const COLONNES_POSITION = "id, reference, capital_eur, pair, side, entry_price, stop_loss, take_profit_1, take_profit_2, position_size_pct, published_at, status, closed_at, result_pct";
 
 // `is_demo` est EXPLICITE sur chaque requete ci-dessous, jamais implicite
 // -- fuite du 18 sept. : la simulation a 500 EUR virtuels a publie ses

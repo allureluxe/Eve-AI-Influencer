@@ -20,9 +20,19 @@ import { euros, gainEnEuros, miseConseillee, nomCrypto, pourcent, quand,
 import { espace, rayon } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 
-// Capital de depart de la simulation (voir robot.demo.json, start_balance).
-// Aucune table ne le publie -- c'est une constante, pas un compte reel.
-const CAPITAL_DEMO_EUR = 500;
+// Capital de depart de la simulation (voir robot.demo.json,
+// start_balance). Aucune table ne le publie -- c'est une constante, pas
+// un compte reel.
+//
+// Porte de 500 a 3 300 EUR le 19 sept. au soir, pour une simulation de
+// 48 h a capital plus eleve demandee par l'operateur. Le depot ne doit
+// apparaitre NULLE PART comme un gain : `account_reference` et
+// `peak_equity` ont ete releves d'autant cote robot, sans quoi le
+// gestionnaire de risque aurait lu +560 % de performance.
+//
+// Ne sert plus qu'aux lignes anterieures au 19 sept. : chaque signal
+// publie porte desormais son propre `capital_eur`, fige a l'ouverture.
+const CAPITAL_DEMO_EUR = 3300;
 
 function LignePositionDemo({ p, capital, prixActuel }: {
   p: Position; capital: number; prixActuel: number | undefined;
@@ -43,15 +53,20 @@ function LignePositionDemo({ p, capital, prixActuel }: {
   }
 
   const { pctPrix, eur } = resultatEnDirect(
-    p.entry_price, p.stop_loss, prixActuel, p.side, p.position_size_pct ?? 0, capital,
+    p.entry_price, p.stop_loss, prixActuel, p.side, p.position_size_pct ?? 0,
+    p.capital_eur ?? capital,
   );
   const positif = eur >= 0;
   const couleur = positif ? c.gain : c.perte;
   // La MISE, en euros : ce que la position engage reellement. Le robot ne
   // publie que le RISQUE en pourcentage -- la somme engagee s'en deduit
   // par la distance au stop (voir miseConseillee).
+  // Le capital FIGE a l'ouverture, pas le capital courant : sinon la
+  // mise d'une position ouverte a 500 EUR, relue avec 3 300, serait
+  // 6,6 fois trop grosse.
+  const capitalOuverture = p.capital_eur ?? capital;
   const mise = miseConseillee(p.entry_price, p.stop_loss,
-                              p.position_size_pct ?? 0, capital);
+                              p.position_size_pct ?? 0, capitalOuverture);
   const etage = etagePyramide(p);
 
   return (
@@ -98,7 +113,7 @@ function LigneFermee({ p, capital }: { p: Position; capital: number }) {
   const c = useCouleurs();
   const gagnant = (p.result_pct ?? 0) > 0;
   const gain = gainEnEuros(p.entry_price, p.stop_loss, p.result_pct,
-                            p.position_size_pct, capital);
+                            p.position_size_pct, p.capital_eur ?? capital);
   const couleur = p.result_pct == null ? c.encreDouce : gagnant ? c.gain : c.perte;
   return (
     <View style={{
@@ -147,7 +162,8 @@ export function EcranDemo() {
       const prixActuel = prixLive[p.pair];
       if (prixActuel == null) return somme;
       return somme + resultatEnDirect(
-        p.entry_price, p.stop_loss, prixActuel, p.side, p.position_size_pct ?? 0, capital,
+        p.entry_price, p.stop_loss, prixActuel, p.side, p.position_size_pct ?? 0,
+        p.capital_eur ?? capital,
       ).eur;
     }, 0);
   }, [positions, prixLive, capital]);
@@ -167,7 +183,7 @@ export function EcranDemo() {
     if (!fermees) return 0;
     return fermees.reduce((somme, t) => {
       const g = gainEnEuros(t.entry_price, t.stop_loss, t.result_pct,
-                            t.position_size_pct, capital);
+                            t.position_size_pct, t.capital_eur ?? capital);
       return somme + (g ?? 0);
     }, 0);
   }, [fermees, capital]);
@@ -192,7 +208,7 @@ export function EcranDemo() {
       </View>
 
       <Carte accent style={{ marginBottom: espace.l, alignItems: "center" }}>
-        <T v="petit" couleur={c.encreDouce}>Capital virtuel (500 € de départ)</T>
+        <T v="petit" couleur={c.encreDouce}>Capital virtuel (3 300 € de départ)</T>
         <T v="titreGrand" style={{ marginTop: espace.xs }}>
           {euros(capital + gainRealise + gainTotal)}
         </T>
