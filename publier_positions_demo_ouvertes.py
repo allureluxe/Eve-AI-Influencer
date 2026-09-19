@@ -104,7 +104,20 @@ def main() -> int:
             continue
         paire = paire_lisible(meta["symbol"], "EUR")
         entree = float(meta["entry_price"])
-        stop = float(meta["stop_loss"])
+        # Le stop D'ORIGINE, pas le stop courant. Une ligne `signals`
+        # decrit le signal TEL QU'IL A ETE PUBLIE A L'OUVERTURE (le
+        # declencheur signals_immuables interdit d'ailleurs de le modifier
+        # ensuite), et c'est lui qui correspond au risque affiche.
+        #
+        # Deux raisons concretes, vues le 19 sept. en rattrapant :
+        # - OP etait gagnante, stop remonte AU-DESSUS du prix d'entree :
+        #   la base refuse la ligne (contrainte 23514, un achat ne peut pas
+        #   avoir son stop au-dessus de son entree).
+        # - le pourcentage de risque ci-dessous se calcule sur
+        #   `initial_risk` : prendre le stop courant ferait un ecart entre
+        #   la distance au stop et le risque annonce, donc un gain en euros
+        #   faux dans l'application.
+        stop = float(meta.get("initial_stop") or meta["stop_loss"])
         objectif = float(meta.get("take_profit") or 0) or None
 
         # Le risque en euros est EXACTEMENT ce que le simulateur a engage :
