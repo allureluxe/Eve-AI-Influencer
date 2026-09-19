@@ -132,12 +132,81 @@ class PaperBroker(Broker):
             take_profit=round(take_profit, instrument.digits),
             opened_at=tick.ts or time.time(), comment=comment,
         )
+
+        # UN SECOND ACHAT SUR LE MEME ACTIF EST UN ETAGE, PAS UNE 2e LIGNE.
+        #
+        # Au comptant, Bitvavo ne connait qu'un AVOIR par actif, jamais
+        # deux lignes : le vrai courtier fusionne donc (voir
+        # `bitvavo.py`, « le modele juste au comptant »). Le simulateur,
+        # lui, empilait des positions independantes.
+        #
+        # Ce n'etait pas un detail d'affichage. Constate le 19 septembre
+        # sur la demo : AVAX, NEO et OP portaient chacun DEUX lignes,
+        # la seconde achetee plus cher — du pyramidage manuel du livre —
+        # et toutes affichaient « etage 1 ». Trois consequences :
+        #
+        #   - l'application montrait « etage 1 » partout, et l'operateur
+        #     a demande pourquoi aucune position ne pyramidait ;
+        #   - la mesure « combien rapporte une position selon ses
+        #     etages » — celle qui a justifie le pyramidage illimite —
+        #     ne pouvait rendre QUE des etages 1, dans le rejeu comme en
+        #     demo. Elle etait donc inexploitable ;
+        #   - surtout, deux lignes = DEUX stops independants, quand le
+        #     vrai robot n'en a qu'un, pose sous la derniere unite et
+        #     couvrant tout l'avoir. La demo ne mesurait pas le risque
+        #     que le compte reel porterait.
+        #
+        # La demo doit vivre ce que le reel vivra, sur le mecanisme dont
+        # CLAUDE.md dit qu'il fait tout le benefice.
+        existante = next((p for p in self._positions.values()
+                          if p.symbol == instrument.symbol and p.side is side),
+                         None)
+        if existante is not None:
+            return self._fusionner(existante, pos, instrument)
+
         self._positions[pos.id] = pos
         self._instruments[instrument.symbol] = instrument
         logger.info("[SIMU] ouverture %s %s %.4f lots @ %.5f SL %.5f TP %.5f (frais %.2f)",
                     side.value, instrument.symbol, lots, pos.entry_price,
                     pos.stop_loss, pos.take_profit, cost)
         return pos
+
+    def _fusionner(self, existante: Position, ajout: Position,
+                   instrument: Instrument) -> Position:
+        """Ajoute un etage a une pyramide : meme calcul que le vrai courtier.
+
+        Toute divergence avec `bitvavo._fusionner` ferait mesurer a la
+        demo une autre mecanique que celle du compte reel — c'est
+        precisement ce que ce simulateur est cense eviter.
+        """
+        total = existante.volume + ajout.volume
+        moyenne = ((existante.entry_price * existante.volume
+                    + ajout.entry_price * ajout.volume) / total
+                   if total > 0 else existante.entry_price)
+        # Le stop ne DESCEND jamais : un etage pose plus haut remonte la
+        # protection de tout l'avoir, jamais l'inverse.
+        nouveau_stop = max(ajout.stop_loss, existante.stop_loss) \
+            if existante.side is Side.BUY \
+            else min(ajout.stop_loss, existante.stop_loss)
+        existante.volume = round(total, 10)
+        existante.entry_price = round(moyenne, instrument.digits)
+        existante.stop_loss = round(nouveau_stop, instrument.digits)
+        existante.take_profit = ajout.take_profit
+        existante.etages += 1
+        # Le prix de CETTE unite, pas la moyenne : c'est lui qui sert de
+        # reference au prochain espacement.
+        existante.derniere_entree = ajout.entry_price
+        # LE R DOIT SUIVRE LA POSITION, SINON TOUTES LES REGLES MENTENT :
+        # point mort a 0,7 R, suiveur a 1,1 R, stop temporel sous 0,4 R.
+        existante.initial_risk = abs(existante.entry_price - existante.stop_loss)
+        existante.breakeven_done = False
+        self._instruments[instrument.symbol] = instrument
+        logger.info("[SIMU] etage %d sur %s : %.4f lots @ %.5f "
+                    "-> moyenne %.5f, stop %.5f",
+                    existante.etages, existante.symbol, ajout.volume,
+                    ajout.entry_price, existante.entry_price,
+                    existante.stop_loss)
+        return existante
 
     def modify_position(self, position_id: str, stop_loss: Optional[float] = None,
                         take_profit: Optional[float] = None) -> bool:

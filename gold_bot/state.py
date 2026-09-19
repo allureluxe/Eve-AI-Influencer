@@ -41,6 +41,21 @@ class BotState:
     dernier_retrait_vu: float = 0.0
     halted: bool = False
     halt_reason: str = ""
+    # SOLDE DU SIMULATEUR — uniquement en mode `paper`.
+    #
+    # Le vrai courtier connait le solde : on le lui demande. Le simulateur,
+    # lui, repartait de `start_balance` a CHAQUE demarrage, effacant tous
+    # les gains et pertes deja encaisses. Tant que la demo ne redemarrait
+    # jamais, ca ne se voyait pas.
+    #
+    # Le 19 septembre, le robot demo a ete tue deux fois par manque de
+    # memoire en pleine simulation de 48 h — celle sur laquelle l'operateur
+    # decide son depot. Chaque mort remettait le compteur a 3 300 EUR. Un
+    # resultat qui s'efface tout seul ne mesure rien.
+    #
+    # Nul (None) tant qu'aucun solde n'a ete memorise : le simulateur garde
+    # alors son `start_balance`, comme avant.
+    solde_simule: float | None = None
 
 
 # Racine du projet : le dossier qui contient le paquet gold_bot.

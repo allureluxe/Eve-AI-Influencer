@@ -91,8 +91,8 @@ class TestLeBudgetDeRisqueEstVraimentPartage:
         registre = _RegistreFixe({"BTCUSD": serie, "ADAUSD": serie})
         config.risk.max_total_risk_pct = config.risk.base_risk_pct * 1.2
 
-        seul = BacktestPortefeuille(config, registry=registre).run(
-            ["BTCUSD"], bars=len(serie), start_balance=3300.0)
+        ada_seule = BacktestPortefeuille(config, registry=registre).run(
+            ["ADAUSD"], bars=len(serie), start_balance=3300.0)
         deux = BacktestPortefeuille(config, registry=registre).run(
             ["BTCUSD", "ADAUSD"], bars=len(serie), start_balance=3300.0)
 
@@ -101,16 +101,21 @@ class TestLeBudgetDeRisqueEstVraimentPartage:
                        for t in resultat.par_instrument[symbole].trades
                        if not t.partial)
 
-        assert engage(seul, "BTCUSD") > 0, "le scenario ne produit aucun trade"
         # LE BUDGET NE REFUSE PAS, IL RETRECIT.
         #
         # Tant qu'il reste plus de 0,05 % de marge, `size_position`
-        # accepte le trade en rabotant sa taille. Le second instrument
-        # obtient donc autant de TRADES que le premier, mais bien plus
-        # petits — compter les trades ne verrait rien.
-        assert engage(deux, "ADAUSD") < engage(deux, "BTCUSD") * 0.5, (
-            "le second instrument n'a subi aucune concurrence : "
-            "le budget de risque n'est pas partage")
+        # accepte le trade en rabotant sa taille. Compter les trades ne
+        # verrait donc rien : c'est le montant engage qui bouge.
+        #
+        # On compare le MEME instrument seul, puis en concurrence. Toute
+        # autre comparaison melangerait l'effet du partage avec les
+        # differences propres aux deux series.
+        seule = engage(ada_seule, "ADAUSD")
+        accompagnee = engage(deux, "ADAUSD")
+        assert seule > 0, "le scenario ne produit aucun trade"
+        assert accompagnee < seule, (
+            f"ADA engage {accompagnee:.0f} accompagnee contre {seule:.0f} "
+            "seule : le budget de risque n'est pas partage")
 
     def test_le_capital_de_depart_n_est_compte_qu_une_fois(self, config):
         serie = _serie()

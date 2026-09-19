@@ -870,6 +870,21 @@ class TradingEngine:
         # sans aucune position. On lui redonne d'abord celles qu'on avait
         # memorisees, sinon la boucle ci-dessous ne trouverait rien a
         # reprendre et les positions ouvertes seraient abandonnees en vol.
+        # LE SIMULATEUR RETROUVE SON SOLDE AVANT DE RETROUVER SES POSITIONS.
+        #
+        # Dans cet ordre, parce que `reprendre()` ne touche pas au solde :
+        # le retablir apres n'aurait aucun effet, mais l'ecrire avant
+        # garantit que le premier `account()` du cycle rend deja le bon
+        # capital — donc que le dimensionnement de la premiere position
+        # apres un redemarrage soit juste.
+        solde = getattr(self.store.state, "solde_simule", None)
+        if solde is not None and hasattr(self.broker, "balance") \
+                and float(solde) > 0:
+            ancien = self.broker.balance
+            self.broker.balance = float(solde)
+            logger.info("solde du simulateur repris : %.2f (au lieu de %.2f)",
+                        float(solde), ancien)
+
         connues = {p.id for p in self.broker.positions()}
         for identifiant in list(self.store.state.position_meta):
             if identifiant in connues:
@@ -947,6 +962,10 @@ class TradingEngine:
         self.objectives.sync(acc.equity)
         state.account_reference = self.risk.account.reference_equity
         state.peak_equity = self.risk.account.peak_equity
+        # Seul le simulateur porte un solde qui lui appartient ; un vrai
+        # courtier le fait autorite et le redonne a chaque demarrage.
+        if hasattr(self.broker, "balance"):
+            state.solde_simule = round(float(self.broker.balance), 6)
 
         positions = self.broker.positions()
 

@@ -272,13 +272,23 @@ class TestLeRejeuSaitEmpiler:
             "aucun trade : le test ne mesure rien. Motifs : "
             f"{sorted(res.rejections.items(), key=lambda kv: -kv[1])[:5]}")
 
-        chevauchements = sum(
-            1 for i, a in enumerate(res.trades) for b in res.trades[i + 1:]
-            if b.opened_at < a.closed_at and a.opened_at < b.closed_at)
-        assert chevauchements > 0, (
-            f"{len(res.trades)} trades, aucun ne chevauche un autre : le "
-            "rejeu tient toujours une seule position, la pyramide n'a "
-            "jamais ete mesuree")
+        # ON MESURE LES ETAGES, ON NE LES DEVINE PLUS.
+        #
+        # Ce test cherchait des trades qui SE CHEVAUCHENT, faute de
+        # mieux : deux positions simultanees sur le meme symbole
+        # trahissaient un empilement. Depuis que le simulateur fusionne
+        # comme le vrai courtier (un avoir par actif, prix d'entree
+        # moyen), deux etages ne font plus qu'un seul trade — le
+        # chevauchement a disparu alors que la pyramide, elle, marche
+        # mieux qu'avant.
+        #
+        # `ClosedTrade.etages` dit maintenant la chose directement. Un
+        # indice indirect qui cesse d'etre vrai est toujours a remplacer
+        # par la mesure elle-meme.
+        etages_max = max((t.etages for t in res.trades), default=1)
+        assert etages_max > 1, (
+            f"{len(res.trades)} trades, aucun au-dela de l'etage 1 : la "
+            "pyramide n'a jamais ete mesuree")
 
 
 class TestLeStopCommunDeLaPyramide:

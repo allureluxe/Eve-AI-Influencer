@@ -228,9 +228,20 @@ class TestEntreeEnOrdreLimite:
                                entree_limite=True).run(
             "BTCUSD", bars=700, start_balance=186.0)
 
-        assert len(en_limite.trades) <= len(au_marche.trades), (
-            f"l'ordre limite prend {len(en_limite.trades)} trades contre "
-            f"{len(au_marche.trades)} au marche : les non-executions ne sont "
+        # ON COMPTE LES ENTREES, PLUS LES TRADES.
+        #
+        # Le nombre de trades servait de mesure du nombre d'entrees. Ce
+        # raccourci a cesse d'etre vrai quand le simulateur s'est mis a
+        # fusionner les etages d'une pyramide comme le vrai courtier :
+        # trois entrees peuvent desormais ne former qu'un seul trade, et
+        # rater une entree peut meme AUGMENTER le compte de trades en
+        # empechant une fusion. La grandeur qui doit baisser est le
+        # nombre d'ordres servis, que `etages` additionne exactement.
+        entrees_marche = sum(t.etages for t in au_marche.trades)
+        entrees_limite = sum(t.etages for t in en_limite.trades)
+        assert entrees_limite <= entrees_marche, (
+            f"l'ordre limite obtient {entrees_limite} entrees contre "
+            f"{entrees_marche} au marche : les non-executions ne sont "
             "pas modelisees, le resultat serait flatteur")
 
     def test_les_non_executions_sont_comptees(self):
