@@ -67,6 +67,50 @@ import { Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 // cotes (2 s ici, 2 s cote serveur avant de voir le message).
 const RYTHME_MS = 800;
 
+/**
+ * LE VOCABULAIRE QU'ON SOUFFLE A LA RECONNAISSANCE.
+ *
+ * "Mes paroles sont mal traduites" (operateur, 19 sept.). Normal : le
+ * moteur francais ne connait ni "Alluxe", ni "Bitvavo", ni la plupart
+ * des cryptos. Il les remplace donc par les mots existants les plus
+ * proches, et la phrase devient incomprehensible.
+ *
+ * `contextualStrings` les lui donne a l'avance : il les reconnait au
+ * lieu de les deviner. C'est le seul moyen d'ameliorer la transcription
+ * sans changer de moteur.
+ */
+const VOCABULAIRE = [
+  "Alluxe", "Luna", "Allure", "Bitvavo",
+  "Bitcoin", "Ethereum", "Solana", "Cardano", "Dogecoin", "Chainlink",
+  "crypto", "cryptos", "trading", "robot", "démo", "position", "positions",
+  "stop", "bénéfice", "perte", "capital", "pyramide", "étage", "renfort",
+  "abonnés", "Instagram", "TikTok", "publication",
+];
+
+/** Les reglages d'ecoute, au meme endroit : ils etaient recopies a deux
+ *  endroits et commencaient deja a diverger. */
+function reglagesEcoute(continu: boolean) {
+  return {
+    lang: "fr-FR",
+    interimResults: false,
+    // `continuous` n'etait PAS passe au depart : la reconnaissance
+    // s'arretait au premier silence et tout reposait sur la relance.
+    continuous: continu,
+    addsPunctuation: true,
+    // Plusieurs propositions plutot qu'une : on garde celle qui contient
+    // son nom (voir le gestionnaire "result"). La premiere n'est pas
+    // toujours la bonne sur un mot invente.
+    maxAlternatives: 3,
+    contextualStrings: VOCABULAIRE,
+    androidIntentOptions: {
+      // Sans ca, Android coupe apres ~1 s de silence : le temps de dire
+      // "Alluxe" puis de formuler sa question, c'est deja fini.
+      EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+      EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+    },
+  };
+}
+
 // Variantes plausibles de ce que la reconnaissance vocale peut transcrire
 // pour "Alluxe" -- un mot invente, donc pas dans son dictionnaire. Liste
 // a affiner une fois de vrais essais faits sur l'appareil de l'operateur.
@@ -357,19 +401,7 @@ export function EcranAgent() {
       }
       modeEcouteRef.current = mode;
       if (mode === "unique") setEcoute(true);
-      ExpoSpeechRecognitionModule.start({
-        lang: "fr-FR",
-        interimResults: false,
-        // `continuous` n'etait PAS passe : la reconnaissance s'arretait au
-        // premier silence et tout reposait sur la relance dans "end".
-        continuous: mode === "continu",
-        androidIntentOptions: {
-          // Sans ca, Android coupe apres ~1 s de silence : le temps de
-          // dire "Alluxe" puis de formuler sa question, c'est deja fini.
-          EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
-          EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
-        },
-      });
+      ExpoSpeechRecognitionModule.start(reglagesEcoute(mode === "continu"));
     } catch (err: any) {
       if (mode === "unique") setEcoute(false); else setEcouteContinue(false);
       setErreur(err?.message ?? "Impossible de demarrer l'ecoute");
@@ -408,8 +440,17 @@ export function EcranAgent() {
   }, [ecouteContinue, demarrerReconnaissance]);
 
   useSpeechRecognitionEvent("result", (e) => {
-    const transcription = e.results[0]?.transcript;
-    if (!e.isFinal || !transcription) return;
+    if (!e.isFinal) return;
+    // `maxAlternatives: 3` rend plusieurs propositions. Sur un mot
+    // invente comme "Alluxe", la premiere n'est souvent pas la bonne --
+    // mais l'une des suivantes l'est. On garde celle qui contient son
+    // nom ; a defaut, la premiere, comme avant.
+    const propositions = (e.results ?? [])
+      .map((r: any) => r?.transcript)
+      .filter(Boolean) as string[];
+    const transcription =
+      propositions.find((t) => _apresAlluxe(t) !== null) ?? propositions[0];
+    if (!transcription) return;
     setDernierEntendu(transcription);
     if (modeEcouteRef.current === "continu") {
       const apres = _apresAlluxe(transcription);
@@ -446,15 +487,9 @@ export function EcranAgent() {
       setTimeout(() => {
         if (!ecouteContinueRef.current) return;
         try {
-          ExpoSpeechRecognitionModule.start({
-            lang: "fr-FR", interimResults: false, continuous: true,
-            androidIntentOptions: {
-              EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
-              EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
-            },
-          });
+          ExpoSpeechRecognitionModule.start(reglagesEcoute(true));
         } catch { /* le prochain "end" relancera */ }
-      }, 400);
+      }, 150);
       return;
     }
     setEcoute(false);
