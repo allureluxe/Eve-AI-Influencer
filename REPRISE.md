@@ -1,3 +1,64 @@
+# Ou on en est — mis a jour le 20 septembre 2026 (00h45)
+
+## TELEGRAM EST RETIRE. Tout passe par l'onglet Discussion.
+
+Decision de l'operateur le 19 sept. au soir : il supprime son compte
+Telegram. `TelegramChannel` est retire des canaux par defaut et de
+`run_demo.py` ; la classe reste en place et testee (la rebrancher est
+une ligne).
+
+Verifie de bout en bout avant la coupure :
+
+    commandes (rapport allure / jour / semaine, etat)   OK
+    page ALLURE 48 ko avec logo et graphiques           OK
+    alertes du robot fusionnees dans le meme fil        OK
+    questions au robot avec lecture des vraies donnees  OK
+    recherche universitaire (arXiv + Semantic Scholar)  OK
+
+`tests/test_rien_ne_se_perd_sans_telegram.py` verrouille l'equivalence.
+
+**DEUX ECOUTEURS SE PARTAGENT LE FIL, ne pas les fusionner :**
+
+    ops/ecoute_discussion.py   cron, compte `ubuntu`, A les cles   -> commandes
+    service alluxe-agent       compte `alluxe`, PAS de cles        -> le reste
+
+L'agent ne PEUT pas faire le rapport (`page_allure` lit le compte
+Bitvavo, et il efface les cles de sa memoire au demarrage). Chacun
+reclame puis rend la main, via la MEME `gold_bot.commandes.est_une_commande()`.
+
+## L'agent repond dans la Discussion
+
+Le service `alluxe-agent` sert maintenant DEUX tables :
+`alluxe_agent_messages` (onglet Agent) et `alluxe_bot_discussion`
+(onglet Discussion, avec un prompt oriente robot).
+
+Trois defauts corriges en l'essayant pour de vrai — voir memoire
+`telegram-remplace-par-discussion-19-sept` :
+message reclame sans reponse, appel d'outil malforme par le modele
+(400 `tool_use_failed`, on retente), et `positions_ouvertes` qui
+additionnait demo et reel (« 22 positions »).
+
+**Le palier gratuit Groq sature vite** sur ce fil (17 outils +
+historique + index memoire a chaque aller-retour). Si les reprises 429
+s'enchainent, c'est la premiere chose a alleger.
+
+## APK a jour
+
+https://github.com/allureluxe/Eve-AI-Influencer/releases/download/dernier-build-alluxe-bot/app-release.apk
+
+Construit depuis 0d4ef47. Contient : onglet Discussion, ecran de detail
+d'une position (graphique 1m->1j, stop d'ouverture ET stop actuel,
+quantite en euros), tri des positions, jaune adouci sur les aplats.
+
+## Luna : moteurs a changer LE 28
+
+Decision : « ok on fait ca le 28 ». Le vrai defaut n'est pas le modele
+mais la CONSTANCE DU VISAGE. Image d'abord (Seedream ~2,50 EUR/mois),
+voix ensuite, video en dernier. **Tester avant de payer.** Voir memoire
+`luna-moteurs-a-changer-le-28`.
+
+---
+
 # Ou on en est — mis a jour le 19 septembre 2026 (23h)
 
 ## EN COURS CE SOIR : simulation de 48 h a 3 300 EUR, avec le tiers reserve
