@@ -203,11 +203,27 @@ def _outil_etat_robot(rest: _Rest, _args: dict) -> dict:
 
 
 def _outil_positions_ouvertes(rest: _Rest, _args: dict) -> dict:
-    lignes = rest.get(
-        "/rest/v1/signals?status=eq.active&select="
-        "pair,side,entry_price,stop_loss,take_profit_1,published_at"
-        "&order=published_at.desc")
-    return {"positions": lignes}
+    """Les positions ouvertes, REEL ET DEMO SEPARES.
+
+    La requete ne filtrait pas `is_demo` : l'agent additionnait donc les
+    positions simulees et les reelles, et repondait « 22 positions » quand
+    la demo en avait 20 et le compte reel 2. C'est exactement la confusion
+    du 18 septembre, ou une position simulee etait apparue dans
+    l'application comme si elle etait reelle -- et celle-ci portait sur le
+    canal par lequel Monsieur pose ses questions.
+    """
+    champs = ("pair,side,entry_price,stop_loss,stop_loss_actuel,"
+              "position_size_pct,capital_eur,published_at")
+    reelles = rest.get(f"/rest/v1/signals?status=eq.active&is_demo=eq.false"
+                       f"&select={champs}&order=published_at.desc")
+    demo = rest.get(f"/rest/v1/signals?status=eq.active&is_demo=eq.true"
+                    f"&select={champs}&order=published_at.desc")
+    return {
+        "compte_REEL": {"nombre": len(reelles), "positions": reelles},
+        "simulation_DEMO": {"nombre": len(demo), "positions": demo},
+        "rappel": ("Ne jamais additionner les deux : la demo est un "
+                   "capital virtuel, le reel est l'argent de Monsieur."),
+    }
 
 
 def _outil_dernieres_alertes(rest: _Rest, args: dict) -> dict:
@@ -284,6 +300,20 @@ def _appeler_moteur(messages: list[dict]) -> dict:
                 return json.loads(r.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")
+            # LE MODELE PEUT RATER SON APPEL D'OUTIL, ET CE N'EST PAS
+            # UNE PANNE.
+            #
+            # Observe le 19 sept. sur gpt-oss-120b : il a demande l'outil
+            # « chercher<|channel|>commentary » -- un jeton interne du
+            # modele avait fui dans le nom. Groq refuse l'appel (400
+            # tool_use_failed) et l'agent repondait « indisponible » pour
+            # une erreur de frappe. C'est du tirage au sort : la meme
+            # question repassee sort generalement propre. On retente,
+            # comme pour la limite de debit.
+            if e.code == 400 and "tool_use_failed" in detail and tentative < 3:
+                print("appel d'outil malforme par le modele, nouvelle tentative")
+                time.sleep(1.0)
+                continue
             if e.code == 429 and tentative < 3:
                 import re as _re
                 trouve = _re.search(r"try again in ([\d.]+)s", detail)
@@ -300,11 +330,12 @@ def _appeler_moteur(messages: list[dict]) -> dict:
     raise ErreurAgent("moteur injoignable apres plusieurs tentatives")
 
 
-def _repondre(rest_lecture: _Rest, tours: list[dict]) -> tuple[str, list[str]]:
+def _repondre(rest_lecture: _Rest, tours: list[dict],
+              systeme_sup: str = "") -> tuple[str, list[str]]:
     """Boucle outils -> reponse finale. Rend (texte, noms_des_outils_utilises)."""
     from ops.agent_outils import index_memoire
 
-    systeme = SYSTEME
+    systeme = SYSTEME + systeme_sup
     # CE QUI FAIT LE « MODE APPRENTISSAGE ». L'index de ses notes est
     # injecte a CHAQUE conversation : il sait donc d'emblee ce qu'il a
     # deja appris, sans avoir a fouiller. Seuls les titres et resumes
@@ -380,6 +411,120 @@ def _historique_recent(rest: _Rest) -> list[dict]:
     return [{"role": l["role"], "content": l["contenu"]} for l in lignes]
 
 
+# ---------------------------------------------------------------------
+#  L'onglet Discussion : parler au robot directement
+# ---------------------------------------------------------------------
+#
+# Demande de l'operateur le 19 sept. : « le mode discussion, je peux
+# parler directement au robot de trading, tu crees un agent connecte au
+# VPS qui me permettra de parler directement au robot, de faire les
+# modifications avec lui, et inclus lui le web, les bibliotheques et les
+# livres universitaires et academiques ».
+#
+# CET AGENT EXISTE DEJA -- c'est celui-ci. Il a le terminal, le depot,
+# la recherche web, la lecture de pages, les publications scientifiques
+# (arXiv + Semantic Scholar), sa memoire et Tor. En construire un second
+# pour la Discussion aurait fait deux agents a tenir d'accord, c'est-a-
+# dire la faute que ce depot paie depuis le debut. On le BRANCHE sur une
+# seconde table, c'est tout.
+#
+# LES COMMANDES PASSENT AVANT LE MODELE. « rapport allure » et « etat »
+# ont une reponse exacte et gratuite (`gold_bot/commandes.py`) : la faire
+# produire par un modele serait plus lent, plus cher, et moins fiable.
+
+DISCUSSION = "alluxe_bot_discussion"
+
+SYSTEME_DISCUSSION = """
+
+TU ES ICI DANS L'ONGLET DISCUSSION, en face du robot de trading. Monsieur
+y parle du robot en priorite : ses positions, ses reglages, ses
+resultats, ses strategies. Va lire le reel avec tes outils avant de
+repondre.
+
+Il peut aussi te demander de chercher : le web, et les publications
+universitaires et academiques (`chercher_articles_scientifiques`, qui
+interroge arXiv et Semantic Scholar). Quand tu cites une etude, donne le
+titre et l'annee, et dis franchement quand un resultat n'est pas
+reproductible ici -- ce depot a deja arme des reglages sur des chiffres
+qui ne tenaient pas.
+
+LES CONFIGURATIONS robot*.json RESTENT EN LECTURE. Tu peux tout lire,
+tout mesurer, tout proposer -- et tu dois le faire precisement, avec les
+valeurs exactes. Mais c'est Monsieur qui applique. Ce n'est pas de la
+mefiance : le 19 septembre tu as modifie `robot.demo.json` tout seul
+apres une demande vague, puis tu t'es arrete en manquant de jetons sans
+le dire. Le changement dormait dans le depot avant le depot reel du 28.
+Quand un reglage doit changer, DIS lequel, a quelle valeur, et pourquoi,
+puis laisse-le decider."""
+
+
+def _traiter_message_discussion(rest: _Rest) -> bool:
+    """Un message de l'onglet Discussion. Rend True s'il a ete traite ICI."""
+    from gold_bot.commandes import est_une_commande
+
+    lignes = rest.get(f"/rest/v1/{DISCUSSION}?auteur=eq.operateur"
+                      f"&traite=eq.false&order=created_at.asc&limit=1")
+    if not lignes:
+        return False
+    # Reclamee AVANT tout traitement : sans ca, deux passages de la
+    # boucle pourraient repondre deux fois a la meme demande.
+    reclamees = json.loads(rest.patch(
+        f"/rest/v1/{DISCUSSION}?id=eq.{lignes[0]['id']}&traite=eq.false",
+        {"traite": True}, {"prefer": "return=representation"}))
+    if not reclamees:
+        return False
+    texte = str(reclamees[0].get("texte") or "").strip()
+
+    # PAS POUR MOI : je rends la main.
+    #
+    # Fabriquer la page ALLURE demande de lire le compte Bitvavo, donc
+    # les cles -- que ce service a justement effacees de sa memoire au
+    # demarrage. `ops/ecoute_discussion.py`, lui, tourne sous `ubuntu` et
+    # les a. On repose donc le message tel quel, et il le prendra.
+    if est_une_commande(texte):
+        rest.patch(f"/rest/v1/{DISCUSSION}?id=eq.{reclamees[0]['id']}",
+                   {"traite": False})
+        return False
+
+    # UN MESSAGE RECLAME RECOIT TOUJOURS UNE REPONSE.
+    #
+    # Il est deja marque « traite » : plus personne ne le reprendra. Si
+    # quoi que ce soit echoue ici sans etre rattrape -- une lecture de
+    # l'historique, un outil qui casse, une cle manquante -- Monsieur
+    # attendrait indefiniment devant un message marque lu. Le silence
+    # est la pire des reponses : il ne dit meme pas qu'il y a un
+    # probleme.
+    try:
+        tours = _historique_discussion(rest)
+        texte_reponse, _outils = _repondre(rest, tours, SYSTEME_DISCUSSION)
+        if not texte_reponse.strip():
+            texte_reponse = ("Je n'ai rien a repondre a ca -- reformulez "
+                             "et je reessaie.")
+    except ErreurAgent as e:
+        texte_reponse = f"(agent indisponible : {e})"
+    except Exception as e:                                    # noqa: BLE001
+        texte_reponse = f"(panne de mon cote : {type(e).__name__} : {e})"
+
+    try:
+        rest.post(f"/rest/v1/{DISCUSSION}", {
+            "auteur": "robot", "texte": texte_reponse, "traite": True})
+    except Exception as e:                                    # noqa: BLE001
+        # La reponse n'est pas partie : on repose la question pour la
+        # reprendre au tour suivant, plutot que de la perdre.
+        print(f"reponse non publiee, message repose : {e}")
+        rest.patch(f"/rest/v1/{DISCUSSION}?id=eq.{reclamees[0]['id']}",
+                   {"traite": False})
+    return True
+
+
+def _historique_discussion(rest: _Rest) -> list[dict]:
+    lignes = rest.get(f"/rest/v1/{DISCUSSION}?select=auteur,texte"
+                      f"&order=created_at.desc&limit={HISTORIQUE_MESSAGES}")
+    lignes.reverse()
+    return [{"role": "user" if l["auteur"] == "operateur" else "assistant",
+             "content": l["texte"]} for l in lignes if l.get("texte")]
+
+
 def _traiter_un_message(rest: _Rest) -> bool:
     ligne = _reclamer_message_en_attente(rest)
     if ligne is None:
@@ -409,7 +554,11 @@ def main() -> int:
           f"{RYTHME_SECONDES}s")
     while True:
         try:
-            _traiter_un_message(rest)
+            # Les deux fils : l'onglet Agent et l'onglet Discussion.
+            # `or` court-circuite, donc une seule reponse par tour --
+            # deux appels au modele dans le meme tour doubleraient la
+            # consommation de jetons sur un palier gratuit deja etroit.
+            _traiter_un_message(rest) or _traiter_message_discussion(rest)
         except (urllib.error.HTTPError, urllib.error.URLError) as e:
             print(f"erreur de poll : {e}")
         time.sleep(RYTHME_SECONDES)

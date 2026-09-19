@@ -123,3 +123,62 @@ class TestTelegramNEstPlusDansLesCanauxParDefaut:
         noms = [c.name for c in Notifier().channels]
         assert "alluxe_bot" in noms, (
             "le canal de l'application a disparu de la liste par defaut")
+
+
+class TestAucunMessageNeTombeEntreLesDeuxEcouteurs:
+    """Deux processus lisent la meme conversation. Ils doivent la
+    partager sans trou ni doublon.
+
+    `ops/ecoute_discussion.py` (compte `ubuntu`, a les cles) traite les
+    commandes ; le service `alluxe-agent` (compte `alluxe`, a EFFACE les
+    cles) traite le reste. Chacun reclame puis rend la main si ce
+    n'etait pas pour lui.
+    """
+
+    @pytest.mark.parametrize("texte,pour_les_commandes", [
+        ("rapport allure", True),
+        ("Rapport ALLURE", True),
+        ("rapport jour", True),
+        ("rapport semaine", True),
+        ("etat", True),
+        ("Etat", True),
+        ("/start", True),
+        ("ca va", True),
+        ("pourquoi le robot n'ouvre plus rien ?", False),
+        ("cherche-moi une meilleure strategie", False),
+        ("", False),
+    ])
+    def test_chaque_message_a_exactement_un_destinataire(
+            self, texte, pour_les_commandes):
+        from gold_bot.commandes import est_une_commande
+        assert est_une_commande(texte) is pour_les_commandes, (
+            f"« {texte} » : les deux ecouteurs ne sont pas d'accord sur "
+            "qui doit repondre")
+
+    def test_les_deux_ecouteurs_appellent_LA_MEME_fonction(self):
+        """Deux listes de mots recopiees finiraient par diverger, et un
+        message tomberait entre les deux sans que personne ne le voie."""
+        import ops.ecoute_discussion as commandes_cron
+        import ops.agent_alluxe as agent
+        for module, nom in ((commandes_cron, "ecoute_discussion"),
+                            (agent, "agent_alluxe")):
+            source = inspect.getsource(module)
+            assert "est_une_commande" in source, (
+                f"{nom} decide tout seul de ce qui est une commande")
+
+    def test_l_agent_rend_la_main_au_lieu_de_repondre_a_cote(self):
+        """Il ne PEUT pas faire le rapport : il a efface les cles."""
+        import ops.agent_alluxe as agent
+        source = inspect.getsource(agent._traiter_message_discussion)
+        assert '"traite": False' in source, (
+            "l'agent garde les commandes qu'il ne sait pas traiter : "
+            "elles resteront sans reponse")
+
+    def test_l_agent_n_a_pas_les_cles_du_courtier(self):
+        """Le fondement de tout ce partage. S'il les avait, la protection
+        principale de l'agent aurait saute."""
+        import ops.agent_alluxe as agent
+        for interdite in ("BITVAVO_API_KEY", "BITVAVO_API_SECRET"):
+            assert interdite not in agent.CLES_UTILES, (
+                f"{interdite} a ete ajoutee aux cles de l'agent : il a un "
+                "terminal, c'est la porte ouverte au compte reel")

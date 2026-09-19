@@ -39,8 +39,8 @@ charger_env()
 # UN ECOUTEUR NE DOIT RIEN ECRIRE DANS L'ETAT DU ROBOT.
 os.environ["GB_STRATEGIE_FILE"] = "/tmp/strategie-discussion.json"
 
-from gold_bot.commandes import (Reponse, imprimer_si_possible,  # noqa: E402
-                                repondre)
+from gold_bot.commandes import (Reponse, est_une_commande,  # noqa: E402
+                                imprimer_si_possible, repondre)
 
 ETAT = os.path.join(RACINE, "data", "ecoute_discussion.json")
 TABLE = "alluxe_bot_discussion"
@@ -138,6 +138,16 @@ def main() -> int:
     etat = _etat()
     for message in attente:
         texte = str(message.get("texte") or "").strip()
+
+        # PAS POUR MOI : c'est une question, pas une commande.
+        #
+        # Le service `alluxe-agent` la traite, avec ses outils et son
+        # modele. Il tourne en permanence et repond en quelques secondes,
+        # la ou ce script ne passe qu'une fois par minute -- on le laisse
+        # donc faire plutot que de repondre « je ne comprends pas ».
+        if not est_une_commande(texte):
+            continue
+
         print(f"commande recue : {texte[:60]!r}")
 
         try:

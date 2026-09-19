@@ -50,6 +50,31 @@ def normaliser(texte: str) -> str:
     return "".join(c for c in texte if unicodedata.category(c) != "Mn").strip()
 
 
+def est_une_commande(texte: str) -> bool:
+    """Vrai si ce texte a une reponse EXACTE, sans passer par un modele.
+
+    QUI REPOND A QUOI, ET POURQUOI C'EST SEPARE.
+
+    Deux processus lisent la meme conversation :
+
+      - `ops/ecoute_discussion.py` (cron, compte `ubuntu`) traite les
+        commandes. Lui seul le peut : fabriquer la page ALLURE demande de
+        lire le compte Bitvavo, donc les cles.
+      - le service `alluxe-agent` (compte `alluxe`) traite tout le reste.
+        Il a EFFACE les cles de sa memoire au demarrage -- c'est sa
+        protection principale, et elle lui interdit le rapport.
+
+    Chacun reclame un message, et rend la main si ce n'etait pas pour
+    lui. Les deux appellent CETTE fonction : un partage fonde sur deux
+    listes de mots recopiees aurait fini par laisser tomber des messages
+    entre les deux, sans que personne ne le voie.
+    """
+    t = normaliser(texte)
+    if t.startswith("etat") or t in ("point", "ca va", "/start"):
+        return True
+    return "rapport" in t
+
+
 def point_court() -> str:
     """Le point en deux lignes, sans fabriquer de page."""
     from rapports import _compte, _trades
