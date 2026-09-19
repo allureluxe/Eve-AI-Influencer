@@ -13,9 +13,10 @@
 import React from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { EtatCapital, Position, etatCapital } from "../services/robot";
+import { EtatCapital, Position, etagePyramide, etatCapital } from "../services/robot";
 import { useSuiviPositions } from "../services/suiviPositions";
-import { euros, nomCrypto, pourcent, resultatEnDirect } from "../services/format";
+import { euros, miseConseillee, nomCrypto, pourcent, resultatEnDirect }
+  from "../services/format";
 import { espace, rayon } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 
@@ -42,6 +43,12 @@ function LignePositionDirecte({ p, capital, prixActuel }: {
   );
   const positif = eur >= 0;
   const couleur = positif ? c.gain : c.perte;
+  // La MISE, en euros : ce que la position engage reellement. Le robot ne
+  // publie que le RISQUE en pourcentage -- la somme engagee s'en deduit
+  // par la distance au stop (voir miseConseillee).
+  const mise = miseConseillee(p.entry_price, p.stop_loss,
+                              p.position_size_pct ?? 0, capital);
+  const etage = etagePyramide(p);
 
   return (
     <View style={{
@@ -52,6 +59,15 @@ function LignePositionDirecte({ p, capital, prixActuel }: {
       <View>
         <T v="sousTitre">{nomCrypto(p.pair)}</T>
         <T v="petit" couleur={c.encreDouce}>{p.side === "buy" ? "Achat" : "Vente"}</T>
+        <View style={{ flexDirection: "row", alignItems: "center",
+                       marginTop: espace.xs }}>
+          <T v="petit" couleur={c.encreDouce}>
+            {mise > 0 ? `${euros(mise)} misés` : "mise inconnue"}
+          </T>
+          {etage > 1 && (
+            <T v="petit" couleur={c.encreDouce}> · renfort n°{etage}</T>
+          )}
+        </View>
       </View>
       <View style={{ alignItems: "flex-end" }}>
         <T v="chiffre" couleur={couleur}>{euros(eur)}</T>

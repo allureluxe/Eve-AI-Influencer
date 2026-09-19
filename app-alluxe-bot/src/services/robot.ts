@@ -16,6 +16,10 @@ export interface EtatCapital {
 
 export interface Position {
   id: string;
+  /** "<id interne>:<etage>" -- l'etage de pyramide se lit a la fin.
+   *  Un renfort de pyramide est publie comme un signal a part entiere
+   *  (voir gold_bot/engine.py::_publier_le_signal), d'ou ce suffixe. */
+  reference: string | null;
   pair: string;
   side: "buy" | "sell";
   entry_price: number;
@@ -39,7 +43,7 @@ export async function etatCapital(): Promise<EtatCapital | null> {
   return data;
 }
 
-const COLONNES_POSITION = "id, pair, side, entry_price, stop_loss, take_profit_1, take_profit_2, position_size_pct, published_at, status, closed_at, result_pct";
+const COLONNES_POSITION = "id, reference, pair, side, entry_price, stop_loss, take_profit_1, take_profit_2, position_size_pct, published_at, status, closed_at, result_pct";
 
 // `is_demo` est EXPLICITE sur chaque requete ci-dessous, jamais implicite
 // -- fuite du 18 sept. : la simulation a 500 EUR virtuels a publie ses
@@ -160,4 +164,12 @@ export async function alertesDemo(limite = 100): Promise<Alerte[]> {
     .limit(limite);
   if (error) throw error;
   return (data ?? []) as unknown as Alerte[];
+}
+
+/** L'etage de pyramide d'une position : 1 = position d'origine, 2 et
+ *  au-dela = renforts ajoutes quand elle etait deja a l'abri. */
+export function etagePyramide(p: Position): number {
+  const fin = (p.reference ?? "").split(":").pop();
+  const n = Number.parseInt(fin ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : 1;
 }
