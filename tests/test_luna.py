@@ -188,11 +188,30 @@ class TestPhotos(unittest.TestCase):
             self.assertEqual(demande["graine"], LUNA.apparence.graine)
 
     def test_chaque_prompt_dit_que_c_est_une_fiction_adulte(self):
+        # L'age est LU sur le personnage, pas recopie ici : il est passe de
+        # 22 a 25 ans le 19 sept. et ce test cassait pour cette seule
+        # raison, alors que la propriete qu'il protege -- "chaque prompt
+        # affirme une adulte" -- etait toujours vraie. Un test qui casse
+        # sur un changement legitime finit par etre desarme.
         for scene in SCENES:
             demande = prompt_photo(scene.cle, limites.ADULTE)
             self.assertIn("fictional", demande["prompt"])
-            self.assertIn("22-year-old adult woman", demande["prompt"])
+            self.assertIn(f"{LUNA.age}-year-old adult woman", demande["prompt"])
             self.assertIn("underage", demande["negatif"])
+
+    def test_aucun_prompt_ne_rajeunit_le_personnage(self):
+        """Le prompt NEGATIF n'est pas transmis par Cloudflare (verifie le
+        19 sept. : l'API n'accepte que `prompt` et `steps`). Interdire
+        "child/teenager" dans le negatif ne protege donc rien -- c'est le
+        prompt POSITIF qui doit porter l'age, et il ne doit contenir aucun
+        mot qui rajeunisse."""
+        interdits = ("baby cheeks", "youthful", "teen ", "schoolgirl",
+                     "young girl", "childlike", "petite girl")
+        for scene in SCENES:
+            prompt = prompt_photo(scene.cle, limites.ADULTE)["prompt"].lower()
+            for mot in interdits:
+                self.assertNotIn(mot, prompt, f"{scene.cle} : « {mot} »")
+            self.assertIn("adult woman", prompt, scene.cle)
 
     def test_une_scene_sensuelle_est_refusee_en_registre_tendre(self):
         with self.assertRaises(PermissionError):
