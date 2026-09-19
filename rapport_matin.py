@@ -13,7 +13,8 @@ moment il est pret pour acheter ».
 Les annonces, oui. Le lien annonce -> crypto, NON : le robot ne le fait
 pas, et lui faire dire le contraire serait mentir sur son propre
 fonctionnement. Sa strategie est le PRIX seul — il achete la cassure du
-plus-haut de 20 jours. C'est une decision de l'operateur du 31 aout 2026
+plus-haut du canal Donchian ARME (`strategy.donchian_entrees`, 10 jours
+depuis le 12 sept.). C'est une decision de l'operateur du 31 aout 2026
 (refus d'armer un biais directionnel manuel), et le moteur n'a aucune
 entree « avis de marche ».
 
@@ -23,7 +24,7 @@ resserre ses stops 45 minutes avant. C'est mesurable, c'est arme, et
 c'est ce que le rapport annonce.
 
 « A quel moment il est pret pour acheter » a donc une reponse exacte,
-mais elle vient du prix : le plus-haut de 20 jours de chaque crypto. Le
+mais elle vient du prix : le plus-haut du canal arme, pour chaque crypto. Le
 rapport liste celles qui en sont le plus proches, avec le prix exact qui
 declenchera l'achat. C'est la vraie liste de surveillance.
 
@@ -67,12 +68,20 @@ def _annonces_du_jour(filtre: NewsFilter) -> list:
     return sorted(evenements, key=lambda e: e.ts)
 
 
-def _proches_du_declenchement(limite: int = 8) -> tuple[list, int]:
-    """Cryptos les plus proches de leur plus-haut de 20 jours.
+def _proches_du_declenchement(canal_jours: int, limite: int = 8) -> tuple[list, int]:
+    """Cryptos les plus proches de leur plus-haut de `canal_jours` jours.
 
     Rend (liste, nombre_examine). Chaque element porte le prix actuel, le
     prix qui declenchera l'achat, et l'ecart en pourcentage. C'est la
     reponse exacte a « a quel moment il est pret pour acheter ».
+
+    `canal_jours` VIENT DE LA CONFIGURATION ARMEE, il n'est pas ecrit ici :
+    la longueur etait figee a 20 alors que le robot tourne sur 10 jours
+    depuis le 12 septembre. Ce rapport ne se contentait donc pas d'ecrire
+    un mauvais chiffre, il CALCULAIT sur le mauvais canal -- il listait
+    les mauvaises cryptos et annoncait des prix de declenchement trop
+    hauts (un plus-haut de 20 jours est toujours >= celui de 10), donc
+    le robot achetait plus tot que ce que le rapport laissait croire.
     """
     from gold_bot.datasources import DataRegistry
 
@@ -84,11 +93,11 @@ def _proches_du_declenchement(limite: int = 8) -> tuple[list, int]:
             bougies = registre.candles(inst.symbol, "crypto", "D1", 40)
         except Exception:                                     # noqa: BLE001
             continue
-        if len(bougies) < 22:
+        if len(bougies) < canal_jours + 2:
             continue
         # Le canal EXCLUT la bougie du jour, comme la strategie : sinon le
         # plus-haut se compare a lui-meme et rien ne casse jamais.
-        canal = max(b.high for b in bougies[-21:-1])
+        canal = max(b.high for b in bougies[-(canal_jours + 1):-1])
         prix = bougies[-1].close
         if canal <= 0 or prix <= 0:
             continue
@@ -286,10 +295,12 @@ def construire() -> str:
                    "  aucune annonce connue au calendrier.", ""]
 
     # ------------------------------------ ce que le robot surveille
-    proches, examines = _proches_du_declenchement()
+    canal_jours = min(cfg.strategy.donchian_entrees or [20])
+    proches, examines = _proches_du_declenchement(canal_jours)
     lignes.append(f"CE QU'IL SURVEILLE ({examines} cryptos scannees)")
     if proches:
-        lignes.append("  il achete des que le prix depasse le plus-haut de 20 jours :")
+        lignes.append(f"  il achete des que le prix depasse le plus-haut "
+                      f"de {canal_jours} jours :")
         for ecart, nom, prix, canal in proches:
             lignes.append(f"  {nom:<8} {prix:>12.6f}  ->  achat au-dessus de "
                           f"{canal:.6f}   (+{ecart:.1f} % a faire)")
@@ -301,7 +312,8 @@ def construire() -> str:
     lignes += [
         "CE QUE CE RAPPORT NE DIT PAS",
         "  Le robot ne choisit PAS ses cryptos en fonction des annonces.",
-        "  Il achete sur le prix seul — la cassure du plus-haut de 20 jours.",
+        f"  Il achete sur le prix seul — la cassure du plus-haut de "
+        f"{canal_jours} jours.",
         "  Les annonces ne font qu'une chose : il suspend ses entrees autour",
         "  d'elles, et resserre ses stops "
         f"{filtre.config.tighten_before} min avant.",
