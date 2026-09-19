@@ -27,7 +27,8 @@ class Apparence:
     yeux: str = "yeux bleu-vert avec une subtile nuance verte, regard petillant"
     taille_cm: int = 160
     silhouette: str = "silhouette feminine mince, naturelle, sans exces"
-    visage: str = ("visage doux et juvenile, joues encore un peu rondes, "
+    visage: str = ("visage d'adulte aux traits affirmes, machoire et "
+                   "pommettes dessinees, "
                    "petit nez fin et discret, legerement asymetrique comme un "
                    "vrai visage, peau naturellement mate/doree, presque pas "
                    "de taches de rousseur, pommettes hautes, maquillage tres "
@@ -45,22 +46,48 @@ class Apparence:
     # jugees trop nombreuses -> reduites a presque rien. Le sourire fige et
     # identique d'une photo a l'autre part de l'ancre : retire d'ici et
     # laisse aux scenes le soin de varier l'expression (voir photos.py).
+    # 19 sept. : L'AGE APPARENT ETAIT TROP JEUNE, et ce n'etait pas un
+    # hasard. L'ancre empilait "youthful fresh face", "soft round baby
+    # cheeks", "youthful smooth skin", "young college student" -- le
+    # modele obeissait. Le contrepoids etait cense venir du prompt
+    # NEGATIF ("child, teenager, underage"), sauf que l'API Cloudflare ne
+    # l'accepte pas : verifie le 19 sept., elle ne prend que `prompt` et
+    # `steps`. Ce garde-fou n'a donc JAMAIS ete transmis au modele.
+    #
+    # Seul le prompt positif passe : c'est lui qui doit porter l'age.
+    # Les traits d'adulte sont donc affirmes, et les descripteurs qui
+    # rajeunissent retires. Rien d'autre ne change -- memes cheveux,
+    # memes yeux, meme teint, meme visage.
+    #
+    # Ca n'est pas cosmetique : les scenes SENSUEL (lingerie, boudoir)
+    # sur un rendu d'apparence adolescente font bannir un compte
+    # Instagram ou TikTok definitivement, et posent un probleme bien
+    # au-dela du compte.
     ancre: str = (
-        "the same recurring fictional character: a 22-year-old adult woman, "
-        "young college student, youthful fresh face, soft round baby cheeks, "
+        # 19 sept. : "the same recurring fictional character" et "across all
+        # images" faisaient produire a FLUX.2 une PLANCHE DE TROIS PHOTOS
+        # cote a cote -- il suit l'instruction au pied de la lettre. Ces
+        # tournures venaient des modeles de type SD, ou elles servaient
+        # d'indice de coherence. La coherence du visage vient en realite
+        # du detail des traits decrits ci-dessous, pas de ces formules.
+        "a single photograph of one woman, one frame, not a collage, "
+        "not a contact sheet, not multiple panels. "
+        "She is a 25-year-old adult woman, "
+        "clearly adult mature facial structure, defined jawline and cheekbones, "
+        "adult woman's face and body proportions, not a teenager, "
         "long wavy platinum blonde hair, blue-green eyes with a subtle green "
         "hue, not pure blue, both eyes symmetrical, well-aligned and "
         "looking in the same direction, bare minimal makeup, no mature or "
         "sophisticated makeup look, high cheekbones, small delicate nose, "
-        "naturally imperfect skin like a real person, at most one or two "
+        "naturally imperfect skin like a real adult woman, at most one or two "
         "extremely faint barely visible freckles, two or three small subtle "
-        "beauty marks, small natural skin blemishes and pores, youthful "
-        "smooth skin, slim natural body "
+        "beauty marks, small natural skin blemishes and visible pores, "
+        "slim natural adult body "
         "proportions, average realistic bust size, 160 cm, naturally tanned "
         "golden skin tone as her permanent complexion (not a vacation tan, "
         "not pale, not overexposed), visible natural skin texture, no "
-        "plastic or airbrushed look, looks clearly early twenties not older, "
-        "consistent facial features across all images"
+        "plastic or airbrushed look, looks clearly like a woman in her "
+        "mid-twenties, never younger"
     )
     # 15 sept. : l'operateur n'aimait pas ce visage precis -- graine changee
     # pour repartir sur un nouveau visage (reste fixe ensuite pour la
@@ -99,7 +126,11 @@ class Persona:
 
 LUNA = Persona(
     prenom="Luna",
-    age=22,
+    # 19 sept. : porte de 22 a 25 ans pour coller a ce que les photos
+    # montrent reellement. Un master de fin d'etudes a 25 ans est
+    # courant, et son histoire (petit job le week-end pour payer ses
+    # etudes) n'en est pas changee.
+    age=25,
     metier="etudiante en finance (derniere annee d'ecole de commerce)",
     apparence=Apparence(),
     contexte=(

@@ -288,7 +288,10 @@ class GenerateurImages:
     # SDXL-base sur Cloudflare donne un rendu illustration/dessin, pas
     # photoréaliste (verifié le 15 sept., y compris une derive de couleur
     # de cheveux) -- Flux, teste le meme soir, est nettement plus realiste.
-    MODELE_DEFAUT_CLOUDFLARE = "@cf/black-forest-labs/flux-1-schnell"
+    # FLUX.2 depuis le 19 sept. (voir _generer_cloudflare) : nettement
+    # plus photorealiste, et il n'a pas les refus intempestifs de
+    # flux-1-schnell sur des scenes anodines.
+    MODELE_DEFAUT_CLOUDFLARE = "@cf/black-forest-labs/flux-2-dev"
 
     def __init__(self, cle: str = "", url: str = "", modele: str = ""):
         stability = cle or os.getenv("STABILITY_API_KEY", "")
@@ -436,6 +439,36 @@ class GenerateurImages:
                 raise ErreurMoteur("reponse image inattendue (base64 invalide)") from e
         return brut
 
+
+    @staticmethod
+    def _requeter_multipart(url: str, cle: str, champs: dict) -> bytes:
+        """FLUX.2 n'accepte pas de corps JSON -- il exige du multipart."""
+        import uuid
+
+        limite = uuid.uuid4().hex
+        corps = b""
+        for nom, valeur in champs.items():
+            corps += (f"--{limite}\r\n"
+                      f'Content-Disposition: form-data; name="{nom}"\r\n\r\n'
+                      f"{valeur}\r\n").encode("utf-8")
+        corps += f"--{limite}--\r\n".encode("utf-8")
+        requete = urllib.request.Request(
+            url, data=corps, method="POST",
+            headers={"authorization": f"Bearer {cle}",
+                     "content-type": f"multipart/form-data; boundary={limite}"})
+        with urllib.request.urlopen(requete, timeout=240) as reponse:
+            brut = reponse.read()
+        if brut[:1] != b"{":
+            return brut
+        rep = json.loads(brut.decode("utf-8"))
+        if not rep.get("success", True):
+            raise ErreurMoteur(f"{rep.get('errors', '')}"[:300])
+        b64 = (rep.get("result") or {}).get("image")
+        if not b64:
+            raise ErreurMoteur("reponse image inattendue (pas d'image)")
+        import base64
+        return base64.b64decode(b64)
+
     def _generer_cloudflare(self, cle: str, url: str, prompt: str, negatif: str,
                              graine: int, format: str) -> bytes:
         # Flux-1-schnell (le defaut, choisi pour son realisme -- SDXL-base
@@ -446,6 +479,21 @@ class GenerateurImages:
         # (donc pas de garantie de reproduire exactement le meme visage
         # d'une image a l'autre avec ce fournisseur precis), pas de
         # negatif. C'est un repli de secours, pas le fournisseur principal.
+        #
+        # 19 SEPT. : FLUX.2 EST DISPONIBLE, ET C'EST LE SAUT DE REALISME
+        # QUE L'OPERATEUR DEMANDAIT ("les photos ne sont pas encore assez
+        # reelles, il manque une grosse amelioration"). Deux generations
+        # au-dessus de flux-1-schnell. Il parle un autre protocole :
+        # multipart/form-data, pas du JSON -- un corps JSON est refuse
+        # avec "required properties at '/' are 'multipart'".
+        #
+        # Au passage, flux-1-schnell refusait des scenes parfaitement
+        # anodines comme "etudiante sur un campus" ("Input prompt contains
+        # NSFW content") : c'est ce qui faisait echouer des generations
+        # sans raison lisible. FLUX.2 accepte les memes prompts.
+        if "flux-2" in url:
+            return self._requeter_multipart(url, cle, {"prompt": prompt})
+
         corps = {"prompt": prompt, "steps": 8}
         brut = self._requeter(url, cle, corps)
         if brut[:1] == b"{":

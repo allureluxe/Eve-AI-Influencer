@@ -64,17 +64,28 @@ SCENES = (
     # l'autre venait de l'ancre commune (retire de persona.py). Chaque scene
     # porte maintenant sa propre expression, volontairement differente.
     Scene("matin", "Selfie miroir", TENDRE,
-          "candid mirror selfie, one hand in her hair, casual tied knot crop "
-          "top, denim shorts, phone visible in shot, natural indoor "
-          "daylight, casual lifestyle snapshot, no plunging neckline, "
+          "candid mirror selfie, one hand in her hair, relaxed oversized "
+          "t-shirt half tucked into baggy low-rise jeans, phone visible in "
+          "shot, natural indoor daylight, casual lifestyle snapshot, "
+          "no plunging neckline, "
           "laughing candidly with eyes crinkled, genuine spontaneous laugh",
           "Prete a sortir 😄 Tu en penses quoi de cette tenue ?"),
+    # 19 sept. 2026 : l'operateur a signale que le look faisait date --
+    # "en 2026 les etudiantes ne s'habillent pas comme ca, et plus de sac a
+    # dos depuis longtemps". Verifie sur les tendances de la rentree 2026 :
+    # le jean skinny est enterre par la Gen Z au profit du BAGGY, le sac a
+    # dos a cede la place au TOTE BAG en toile ou en denim (couleurs
+    # neutres : ecru, beige, noir casse), personnalise avec deux ou trois
+    # breloques -- et on prend un ordinateur portable, pas un bloc a
+    # spirale. Meme correction partout ou le look datait.
     Scene("bureau", "Avant les cours", TENDRE,
-          "casual outfit, simple crew-neck crop top and high-waisted jeans, "
-          "no plunging neckline, white sneakers, standing in a campus "
-          "courtyard, backpack on one shoulder, notebook in hand, natural "
-          "daylight, candid student lifestyle photography, soft "
-          "closed-mouth smile, relaxed and calm expression",
+          "relaxed everyday outfit, oversized cream knit sweater tucked "
+          "loosely into baggy wide-leg light-wash jeans, chunky white "
+          "trainers, large ecru canvas tote bag over one shoulder with two "
+          "small charms clipped to the strap, laptop under her arm, "
+          "standing in a campus courtyard, natural daylight, candid student "
+          "lifestyle photography, soft closed-mouth smile, relaxed and calm "
+          "expression",
           "Cours de finance dans dix minutes 📚 Souhaite-moi bon courage."),
     Scene("restaurant", "Sortie au restaurant", TENDRE,
           "seated at a fine dining table, fitted black cocktail dress, "
@@ -83,8 +94,8 @@ SCENES = (
           "smile looking directly at the camera",
           "Cette table est trop grande sans toi en face 🍷"),
     Scene("sport", "Seance de sport", TENDRE,
-          "modern gym, wearing a t-shirt or high-neck tank top and "
-          "high-waisted leggings, modest scoop neckline not deep cut, "
+          "modern gym, wearing an oversized cropped t-shirt over a high-neck "
+          "sports top and high-waisted leggings, modest neckline not deep cut, "
           "natural figure, high ponytail, post-workout glow, natural gym "
           "lighting, candid fitness lifestyle photography, big genuine "
           "laughing smile, slightly out of breath",
@@ -108,8 +119,9 @@ SCENES = (
           "direct eye contact",
           "Alors, cette robe ? Sois honnete 👗"),
     Scene("shopping", "Shopping", TENDRE,
-          "high-end fashion boutique, chic casual outfit with a blazer and "
-          "heels, shopping bags, mirror reflection, polished lifestyle "
+          "high-end fashion boutique, relaxed chic outfit with an oversized "
+          "tailored jacket over a simple top and wide-leg trousers, chunky "
+          "loafers, shopping bags, mirror reflection, polished lifestyle "
           "editorial photography, excited open-mouth smile, holding up a "
           "shopping bag",
           "J'ai craque 🛍️ ... enfin, presque."),
