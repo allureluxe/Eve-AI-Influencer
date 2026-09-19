@@ -269,6 +269,104 @@ class ErreurAgent(RuntimeError):
     pass
 
 
+# ---------------------------------------------------------------------
+#  Respecter le debit du palier gratuit AU LIEU DE FONCER DEDANS
+# ---------------------------------------------------------------------
+#
+# Groq accorde 8 000 mots-machine PAR MINUTE. Mesure le 19 sept. : un
+# appel de cet agent en coute ~3 000 (17 outils = 1 078, historique =
+# 1 188, consignes = 700). Ce n'est pas excessif -- le probleme est que
+# ce total repart EN ENTIER a chaque aller-retour d'outil. Trois outils
+# enchaines font donc 12 000 dans la minute, et le mur arrive au
+# troisieme.
+#
+# L'agent repondait alors « (agent indisponible : HTTP 429...) », ce que
+# Monsieur a lu comme « l'agent est bloque ». Il ne l'etait pas : il
+# avait juste epuise ses reprises.
+#
+# On tient donc un compteur glissant sur 60 secondes et on ATTEND avant
+# d'appeler, plutot que de se faire refuser puis de reessayer. Le
+# resultat est le meme en temps total, mais sans echec visible -- et
+# c'est une attente qu'on peut expliquer, pas une panne.
+DEBIT_PAR_MINUTE = 8000
+MARGE_DEBIT = 0.85          # on ne vise pas le plafond exact
+
+_historique_debit: list[tuple[float, int]] = []
+
+
+# UN SEUL APPEL NE PEUT PAS DEPASSER LE DEBIT D'UNE MINUTE.
+#
+# Groq refuse en 413 « Request too large ... Requested 8022, Limit
+# 8000 » : ce n'est pas un debit a etaler, c'est un mur. Or les
+# resultats d'outils s'EMPILENT dans la conversation et repartent a
+# chaque aller-retour -- deux recherches web suffisent a le franchir.
+#
+# C'est ce qui bloquait les recherches de Monsieur le 19 sept. au soir
+# (« teste toutes les methodes, combine-les, cherche encore ») : la
+# tache demandait plusieurs outils, et l'agent mourait au troisieme.
+#
+# On borne donc chaque resultat d'outil, puis on jette les plus anciens
+# si ca deborde encore. Perdre le detail d'une recherche faite il y a
+# trois etapes est sans consequence ; ne pas pouvoir repondre du tout
+# en a une.
+BUDGET_MESSAGES = 5200          # hors max_tokens de la reponse
+RESULTAT_OUTIL_MAX = 2500       # caracteres, par resultat d'outil
+
+
+def _comprimer(messages: list[dict]) -> list[dict]:
+    """Ramene la conversation sous le budget, sans perdre l'essentiel.
+
+    Ordre de sacrifice : d'abord la TAILLE des vieux resultats d'outils,
+    ensuite les vieux echanges d'outils entiers. Le message systeme et
+    la demande en cours ne sont jamais touches.
+    """
+    if _estimer_jetons(messages) <= BUDGET_MESSAGES:
+        return messages
+
+    # 1. Raccourcir les resultats d'outils, les plus anciens d'abord.
+    for m in messages:
+        if m.get("role") == "tool" and len(m.get("content") or "") > 400:
+            m["content"] = (m["content"][:400]
+                            + " […coupé, resultat trop long]")
+            if _estimer_jetons(messages) <= BUDGET_MESSAGES:
+                return messages
+
+    # 2. Jeter les plus vieux echanges d'outils. On garde toujours le
+    #    systeme (indice 0) et les deux derniers messages.
+    while _estimer_jetons(messages) > BUDGET_MESSAGES and len(messages) > 3:
+        for i in range(1, len(messages) - 2):
+            if messages[i].get("role") in ("tool", "assistant"):
+                del messages[i]
+                break
+        else:
+            break
+    return messages
+
+
+def _estimer_jetons(messages: list[dict]) -> int:
+    """~4 caracteres par mot-machine. Approximation volontaire : elle
+    sert a se freiner, pas a facturer."""
+    return len(json.dumps(messages, ensure_ascii=False)) // 4
+
+
+def _attendre_son_tour(cout: int) -> None:
+    """Dort le temps qu'il faut pour rester sous le debit autorise."""
+    plafond = int(DEBIT_PAR_MINUTE * MARGE_DEBIT)
+    while True:
+        maintenant = time.time()
+        _historique_debit[:] = [(t, n) for t, n in _historique_debit
+                                if maintenant - t < 60.0]
+        deja = sum(n for _, n in _historique_debit)
+        if deja + cout <= plafond or not _historique_debit:
+            _historique_debit.append((maintenant, cout))
+            return
+        # Assez pour que la plus ancienne consommation sorte de la
+        # fenetre : c'est le plus court delai qui libere de la place.
+        attente = max(0.5, 60.0 - (maintenant - _historique_debit[0][0]) + 0.2)
+        print(f"debit : {deja} deja consommes, j'attends {attente:.0f}s")
+        time.sleep(min(attente, 30.0))
+
+
 def _appeler_moteur(messages: list[dict]) -> dict:
     """Un appel brut a l'endpoint compatible OpenAI (LUNA_API_URL), AVEC
     outils -- MoteurCompatibleOpenAI (luna/moteurs.py) ne les expose pas,
@@ -280,7 +378,7 @@ def _appeler_moteur(messages: list[dict]) -> dict:
         raise ErreurAgent("LUNA_API_URL ou LUNA_API_MODELE absent")
     endpoint = url if url.endswith("/chat/completions") else url + "/chat/completions"
     corps = {"model": modele, "messages": messages, "tools": OUTILS,
-              "max_tokens": 1100, "temperature": 0.3}
+              "max_tokens": 900, "temperature": 0.3}
     entetes = {"content-type": "application/json",
                "user-agent": "Mozilla/5.0 (X11; Linux x86_64) alluxe-agent/1.0"}
     if cle:
@@ -289,12 +387,16 @@ def _appeler_moteur(messages: list[dict]) -> dict:
         endpoint, data=json.dumps(corps).encode("utf-8"),
         headers=entetes, method="POST")
 
+    # On se freine AVANT d'appeler. Le 429 devient alors l'exception,
+    # pas le regime normal.
+    _attendre_son_tour(_estimer_jetons(messages) + int(corps["max_tokens"]))
+
     # LE PALIER GRATUIT A UNE LIMITE PAR MINUTE (8 000 mots-machine chez
     # Groq). Un agent qui ENCHAINE les outils la touche forcement : chaque
     # aller-retour renvoie tout le contexte. Sans cette reprise, Monsieur
     # voyait « agent indisponible » pour une attente de six secondes.
     # Le serveur dit lui-meme combien de temps patienter, on l'ecoute.
-    for tentative in range(4):
+    for tentative in range(6):
         try:
             with urllib.request.urlopen(requete, timeout=60) as r:
                 return json.loads(r.read().decode("utf-8"))
@@ -310,11 +412,11 @@ def _appeler_moteur(messages: list[dict]) -> dict:
             # une erreur de frappe. C'est du tirage au sort : la meme
             # question repassee sort generalement propre. On retente,
             # comme pour la limite de debit.
-            if e.code == 400 and "tool_use_failed" in detail and tentative < 3:
+            if e.code == 400 and "tool_use_failed" in detail and tentative < 5:
                 print("appel d'outil malforme par le modele, nouvelle tentative")
                 time.sleep(1.0)
                 continue
-            if e.code == 429 and tentative < 3:
+            if e.code == 429 and tentative < 5:
                 import re as _re
                 trouve = _re.search(r"try again in ([\d.]+)s", detail)
                 attente = min(float(trouve.group(1)) + 1.0 if trouve else 8.0, 30.0)
@@ -323,7 +425,7 @@ def _appeler_moteur(messages: list[dict]) -> dict:
                 continue
             raise ErreurAgent(f"HTTP {e.code} : {detail[:300]}") from e
         except (urllib.error.URLError, TimeoutError, OSError) as e:
-            if tentative < 3:
+            if tentative < 5:
                 time.sleep(3)
                 continue
             raise ErreurAgent(f"reseau : {e}") from e
@@ -351,6 +453,7 @@ def _repondre(rest_lecture: _Rest, tours: list[dict],
     outils_utilises: list[str] = []
 
     for _ in range(MAX_ALLERS_RETOURS_OUTILS):
+        messages = _comprimer(messages)
         reponse = _appeler_moteur(messages)
         choix = reponse["choices"][0]["message"]
         appels = choix.get("tool_calls") or []
@@ -381,9 +484,14 @@ def _repondre(rest_lecture: _Rest, tours: list[dict],
                     # Un outil qui casse ne doit jamais tuer le service :
                     # l'agent doit pouvoir dire qu'il a echoue.
                     resultat = {"erreur": f"{type(e).__name__} : {e}"}
+            rendu = json.dumps(resultat, ensure_ascii=False)
+            if len(rendu) > RESULTAT_OUTIL_MAX:
+                # Une recherche web rend parfois des pages entieres. Le
+                # modele n'a pas besoin de tout : il a besoin du debut.
+                rendu = rendu[:RESULTAT_OUTIL_MAX] + " […resultat tronqué]"
             messages.append({
                 "role": "tool", "tool_call_id": appel["id"],
-                "content": json.dumps(resultat, ensure_ascii=False),
+                "content": rendu,
             })
 
     return ("Desole, je n'arrive pas a repondre proprement pour l'instant "
@@ -517,12 +625,30 @@ def _traiter_message_discussion(rest: _Rest) -> bool:
     return True
 
 
+# Un de ses propres longs tableaux pesait a lui seul 652 mots-machine,
+# renvoyes a CHAQUE aller-retour d'outil. On garde le fil complet -- la
+# conversation a besoin de son contexte -- mais on coupe les pavés : ce
+# qui compte dans un vieux message, c'est son debut.
+LONGUEUR_MAX_MESSAGE = 700
+
+
 def _historique_discussion(rest: _Rest) -> list[dict]:
     lignes = rest.get(f"/rest/v1/{DISCUSSION}?select=auteur,texte"
                       f"&order=created_at.desc&limit={HISTORIQUE_MESSAGES}")
     lignes.reverse()
-    return [{"role": "user" if l["auteur"] == "operateur" else "assistant",
-             "content": l["texte"]} for l in lignes if l.get("texte")]
+    tours = []
+    for i, l in enumerate(lignes):
+        texte = l.get("texte") or ""
+        if not texte:
+            continue
+        # Le DERNIER message reste entier : c'est la demande en cours.
+        if len(texte) > LONGUEUR_MAX_MESSAGE and i < len(lignes) - 1:
+            texte = texte[:LONGUEUR_MAX_MESSAGE] + " […]"
+        tours.append({
+            "role": "user" if l["auteur"] == "operateur" else "assistant",
+            "content": texte,
+        })
+    return tours
 
 
 def _traiter_un_message(rest: _Rest) -> bool:

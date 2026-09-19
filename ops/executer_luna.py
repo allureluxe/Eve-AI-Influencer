@@ -74,6 +74,41 @@ class _Rest:
             {"content-type": "application/json",
              "prefer": "resolution=merge-duplicates"})
 
+    def liberer_les_bloquees(self, minutes: int = 20) -> int:
+        """Remet en attente ce qui traine « en cours » depuis trop longtemps.
+
+        Le `try/except` de `_traiter_une_demande` ne suffit pas : un
+        processus TUE (manque de memoire, redemarrage du serveur)
+        n'execute aucun `except`. Sans ce filet, une demande reclamee
+        juste avant la mort resterait bloquee indefiniment.
+
+        Vingt minutes : bien au-dela d'une generation normale (une a
+        deux minutes), assez court pour que Monsieur ne reste pas devant
+        un ecran fige.
+        """
+        import datetime as _dt
+        import urllib.parse as _up
+        # Encode : le « + » du fuseau (+00:00) serait lu comme un ESPACE
+        # dans une adresse, et PostgREST refuse la date en 400. Trouve en
+        # posant ce filet, pas apres.
+        limite = _up.quote(
+            (_dt.datetime.now(_dt.timezone.utc)
+             - _dt.timedelta(minutes=minutes)).isoformat(), safe="")
+        try:
+            reprises = json.loads(self._requete(
+                "PATCH",
+                f"/rest/v1/luna_publications?statut=eq.en_cours"
+                f"&created_at=lt.{limite}",
+                json.dumps({"statut": "en_attente"}).encode("utf-8"),
+                {"content-type": "application/json",
+                 "prefer": "return=representation"}) or b"[]")
+        except Exception as exc:                              # noqa: BLE001
+            print(f"liberation impossible : {str(exc)[:120]}")
+            return 0
+        if reprises:
+            print(f"{len(reprises)} demande(s) bloquee(s) remise(s) en attente")
+        return len(reprises)
+
     def reclamer_en_attente(self) -> dict | None:
         """Prend la plus ancienne demande `en_attente`, en la marquant
         `en_cours` de facon atomique -- si un autre passage l'a deja
@@ -125,7 +160,29 @@ def _traiter_une_demande(rest: _Rest) -> bool:
         return False
 
     id_, demande = ligne["id"], ligne.get("demande", "")
-    resultat = creer(demande)
+
+    # UNE DEMANDE RECLAMEE NE DOIT JAMAIS RESTER « EN COURS ».
+    #
+    # Elle est deja passee en `en_cours` : plus aucun passage ne la
+    # reprendra. Si `creer()` leve -- quota d'images epuise, reseau
+    # coupe, moteur qui refuse -- la ligne restait bloquee POUR
+    # TOUJOURS, et l'application affichait « en génération » sans fin.
+    #
+    # Constate le 19 sept. : une demande de 17h52 tournait encore a
+    # 23h30, alors que les DEUX generateurs d'images gratuits etaient a
+    # sec (Hugging Face 402, Cloudflare 429). Monsieur a attendu six
+    # heures devant un ecran qui ne lui disait rien.
+    #
+    # Un echec affiche vaut mieux qu'une attente muette.
+    try:
+        resultat = creer(demande)
+    except Exception as exc:                                  # noqa: BLE001
+        print(f"echec traitement : {type(exc).__name__} : {str(exc)[:200]}")
+        rest.completer(id_, {
+            "statut": "echec",
+            "erreurs": {"traitement": f"{type(exc).__name__} : {str(exc)[:400]}"},
+        })
+        return True
 
     champs: dict = {
         "legende": resultat.legende, "scene_prompt": resultat.scene_prompt,
@@ -158,6 +215,8 @@ def main() -> int:
         print("SUPABASE_URL ou SUPABASE_SERVICE_KEY absent, rien fait")
         return 1
     rest = _rest(url, cle)
+
+    rest.liberer_les_bloquees()
 
     try:
         _publier_persona(rest)
