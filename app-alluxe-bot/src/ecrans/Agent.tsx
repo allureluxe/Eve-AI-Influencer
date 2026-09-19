@@ -60,6 +60,14 @@ const RYTHME_MS = 2_000;
 // a affiner une fois de vrais essais faits sur l'appareil de l'operateur.
 const VARIANTES_ALLUXE = [
   "alluxe", "aluxe", "allux", "alux", "alloxe", "aluxes", "alluxes", "aluxx",
+  // Ce qu'un correcteur FRANCAIS propose pour un mot qu'il ne connait
+  // pas : il le rapproche de mots existants. Liste elargie le 19 sept.
+  // apres "l'ecoute en continu ne fonctionne toujours pas" -- la
+  // transcription reelle s'affiche maintenant a l'ecran (voir
+  // `dernierEntendu`), ce qui permettra de completer cette liste avec ce
+  // que le telephone entend VRAIMENT, au lieu de deviner.
+  "aluxe", "alukse", "aluxie", "alusse", "aluc", "alucse", "halux",
+  "haluxe", "allukse", "alusque", "aluxque", "alluc", "alouxe", "aloux",
 ];
 
 function _normaliserMot(mot: string): string {
@@ -76,9 +84,32 @@ function _normaliserMot(mot: string): string {
  */
 function _apresAlluxe(transcription: string): string | null {
   const mots = transcription.split(/\s+/).filter(Boolean);
-  const index = mots.findIndex((m) => VARIANTES_ALLUXE.includes(_normaliserMot(m)));
+
+  // "Alluxe" n'existe pas en francais : la reconnaissance le rend tres
+  // souvent en DEUX mots -- "a luxe", "à lux", "al ux". Chercher un mot
+  // entier, un par un, ne pouvait alors JAMAIS aboutir, et la phrase
+  // etait ignoree en silence. C'est la cause la plus probable du
+  // "l'ecoute en continu ne fonctionne pas" du 19 sept.
+  //
+  // On teste donc chaque mot ET chaque paire de mots consecutifs
+  // recollee, puis on repart apres le dernier mot consomme.
+  let index = -1;
+  let motsConsommes = 1;
+  for (let i = 0; i < mots.length; i++) {
+    if (VARIANTES_ALLUXE.includes(_normaliserMot(mots[i]))) {
+      index = i;
+      motsConsommes = 1;
+      break;
+    }
+    if (i + 1 < mots.length
+        && VARIANTES_ALLUXE.includes(_normaliserMot(mots[i] + mots[i + 1]))) {
+      index = i;
+      motsConsommes = 2;
+      break;
+    }
+  }
   if (index === -1) return null;
-  return mots.slice(index + 1).join(" ").trim();
+  return mots.slice(index + motsConsommes).join(" ").trim();
 }
 
 function Bulle({ m }: { m: Message }) {
@@ -153,6 +184,11 @@ export function EcranAgent() {
   const [liste, setListe] = React.useState<Message[] | null>(null);
   const [texte, setTexte] = React.useState("");
   const [envoi, setEnvoi] = React.useState(false);
+  // Ce que le telephone a VRAIMENT transcrit, affiche a l'ecran.
+  // Sans ca, une phrase ignoree (mot de reveil non reconnu) ne
+  // laissait aucune trace : ni Monsieur ni moi ne pouvions savoir
+  // pourquoi "ca ne marche pas".
+  const [dernierEntendu, setDernierEntendu] = React.useState("");
   const [ecoute, setEcoute] = React.useState(false);
   const [ecouteContinue, setEcouteContinue] = React.useState(false);
   const [erreur, setErreur] = React.useState("");
@@ -230,7 +266,19 @@ export function EcranAgent() {
       }
       modeEcouteRef.current = mode;
       if (mode === "unique") setEcoute(true);
-      ExpoSpeechRecognitionModule.start({ lang: "fr-FR", interimResults: false });
+      ExpoSpeechRecognitionModule.start({
+        lang: "fr-FR",
+        interimResults: false,
+        // `continuous` n'etait PAS passe : la reconnaissance s'arretait au
+        // premier silence et tout reposait sur la relance dans "end".
+        continuous: mode === "continu",
+        androidIntentOptions: {
+          // Sans ca, Android coupe apres ~1 s de silence : le temps de
+          // dire "Alluxe" puis de formuler sa question, c'est deja fini.
+          EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+          EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+        },
+      });
     } catch (err: any) {
       if (mode === "unique") setEcoute(false); else setEcouteContinue(false);
       setErreur(err?.message ?? "Impossible de demarrer l'ecoute");
@@ -252,6 +300,7 @@ export function EcranAgent() {
   useSpeechRecognitionEvent("result", (e) => {
     const transcription = e.results[0]?.transcript;
     if (!e.isFinal || !transcription) return;
+    setDernierEntendu(transcription);
     if (modeEcouteRef.current === "continu") {
       const question = _apresAlluxe(transcription);
       if (question === null) return; // pas de "Alluxe" entendu -- ignore, jamais envoye
@@ -266,8 +315,24 @@ export function EcranAgent() {
     if (modeEcouteRef.current === "continu" && ecouteContinueRef.current) {
       // Boucle : la reconnaissance s'arrete seule apres chaque silence,
       // meme avec continuous:true sur certaines versions d'Android. Tant
-      // que l'operateur n'a pas coupe le bouton, on relance aussitot.
-      ExpoSpeechRecognitionModule.start({ lang: "fr-FR", interimResults: false });
+      // que l'operateur n'a pas coupe le bouton, on relance.
+      //
+      // AVEC UN DELAI, et dans un try : relancer dans la foulee donne un
+      // ERROR_RECOGNIZER_BUSY sur Android, dont l'erreur remontait dans
+      // le gestionnaire "error" et COUPAIT l'ecoute continue -- le bouton
+      // se desactivait tout seul au bout de quelques secondes.
+      setTimeout(() => {
+        if (!ecouteContinueRef.current) return;
+        try {
+          ExpoSpeechRecognitionModule.start({
+            lang: "fr-FR", interimResults: false, continuous: true,
+            androidIntentOptions: {
+              EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+              EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+            },
+          });
+        } catch { /* le prochain "end" relancera */ }
+      }, 400);
       return;
     }
     setEcoute(false);
@@ -281,7 +346,11 @@ export function EcranAgent() {
       return;
     }
     setEcoute(false);
-    if (enContinu) setEcouteContinue(false); // vraie erreur : ne pas boucler dessus
+    // "busy" et "network" sont passagers : couper l'ecoute continue
+    // dessus, c'est l'eteindre toute seule au bout de quelques secondes.
+    const passagere = ["busy", "network", "client", "no-match"]
+      .some((m) => String(e.error || "").includes(m));
+    if (enContinu && !passagere) setEcouteContinue(false);
     setErreur(`Ecoute : ${e.message || e.error}`);
   });
 
@@ -317,6 +386,19 @@ export function EcranAgent() {
         <Ionicons name={ecouteContinue ? "ear" : "ear-outline"}
                   size={18} color={ecouteContinue ? c.gain : c.encrePale} />
       </Pressable>
+
+      {/* CE QUE LE TELEPHONE A VRAIMENT ENTENDU.
+          Tant que ca n'etait pas affiche, une phrase ignoree parce que le
+          mot de reveil n'etait pas reconnu ne laissait aucune trace : de
+          l'exterieur, "ca ne marche pas". Maintenant on voit la
+          transcription, donc on sait s'il faut corriger l'oreille ou la
+          liste des variantes. */}
+      {ecouteContinue && !!dernierEntendu && (
+        <T v="petit" couleur={c.encreDouce}
+           style={{ marginBottom: espace.m, paddingHorizontal: espace.l }}>
+          entendu : « {dernierEntendu} »
+        </T>
+      )}
 
       {!!erreur && (
         <T v="petit" couleur={c.perte} style={{ marginBottom: espace.m, paddingHorizontal: espace.l }}>
