@@ -83,6 +83,23 @@ class BacktestResult:
         }
 
 
+@dataclass
+class Prepare:
+    """Un instrument pret a defiler, et de quoi le piloter.
+
+    `parcours` annonce l'horodatage de la prochaine bougie ; un `next()`
+    la traite. `broker` et `risk` peuvent etre partages avec d'autres
+    instruments — c'est toute la difference entre mesurer un robot et
+    mesurer autant de comptes qu'il y a de cryptos.
+    """
+    resultat: BacktestResult
+    parcours: object
+    broker: PaperBroker
+    risk: RiskManager
+    instrument: Instrument
+    bougies: list[Candle]
+
+
 class Backtester:
     """Rejoue une strategie sur l'historique d'un instrument."""
 
@@ -119,13 +136,49 @@ class Backtester:
 
     def run(self, symbol: str, bars: int = 1500, start_balance: float = 1000.0,
             series: Optional[dict[str, list[Candle]]] = None) -> BacktestResult:
-        """Rejoue la strategie sur un instrument.
+        """Rejoue la strategie sur un instrument, sur un compte a lui seul.
 
         `series` : si fourni, `{unite: bougies}` remplace le telechargement
         par le registre. Sert aux rejeux sur une fenetre longue (6 mois)
         recuperee a part, que les fournisseurs du registre ne servent pas.
         La serie d'entree doit couvrir la periode ; les unites superieures
         doivent inclure de l'historique ANTERIEUR pour le prechauffage.
+
+        ATTENTION A CE QUE CETTE MESURE DIT, ET A CE QU'ELLE NE DIT PAS.
+        Chaque appel ouvre un compte NEUF, dote de `start_balance` entier
+        et de tout le budget de risque. Mesurer vingt instruments ainsi,
+        puis additionner les profits, revient a supposer vingt comptes
+        separes — pas un robot qui les arbitre sur un seul. Pour cela,
+        voir `backtest_portefeuille.BacktestPortefeuille`.
+        """
+        prep = self.preparer(symbol, bars, start_balance, series)
+        for _ in prep.parcours:
+            pass
+        for pos in list(prep.broker.positions()):
+            t = prep.broker.close_position(pos.id, None, "fin de periode de test")
+            if t:
+                prep.resultat.trades.append(t)
+        prep.resultat.end_balance = prep.broker.account().balance
+        return prep.resultat
+
+    def preparer(self, symbol: str, bars: int, start_balance: float,
+                 series: Optional[dict[str, list[Candle]]] = None,
+                 broker: Optional[PaperBroker] = None,
+                 risk: Optional[RiskManager] = None) -> "Prepare":
+        """Prepare le rejeu d'un instrument et rend `(resultat, parcours)`.
+
+        `parcours` est un generateur qui rend la main AVANT de traiter
+        chaque bougie, en annoncant son horodatage. Un `next()` traite la
+        bougie annoncee et annonce la suivante.
+
+        C'est ce qui permet a deux pilotes tres differents — un rejeu par
+        instrument et un rejeu de portefeuille — d'executer exactement le
+        MEME corps de bougie. Dupliquer ce corps serait la faute que ce
+        depot a deja payee plusieurs fois : deux endroits qui decident de
+        la meme chose finissent toujours par diverger, sans test rouge.
+
+        `broker` et `risk` fournis : le compte est PARTAGE avec d'autres
+        instruments, et c'est a l'appelant de le cloturer.
         """
         instrument = self.universe.get(symbol.upper())
         if instrument is None:
@@ -145,15 +198,37 @@ class Backtester:
         # La commission du rejeu suit celle de la configuration (Bitvavo
         # taker = 0,25 % par cote). Sans ce passage, PaperConfig retombait
         # sur son defaut 0,02 %, soit douze fois moins que le tarif reel.
-        broker = PaperBroker(PaperConfig(
-            start_balance=start_balance, currency=cfg.engine.currency,
-            commission_pct=cfg.risk.commission_pct))
-        broker.connect()
+        if broker is None:
+            broker = PaperBroker(PaperConfig(
+                start_balance=start_balance, currency=cfg.engine.currency,
+                commission_pct=cfg.risk.commission_pct))
+            broker.connect()
         broker.register_instrument(instrument)
 
         strategy = Strategy(cfg.strategy, TradeManager(cfg.trade), macro=None)
         manager = TradeManager(cfg.trade)
-        risk = RiskManager(cfg.risk)
+        if risk is None:
+            risk = RiskManager(cfg.risk)
+
+        # « MES positions » n'est PAS « toutes les positions ».
+        #
+        # Ici les deux se confondent : un rejeu par instrument n'a qu'un
+        # symbole dans le courtier, donc filtrer ne change aucun chiffre
+        # (verrouille par un test). Mais la distinction est reelle, et
+        # elle devient vitale des que plusieurs symboles partagent un
+        # compte — c'est le cas du robot, et celui de
+        # `backtest_portefeuille`.
+        #
+        # Sans elle, la gestion dynamique appliquerait la cotation et les
+        # indicateurs de CE symbole aux positions des AUTRES : des stops
+        # deplaces sur un prix qui n'est pas le leur, en silence.
+        #
+        # Deux appels restent volontairement GLOBAUX, parce qu'ils portent
+        # sur le compte et non sur l'instrument : `risk.can_trade` et
+        # `risk.size_position`, qui lisent le budget de risque partage.
+        def miennes():
+            return [p for p in broker.positions()
+                    if p.symbol == instrument.symbol]
 
         # Un jeu d'indicateurs par unite de temps, alimente au fil de l'eau.
         indicators = {tf: IndicatorSet(history=cfg.strategy.history) for tf in strategy.timeframes}
@@ -195,7 +270,22 @@ class Backtester:
                             instrument.symbol, tf, len(anterieures))
 
         warmup = 150
-        for i, candle in enumerate(base):
+
+        def parcours():
+            for i, candle in enumerate(base):
+                # ON REND LA MAIN AVANT DE TRAITER, PAS APRES.
+                #
+                # Le pilote a besoin de connaitre l'horodatage de la
+                # prochaine bougie pour decider quel instrument avance.
+                # S'il ne l'apprenait qu'une fois la bougie traitee, un
+                # portefeuille traiterait les symboles dans le desordre
+                # chronologique — et un robot qui voit l'avenir d'un
+                # marche pendant qu'il decide sur un autre mesure
+                # n'importe quoi.
+                yield candle.ts
+                _bougie(i, candle)
+
+        def _bougie(i, candle):
             result.bars += 1
 
             # --- Alimentation des indicateurs (uniquement du cloture) ---
@@ -216,7 +306,7 @@ class Backtester:
                 buffers[tf].append(candle)
 
             if i < warmup:
-                continue
+                return
 
             spread = spread_estime(instrument, candle.close)
             tick = Tick(candle.ts, candle.close - spread / 2, candle.close + spread / 2)
@@ -235,7 +325,7 @@ class Backtester:
 
             # --- Gestion dynamique des positions restantes ---
             chart = read_chart(indicators[entry_tf], instrument.round_step)
-            ouvertes = list(broker.positions())
+            ouvertes = miennes()
             for pos in ouvertes:
                 for action in manager.manage(pos, tick, indicators[entry_tf],
                                              chart=chart, digits=instrument.digits,
@@ -264,13 +354,13 @@ class Backtester:
             # ATR sous la SMA COURANTE (reevaluee ici chaque bougie). Le
             # stop ATR reste gere par `process_candle` : une reversion qui
             # ne revient jamais sort au stop.
-            if cfg.strategy.famille == "reversion" and broker.positions():
+            if cfg.strategy.famille == "reversion" and miennes():
                 n_ma = int(cfg.strategy.reversion_ma_periode)
                 closes = [c.close for c in indicators[entry_tf].candles]
                 if len(closes) >= n_ma and atr > 0:
                     sma_now = sum(closes[-n_ma:]) / n_ma
                     if (sma_now - candle.close) <= cfg.strategy.reversion_sortie_atr * atr:
-                        for pos in list(broker.positions()):
+                        for pos in miennes():
                             t = broker.close_position(pos.id, None, "reversion : retour a la MA")
                             if t:
                                 result.trades.append(t)
@@ -289,16 +379,16 @@ class Backtester:
             # Hors pyramide le comportement est inchange : une seule
             # position, comme toutes les mesures precedentes — celles du
             # 30 aout restent donc comparables.
-            ouvertes = broker.positions()
+            ouvertes = miennes()
             if ouvertes and cfg.risk.pyramide_max <= 0:
-                continue
+                return
             # Prix et ATR transmis : sans eux la regle d'espacement Turtle
             # (« +1 unite tous les 0,5 N ») ne peut pas s'appliquer, et deux
             # etages s'ouvriraient sur la meme bougie.
             _atr_now = indicators[entry_tf].atr.value or 0.0
             if ouvertes and not risk.peut_renforcer(
                     ouvertes, ouvertes[0].side, prix=candle.close, atr=_atr_now)[0]:
-                continue
+                return
             # LE MEME PIEGE QUE POUR LA PYRAMIDE, ET IL A DEJA MENTI UNE FOIS.
             #
             # Le delai de carence vit dans `check_exposure`, que le rejeu
@@ -312,12 +402,12 @@ class Backtester:
                                                       now=candle.ts) > 0:
                 result.rejections["carence apres sortie"] = \
                     result.rejections.get("carence apres sortie", 0) + 1
-                continue
+                return
             ok, why = risk.can_trade(broker.positions(), ts=candle.ts)
             if not ok:
                 result.rejections[why.split("(")[0].strip()] = \
                     result.rejections.get(why.split("(")[0].strip(), 0) + 1
-                continue
+                return
 
             ev = strategy.evaluate(instrument, indicators, tick, news=None,
                                    charts={entry_tf: chart}, now=candle.ts)
@@ -334,12 +424,12 @@ class Backtester:
             if not self.autorise_vente and ev.side is Side.SELL:
                 result.rejections["vente impossible au comptant"] = \
                     result.rejections.get("vente impossible au comptant", 0) + 1
-                continue
+                return
             if not ev.valid:
                 failed = ev.failed_gates()
                 key = failed[0].name if failed else (ev.rejected_by or "score")
                 result.rejections[key] = result.rejections.get(key, 0) + 1
-                continue
+                return
 
             # LE SPREAD DOIT ETRE LE MEME PARTOUT DANS LE REJEU.
             #
@@ -360,7 +450,7 @@ class Backtester:
             if not sizing.allowed:
                 key = "dimensionnement"
                 result.rejections[key] = result.rejections.get(key, 0) + 1
-                continue
+                return
             prix_entree = None
             if self.entree_limite:
                 # L'ordre est pose au meilleur acheteur, soit le prix moins
@@ -374,7 +464,7 @@ class Backtester:
                     result.rejections["limite non servie"] = \
                         result.rejections.get("limite non servie", 0) + 1
                     self._rates += 1
-                    continue
+                    return
                 prix_entree = limite
 
             try:
@@ -390,14 +480,11 @@ class Backtester:
                 result.rejections["ouverture_refusee"] = result.rejections.get("ouverture_refusee", 0) + 1
                 logger.debug("ouverture refusee : %s", exc)
 
-        # Cloture de ce qui reste ouvert a la fin de la periode
-        for pos in list(broker.positions()):
-            t = broker.close_position(pos.id, None, "fin de periode de test")
-            if t:
-                result.trades.append(t)
-
-        result.end_balance = broker.account().balance
-        return result
+        # La cloture de fin de periode appartient au PILOTE, pas ici : sur
+        # un compte partage, elle ne doit avoir lieu qu'une fois, quand
+        # tous les instruments ont fini de defiler.
+        return Prepare(resultat=result, parcours=parcours(), broker=broker,
+                       risk=risk, instrument=instrument, bougies=base)
 
     def run_multi(self, symbols: list[str], bars: int = 1500,
                   start_balance: float = 1000.0) -> dict[str, BacktestResult]:

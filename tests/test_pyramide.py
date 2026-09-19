@@ -240,7 +240,7 @@ class TestLeRejeuSaitEmpiler:
         """Les mesures du 30 aout doivent rester comparables."""
         import inspect
         from gold_bot.backtest import Backtester
-        src = inspect.getsource(Backtester.run)
+        src = inspect.getsource(Backtester.preparer)
         assert "pyramide_max <= 0" in src, (
             "le rejeu ne distingue plus le mode simple du mode pyramide")
 

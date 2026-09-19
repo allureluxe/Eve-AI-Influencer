@@ -710,7 +710,8 @@ class BitvavoBroker(Broker):
             reason="stop declenche sur la plateforme",
             tp_extensions=position.tp_extensions,
             max_favorable_r=round(position.r_multiple(position.max_favorable), 3),
-            partial=not invendable)
+            partial=not invendable,
+            etages=int(getattr(position, "etages", 1) or 1))
         self._closed.append(trade)
 
         if invendable:
@@ -1392,7 +1393,8 @@ class BitvavoBroker(Broker):
             profit=round(profit, 6), r_multiple=round(position.r_multiple(sortie), 3),
             reason=reason, tp_extensions=position.tp_extensions,
             max_favorable_r=round(position.r_multiple(position.max_favorable), 3),
-            partial=partielle)
+            partial=partielle,
+            etages=int(getattr(position, "etages", 1) or 1))
         self._closed.append(trade)
 
         reste_frais = self._frais_entree.get(position.id)

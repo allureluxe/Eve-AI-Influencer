@@ -243,6 +243,17 @@ class ClosedTrade:
     tp_extensions: int = 0
     max_favorable_r: float = 0.0
     partial: bool = False   # True = fermeture partielle, pas la fin du trade
+    # COMBIEN D'ETAGES LA PYRAMIDE AVAIT-ELLE EN SORTANT ?
+    #
+    # C'est le chiffre sur lequel repose la decision la plus lourde du
+    # depot : le pyramidage illimite, arme les 9 et 12 septembre parce
+    # qu'une position a 7 etages rapportait +39,47 EUR quand une position
+    # a un seul etage en perdait 1,62. Il n'etait pourtant enregistre
+    # NULLE PART — ni dans le journal des trades, ni dans le rejeu. La
+    # mesure etait donc irreproductible, et personne ne pouvait verifier
+    # que le robot atteignait encore les etages qui payent. (Il ne les
+    # atteignait plus : budget de risque sature, verifie le 19 sept.)
+    etages: int = 1
 
 
 def round_price(price: float, digits: int) -> float:

@@ -113,7 +113,7 @@ class TestLeRejeuRespecteLesSensPossibles:
         """Le refus doit apparaitre dans les motifs, pas disparaitre."""
         import inspect
         from gold_bot.backtest import Backtester
-        source = inspect.getsource(Backtester.run)
+        source = inspect.getsource(Backtester.preparer)
         assert "autorise_vente" in source
         assert "vente impossible au comptant" in source, (
             "un trade ecarte sans motif rend le diagnostic impossible")

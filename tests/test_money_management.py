@@ -331,7 +331,7 @@ class TestConstructionDuMoteur:
         import inspect
 
         from gold_bot.backtest import Backtester
-        source = inspect.getsource(Backtester.run)
+        source = inspect.getsource(Backtester.preparer)
         if "spread_estime" in source:
             import gold_bot.backtest as mod
             assert hasattr(mod, "spread_estime"), \

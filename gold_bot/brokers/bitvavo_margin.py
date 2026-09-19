@@ -250,6 +250,7 @@ class BitvavoMarginBroker(BitvavoBroker):
             tp_extensions=position.tp_extensions,
             max_favorable_r=round(position.r_multiple(position.max_favorable), 3),
             partial=quantite < position.volume - 1e-12,
+            etages=int(getattr(position, "etages", 1) or 1),
         )
         self._closed.append(trade)
         if quantite >= position.volume - 1e-12:

@@ -184,6 +184,7 @@ class PaperBroker(Broker):
             tp_extensions=pos.tp_extensions,
             max_favorable_r=round(pos.r_multiple(pos.max_favorable), 3),
             partial=is_partial,
+            etages=int(getattr(pos, "etages", 1) or 1),
         )
         self._closed.append(trade)
 

@@ -419,7 +419,7 @@ class TestLeRejeuAppliqueVraimentLaCarence:
     def test_le_rejeu_refuse_bien_un_rachat_trop_tot(self):
         import inspect
         from gold_bot.backtest import Backtester
-        src = inspect.getsource(Backtester.run)
+        src = inspect.getsource(Backtester.preparer)
         assert "carence_restante" in src, (
             "le rejeu n'applique pas le delai de carence : toute mesure "
             "rendra un resultat identique au temoin, sans rien casser")

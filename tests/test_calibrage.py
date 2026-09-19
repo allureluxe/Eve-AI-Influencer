@@ -192,7 +192,7 @@ class TestPrechauffageDuBacktest:
         import inspect
 
         from gold_bot.backtest import Backtester
-        source = inspect.getsource(Backtester.run)
+        source = inspect.getsource(Backtester.preparer)
         assert "c.ts < debut" in source, \
             "le prechauffage doit filtrer sur l'anteriorite stricte"
 
@@ -201,7 +201,7 @@ class TestPrechauffageDuBacktest:
         import inspect
 
         from gold_bot.backtest import Backtester
-        source = inspect.getsource(Backtester.run)
+        source = inspect.getsource(Backtester.preparer)
         bloc = source[source.index("PRECHAUFFAGE"):source.index("warmup = 150")]
         assert "except" in bloc, "le prechauffage doit survivre a une source indisponible"
 
