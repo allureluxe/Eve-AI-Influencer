@@ -109,6 +109,33 @@ class TestAlluxe(unittest.TestCase):
         self.assertIn("script", resultat.erreurs)
         self.assertFalse(resultat.chemin_image)
 
+    def test_une_reponse_sans_etiquettes_reste_exploitable(self):
+        # Cas REEL du 19 sept. : reponse parfaitement utilisable mais sans
+        # "LEGENDE:" ni "SCENE:" -- tout etait jete et Luna ne produisait
+        # plus aucune photo. La legende est courte et francaise, la scene
+        # longue et anglaise : ca suffit a les distinguer.
+        brut = ("Pause cafe, reves en latte\n"
+                "In a sunlit cafe corner, she sits by the large window, "
+                "wearing a white blouse under a denim jacket")
+        resultat = creer("une photo au cafe", dossier_racine=self.dossier,
+                          moteur=MoteurFactice(reponse=brut),
+                          images=GenerateurImagesFactice())
+        # On ne verifie QUE l'etape script : la voix depend de gTTS/edge-tts,
+        # absents du venv principal (ils vivent dans .venv-luna).
+        self.assertNotIn("script", resultat.erreurs)
+        self.assertEqual(resultat.legende, "Pause cafe, reves en latte")
+        self.assertIn("sunlit cafe corner", resultat.scene_prompt)
+        self.assertTrue(resultat.chemin_image)
+
+    def test_deux_lignes_trop_courtes_echouent_au_lieu_d_inventer(self):
+        # Sans etiquette ET sans scene plausible (rien de plus long que la
+        # legende), mieux vaut signaler que fabriquer une image au hasard.
+        resultat = creer("un post", dossier_racine=self.dossier,
+                          moteur=MoteurFactice(reponse="bonjour\nsalut"),
+                          images=GenerateurImagesFactice())
+        self.assertIn("script", resultat.erreurs)
+        self.assertFalse(resultat.chemin_image)
+
     def test_une_panne_du_moteur_arrete_tout_le_reste(self):
         moteur = MoteurFactice()
         moteur.repondre = lambda systeme, tours: (_ for _ in ()).throw(

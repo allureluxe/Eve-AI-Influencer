@@ -137,7 +137,41 @@ def _ecrire_script(demande: str, moteur, persona: Persona = LUNA) -> tuple[str, 
         elif _debut(ligne, "SCEN"):
             scene = ligne.split(":", 1)[1].strip()
     if not legende or not scene:
+        legende, scene = _sans_etiquettes(brut)
+    if not legende or not scene:
         raise ErreurMoteur(f"reponse inattendue du moteur : {brut[:200]}")
+    return legende, scene
+
+
+def _sans_etiquettes(brut: str) -> tuple[str, str]:
+    """Repli quand le moteur oublie les etiquettes -- rend ("", "") s'il
+    n'y a pas de quoi decider.
+
+    Constate le 19 sept. : la reponse etait parfaitement utilisable mais
+    ne portait AUCUNE etiquette, juste la legende sur la premiere ligne
+    et la scene sur la suivante ("Pause cafe, reves en latte" puis "In a
+    sunlit cafe corner, she sits..."). Tout etait jete, et Luna ne
+    produisait plus aucune photo. C'est la 2e derive de format en trois
+    jours (le 16, c'etait "LEGEND:" au lieu de "LEGENDE:") : le moteur
+    n'est pas fiable sur la forme, l'analyseur doit l'etre sur le fond.
+
+    Les deux morceaux ne se ressemblent pas et c'est ce qui permet de
+    les distinguer sans etiquette : la legende est une phrase courte, en
+    francais, faite pour etre lue sous la photo ; la scene est une
+    description visuelle longue, en anglais, destinee au generateur
+    d'images. On prend donc la premiere ligne non vide comme legende, et
+    la PLUS LONGUE des suivantes comme scene -- jamais l'inverse.
+    """
+    lignes = [l.strip() for l in brut.splitlines() if l.strip()]
+    if len(lignes) < 2:
+        return "", ""
+    legende = lignes[0]
+    scene = max(lignes[1:], key=len)
+    # Une "scene" plus courte que la legende n'est pas une description
+    # visuelle : mieux vaut echouer franchement que fabriquer une image
+    # sur un texte qui n'a rien a voir avec ce qui etait demande.
+    if len(scene) <= len(legende):
+        return "", ""
     return legende, scene
 
 
