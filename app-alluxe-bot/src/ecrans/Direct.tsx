@@ -64,9 +64,14 @@ function LignePositionDirecte({ p, capital, prixActuel }: {
           <T v="petit" couleur={c.encreDouce}>
             {mise > 0 ? `${euros(mise)} misés` : "mise inconnue"}
           </T>
-          {etage > 1 && (
-            <T v="petit" couleur={c.encreDouce}> · renfort n°{etage}</T>
-          )}
+          {/* L'etage s'affiche TOUJOURS, meme au premier. Il n'apparaissait
+              au depart qu'a partir du 2e -- or toutes les positions sont au
+              1er tant que le pyramidage ne s'est pas declenche, donc
+              l'information n'etait jamais visible. Demande explicite de
+              l'operateur : "je ne vois toujours pas les etages 1 ou 2 ou 3". */}
+          <T v="petit" couleur={etage > 1 ? c.jaune : c.encreDouce}>
+            {" · étage " + etage}
+          </T>
         </View>
       </View>
       <View style={{ alignItems: "flex-end" }}>
