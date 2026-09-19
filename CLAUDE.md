@@ -68,6 +68,14 @@ ne dit rien sur aucune des deux.
 
 ## Pyramidage Turtle — armé le 6 septembre, et le plafond de 6 retiré
 
+> **⚠ DÉPASSÉ LES 9 ET 12 SEPTEMBRE — lire la correction en fin de
+> section avant d'agir.** Ce qui suit reste vrai comme *histoire* de la
+> décision du 6 septembre, mais **le réglage armé n'est plus « 3 unités »
+> et l'illimité n'est plus « le pire des six »** : les deux affirmations
+> ont été renversées par une mesure posée autrement. Quiconque
+> redescendrait `pyramide_max` à 2-3 « pour réparer une régression »
+> défairait une décision plus récente, mesurée deux fois.
+
 Décision de l'opérateur, sur mesure. **C'est le seul réglage testé cette
 session-là qui passe le walk-forward** — tous les autres (stop suiveur
 desserré, sortie canal, budget de risque relevé) ont été mesurés puis
@@ -87,7 +95,10 @@ desserré, sortie canal, budget de risque relevé) ont été mesurés puis
 **Le manuel Turtle dit 4 unités ; sur ces marchés et ces frais la mesure
 dit 3.** Et l'illimité — demandé à un moment — est le pire des six.
 Monter `pyramide_max` n'est pas « débrider » : c'est reproduire un
-résultat mesuré à −84 %.
+résultat mesuré à −84 %. **(Cette phrase est fausse depuis le 9
+septembre — voir la correction en fin de section. Elle est conservée
+parce que c'est elle qui, laissée seule, ferait redescendre
+`pyramide_max` à 3 en croyant bien faire.)**
 
 ### Armé, cassé en 3 minutes, réparé — ce que ça a appris
 
@@ -167,7 +178,8 @@ croyant partager**. Le diviseur vient désormais du budget de risque
 
 Le rejeu ne contraignait les ajouts que par le cash. Le moteur réel, lui,
 fait passer chaque étage par `max_total_risk_pct` : à 0,6 % par unité et
-3,5 % au total, **trois étages sur une crypto consomment 1,8 %** et il
+5,0 % au total (3,5 % jusqu'au 10 sept.), **trois étages sur une crypto
+consomment 1,8 %** et il
 reste peu pour le reste. Le robot pyramidera donc **moins** que le rejeu
 ne le montrait. C'est plus prudent, pas plus risqué — mais ce n'est pas
 exactement la configuration mesurée, et il faut le savoir avant de lire
@@ -175,6 +187,67 @@ les premiers résultats.
 
 `pyramide_fraction_risque` est à **1.0** (étages de même taille), décision
 explicite de l'opérateur et valeur mesurée. Le défaut du code reste 0,6.
+
+### CORRECTION du 9 et 12 septembre : illimité, et « à l'abri » au lieu de Turtle
+
+Écrite le 19 septembre, avec dix jours de retard — c'est ce retard qui a
+fait afficher de faux chiffres dans l'application pendant une semaine.
+
+**Ce qui a changé, et pourquoi la mesure du 6 septembre n'est pas
+contredite.** Le 6 septembre, la comparaison portait sur { 0, 2, 3, 4, 6,
+illimité } unités **par configuration globale** — et l'illimité y perdait
+(−84 %). Les 9 et 12 septembre, la même question est posée autrement :
+non plus « quel plafond choisir ? », mais **« que rapporte une position
+selon le nombre d'étages qu'elle a réellement atteints ? »**, à l'intérieur
+d'un réglage illimité. Deux périodes différentes, même réponse :
+
+    étages   trades   gagnants   résultat   par trade
+    1           399      19 %    −646 €     −1,62 €
+    2            29      62 %    +114 €     +3,93 €
+    3            17      65 %    +173 €    +10,20 €
+    4 à 6        23      78 %    +456 €    +19,84 €
+    7 et +       15      93 %    +592 €    +39,47 €
+
+**83 % des trades (un seul étage) sont une perte pure ; ils payent le
+droit d'entrée des 17 % qui pyramident.** Plafonner à 3, c'est garder
+tout le coût et jeter la queue qui le rembourse. Les deux mesures
+répondent à des questions différentes, et seule la seconde dit ce qui se
+passe quand on laisse courir.
+
+**Le modèle d'ajout, lui, revient en arrière.** Le Turtle « ajoute tous
+les 0,5 N » est ABANDONNÉ (9 sept.) : ajouter tôt remonte le prix moyen,
+donc une pyramide qui meurt à 2 étages coûte plus qu'une position simple
+(les tentatives à 1-5 étages coûtaient −5 517 €, les pyramides à 6+
+rapportaient +4 872 €). `pyramide_locked_r_min = 0.01` : **un étage ne
+s'ajoute que si le stop de toute la pyramide est déjà au-dessus du prix
+moyen** — elle ne peut plus perdre avant chaque nouvel ajout.
+
+    variante                      résultat    recul max      OOS    recul OOS
+    illimité SANS l'abri            −64,2 %      93,1 %   +62,1 %      49,5 %
+    illimité + À L'ABRI (armé)  +18 620,7 %      34,6 %  +255,1 %      33,7 %
+    sans pyramidage                 −35,7 %      61,0 %   −19,7 %      36,6 %
+
+Vérifié avant armement : levier moyen 0,24x (jamais au-dessus de 1x),
+1009 trades sur 1222 ne pyramident jamais, et le résultat tient même en
+retirant le meilleur trade. Chien de garde recalé sur ce recul :
+`PLANCHER_PCT` (`ops/chien_de_garde.py`) à **0,55**.
+
+**Ne pas confondre les deux réglages.** `pyramide_max` = combien d'étages
+au total (99, illimité). `pyramide_locked_r_min` = la condition pour en
+ajouter un (0,01 = à l'abri). Le second est ce qui rend le premier sûr.
+
+### La leçon de ce retard, qui vaut pour ce fichier entier
+
+Ce fichier est lu au démarrage de **chaque** session. Une décision armée
+et non écrite ici ne disparaît pas : elle continue de tourner en prod
+pendant que le fichier raconte autre chose — et ce sont les textes
+recopiés à la main depuis ce fichier (la « méthode » affichée dans
+l'application, le rapport du matin) qui propagent l'erreur jusqu'à
+l'opérateur. **Tout changement de configuration armé se réécrit ici dans
+la foulée**, et tout affichage qui décrit un réglage doit le *lire* dans
+la configuration plutôt que le recopier (corrigé le 19 sept. dans
+`ops/publier_alluxe_bot_prive.py` et `rapport_matin.py`, verrouillé par
+`tests/test_methode_publiee.py`).
 
 ---
 
@@ -200,16 +273,35 @@ chez Bitvavo) et **6 mois** en walk-forward, le classement s'inverse.
 
 ### Ce qui est armé
 
-| réglage | valeur | pourquoi |
-|---|---|---|
-| `strategy.famille` | **donchian** | cassure du plus-haut de 20 jours |
-| `strategy.entry_tf` | **D1** | frais 7 % du risque contre 47 % en M30 |
-| `strategy.donchian_entrees` | **[20]** | le canal 55 est mathématiquement inerte en OU |
-| `trade.tp_actif` | **false** | 9 trades sur 469 font 124 % du bénéfice ; le plafond les coupait tous à 5,77 R |
-| `trade.micro_profit_enabled` | **false** | coupait ~70 gagnants entre 1 et 2 R — le plus gros frein |
-| `trade.trail_atr_mult` | **2.2** | 3,0 et 4,0 mesurés PIRE |
-| `risk.pyramide_max` | **0** | 5 configurations testées, 5 fois l'OOS dégradé |
-| `risk.base_risk_pct` | **0.6** | palier « preuve » — pas le 1 % du Turtle |
+> **⚠ Ce tableau a été corrigé le 19 septembre.** Quatre de ces valeurs
+> avaient été remplacées les 9-12 septembre sans que ce fichier soit mis
+> à jour, et il a menti pendant une semaine — jusqu'à ce que l'opérateur
+> voie « canal 20 jours » affiché dans l'application alors que le robot
+> tournait sur 10. Les valeurs ci-dessous sont celles de
+> `robot.bitvavo.json`, **vérifiées le 19 septembre**. Les anciennes sont
+> conservées en dernière colonne : elles gardent leur raisonnement, mais
+> elles ne sont plus armées.
+
+| réglage | valeur ARMÉE | pourquoi | avant |
+|---|---|---|---|
+| `strategy.famille` | **donchian** | cassure du plus-haut de canal | — |
+| `strategy.entry_tf` | **D1** | frais 7 % du risque contre 47 % en M30 | — |
+| `strategy.donchian_entrees` | **[10]** | 12 sept. : le canal 10 bat le canal 20 sur les SIX périodes mesurées (médiane 1 109 € contre 323 €) | [20] |
+| `trade.tp_actif` | **false** | 9 trades sur 469 font 124 % du bénéfice ; le plafond les coupait tous à 5,77 R | — |
+| `trade.micro_profit_enabled` | **false** | coupait ~70 gagnants entre 1 et 2 R — le plus gros frein | — |
+| `trade.trail_atr_mult` | **3.0** | 12 sept. : remesuré avec le canal 10, 3,0 l'emporte | 2.2 |
+| `risk.pyramide_max` | **99** (illimité) | 9 et 12 sept. : mesuré PAR NOMBRE D'ÉTAGES, pas par présence/absence — voir la section pyramidage | 0 puis 3 |
+| `risk.pyramide_locked_r_min` | **0.01** | un étage ne s'ajoute que si la pyramide est déjà à l'abri (stop au-dessus du prix moyen) | 0,5 N « Turtle » |
+| `risk.pyramide_espacement_atr` | **0.25** | 12 sept., mesuré avec le canal 10 | 0.5 |
+| `risk.max_total_risk_pct` | **5.0** | 10 sept. : seul palier qui améliore l'apprentissage ET le hors-échantillon, et le recul BAISSE (34,0 → 29,7 %) | 3.5 |
+| `risk.ticket_min_eur` | **15.0** | 10 sept., correction d'un calcul de référence | 20.0 |
+| `risk.base_risk_pct` | **0.6** | palier « preuve » — pas le 1 % du Turtle | — |
+
+Le prix assumé du canal 10 : **le recul maximal double** (13,8 → 26,9 %),
+et la cadence passe de 83 à 233 trades par an. C'est une décision
+explicite de l'opérateur — « je ne veux pas d'un robot dormeur » — prise
+sur une mesure où le nouveau réglage bat l'ancien dans les six périodes,
+y compris le pire cas.
 
 ### Mesuré puis écarté — ne pas y revenir sans nouvelle mesure
 
@@ -248,7 +340,10 @@ preuve prendront **plusieurs semaines**, pas trois jours. Et la stratégie
 ne vit que de ses rares gros trades : **9 sur 469 font 124 % du bénéfice**.
 Une semaine sans gain n'est pas un signal d'échec, c'est le régime normal.
 
-Chien de garde : **plancher 100 EUR** (pic 158), décision explicite de
+Chien de garde : **plancher à −55 % du pic** (`PLANCHER_PCT = 0.55` dans
+`ops/chien_de_garde.py`, relevé le 9 sept. pour suivre le recul mesuré du
+pyramidage illimité ; c'était −37 % auparavant, soit 100 EUR pour un pic
+à 158). Décision explicite de
 l'opérateur pour laisser respirer une stratégie qui tient ses positions
 plusieurs jours. Tolérer −37 % est un choix assumé.
 
