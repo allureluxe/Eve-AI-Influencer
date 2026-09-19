@@ -92,10 +92,15 @@ export async function positionsOuvertesDemo(): Promise<Position[]> {
 }
 
 export async function historiqueDemo(limite = 100): Promise<Position[]> {
+  // PAS de "cancelled" ici, contrairement a l'historique reel. Le robot
+  // ne publie que des cloture_tp/sl ; les lignes "annulees" cote demo
+  // sont les 20 positions neutralisees A LA MAIN le 18 sept. pendant la
+  // fuite (voir fuite-signals-app). Ce ne sont pas des trades, et elles
+  // noieraient les vrais resultats sous des lignes sans chiffre.
   const { data, error } = await supabase
     .from("signals")
     .select(COLONNES_POSITION)
-    .in("status", ["closed_tp", "closed_sl", "cancelled"])
+    .in("status", ["closed_tp", "closed_sl"])
     .eq("is_demo", true)
     .not("published_at", "is", null)
     .order("closed_at", { ascending: false })

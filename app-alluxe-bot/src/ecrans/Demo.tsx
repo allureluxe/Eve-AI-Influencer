@@ -13,9 +13,9 @@
 import React from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Position, etagePyramide } from "../services/robot";
+import { Position, etagePyramide, historiqueDemo } from "../services/robot";
 import { useSuiviPositions } from "../services/suiviPositions";
-import { euros, miseConseillee, nomCrypto, pourcent, resultatEnDirect }
+import { euros, miseConseillee, nomCrypto, pourcent, quand, resultatEnDirect }
   from "../services/format";
 import { espace, rayon } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
@@ -86,12 +86,53 @@ function LignePositionDemo({ p, capital, prixActuel }: {
   );
 }
 
+const LIBELLE_STATUT: Record<string, string> = {
+  closed_tp: "Objectif atteint",
+  closed_sl: "Stop touche",
+  cancelled: "Annule",
+};
+
+/** Une position DEMO deja fermee. Meme presentation que l'onglet
+ *  Historique du reel, pour que les deux se lisent pareil. */
+function LigneFermee({ p }: { p: Position }) {
+  const c = useCouleurs();
+  const gagnant = (p.result_pct ?? 0) > 0;
+  const couleur = p.result_pct == null ? c.encreDouce : gagnant ? c.gain : c.perte;
+  return (
+    <View style={{
+      flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+      backgroundColor: c.surface, borderRadius: rayon.l,
+      paddingVertical: espace.m, paddingHorizontal: espace.l, marginBottom: espace.s,
+    }}>
+      <View>
+        <T v="sousTitre">{nomCrypto(p.pair)}</T>
+        <T v="legende" style={{ marginTop: 2 }}>
+          {LIBELLE_STATUT[p.status] ?? p.status}
+          {p.closed_at ? " · " + quand(p.closed_at) : ""}
+        </T>
+      </View>
+      <T v="chiffre" couleur={couleur}>
+        {p.result_pct != null ? pourcent(p.result_pct) : "—"}
+      </T>
+    </View>
+  );
+}
+
 export function EcranDemo() {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
   const [rafraichit, setRafraichit] = React.useState(false);
+  const [fermees, setFermees] = React.useState<Position[] | null>(null);
   const { positions, capital, prixLive, erreur, rafraichir } =
     useSuiviPositions(true, CAPITAL_DEMO_EUR);
+
+  // L'historique de la DEMO n'avait nulle part ou s'afficher : l'onglet
+  // Historique ne montre que le reel (filtre is_demo=false), et les
+  // trades simules disparaissaient donc completement une fois fermes.
+  const chargerFermees = React.useCallback(async () => {
+    try { setFermees(await historiqueDemo()); } catch { /* affiche vide */ }
+  }, []);
+  React.useEffect(() => { chargerFermees(); }, [chargerFermees]);
 
   const gainTotal = React.useMemo(() => {
     if (!positions) return 0;
@@ -106,7 +147,7 @@ export function EcranDemo() {
 
   const surRafraichir = async () => {
     setRafraichit(true);
-    await rafraichir();
+    await Promise.all([rafraichir(), chargerFermees()]);
     setRafraichit(false);
   };
 
@@ -147,6 +188,24 @@ export function EcranDemo() {
           <LignePositionDemo key={p.id} p={p} capital={capital}
                               prixActuel={prixLive[p.pair]} />
         ))
+      )}
+
+      <T v="sousTitre" style={{ marginTop: espace.xl, marginBottom: espace.s }}>
+        Historique {fermees ? `(${fermees.length})` : ""}
+      </T>
+      {fermees === null ? (
+        <Chargement />
+      ) : fermees.length === 0 ? (
+        <Vide titre="Aucune position fermee pour l'instant"
+              detail="Les trades termines de la simulation s'afficheront ici." />
+      ) : (
+        <>
+          <T v="petit" couleur={c.encreDouce} style={{ marginBottom: espace.s }}>
+            {fermees.filter((t) => (t.result_pct ?? 0) > 0).length} gagnant(s),{" "}
+            {fermees.filter((t) => (t.result_pct ?? 0) <= 0).length} perdant(s)
+          </T>
+          {fermees.map((t) => <LigneFermee key={t.id} p={t} />)}
+        </>
       )}
     </ScrollView>
   );
