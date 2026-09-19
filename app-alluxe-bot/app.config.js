@@ -26,12 +26,13 @@ module.exports = () => ({
         foregroundImage: "./assets/icone-adaptative.png",
         backgroundColor: "#FFFFFF",
       },
-      permissions: ["POST_NOTIFICATIONS"],
+      permissions: ["POST_NOTIFICATIONS", "USE_BIOMETRIC", "USE_FINGERPRINT"],
     },
     plugins: [
       "expo-font",
       "expo-notifications",
       "expo-speech-recognition",
+      "expo-secure-store",
       "./plugins/reveil-vocal",
     ],
     extra: {
