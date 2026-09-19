@@ -152,6 +152,26 @@ export function EcranDemo() {
     }, 0);
   }, [positions, prixLive, capital]);
 
+  // LE CAPITAL DOIT INCLURE CE QUI EST DEJA ENCAISSE.
+  //
+  // Il affichait 500 EUR + les positions ouvertes, en ignorant les
+  // trades deja fermes -- donc le capital ne bougeait jamais malgre les
+  // gains realises. C'est pourtant CE chiffre que Monsieur regardera le
+  // 28 pour decider de son depot.
+  //
+  // On ne peut pas lire le solde du simulateur : il repart de 500 EUR a
+  // chaque redemarrage du service (limite connue et documentee de
+  // PaperBroker.reprendre). Le recalculer depuis les trades fermes est
+  // donc plus juste que de lui faire confiance.
+  const gainRealise = React.useMemo(() => {
+    if (!fermees) return 0;
+    return fermees.reduce((somme, t) => {
+      const g = gainEnEuros(t.entry_price, t.stop_loss, t.result_pct,
+                            t.position_size_pct, capital);
+      return somme + (g ?? 0);
+    }, 0);
+  }, [fermees, capital]);
+
   const surRafraichir = async () => {
     setRafraichit(true);
     await Promise.all([rafraichir(), chargerFermees()]);
@@ -172,13 +192,18 @@ export function EcranDemo() {
       </View>
 
       <Carte accent style={{ marginBottom: espace.l, alignItems: "center" }}>
-        <T v="petit" couleur={c.encreDouce}>Capital virtuel (500 EUR de depart)</T>
+        <T v="petit" couleur={c.encreDouce}>Capital virtuel (500 € de départ)</T>
         <T v="titreGrand" style={{ marginTop: espace.xs }}>
-          {euros(capital + gainTotal)}
+          {euros(capital + gainRealise + gainTotal)}
         </T>
-        <T v="petit" couleur={gainTotal >= 0 ? c.gain : c.perte} style={{ marginTop: espace.xs }}>
-          {euros(gainTotal)} sur les positions ouvertes
-        </T>
+        <View style={{ flexDirection: "row", gap: espace.m, marginTop: espace.xs }}>
+          <T v="petit" couleur={gainRealise >= 0 ? c.gain : c.perte}>
+            {euros(gainRealise)} encaissés
+          </T>
+          <T v="petit" couleur={gainTotal >= 0 ? c.gain : c.perte}>
+            {euros(gainTotal)} en cours
+          </T>
+        </View>
       </Carte>
 
       <T v="sousTitre" style={{ marginBottom: espace.s }}>
