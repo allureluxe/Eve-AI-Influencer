@@ -1,4 +1,4 @@
-# Ou on en est — mis a jour le 19 septembre 2026 (matin)
+# Ou on en est — mis a jour le 19 septembre 2026 (soir)
 
 **Ce fichier est lu automatiquement au demarrage de chaque session Claude Code**
 (hook `SessionStart`, voir `.claude/reprise.py`). Il evite de tout re-expliquer.
@@ -77,6 +77,34 @@ pendant la coupure ont ete rattrapees avec
 `fuite-signals-app-18-sept` (section « etape 2 ») et
 `vue-direct-style-trading-19-sept`.
 
+## LE PLUS IMPORTANT, decouvert le 19 sept. : la strategie n'a jamais ete testee
+
+Les 41 trades qui donnaient une esperance NEGATIVE ont tous ete produits
+par du code bugge. Le break-even posait le stop AU-DESSUS du prix (jusqu'a
++5 000 000 % sur PEPE, mesure) : toute position atteignant +0,7 R etait
+donc fermee de force au marche. Une strategie de cassure vit de ses rares
+gros gains -- celle-ci n'en a jamais eu le droit. Meilleur gain de tout
+l'echantillon : +1,98 R.
+
+Corrige le 18 au soir. **La demo est desormais la seule mesure honnete** :
+3 trades termines, 3 gagnants, +1,17 EUR, et l'un est monte a +2,07 R --
+mieux en 3 trades qu'en 41. **3 trades ne prouvent rien** (il en faut ~30),
+mais on est passe de "ca ne marche pas" a "on ne sait pas encore".
+
+Voir memoire `bug-breakeven-volume-18-sept`.
+
+## Ce qui tourne tout seul chaque nuit
+
+    00h05  ops/photos_profil_luna.py    portrait + couverture de Luna
+    01h00  ops/campagne_nuit.sh         17 variantes sur 215 cryptos
+    */2    ops/executer_luna.py         file de generation Luna
+    */2    ops/suivre_memoire.sh        journal memoire (data/memoire.log)
+
+Les deux taches de nuit sont espacees exprès : les fournisseurs d'images
+et le backtest se disputaient la memoire. La campagne de 12h13 est morte
+de mon propre plafond de 700 Mo -- elle a 1,5 Go la nuit, quand rien
+d'autre ne tourne.
+
 ## Ce qui a ete repare le 19 septembre au matin
 
 Quatre pannes que l'operateur a signalees, toutes diagnostiquees jusqu'a
@@ -115,7 +143,47 @@ cote reel ne contient plus que les 15 vraies positions du 13-15 sept.
 9 lignes fantomes ont ete supprimees avec accord explicite, apres
 sauvegarde locale (`data/sauvegarde-signals-fuite-18sept.json`).
 
+## L'agent Alluxe AGIT depuis le 19 sept.
+
+13 outils : fichiers, terminal, web, publications universitaires,
+memoire persistante, atelier (`~/atelier`), Tor en option. Il repond en
+1,4 s. Tourne sous un compte Unix dedie `alluxe` qui n'a PAS le droit de
+lire `.env`. Voir memoire `agent-alluxe-agit-19-sept` -- et l'incident
+du jour meme : il a modifie `robot.demo.json` tout seul, d'ou les
+configs `robot*.json` passees en LECTURE SEULE.
+
+## Comptes Instagram / Facebook — en cours
+
+`allure._.luxe` + Page `Allure luxe`, separes du compte perso. Application
+Meta creee (META_APP_ID et META_APP_SECRET dans .env). **BLOQUE** a
+l'etape du jeton d'acces : l'explorateur Graph API est trop confus, et
+l'ordinateur de l'operateur s'eteint faute de batterie. A reprendre.
+
+Rappels : TikTok en compte PERSONNEL/CREATEUR (les comptes Business sont
+exclus de la remuneration), et la mention "personnage cree par IA" est
+obligatoire sur les deux plateformes.
+
 ## L'application (Alluxe Bot) — fusion terminee le 16 sept.
+
+## L'agent Alluxe AGIT depuis le 19 sept.
+
+13 outils : fichiers, terminal, web, publications universitaires,
+memoire persistante, atelier (`~/atelier`), Tor en option. Il repond en
+1,4 s. Tourne sous un compte Unix dedie `alluxe` qui n'a PAS le droit de
+lire `.env`. Voir memoire `agent-alluxe-agit-19-sept` -- et l'incident
+du jour meme : il a modifie `robot.demo.json` tout seul, d'ou les
+configs `robot*.json` passees en LECTURE SEULE.
+
+## Comptes Instagram / Facebook — en cours
+
+`allure._.luxe` + Page `Allure luxe`, separes du compte perso. Application
+Meta creee (META_APP_ID et META_APP_SECRET dans .env). **BLOQUE** a
+l'etape du jeton d'acces : l'explorateur Graph API est trop confus, et
+l'ordinateur de l'operateur s'eteint faute de batterie. A reprendre.
+
+Rappels : TikTok en compte PERSONNEL/CREATEUR (les comptes Business sont
+exclus de la remuneration), et la mention "personnage cree par IA" est
+obligatoire sur les deux plateformes.
 
 ## L'application (Alluxe Bot) — fusion terminee le 16 sept.
 
