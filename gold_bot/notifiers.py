@@ -154,7 +154,8 @@ class AlluxeBotChannel(Channel):
     """
     name = "alluxe_bot"
 
-    def __init__(self, min_level: str = "trade", est_demo: bool = False) -> None:
+    def __init__(self, min_level: str = "trade", est_demo: bool = False,
+                 compte: str = "demo") -> None:
         self.url = os.getenv("SUPABASE_URL", "").rstrip("/")
         self.cle = os.getenv("SUPABASE_SERVICE_KEY", "")
         self.min_level = min_level
@@ -163,6 +164,9 @@ class AlluxeBotChannel(Channel):
         # confonde jamais avec une vraie alerte (trouve le 18 sept.,
         # meme fuite que pour la table `signals`).
         self.est_demo = est_demo
+        # Quel compte simule parle. Deux simulations en parallele doivent
+        # pouvoir etre lues separement dans l'application.
+        self.compte = compte
 
     def enabled(self) -> bool:
         return bool(self.url and self.cle)
@@ -177,7 +181,7 @@ class AlluxeBotChannel(Channel):
                 f"{self.url}/rest/v1/alluxe_bot_alertes", "POST",
                 {"niveau": note.level, "titre": note.title,
                  "corps": note.body, "donnees": note.data,
-                 "is_demo": self.est_demo},
+                 "is_demo": self.est_demo, "compte": self.compte},
                 headers={"apikey": self.cle, "Authorization": f"Bearer {self.cle}",
                          "Prefer": "return=minimal"},
                 timeout=10)

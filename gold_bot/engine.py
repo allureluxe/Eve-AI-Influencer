@@ -20,6 +20,7 @@ mise en pause.
 """
 from __future__ import annotations
 
+import os
 import logging
 import signal
 import time
@@ -1447,6 +1448,9 @@ class TradingEngine:
                 # reellement. `sizing.lots` ne donnerait que la derniere
                 # tranche.
                 volume=float(getattr(pos, "volume", 0.0) or 0.0) or None,
+                # Quel compte simule publie. Deux simulations en
+                # parallele doivent rester lisibles separement.
+                compte=os.environ.get("GB_COMPTE_DEMO", "demo"),
                 conviction=conviction_depuis_score(float(ev.score)),
                 rationale=rediger_rationale(
                     paire, canal, etage=etage, graine=f"{pos.id}:{etage}",

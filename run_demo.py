@@ -75,8 +75,29 @@ class NotifierDemo(Notifier):
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--config", default="robot.demo.json")
+    # PLUSIEURS COMPTES DEMO EN PARALLELE.
+    #
+    # Demande de l'operateur le 20 sept. : « une fois la methode trouvee
+    # tu vas creer un 2e compte demo sur l'appli avec 3 300 EUR ». C'est
+    # la bonne facon de comparer deux methodes : les faire tourner sur le
+    # MEME marche, aux MEMES heures. Les comparer l'une apres l'autre
+    # melangerait l'effet du reglage et celui du marche.
+    #
+    # Le nom du compte suffixe TOUS les fichiers et marque chaque ligne
+    # publiee. Sans ca, deux robots se marcheraient dessus exactement
+    # comme la demo l'a fait avec le robot reel le 18 septembre.
+    p.add_argument("--compte", default="demo",
+                   help="nom du compte demo : demo, demo2... "
+                        "Suffixe les fichiers et marque les publications.")
     p.add_argument("--verbose", action="store_true")
     args = p.parse_args()
+
+    compte = args.compte.strip().lower()
+    if not compte.startswith("demo"):
+        print(f"nom de compte refuse : « {compte} » ne commence pas par "
+              "« demo ». C'est le garde-fou qui empeche cette simulation "
+              "d'ecrire dans les fichiers du robot REEL.")
+        return 2
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)-7s %(name)-24s %(message)s",
@@ -105,8 +126,8 @@ def main() -> int:
     #    remarque. Seule une AFFECTATION DIRECTE, inconditionnelle,
     #    garantit que ce script n'ecrit jamais que ses propres fichiers --
     #    quoi que contienne .env ou l'environnement herite.
-    os.environ["GB_STATE_FILE"] = "data/state-demo.json"
-    os.environ["GB_TRADES_FILE"] = "data/trades-demo.jsonl"
+    os.environ["GB_STATE_FILE"] = f"data/state-{compte}.json"
+    os.environ["GB_TRADES_FILE"] = f"data/trades-{compte}.jsonl"
     # 3e fuite trouvee le meme soir : `ObjectiveTracker` (gold_bot/objectives.py)
     # a SON PROPRE fichier, `data/objectives.json`, jamais isole non plus --
     # la demo y a ecrit un "objectif hebdomadaire" fictif de +170 EUR par-
@@ -118,9 +139,13 @@ def main() -> int:
     # d'envoi isoles aussi par la meme occasion, par prudence (moins
     # critique -- ce ne sont que des lignes de texte, jamais lues pour une
     # decision -- mais autant ne plus jamais devoir chercher une 4e fuite).
-    os.environ["GB_OBJECTIVE_FILE"] = "data/objectives-demo.json"
-    os.environ["GB_JOURNAL_FILE"] = "data/journal-demo.jsonl"
-    os.environ["GB_OUTBOX_FILE"] = "data/outbox-demo.jsonl"
+    os.environ["GB_OBJECTIVE_FILE"] = f"data/objectives-{compte}.json"
+    os.environ["GB_JOURNAL_FILE"] = f"data/journal-{compte}.jsonl"
+    os.environ["GB_OUTBOX_FILE"] = f"data/outbox-{compte}.jsonl"
+    # Le moteur lit ce nom pour marquer chaque ligne publiee. Passe par
+    # l'environnement parce que `SignalPublisher` se construit tout seul
+    # depuis `depuis_env()`, loin d'ici.
+    os.environ["GB_COMPTE_DEMO"] = compte
 
     # 5e fuite, la plus visible, trouvee et d'abord colmatee en coupant
     # purement et simplement SUPABASE_URL/KEY pour ce processus :
@@ -159,7 +184,7 @@ def main() -> int:
         ConsoleChannel(), FileChannel(),
         # Telegram retire le 19 sept. (voir notifiers.py) : l'operateur
         # supprime le compte, tout passe par l'application.
-        AlluxeBotChannel(est_demo=True), FirebasePushChannel(),
+        AlluxeBotChannel(est_demo=True, compte=compte), FirebasePushChannel(),
     ])
     engine = DualScalpingEngine(cfg, notifier=canaux_demo)
 

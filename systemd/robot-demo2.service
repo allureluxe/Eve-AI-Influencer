@@ -1,0 +1,61 @@
+# Simulation "avant de deposer" -- 500 EUR virtuels, vraies cotations
+# Bitvavo en direct, AUCUN ordre reel envoye. Voir run_demo.py.
+#
+# A installer avec : sudo cp systemd/robot-demo.service /etc/systemd/system/
+#                     sudo systemctl daemon-reload
+#                     sudo systemctl enable --now robot-demo
+#
+# Meme patron que robot-dual-live.service, sans risque financier -- le
+# broker "paper" ne touche jamais l'API d'ordres de Bitvavo (lecture de
+# prix uniquement, publique, sans cle).
+
+[Unit]
+Description=Simulation DEMO 2 -- 2e methode en parallele, capital virtuel
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ubuntu/Eve-AI-Influencer/.venv/bin/python /home/ubuntu/Eve-AI-Influencer/run_demo.py --config robot.demo2.json --compte demo2
+Restart=always
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=70
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=robot-demo2
+
+[Install]
+WantedBy=multi-user.target
+
+# ============================================================
+#  PAS INSTALLE, ET C'EST VOLONTAIRE -- 20 septembre 2026
+#
+#  Ce fichier est pret, mais le service n'est PAS actif. Mesure le
+#  jour meme sur ce serveur :
+#
+#      un 2e robot demande      1 225 a 1 936 Mo
+#      memoire vive disponible  1 562 Mo
+#
+#  Au regime normal ca tient de justesse ; au PIC -- mesure a
+#  1 936 Mo avec 21 positions le 19 sept. -- les DEUX robots
+#  meurent, y compris celui qui porte la simulation en cours.
+#
+#  Le demarrer demande donc d'abord un serveur plus grand (~7 a
+#  13 EUR/mois, voir le devis). Le jour venu :
+#
+#      sudo cp systemd/robot-demo2.service /etc/systemd/system/
+#      sudo systemctl daemon-reload
+#      sudo systemctl enable --now robot-demo2
+#
+#  Et AVANT : creer robot.demo2.json avec la methode a comparer.
+#  Deux robots sur la meme configuration mesureraient seulement le
+#  hasard -- ce qui est d'ailleurs une experience valable, mais ce
+#  n'est pas celle que Monsieur a demandee.
+# ============================================================

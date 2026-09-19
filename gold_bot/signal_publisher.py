@@ -285,6 +285,11 @@ class SignalPublie:
     #: fausse des qu'un depot ou un retrait a lieu (facteur 6,6 entre une
     #: demo a 500 EUR relue a 3 300). Fige a la publication.
     capital_eur: Optional[float] = None
+    #: Nom du compte simule qui publie (demo, demo2...). Sans objet pour
+    #: le robot reel. Deux simulations en parallele doivent pouvoir
+    #: s'afficher separement, sinon elles se melangent comme la demo
+    #: s'est melangee au robot reel le 18 septembre.
+    compte: str = "demo"
     #: Quantite reellement achetee, en unites de la crypto. Le seul champ
     #: qui dise « combien j'en ai » : `position_size_pct` est un
     #: pourcentage de RISQUE, et la mise en euros s'en deduit par la
@@ -327,6 +332,8 @@ class SignalPublie:
             corps["position_size_pct"] = round(self.position_size_pct, 3)
         if self.capital_eur is not None:
             corps["capital_eur"] = round(self.capital_eur, 2)
+        if self.compte and self.compte != "demo":
+            corps["compte"] = self.compte
         if self.volume is not None:
             # Pas d'arrondi serre : le PEPE se compte en millions
             # d'unites et le BTC en millionnemes. Un arrondi unique
