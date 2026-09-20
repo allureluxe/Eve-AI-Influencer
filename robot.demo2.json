@@ -73,7 +73,7 @@
     "max_drawdown_pct": 45.0,
     "daily_profit_target_pct": 0.0,
     "max_positions": 99,
-    "max_per_correlation_group": 99,
+    "max_per_correlation_group": 1,
     "max_total_risk_pct": 5.0,
     "max_daily_trades": 0,
     "min_seconds_between_trades": 30.0,
@@ -89,7 +89,7 @@
     "ticket_min_eur": 15.0,
     "carence_meme_bougie": true,
     "unite_du_signal": "D1",
-    "reserve_pyramide_pct": 0.0
+    "reserve_pyramide_pct": 1.67
   },
   "trade": {
     "atr_stop_mult": 1.6,
@@ -144,5 +144,5 @@
     "sans_frais_jusqu_au": "",
     "volume_plafond": 0.0
   },
-  "_temoin": "Compte TEMOIN du 20 sept. : identique au compte demo, SAUF reserve_pyramide_pct (0 ici, 1.67 la-bas). Repond a la seule question que le rejeu ne pouvait pas trancher : reserver du budget aux renforcements change-t-il quelque chose quand le budget sature ?"
+  "_temoin": "Compte 2, 20 sept. : identique au compte 1 SAUF la limite par famille de cryptos (1 ici, aucune la-bas). Mesure sur 30 paires / 600 jours : +168 EUR contre +1, et recul divise par deux. Une seule periode -- ce compte EST la verification."
 }

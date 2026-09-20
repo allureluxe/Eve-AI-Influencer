@@ -108,4 +108,16 @@ def resume_methode(cfg: BotConfig) -> str:
         morceaux.append(f"à l'abri dès {protection:.1f}× le risque"
                         .replace(".", ","))
 
+    # LA LIMITE PAR FAMILLE, pour la meme raison que le point mort : sans
+    # elle, deux comptes qui ne different QUE par ce reglage affichent la
+    # meme phrase. C'est arrive deux fois en deux jours.
+    #
+    # « Famille » plutot que « groupe correle » : l'operateur ne connait
+    # pas ce vocabulaire, et huit positions sur des cryptos qui bougent
+    # ensemble, c'est un seul pari repete huit fois.
+    familles = int(getattr(cfg.risk, "max_per_correlation_group", 99) or 99)
+    if familles < 99:
+        morceaux.append(f"{familles} position{'s' if familles > 1 else ''} "
+                        f"par famille")
+
     return " · ".join(morceaux)

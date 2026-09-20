@@ -47,8 +47,18 @@ class TestLeResumeSuitLesREGLAGES:
         assert f"Canal {min(cfg.strategy.donchian_entrees)} j" in resume_methode(cfg)
 
     def test_la_reserve_apparait_et_se_lit_en_francais(self):
+        # Le compte 2 a repris la reserve du compte 1 le 20 sept. : il
+        # teste desormais la limite par famille, et deux ecarts a la fois
+        # rendraient la mesure illisible.
         assert "⅓" in resume_methode(_cfg("robot.demo.json"))
-        assert "rien de réservé" in resume_methode(_cfg("robot.demo2.json"))
+        cfg = _cfg("robot.demo.json")
+        cfg.risk.reserve_pyramide_pct = 0.0
+        assert "rien de réservé" in resume_methode(cfg)
+
+    def test_la_limite_par_famille_apparait(self):
+        """Sans elle, les comptes 1 et 2 affichaient la meme phrase."""
+        assert "par famille" in resume_methode(_cfg("robot.demo2.json"))
+        assert "par famille" not in resume_methode(_cfg("robot.demo.json"))
 
     def test_le_point_mort_apparait(self):
         assert "0,5" in resume_methode(_cfg("robot.demo3.json"))
