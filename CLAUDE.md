@@ -253,6 +253,77 @@ la configuration plutôt que le recopier (corrigé le 19 sept. dans
 
 ## `comparer.py` mesure des COMPTES SÉPARÉS — 19 septembre
 
+> **⚠ CORRECTION DU 20 SEPTEMBRE — les chiffres « UN SEUL compte » de
+> cette section sont FAUX, et le raisonnement qu'ils portent avec eux.**
+> Le rejeu de portefeuille était **à l'arrêt 99,2 % du temps** quand ils
+> ont été produits. Lire le bloc ci-dessous avant de s'appuyer sur quoi
+> que ce soit de cette section. Le reste — la critique de `comparer.py`,
+> la raison d'être du rejeu de portefeuille, le verrou à un instrument —
+> reste exact : c'est la **méthode** qui était juste et la **mesure** qui
+> était morte.
+
+### Le rejeu était bloqué par sa propre pause — 20 septembre
+
+Trouvé en cherchant pourquoi une méthode candidate ne prenait que
+4 trades sur 580 jours et 40 cryptos. Les motifs de refus, affichés pour
+la première fois, ont donné la réponse — et elle ne parlait pas de la
+méthode :
+
+    21 720 refus  « pause apres pertes »
+       150 refus  « donchian »   <- la strategie
+        11 trades
+
+**DEUX HORLOGES.** À la 4e perte consécutive, `record_close` posait
+`paused_until = time.time() + 45 min`, soit septembre 2026. Le rejeu,
+lui, appelle `can_trade(ts=candle.ts)` avec une date de 2024 :
+`now < paused_until` restait vrai pour **toutes** les bougies suivantes.
+La pause ne se levait jamais. Et la purge écrite exprès pour ça — « sans
+cette remise à zéro, le robot ne sort plus jamais du régime punitif » —
+ne pouvait pas s'exécuter : elle vient **après** le `return False`.
+
+**Le robot réel n'a jamais été touché.** Ses quatre appelants
+(`engine`, `scalping_engine`, `dual_scalping_engine`) laissent `ts` à
+None : même horloge des deux côtés. Seul le rejeu passe une date
+historique, et c'est le **mélange** des deux qui cassait. La pause part
+désormais de `trade.closed_at` — juste dans les deux mondes.
+
+Mêmes 40 paires, mêmes 900 bougies, avant et après :
+
+    avant :  11 trades   +270 E   recul  7,0 %
+    apres : 563 trades   +335 E   recul 27,2 %
+
+**Ce que ça invalide, nommément :**
+
+- « 11 trades en deux ans et demi », et le trade unique à 7 étages qui
+  faisait 131 % du bénéfice — il n'y avait pas 11 occasions, il y avait
+  563 occasions dont 552 refusées par une pause morte ;
+- « le rendement par euro est meilleur sur un compte » (+8,2 % contre
+  +1,0 %) : les deux termes ne mesuraient pas la même chose ;
+- **« aucune position ne dépasse l'étage 1 sur un compte unique »**,
+  qui a motivé `reserve_pyramide_pct` le 19 septembre. Un robot à
+  l'arrêt ne pyramide évidemment pas — mais pas pour la raison qu'on
+  croyait. **La réserve n'est ni justifiée ni disqualifiée : elle est
+  non mesurée.**
+- la limite par famille armée sur la démo 2, qui donnait un résultat
+  **identique** à 99, 3, 2 et 1. On sait pourquoi : à l'arrêt, aucune
+  valeur ne pouvait se distinguer. Cette mesure ne disait pas le faux,
+  elle ne disait **rien**.
+
+**Pourquoi aucun test ne pouvait le voir :** tous appellent
+`can_trade()` sans `ts`, donc dans le monde où le défaut est invisible.
+C'est la variante « deux horloges » du piège recensé quatre fois dans ce
+fichier — un garde-fou qui *s'exécute*, mais pas dans le monde qu'on
+croit. `tests/test_pause_horloge_du_rejeu.py` le verrouille, dont un
+test qui vérifie qu'en réel **rien ne change**.
+
+**La leçon, et elle est opérationnelle :** un rejeu qui rend peu de
+trades doit être sommé de dire **pourquoi** avant qu'on lise son
+résultat. `mesurer_momentum.py --pourquoi` affiche les motifs de refus ;
+sans cette colonne, « 4 trades, −1,4 % » se lit comme un verdict sur une
+méthode alors que c'est un verdict sur le banc d'essai.
+
+---
+
 **À lire avant d'interpréter le moindre chiffre de ce fichier.**
 
 `comparer.py` ouvre un compte **neuf par instrument**, doté du capital
