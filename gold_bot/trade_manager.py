@@ -125,6 +125,22 @@ class TradeManagerConfig:
     # personne ne le recode en croyant l'inventer.
     stagnation_jours: float = 0.0
     stagnation_max_r: float = 0.5
+
+    # --- SORTIE A DATE FIXE (famille « momentum ») ----------------------
+    #
+    # Ferme la position au bout de N jours SANS CONDITION : ni le R
+    # courant, ni le parcours, ni la dynamique n'entrent en compte. C'est
+    # la regle de sortie du momentum de series temporelles, ou la duree de
+    # detention EST la strategie — le papier de l'ACFR teste 5 jours.
+    #
+    # Elle ne cohabite avec RIEN. Quand elle est armee, ni la stagnation
+    # ni le stop temporel ne s'executent : trois regles qui decident de la
+    # meme sortie, c'est exactement le piege documente dans le CLAUDE.md
+    # (« deux endroits decident du meme reglage — celui qu'on oublie est
+    # celui qui gagne »). Un test le verrouille.
+    #
+    # A zero, desarmee : rien ne change pour la famille donchian.
+    detention_max_jours: float = 0.0
     time_stop_min_r: float = 0.25
     reversal_exit_r: float = 0.5
     news_tighten_atr_mult: float = 0.9
@@ -639,7 +655,16 @@ class TradeManager:
         # Seuil : 0,8 R fait mieux en apprentissage (+757 %) et moins bien
         # hors echantillon (+59,5 %) — le signe classique du sur-ajustement.
         # 0,5 R est retenu : meilleur hors echantillon, sans renversement.
-        if cfg.stagnation_jours > 0:
+        # La sortie a date fixe passe AVANT les deux autres et les exclut.
+        # Elle ne regarde aucun resultat : c'est la duree, et elle seule,
+        # qui decide. Voir `detention_max_jours`.
+        if cfg.detention_max_jours > 0:
+            age_j = (now - position.opened_at) / 86400.0
+            if age_j >= cfg.detention_max_jours:
+                return TradeAction(ActionType.CLOSE, position.id,
+                    reason=(f"duree de detention atteinte : {age_j:.1f} j "
+                            f"sur {cfg.detention_max_jours:.0f} ({r_now:+.2f}R)"))
+        elif cfg.stagnation_jours > 0:
             age_j = (now - position.opened_at) / 86400.0
             meilleur_r = position.r_multiple(position.max_favorable) \
                 if position.max_favorable else 0.0

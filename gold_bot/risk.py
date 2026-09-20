@@ -521,7 +521,32 @@ class RiskManager:
             acc.consecutive_losses += 1
             acc.consecutive_wins = 0
             if acc.consecutive_losses >= self.config.max_consecutive_losses:
-                acc.paused_until = time.time() + self.config.pause_after_losses_minutes * 60
+                # L'HEURE DE LA PAUSE EST CELLE DU TRADE, PAS CELLE DE
+                # L'HORLOGE — et c'est ce qui a fausse TOUTES les mesures
+                # de portefeuille du depot.
+                #
+                # `time.time()` rendait septembre 2026. Le rejeu, lui,
+                # appelle `can_trade(ts=candle.ts)` avec une date de 2024
+                # ou 2025. La comparaison `now < paused_until` etait donc
+                # vraie pour TOUTES les bougies restantes : a la 4e perte,
+                # le rejeu s'arretait de trader jusqu'a la fin de la
+                # periode, definitivement. Et la purge d'en dessous ne
+                # pouvait jamais s'executer, puisqu'elle vient APRES le
+                # `return False`.
+                #
+                # Mesure du 20 septembre, 40 paires, 900 bougies :
+                # 21 720 refus « pause apres pertes » pour 150 refus de
+                # strategie et 11 trades. Le rejeu etait bloque 99,2 % du
+                # temps -- et le chiffre qu'il rendait n'etait pas le
+                # resultat d'une methode, mais celui d'un robot a l'arret.
+                #
+                # Le robot REEL n'a jamais ete touche : tous ses appelants
+                # (`engine`, `scalping_engine`, `dual_scalping_engine`)
+                # laissent `ts` a None, donc l'horloge des deux cotes.
+                # C'est le seul appelant qui passe une date historique --
+                # le rejeu -- que le melange des deux horloges cassait.
+                acc.paused_until = ((trade.closed_at or time.time())
+                                    + self.config.pause_after_losses_minutes * 60)
                 logger.warning("%d pertes consecutives : pause de %.0f min",
                                acc.consecutive_losses, self.config.pause_after_losses_minutes)
         else:

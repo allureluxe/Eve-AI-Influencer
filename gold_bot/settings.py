@@ -122,9 +122,20 @@ class BotConfig:
         if t.extend_at_progress >= 1.0: problems.append("le seuil d'extension doit etre inferieur a 1")
         if t.min_stop_atr > t.atr_stop_mult: problems.append("le stop minimal est plus large que le stop nominal")
         if s.min_score > 0.95: problems.append("seuil de score quasi inatteignable")
-        if s.famille not in ("tendance", "reversion", "donchian"):
+        if s.famille not in ("tendance", "reversion", "donchian", "momentum"):
             problems.append(f"strategy.famille invalide : {s.famille} "
-                            "(attendu 'tendance', 'reversion' ou 'donchian')")
+                            "(attendu 'tendance', 'reversion', 'donchian' "
+                            "ou 'momentum')")
+        if s.famille == "momentum":
+            if s.momentum_formation < 2:
+                problems.append("momentum_formation trop courte (< 2 bougies)")
+            # La sortie a date fixe EST la strategie. Armer la famille sans
+            # elle donnerait un achat de tendance sans regle de sortie, qui
+            # n'est plus la methode mesuree par le papier.
+            if t.detention_max_jours <= 0:
+                problems.append(
+                    "la famille 'momentum' exige trade.detention_max_jours > 0 : "
+                    "la sortie a date fixe est sa regle de sortie, pas une option")
         if s.famille == "reversion":
             if s.reversion_ma_periode < 5:
                 problems.append("reversion_ma_periode trop courte (< 5)")

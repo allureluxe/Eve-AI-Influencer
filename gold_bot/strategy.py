@@ -314,6 +314,48 @@ class StrategyConfig:
     # refusee : le mouvement a deja eu lieu. A 0, aucun filtre.
     # Voir le bloc commente dans `_evaluer_donchian` pour la mesure.
     donchian_momentum_max_pct: float = 0.0
+    # --- Famille « momentum » : momentum de series temporelles ----------
+    #
+    # UNE FAMILLE ENTIEREMENT DIFFERENTE, PAS UN REGLAGE DE LA NOTRE.
+    # Demande explicite de l'operateur le 20 septembre : « cherche moi une
+    # autre methode rien a voir avec la notre pour en tester une 2eme, pas
+    # juste un reglage different de la notre ».
+    #
+    # SOURCE. « Time-Series and Cross-Sectional Momentum in the
+    # Cryptocurrency Market » (Auckland Centre for Financial Research),
+    # decembre 2013 a aout 2023 — pres de dix ans. La variante retenue par
+    # ce papier : formation 28 jours, detention 5 jours, Sharpe 1,51 contre
+    # 0,84 pour le marche, et la performance vient « surtout d'une
+    # reduction du risque de baisse ».
+    #
+    # CE QUI LA REND DIFFERENTE DE LA NOTRE, point par point :
+    #
+    #     notre donchian                  ce momentum
+    #     cassure d'un plus-haut          rendement cumule sur 28 bougies
+    #     un EVENEMENT (valeur extreme)   un ETAT (la pente moyenne)
+    #     sortie au stop suiveur          sortie a DATE FIXE, 5 jours
+    #     duree libre, souvent 30 j       duree bornee, toujours
+    #     pyramidage illimite             aucun ajout
+    #
+    # Les deux parient en sens inverse sur la facon dont une tendance
+    # meurt. La notre laisse courir et attend que le marche la coupe ;
+    # celle-ci encaisse avant que la tendance s'essouffle.
+    #
+    # LA VARIANTE CROISEE A ETE ECARTEE AVANT D'ETRE CODEE. Starkiller
+    # Capital classe l'univers entier et achete le quintile de tete chaque
+    # jeudi. Leur propre papier dit qu'« un cout de transaction de 125
+    # points de base ferait sous-performer le quintile de tete » ; notre
+    # aller-retour vaut 60 points de base et le reclassement hebdomadaire
+    # en paie plusieurs par mois. Son hors-echantillon etait deja a
+    # -2,35 % par an AVANT frais. On ne code pas une methode dont l'auteur
+    # publie le seuil qui la tue quand on est du mauvais cote du seuil.
+    #
+    # A zero, la famille n'est pas selectionnable : ces valeurs ne font
+    # rien tant que `famille` ne vaut pas "momentum".
+    momentum_formation: int = 28         # bougies de formation (rendement cumule)
+    momentum_seuil_pct: float = 0.0      # hausse minimale exigee, en %
+    momentum_detention: int = 5          # bougies de detention (sortie a date fixe)
+
     reversion_ma_periode: int = 50       # periode de la SMA de reference (dediee)
     reversion_entree_atr: float = 2.0    # ecart MA-prix minimal, en ATR, pour entrer
     reversion_sortie_atr: float = 0.5    # sortie quand MA-prix repasse sous ce seuil, en ATR
@@ -523,6 +565,10 @@ class Strategy:
         # ---------- Branche donchian : cassure de canal (Turtle) ----------
         if cfg.famille == "donchian":
             return self._finish_donchian(ev, instrument, entry_ind, price, atr, tick)
+
+        # ---------- Branche momentum : tendance de fond, sortie a date fixe ----------
+        if cfg.famille == "momentum":
+            return self._finish_momentum(ev, instrument, entry_ind, price, atr, tick)
 
         # ---------- Branche rapide : mode quorum ----------
         if cfg.mode == "quorum":
@@ -1009,6 +1055,70 @@ class Strategy:
         # Mesure : le plafond revenait en silence et l'esperance tombait de
         # +0,130 a +0,044 R. Deux endroits decident du meme reglage — celui
         # qu'on oublie est celui qui gagne.
+        tm = self.trade_manager.config
+        cible_r = tm.tp_r_multiple if tm.tp_actif else 1000.0
+        ev.take_profit = round(price + cible_r * risque, instrument.digits)
+        ev.rr = cible_r
+        return ev
+
+    def _finish_momentum(
+        self,
+        ev: Evaluation,
+        instrument: Instrument,
+        entry: IndicatorSet,
+        price: float,
+        atr: float,
+        tick: Tick,
+    ) -> Evaluation:
+        """Famille « momentum » : on achete ce qui monte depuis N bougies.
+
+        La regle tient en une phrase : si le rendement cumule des
+        `momentum_formation` dernieres bougies est positif, on achete, et
+        on ressort `momentum_detention` bougies plus tard, quoi qu'il
+        arrive. La sortie a date fixe est portee par
+        `TradeManagerConfig.detention_max_jours`.
+
+        CE QU'ELLE N'A PAS, et c'est voulu : pas de cassure, pas de canal,
+        pas d'objectif, pas de pyramide. Un stop de protection reste pose
+        — le papier n'en met pas, mais il ne modelise pas non plus un
+        compte de 3 300 EUR sur lequel une crypto peut perdre 40 % dans la
+        nuit. Le stop est un filet, pas la regle de sortie.
+        """
+        cfg = self.config
+        ev.mode = "momentum"
+        bougies = list(entry.candles)
+        n = int(cfg.momentum_formation)
+        besoin = n + 1
+        if n < 2 or len(bougies) < besoin or atr <= 0:
+            ev.gates.append(Gate("momentum", False,
+                                 f"historique insuffisant ({len(bougies)}/{besoin})"))
+            return ev
+
+        # `[-(n + 1)]` : le rendement se mesure du debut de la fenetre a la
+        # bougie courante incluse — c'est le prix auquel on achete qui
+        # cloture la mesure, pas la bougie d'avant.
+        depart = bougies[-(n + 1)].close
+        if depart <= 0:
+            ev.gates.append(Gate("momentum", False, "prix de depart invalide"))
+            return ev
+        rendement = (price / depart - 1) * 100
+        ok = rendement > cfg.momentum_seuil_pct
+        ev.gates.append(Gate(
+            "momentum", ok,
+            f"{rendement:+.2f} % sur {n} bougies "
+            f"(minimum {cfg.momentum_seuil_pct:+.2f} %)"))
+        if not ok:
+            return ev
+
+        ev.side = Side.BUY
+        ev.setup = "momentum_tendance"
+        sl, _ = self.trade_manager.initial_levels(
+            Side.BUY, price, atr, spread=tick.spread,
+            structure_stop=None, digits=instrument.digits)
+        ev.stop_loss = sl
+        risque = max(price - sl, 1e-12)
+        # Meme raison que pour le donchian : la cible n'existe que pour le
+        # controle de ratio. Ici la sortie est une DATE, pas un prix.
         tm = self.trade_manager.config
         cible_r = tm.tp_r_multiple if tm.tp_actif else 1000.0
         ev.take_profit = round(price + cible_r * risque, instrument.digits)
