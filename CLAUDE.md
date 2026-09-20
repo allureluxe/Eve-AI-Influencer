@@ -398,7 +398,48 @@ Elle a été refaite, et elle tient :
       5          7       +748 E   +106,86 E
       7          1       +405 E   +404,55 E
 
-### `reserve_pyramide_pct` — décidé, pas encore armé
+### `reserve_pyramide_pct` — REMESURÉE le 20 septembre : elle ne sert à rien
+
+Sur le banc réparé, `robot.demo.json`, 15 paires, 700 bougies, un compte
+de 3 300 EUR :
+
+    variante                trades   perdantes   resultat   recul
+    aucune reserve             147    92 (63%)     +107 E   18,6 %
+    un quart                   147    92 (63%)     +107 E   18,6 %
+    UN TIERS (arme le 19)      147    93 (63%)     +102 E   18,6 %
+    la moitie                  144    95 (66%)      +74 E   18,2 %
+
+**Elle échoue sur les deux critères à la fois** : plus de perdantes
+(92 → 93 → 95) ET moins de résultat (+107 → +102 → +74), pour un recul
+inchangé. La progression est monotone sur quatre paliers — une
+direction, pas du bruit.
+
+**Le constat qui la justifiait est faux.** On avait écrit « aucune
+position ne dépasse l'étage 1 sur un compte unique ». Mesuré :
+
+    etage 1   108 trades   22 gagnants   -565 E    -5,23 E / trade
+    etage 2    28 trades   22 gagnants   +242 E    +8,66 E
+    etage 3     9 trades    9 gagnants   +373 E   +41,43 E
+    etage 4     1 trade      1 gagnant    +19 E   +19,09 E
+    etage 5     1 trade      1 gagnant   +123 E  +123,26 E
+
+Les pyramides montent **jusqu'à l'étage 5 toutes seules**, et rapportent
+757 EUR contre 565 perdus par les positions à un seul étage. Le budget
+ne les empêchait pas — c'est la pause morte qui arrêtait le robot au
+bout de quatre pertes. Leur réserver de l'argent ne fait donc
+qu'empêcher de nouvelles lignes de s'ouvrir, et comme il faut une
+première ligne avant de pouvoir la renforcer, **la réserve se mord la
+queue** : à la moitié, on perd trois trades et 33 EUR.
+
+Limite honnête de cette mesure : **15 paires**, parce que le serveur ne
+tient pas plus avec deux robots actifs. Sur un univers plus large le
+budget saturerait davantage. Le signe est net, l'amplitude est petite.
+
+**La leçon, et c'est la troisième fois dans ce fichier :** un
+raffinement qui corrige un cas doit d'abord prouver que le cas **se
+produit**. Ici le cas n'existait pas sous la forme qu'on lui prêtait.
+
+### `reserve_pyramide_pct` — décidé, pas encore armé (19 septembre)
 
 Décision de l'opérateur le 19 septembre : « tu bloques désormais un
 tiers du capital aux pyramides ». Une nouvelle ligne et un étage
