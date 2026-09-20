@@ -108,8 +108,7 @@ titre "3/5  Plateforme d'execution"
 echo "  Ou le robot doit-il passer ses ordres ?"
 echo
 echo "    1) Binance Futures  (recommande : API publique, testnet gratuit)"
-echo "    2) MoonX            (necessite un acces API fourni par leur support)"
-echo "    3) Aucune pour l'instant (simulation seulement)"
+echo "    2) Aucune pour l'instant (simulation seulement)"
 echo
 read -r -p "  Votre choix [1] : " choix_plateforme
 choix_plateforme=${choix_plateforme:-1}
@@ -133,13 +132,6 @@ case "$choix_plateforme" in
         ok "Testnet actif : aucun risque tant que vous ne changerez pas ce reglage."
     fi
     ecrire_valeur "GB_CONFIG" "robot.binance.json"
-    ;;
-2)
-    echo
-    echo "  Ces informations viennent de votre compte MoonX."
-    ecrire_cle "MOONX_API_URL" "Adresse de l'API MoonX (ex: https://api.moon-x.io)"
-    ecrire_cle "MOONX_API_KEY" "Cle API MoonX (elle ne s'affichera pas)" oui
-    ecrire_valeur "GB_CONFIG" "robot.live.json"
     ;;
 *)
     info "Aucune plateforme configuree : le robot tournera en simulation."

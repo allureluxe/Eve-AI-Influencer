@@ -10,14 +10,28 @@ from .base import (PriceProvider, ProviderError, SymbolNotSupported,
                    resample, tf_seconds)
 from .providers import (
     AlphaVantageProvider, BinanceProvider, BitvavoProvider, FinnhubProvider,
-    MetalPriceProvider, MoonXProvider, OkxProvider, PolygonProvider,
+    MetalPriceProvider, OkxProvider, PolygonProvider,
     StooqProvider, SyntheticProvider, TwelveDataProvider, YahooProvider,
 )
 
 logger = logging.getLogger(__name__)
 
+# MOONX A ETE RETIRE LE 20 SEPTEMBRE, sur decision de l'operateur.
+#
+# Il etait en TETE de cette liste -- donc interroge en premier pour chaque
+# crypto -- et il repondait « HTTP 401 Unauthorized » a chaque demarrage :
+#
+#     source moonx ecartee definitivement : authentification refusee
+#
+# Les identifiants n'ont jamais ete complets (MOONX_ACCOUNT_ID et
+# MOONX_API_SECRET vides) et le courtier lui-meme est marque obsolete
+# depuis longtemps (`_ObsoleteBroker`). Il ne restait qu'un appel rate
+# quotidien et du bruit dans les journaux.
+#
+# Ne pas le remettre sans identifiants complets ET une raison : les six
+# sources restantes couvrent tout l'univers Bitvavo.
 PROVIDER_CLASSES = [
-    MoonXProvider, OkxProvider, BitvavoProvider, BinanceProvider,
+    OkxProvider, BitvavoProvider, BinanceProvider,
     YahooProvider, TwelveDataProvider, FinnhubProvider, PolygonProvider,
     AlphaVantageProvider, MetalPriceProvider, StooqProvider,
 ]

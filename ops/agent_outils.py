@@ -250,7 +250,7 @@ def commande_sure(commande: str) -> None:
 #: lisent le compte Bitvavo (`etat.py`, `bilan_journee.py`) ne
 #: fonctionneront pas depuis l'agent -- il faudra les lancer autrement.
 MOTS_SENSIBLES = ("KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "MDP",
-                  "SUPABASE", "BITVAVO", "PIONEX", "BINANCE", "MOONX",
+                  "SUPABASE", "BITVAVO", "PIONEX", "BINANCE",
                   "TELEGRAM", "INSTAGRAM", "TIKTOK", "EXPO", "CLOUDFLARE",
                   "HUGGINGFACE", "OPENAI", "GEMINI", "ANTHROPIC", "CLAUDE")
 

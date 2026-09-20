@@ -56,9 +56,23 @@ class TestLeResumeSuitLesREGLAGES:
         assert "rien de réservé" in resume_methode(cfg)
 
     def test_la_limite_par_famille_apparait(self):
-        """Sans elle, les comptes 1 et 2 affichaient la meme phrase."""
-        assert "par famille" in resume_methode(_cfg("robot.demo2.json"))
-        assert "par famille" not in resume_methode(_cfg("robot.demo.json"))
+        """Sans elle, deux comptes qui ne different QUE par elle se
+        ressemblaient.
+
+        L'assertion portait sur `robot.demo2.json`, qui portait la limite
+        a 1 le 19 septembre. Le 20, la demo 2 est passee a la famille
+        « momentum » et la limite est revenue a 99 : le test echouait
+        alors sur du code CORRECT. C'est l'assertion qui etait fausse --
+        elle verifiait un FICHIER au lieu d'un COMPORTEMENT, donc elle
+        cassait a chaque fois qu'un compte changeait de reglage.
+        """
+        cfg = _cfg("robot.demo.json")
+        cfg.risk.max_per_correlation_group = 1
+        assert "1 position par famille" in resume_methode(cfg)
+        cfg.risk.max_per_correlation_group = 3
+        assert "3 positions par famille" in resume_methode(cfg)
+        cfg.risk.max_per_correlation_group = 99
+        assert "par famille" not in resume_methode(cfg)
 
     def test_le_point_mort_apparait(self):
         assert "0,5" in resume_methode(_cfg("robot.demo3.json"))

@@ -12,7 +12,7 @@ Modules principaux :
     risk          money management et echelle de taille adaptative
     objectives    defi hebdomadaire par paliers
     trade_manager gestion dynamique : trailing et extension d'objectif
-    brokers       execution (simulateur, MoonX)
+    brokers       execution (simulateur, Bitvavo)
     engine        boucle autonome 24h/24
     backtest      rejeu historique
 """

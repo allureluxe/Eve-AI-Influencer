@@ -34,7 +34,7 @@ from .calibrage import calibrer, duree_stop_temporel
 from .promotion import Promotion
 from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker,
                       BitvavoBroker, BitvavoConfig, Broker,
-                      BrokerError, MoonXBroker, MoonXConfig, OkxBroker,
+                      BrokerError, OkxBroker,
                       OkxConfig, PaperBroker,
                       PaperConfig, SpotConfig)
 from .core import ClosedTrade, Position, Side, Tick
@@ -288,12 +288,11 @@ class TradingEngine:
     # ---------------------------------------------------------------
     def _build_broker(self) -> Broker:
         cfg = self.config.engine
-        if cfg.broker == "moonx":
-            mx = MoonXConfig.from_env()
-            if cfg.dry_run:
-                mx.dry_run = True
-            broker = MoonXBroker(mx)
-        elif cfg.broker == "binance":
+        # MoonX retire le 20 septembre : identifiants jamais complets,
+        # courtier marque obsolete, et sa source de prix repondait 401 a
+        # chaque demarrage. Une configuration qui le demanderait encore
+        # tombera sur le `else` final, qui refuse proprement.
+        if cfg.broker == "binance":
             bn = BinanceConfig.from_env()
             if cfg.dry_run:
                 bn.dry_run = True
@@ -793,10 +792,6 @@ class TradingEngine:
             self.notifier.warning("Bitvavo en mode REEL", detail,
                                   data={"telephone": False})
 
-        if cfg.broker == "moonx" and cfg.offline:
-            self.notifier.critical("Demarrage refuse",
-                                   "execution reelle demandee avec des donnees synthetiques")
-            return False
 
         # Un broker signale une connexion impossible de DEUX facons : en
         # rendant False, ou en levant une BrokerError qui, elle, porte la
