@@ -138,18 +138,29 @@ export async function historique(limite = 100): Promise<Position[]> {
     .limit(limite));
 }
 
-/** Memes positions, cote simulation a capital virtuel (voir run_demo.py). */
-export async function positionsOuvertesDemo(): Promise<Position[]> {
+/**
+ * Memes positions, cote simulation (voir run_demo.py).
+ *
+ * `compte` distingue DEUX SIMULATIONS qui tournent en parallele sur le
+ * meme marche : la seule facon de comparer deux methodes sans que le
+ * marche s'en mele. Sans ce filtre, les positions des deux comptes
+ * s'additionneraient a l'ecran -- la meme confusion que le 18 sept.
+ * entre le simule et le reel, en plus difficile a voir puisque les deux
+ * sont « virtuels ».
+ */
+export async function positionsOuvertesDemo(compte = "demo"): Promise<Position[]> {
   return lirePositions((colonnes) => supabase
     .from("signals")
     .select(colonnes)
     .eq("status", "active")
     .eq("is_demo", true)
+    .eq("compte", compte)
     .not("published_at", "is", null)
     .order("published_at", { ascending: false }));
 }
 
-export async function historiqueDemo(limite = 100): Promise<Position[]> {
+export async function historiqueDemo(limite = 100,
+                                     compte = "demo"): Promise<Position[]> {
   // PAS de "cancelled" ici, contrairement a l'historique reel. Le robot
   // ne publie que des cloture_tp/sl ; les lignes "annulees" cote demo
   // sont les 20 positions neutralisees A LA MAIN le 18 sept. pendant la
@@ -160,6 +171,7 @@ export async function historiqueDemo(limite = 100): Promise<Position[]> {
     .select(colonnes)
     .in("status", ["closed_tp", "closed_sl"])
     .eq("is_demo", true)
+    .eq("compte", compte)
     .not("published_at", "is", null)
     .order("closed_at", { ascending: false })
     .limit(limite));
@@ -216,11 +228,13 @@ export async function alertes(limite = 100): Promise<Alerte[]> {
 }
 
 /** Memes alertes, cote simulation -- deja prefixees "[DEMO]" par NotifierDemo. */
-export async function alertesDemo(limite = 100): Promise<Alerte[]> {
+export async function alertesDemo(limite = 100,
+                                  compte = "demo"): Promise<Alerte[]> {
   const { data, error } = await supabase
     .from("alluxe_bot_alertes")
     .select("id, created_at, niveau, titre, corps")
     .eq("is_demo", true)
+    .eq("compte", compte)
     .order("created_at", { ascending: false })
     .limit(limite);
   if (error) throw error;
@@ -232,3 +246,35 @@ export async function alertesDemo(limite = 100): Promise<Alerte[]> {
 // la meme regle finissent toujours par diverger. Reexporte ici pour que
 // les appelants historiques n'aient rien a changer.
 export { etagePyramide } from "../composants/positionsTri";
+
+
+/**
+ * La fiche d'un compte de simulation : quelle methode il fait tourner,
+ * avec quel capital de depart, et quand il a donne signe de vie.
+ *
+ * Publiee par le robot LUI-MEME au demarrage, deduite de la
+ * configuration qu'il vient de charger (`gold_bot/methode.py`).
+ * L'application ne la recalcule pas et ne la recopie pas : c'est
+ * exactement ce qui avait fait afficher « canal 20 jours » pendant une
+ * semaine alors que le robot tournait a 10.
+ */
+export interface CompteDemo {
+  compte: string;
+  resume_methode: string;
+  methode: string;
+  capital_depart: number;
+  vu_le: string;
+}
+
+export async function comptesDemo(): Promise<CompteDemo[]> {
+  const { data, error } = await supabase
+    .from("alluxe_bot_comptes")
+    .select("compte, resume_methode, methode, capital_depart, vu_le")
+    .order("compte");
+  if (error) {
+    // Table pas encore migree : on ne casse pas l'ecran pour autant.
+    if (/does not exist/i.test(error.message)) return [];
+    throw error;
+  }
+  return (data ?? []) as CompteDemo[];
+}

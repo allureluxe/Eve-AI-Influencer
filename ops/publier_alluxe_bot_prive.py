@@ -73,44 +73,14 @@ def _objectifs(capital: float) -> dict:
     }
 
 
-def _methode(cfg: BotConfig) -> str:
-    """La phrase que l'application affiche, DEDUITE de la configuration.
-
-    Elle etait ecrite en dur jusqu'au 19 sept., et elle a menti pendant
-    une semaine : elle annoncait encore "canal a 20 jours" et "pyramidage
-    jusqu'a 3 etages" alors que le robot tournait a 10 jours et en
-    pyramidage illimite depuis le 12 septembre. C'est l'operateur qui l'a
-    releve dans l'app ("il me semble qu'on avait modifie la methode ?").
-
-    Un texte qui decrit un reglage sans le LIRE finit toujours par
-    decrire autre chose que ce qui tourne -- meme lecon que partout
-    ailleurs dans ce depot. Tout ce qui est chiffre ici vient donc du
-    fichier de configuration reellement charge, ou de `PALIERS`.
-    """
-    canal = min(cfg.strategy.donchian_entrees or [20])
-    etages = cfg.risk.pyramide_max
-    if etages >= 99:
-        pyramide = "pyramidage Turtle illimite"
-    elif etages <= 0:
-        pyramide = "sans pyramidage"
-    else:
-        pyramide = f"pyramidage Turtle jusqu'a {etages} etages"
-    jours_stop = (cfg.trade.time_stop_minutes or 0) / 1440.0
-    trail = f"{cfg.trade.trail_atr_mult:.1f}".replace(".", ",")
-
-    paliers = ", ".join(
-        f"{p.risque_pct:.1f} % ".replace(".", ",")
-        + (f"au palier {p.nom}" if p.trades_minimum <= 0 else
-           f"a partir de {p.trades_minimum} trades et d'une esperance nette "
-           f">= {p.esperance_minimale:+.2f} R".replace(".", ","))
-        for p in PALIERS)
-
-    return (
-        f"Strategie {cfg.strategy.entry_tf} {cfg.strategy.famille.capitalize()}-{canal} "
-        f"(cassure de canal a {canal} jours), {pyramide}, stop suiveur a "
-        f"{trail} ATR, stop temporel de {jours_stop:.0f} jours. "
-        f"Le risque par trade suit le palier atteint : {paliers}."
-    )
+# LA DESCRIPTION DE LA METHODE VIT DANS `gold_bot/methode.py`.
+#
+# Elle etait ici, et le robot lui-meme ne pouvait donc pas publier sa
+# propre methode -- or deux comptes de simulation tournent desormais en
+# parallele, et chacun doit dire ce qu'il fait. La recopier aurait donne
+# deux descriptions a tenir d'accord, c'est-a-dire exactement la faute
+# qui avait fait mentir cette phrase pendant une semaine.
+from gold_bot.methode import phrase_methode as _methode  # noqa: E402
 
 
 def _publier(stats_40: dict, objectifs: dict, methode: str) -> None:

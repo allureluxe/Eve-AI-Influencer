@@ -25,6 +25,7 @@ import { euros, pourcent } from "../services/format";
 import { espace } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 import { BarreDeTri, LignePosition, Tri, trier } from "../composants/ListePositions";
+import { etagesAffiches } from "../composants/positionsTri";
 
 export function EcranDirect({ navigation }: { navigation?: any }) {
   const c = useCouleurs();
@@ -44,6 +45,12 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
     await Promise.all([rafraichir(), etatCapital().then(setCapitalEtat).catch(() => {})]);
     setRafraichit(false);
   };
+
+  // Les etages se deduisent de la LISTE ENTIERE, pas d'une ligne isolee :
+  // deux achats de la meme crypto sont deux etages, meme quand chaque
+  // reference dit « 1 » (positions ouvertes avant la fusion du 19 sept.).
+  const etages = React.useMemo(
+    () => (positions ? etagesAffiches(positions) : {}), [positions]);
 
   const ordonnees = React.useMemo(
     () => (positions ? trier(positions, tri, descendant, capital, prixLive) : null),
@@ -95,6 +102,7 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
           {ordonnees.map((p) => (
             <LignePosition key={p.id} p={p} capital={capital}
                            prixActuel={prixLive[p.pair]}
+                           etage={etages[p.id]}
                            surAppui={navigation ? () => navigation.navigate("Position", {
                              position: p, capital, mode: "Réel",
                            }) : undefined} />

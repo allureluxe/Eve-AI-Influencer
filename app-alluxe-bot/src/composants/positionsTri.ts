@@ -22,6 +22,46 @@ export function etagePyramide(p: Position): number {
   return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
+/**
+ * LES ETAGES VUS DEPUIS LA LISTE, ET PAS SEULEMENT DEPUIS LA REFERENCE.
+ *
+ * Retour de l'operateur le 20 septembre : « plusieurs positions sur la
+ * meme crypto ont ete achetees, si ce sont des etages de pyramide alors
+ * c'est mal inscrit sur l'application, Avalanche a plusieurs positions
+ * ouvertes mais toutes a l'etage 1 ».
+ *
+ * Il a raison. Le simulateur creait une position NEUVE a chaque achat
+ * au lieu de fusionner comme le vrai courtier -- corrige le 19 sept. au
+ * soir, mais les positions ouvertes AVANT restent deux lignes
+ * distinctes, chacune marquee « etage 1 » dans sa reference. C'est vrai
+ * ligne par ligne, et faux a l'ecran : l'operateur voit deux fois le
+ * meme etage pour deux achats successifs.
+ *
+ * On complete donc la reference par ce que la LISTE montre : quand
+ * plusieurs positions ouvertes portent la meme crypto, elles sont
+ * numerotees dans l'ordre d'achat. Le deuxieme achat d'Avalanche est
+ * bien son deuxieme etage, quoi qu'en dise sa reference.
+ *
+ * La reference reste prioritaire quand elle dit mieux (>= 2) : sur le
+ * vrai courtier, les achats fusionnent en UNE position dont la
+ * reference porte le vrai compte d'etages.
+ */
+export function etagesAffiches(positions: Position[]): Record<string, number> {
+  const parPaire: Record<string, Position[]> = {};
+  for (const p of positions) {
+    (parPaire[p.pair] ??= []).push(p);
+  }
+  const etages: Record<string, number> = {};
+  for (const lignes of Object.values(parPaire)) {
+    const ordonnees = [...lignes].sort((a, b) =>
+      new Date(a.published_at).getTime() - new Date(b.published_at).getTime());
+    ordonnees.forEach((p, i) => {
+      etages[p.id] = Math.max(etagePyramide(p), i + 1);
+    });
+  }
+  return etages;
+}
+
 export const TRIS = [
   { cle: "gain", libelle: "Gain" },
   { cle: "mise", libelle: "Mise" },

@@ -1254,7 +1254,31 @@ class TradingEngine:
             places_visees=places_visees)
 
         if not sizing.allowed:
-            logger.info("%s ecarte au dimensionnement : %s", ev.symbol, sizing.reason)
+            # UN MOTIF REPETE NE S'ECRIT QU'UNE FOIS.
+            #
+            # Quand le budget de risque est plein, CHAQUE instrument de
+            # l'univers est refuse pour la meme raison, a chaque cycle :
+            # 240 lignes identiques toutes les vingt secondes, soit un
+            # million par jour. Le 20 septembre, /var/log/syslog pesait
+            # 7,6 Go et le journal 3,8 -- la moitie du disque du serveur,
+            # pour une seule phrase recopiee.
+            #
+            # Le cout n'est pas que le disque : ces lignes NOIENT tout le
+            # reste. Chercher une vraie information dans le journal en
+            # devenait penible, et une alerte importante s'y serait
+            # perdue.
+            #
+            # On garde donc la premiere occurrence de chaque motif, puis
+            # on se tait jusqu'a ce que le motif change. Rien n'est perdu :
+            # le motif est le meme, mot pour mot.
+            motif = sizing.reason.split("(")[0].strip()
+            if getattr(self, "_dernier_refus_dimensionnement", None) != motif:
+                self._dernier_refus_dimensionnement = motif
+                logger.info("%s ecarte au dimensionnement : %s",
+                            ev.symbol, sizing.reason)
+            else:
+                logger.debug("%s ecarte au dimensionnement : %s",
+                             ev.symbol, sizing.reason)
             self.notifier.notify("debug", f"Trade non dimensionnable — {ev.symbol}", sizing.reason)
             # Certains refus ne dependent pas des conditions du moment mais du
             # capital : ils se reproduiront a l'identique au prochain cycle.

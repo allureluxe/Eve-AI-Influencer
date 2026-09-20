@@ -23,6 +23,8 @@ avec une alerte du robot reel.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
+import json
 import logging
 import os
 import sys
@@ -70,6 +72,39 @@ class NotifierDemo(Notifier):
         if not note.title.startswith("[DEMO]"):
             note.title = f"[DEMO] {note.title}"
         super().send(note, throttle_key=throttle_key, throttle_seconds=throttle_seconds)
+
+
+def _publier_la_fiche_du_compte(compte: str, cfg) -> None:
+    """Depose la methode de ce compte dans `alluxe_bot_comptes`.
+
+    Ne leve jamais : l'affichage ne doit pas pouvoir empecher une
+    simulation de demarrer.
+    """
+    import urllib.request
+    from gold_bot.methode import phrase_methode, resume_methode
+
+    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    cle = os.environ.get("SUPABASE_SERVICE_KEY", "")
+    if not url or not cle:
+        return
+    corps = json.dumps({
+        "compte": compte,
+        "resume_methode": resume_methode(cfg),
+        "methode": phrase_methode(cfg),
+        "capital_depart": float(getattr(cfg.engine, "start_balance", 0.0) or 0.0),
+        "vu_le": dt.datetime.now(dt.timezone.utc).isoformat(),
+    }).encode()
+    try:
+        requete = urllib.request.Request(
+            f"{url}/rest/v1/alluxe_bot_comptes", data=corps,
+            headers={"apikey": cle, "authorization": f"Bearer {cle}",
+                     "content-type": "application/json",
+                     "prefer": "resolution=merge-duplicates"},
+            method="POST")
+        urllib.request.urlopen(requete, timeout=20).close()
+        logging.info("fiche du compte « %s » publiee", compte)
+    except Exception as exc:                                  # noqa: BLE001
+        logging.warning("fiche du compte non publiee : %s", str(exc)[:160])
 
 
 def main() -> int:
@@ -186,6 +221,16 @@ def main() -> int:
         # supprime le compte, tout passe par l'application.
         AlluxeBotChannel(est_demo=True, compte=compte), FirebasePushChannel(),
     ])
+    # CHAQUE COMPTE DIT CE QU'IL FAIT.
+    #
+    # L'application affiche un onglet par simulation, avec le nom de la
+    # methode. Elle ne lit pas `robot.demo2.json` -- et elle ne doit
+    # surtout pas recopier la description : c'est ce qui avait fait
+    # afficher « canal 20 jours » pendant une semaine alors que le robot
+    # tournait a 10. Le robot publie donc sa propre fiche, deduite de la
+    # configuration qu'il vient reellement de charger.
+    _publier_la_fiche_du_compte(compte, cfg)
+
     engine = DualScalpingEngine(cfg, notifier=canaux_demo)
 
     # Filet de securite : si un futur changement (ici ou dans

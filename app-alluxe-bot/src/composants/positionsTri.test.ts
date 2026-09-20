@@ -84,3 +84,45 @@ describe("le tri par nom", () => {
     expect(ordre).toEqual(["btc", "ada"]);   // Bitcoin avant Cardano
   });
 });
+
+describe("les étages vus depuis la liste", () => {
+  // Retour de l'opérateur le 20 sept. : « Avalanche a plusieurs
+  // positions ouvertes mais toutes à l'étage 1 ». Deux achats
+  // successifs de la même crypto SONT deux étages, même quand chaque
+  // référence dit « 1 » — c'est le cas des positions ouvertes avant
+  // que le simulateur ne se mette à fusionner.
+  const { etagesAffiches } = require("./positionsTri");
+
+  it("numérote les achats successifs d'une même crypto", () => {
+    const a = position({ id: "a", pair: "AVAX/EUR", reference: "x:1",
+                         published_at: "2026-09-19T15:33:00Z" });
+    const b = position({ id: "b", pair: "AVAX/EUR", reference: "y:1",
+                         published_at: "2026-09-19T19:31:00Z" });
+    const e = etagesAffiches([b, a]);       // ordre d'arrivée quelconque
+    expect(e["a"]).toBe(1);
+    expect(e["b"]).toBe(2);
+  });
+
+  it("laisse une crypto seule à l'étage 1", () => {
+    const seul = position({ id: "s", pair: "BTC/EUR", reference: "z:1" });
+    expect(etagesAffiches([seul])["s"]).toBe(1);
+  });
+
+  it("garde la référence quand elle en dit PLUS", () => {
+    // Sur le vrai courtier, les achats fusionnent en UNE position dont
+    // la référence porte le vrai compte d'étages. La liste, elle, n'y
+    // voit qu'une ligne.
+    const fusionnee = position({ id: "f", pair: "OP/EUR", reference: "w:4" });
+    expect(etagesAffiches([fusionnee])["f"]).toBe(4);
+  });
+
+  it("ne mélange jamais deux cryptos différentes", () => {
+    const a = position({ id: "a", pair: "AVAX/EUR", reference: "x:1",
+                         published_at: "2026-09-19T10:00:00Z" });
+    const n = position({ id: "n", pair: "NEO/EUR", reference: "y:1",
+                         published_at: "2026-09-19T11:00:00Z" });
+    const e = etagesAffiches([a, n]);
+    expect(e["a"]).toBe(1);
+    expect(e["n"]).toBe(1);
+  });
+});

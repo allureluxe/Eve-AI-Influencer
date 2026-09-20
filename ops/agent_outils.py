@@ -76,6 +76,33 @@ SECRETS = (
 #:    son depot ne vaut plus rien -- sans que personne ne le voie.
 CONFIGS_ROBOT = re.compile(r"^robot[.\w-]*\.json$")
 
+#: LES COMPTES D'EXPERIENCE, eux, sont a lui.
+#:
+#: Demande de l'operateur le 20 sept. : « je veux que l'agent puisse
+#: gerer les comptes demo, il me dit qu'il ne peut pas faire ce que je
+#: lui demande ». Il a raison : l'interdiction ci-dessus etait trop
+#: large.
+#:
+#: LA LIGNE EXACTE, et elle tient en une phrase : ce qui engage de
+#: l'argent ou porte une mesure en cours est protege ; le reste est un
+#: bac a sable.
+#:
+#:   robot.bitvavo.json  ARGENT REEL. Jamais. Aucune exception.
+#:   robot.demo.json     le compte de REFERENCE -- il porte la
+#:                       simulation de 48 h sur laquelle Monsieur
+#:                       decide son depot du 28. Le modifier en cours
+#:                       de route detruirait la mesure, et c'est
+#:                       exactement ce qui s'est passe le 19 sept. a
+#:                       12h20 : l'agent a divise le risque par deux
+#:                       tout seul, puis s'est tu.
+#:   robot.demo2.json    a lui.
+#:   robot.demo3.json    a lui.
+#:
+#: Un compte d'experience ne coute rien quand il se trompe : c'est
+#: precisement sa raison d'etre. L'interdire revenait a interdire
+#: l'experimentation pour se proteger d'un risque qui n'existe pas la.
+CONFIGS_EXPERIENCE = re.compile(r"^robot\.demo[23]\.json$")
+
 #: L'ATELIER : l'espace ou l'agent construit SES programmes.
 #:
 #: Demande de l'operateur le 19 sept. : « je veux qu'il puisse construire
@@ -128,13 +155,19 @@ def chemin_sur(chemin: str, *, pour_ecriture: bool = False) -> str:
                 f"du serveur. Demande a Leny de le faire lui-meme.")
     if pour_ecriture and relatif.split(os.sep)[0] == ".git":
         raise ActionRefusee("on ne modifie pas .git a la main")
-    if pour_ecriture and CONFIGS_ROBOT.match(os.path.basename(relatif)):
+    nom = os.path.basename(relatif)
+    if (pour_ecriture and CONFIGS_ROBOT.match(nom)
+            and not CONFIGS_EXPERIENCE.match(nom)):
         raise ActionRefusee(
-            f"{relatif} est la configuration d'un robot de trading : elle "
-            f"se LIT mais ne se modifie pas depuis un chat. Tout changement "
-            f"de reglage doit d'abord etre MESURE (comparer.py, walk-forward, "
-            f"frais doubles) puis decide par Monsieur. Propose-lui le "
-            f"changement et la mesure qui le justifie, il decidera.")
+            f"{relatif} n'est pas un compte d'experience. "
+            f"« robot.bitvavo.json » engage l'argent reel, et "
+            f"« robot.demo.json » porte la simulation de reference sur "
+            f"laquelle Monsieur decide son depot -- la modifier en cours "
+            f"de route detruirait la mesure. "
+            f"Tu peux en revanche modifier librement robot.demo2.json et "
+            f"robot.demo3.json : ce sont des comptes d'experience, ils "
+            f"existent pour ca. Pour les deux autres, propose le "
+            f"changement et la mesure qui le justifie.")
     return absolu
 
 
@@ -667,17 +700,98 @@ def chercher_articles_scientifiques(args: dict) -> dict:
     return {"sujet": sujet, "articles": articles[:combien] or "(rien trouve)"}
 
 
+#: Les seuls services que l'agent peut demarrer ou arreter.
+#:
+#: Demande de l'operateur le 20 sept. : « je veux que l'agent puisse
+#: gerer les comptes demo ». Modifier leur reglage sans pouvoir les
+#: relancer ne servirait a rien -- un robot lit sa configuration AU
+#: DEMARRAGE, et seulement la.
+#:
+#: Ce qui reste hors de sa portee, et pourquoi :
+#:   robot-dual-live  ARGENT REEL.
+#:   robot-demo       la simulation de REFERENCE, celle sur laquelle
+#:                    Monsieur decide son depot du 28. L'arreter ou la
+#:                    relancer en pleine mesure la detruirait.
+#:   alluxe-agent     lui-meme. Se redemarrer en pleine reponse le
+#:                    ferait disparaitre au milieu d'une phrase.
+SIMULATIONS_PILOTABLES = ("robot-demo2", "robot-demo3")
+
+
+def piloter_simulation(args: dict) -> dict:
+    """Demarre, arrete ou relance un compte d'EXPERIENCE.
+
+    Un robot ne relit sa configuration qu'au demarrage : changer
+    `robot.demo2.json` sans relancer le service ne change rien, et
+    croire le contraire ferait mesurer l'ancien reglage en pensant
+    mesurer le nouveau. C'est exactement le piege que CLAUDE.md decrit
+    trois fois -- « verifier qu'un reglage est LU ne prouve rien, il
+    faut verifier qu'il s'EXECUTE ».
+    """
+    service = str(args.get("service") or "").strip()
+    action = str(args.get("action") or "").strip().lower()
+
+    if service not in SIMULATIONS_PILOTABLES:
+        raise ActionRefusee(
+            f"« {service} » n'est pas pilotable depuis ici. Seuls "
+            f"{', '.join(SIMULATIONS_PILOTABLES)} le sont : ce sont des "
+            f"comptes d'experience, ils ne coutent rien quand ils se "
+            f"trompent. robot-dual-live engage l'argent reel et "
+            f"robot-demo porte la mesure de reference.")
+    if action not in ("start", "stop", "restart"):
+        raise ActionRefusee(
+            "action inconnue : start, stop ou restart uniquement.")
+
+    # LA MEMOIRE EST LA VRAIE LIMITE DE CE SERVEUR.
+    #
+    # Mesure le 20 sept. : chaque robot reclame 1 200 a 1 900 Mo, la
+    # machine en a 3 800 au total. Un demarrage de trop, et le noyau tue
+    # un processus au hasard -- possiblement la simulation de reference.
+    # C'est deja arrive DEUX fois le 19 septembre.
+    if action in ("start", "restart"):
+        libre = _memoire_disponible_mo()
+        if libre is not None and libre < 1300:
+            raise ActionRefusee(
+                f"pas assez de memoire : {libre} Mo disponibles, il en "
+                f"faut environ 1 300. Demarrer maintenant risque de tuer "
+                f"une simulation en cours. Dis-le a Monsieur : ce serveur "
+                f"ne tient pas trois robots.")
+
+    r = subprocess.run(["sudo", "-n", "systemctl", action, service],
+                       capture_output=True, text=True, timeout=90)
+    if r.returncode != 0:
+        return {"erreur": (r.stderr or r.stdout).strip()[:300]}
+    etat = subprocess.run(["systemctl", "is-active", service],
+                          capture_output=True, text=True, timeout=15)
+    return {"service": service, "action": action,
+            "etat": etat.stdout.strip() or "inconnu"}
+
+
+def _memoire_disponible_mo() -> "int | None":
+    try:
+        with open("/proc/meminfo") as fh:
+            for ligne in fh:
+                if ligne.startswith("MemAvailable:"):
+                    return int(ligne.split()[1]) // 1024
+    except OSError:
+        return None
+    return None
+
+
 def etat_services(_args: dict) -> dict:
     """Lecture seule : qui tourne, qui ne tourne pas."""
-    services = ("robot-dual-live", "robot-demo", "alluxe-agent")
+    services = ("robot-dual-live", "robot-demo", "robot-demo2",
+                "robot-demo3", "alluxe-agent")
     etats = {}
     for s in services:
         r = subprocess.run(["systemctl", "is-active", s],
                            capture_output=True, text=True, timeout=15)
         etats[s] = r.stdout.strip() or "inconnu"
     return {"services": etats,
+            "memoire_disponible_mo": _memoire_disponible_mo(),
             "note": "robot-dual-live est volontairement a l'arret tant que "
-                    "Leny n'a pas redepose d'argent"}
+                    "Leny n'a pas redepose d'argent. robot-demo2 et "
+                    "robot-demo3 sont des comptes d'experience : tu peux "
+                    "les piloter et modifier leur configuration."}
 
 
 OUTILS_ACTION = {
@@ -688,6 +802,7 @@ OUTILS_ACTION = {
     "chercher": chercher,
     "executer": executer,
     "etat_services": etat_services,
+    "piloter_simulation": piloter_simulation,
     "chercher_sur_le_web": chercher_sur_le_web,
     "lire_page_web": lire_page_web,
     "chercher_articles_scientifiques": chercher_articles_scientifiques,
@@ -697,8 +812,18 @@ OUTILS_ACTION = {
 }
 
 
-def _p(**proprietes):
-    return {"type": "object", "properties": proprietes}
+def _p(requis=None, **proprietes):
+    """Le schema d'un outil. `requis` liste les parametres obligatoires.
+
+    Sans lui, un parametre passe en mot-cle devenait une PROPRIETE du
+    schema : l'outil aurait annonce au modele un argument « requis »
+    qu'il n'attend pas, et le modele aurait pu le remplir. Un schema qui
+    decrit mal l'outil est pire qu'un schema absent.
+    """
+    schema = {"type": "object", "properties": proprietes}
+    if requis:
+        schema["required"] = list(requis)
+    return schema
 
 
 DESCRIPTION_OUTILS_ACTION = [
@@ -742,6 +867,21 @@ DESCRIPTION_OUTILS_ACTION = [
         "name": "etat_services",
         "description": "Quels services tournent.",
         "parameters": _p(),
+    }},
+    {"type": "function", "function": {
+        "name": "piloter_simulation",
+        "description": ("Demarre, arrete ou relance un compte d'EXPERIENCE "
+                        "(robot-demo2, robot-demo3). Indispensable apres "
+                        "avoir modifie robot.demo2.json ou "
+                        "robot.demo3.json : un robot ne relit sa "
+                        "configuration qu'au demarrage. Refuse pour le "
+                        "robot reel et pour la simulation de reference."),
+        "parameters": _p(
+            service={"type": "string",
+                     "enum": ["robot-demo2", "robot-demo3"]},
+            action={"type": "string",
+                    "enum": ["start", "stop", "restart"]},
+            requis=["service", "action"]),
     }},
     {"type": "function", "function": {
         "name": "chercher_sur_le_web",

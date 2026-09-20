@@ -26,20 +26,22 @@ export interface SuiviPositions {
   rafraichir: () => Promise<void>;
 }
 
-export function useSuiviPositions(estDemo: boolean, capitalDemo: number): SuiviPositions {
+/** `compte` : quelle simulation suivre. Sans objet en mode reel. */
+export function useSuiviPositions(estDemo: boolean, capitalDemo: number,
+                                  compte = "demo"): SuiviPositions {
   const [positions, setPositions] = React.useState<Position[] | null>(null);
   const [capital, setCapital] = React.useState<number>(capitalDemo);
   const [erreur, setErreur] = React.useState("");
 
   const charger = React.useCallback(async () => {
     try {
-      const p = await (estDemo ? positionsOuvertesDemo() : positionsOuvertes());
+      const p = await (estDemo ? positionsOuvertesDemo(compte) : positionsOuvertes());
       setPositions(p);
       setErreur("");
     } catch (err: any) {
       setErreur(err?.message ?? "Erreur de chargement");
     }
-  }, [estDemo]);
+  }, [estDemo, compte]);
 
   React.useEffect(() => {
     charger();
@@ -64,7 +66,7 @@ export function useSuiviPositions(estDemo: boolean, capitalDemo: number): SuiviP
     let vivant = true;
     etatCapital().then((e) => { if (vivant && e) setCapital(e.capital_eur); }).catch(() => {});
     return () => { vivant = false; };
-  }, [estDemo]);
+  }, [estDemo, compte]);
 
   const paires = React.useMemo(
     () => Array.from(new Set((positions ?? []).map((p) => p.pair))),

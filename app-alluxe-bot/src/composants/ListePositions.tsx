@@ -79,9 +79,12 @@ export function BarreDeTri({ tri, descendant, surChangement }: {
 //  La ligne
 // ---------------------------------------------------------------------
 
-export function LignePosition({ p, capital, prixActuel, surAppui }: {
+export function LignePosition({ p, capital, prixActuel, surAppui, etage }: {
   p: Position; capital: number; prixActuel: number | undefined;
   surAppui?: () => void;
+  /** Etage deduit de la LISTE (voir `etagesAffiches`). Plus juste que la
+   *  reference quand plusieurs achats de la meme crypto coexistent. */
+  etage?: number;
 }) {
   const c = useCouleurs();
   const ch = chiffresDe(p, capital, prixActuel);
@@ -137,8 +140,8 @@ export function LignePosition({ p, capital, prixActuel, surAppui }: {
           {/* L'etage s'affiche TOUJOURS, meme au premier : sinon
               l'information n'est jamais visible tant que le pyramidage
               ne s'est pas declenche. Demande explicite de l'operateur. */}
-          <T v="petit" couleur={ch.etage > 1 ? c.olive : c.encreDouce}>
-            {" · étage " + ch.etage}
+          <T v="petit" couleur={(etage ?? ch.etage) > 1 ? c.olive : c.encreDouce}>
+            {" · étage " + (etage ?? ch.etage)}
           </T>
         </View>
       </View>
