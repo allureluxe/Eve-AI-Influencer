@@ -54,13 +54,16 @@
     "w_macro": 0.06,
     "w_news": 0.07,
     "history": 300,
-    "famille": "donchian",
+    "famille": "momentum",
     "donchian_entrees": [
       10
     ],
     "donchian_sortie": 10,
     "donchian_filtre_precedent": false,
-    "donchian_momentum_max_pct": 0.0
+    "donchian_momentum_max_pct": 0.0,
+    "momentum_formation": 28,
+    "momentum_seuil_pct": 0.0,
+    "momentum_detention": 5
   },
   "risk": {
     "base_risk_pct": 0.6,
@@ -73,7 +76,7 @@
     "max_drawdown_pct": 45.0,
     "daily_profit_target_pct": 0.0,
     "max_positions": 99,
-    "max_per_correlation_group": 1,
+    "max_per_correlation_group": 99,
     "max_total_risk_pct": 5.0,
     "max_daily_trades": 0,
     "min_seconds_between_trades": 30.0,
@@ -82,14 +85,14 @@
     "pause_after_losses_minutes": 45.0,
     "min_rr": 1.6,
     "max_capital_engaged_pct": 90.0,
-    "pyramide_max": 99,
+    "pyramide_max": 0,
     "pyramide_espacement_atr": 0.25,
     "pyramide_fraction_risque": 1.0,
     "pyramide_locked_r_min": 0.01,
     "ticket_min_eur": 15.0,
     "carence_meme_bougie": true,
     "unite_du_signal": "D1",
-    "reserve_pyramide_pct": 1.67
+    "reserve_pyramide_pct": 0.0
   },
   "trade": {
     "atr_stop_mult": 1.6,
@@ -115,7 +118,7 @@
     "extend_min_momentum": 0.3,
     "lock_r_on_extend": 0.4,
     "lock_back_atr": 0.9,
-    "time_stop_minutes": 7200.0,
+    "time_stop_minutes": 0.0,
     "stagnation_jours": 0.0,
     "stagnation_max_r": 0.5,
     "time_stop_min_r": 0.4,
@@ -127,7 +130,8 @@
     "pyramide_stop_commun": true,
     "pyramide_relevement_turtle": true,
     "trail_serrage_apres_abri": 0.5,
-    "trail_min_atr_mult": 0.8
+    "trail_min_atr_mult": 0.8,
+    "detention_max_jours": 5.0
   },
   "objectives": {
     "base_target": 4.0,
@@ -144,5 +148,6 @@
     "sans_frais_jusqu_au": "",
     "volume_plafond": 0.0
   },
-  "_temoin": "Compte 2, 20 sept. : identique au compte 1 SAUF la limite par famille de cryptos (1 ici, aucune la-bas). Mesure sur 30 paires / 600 jours : +168 EUR contre +1, et recul divise par deux. Une seule periode -- ce compte EST la verification."
+  "_temoin": "Compte 2, 20 sept. : identique au compte 1 SAUF la limite par famille de cryptos (1 ici, aucune la-bas). Mesure sur 30 paires / 600 jours : +168 EUR contre +1, et recul divise par deux. Une seule periode -- ce compte EST la verification.",
+  "_methode": "momentum de series temporelles : achat si hausse sur 28 jours, sortie a date fixe au 5e jour. Source ACFR, dec. 2013 - aout 2023. Mesure chez nous le 20 sept. : +7,2 % et +9,0 % sur deux periodes, reculs 65,7 % et 39,1 %."
 }

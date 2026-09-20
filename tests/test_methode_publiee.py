@@ -71,3 +71,52 @@ class TestLaMethodePubliee(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLaFamilleMomentumNEstPasDecriteCommeUnCanal:
+    """Lire le bon FICHIER ne suffit pas : il faut lire le bon CHAMP.
+
+    Ce module a ete ecrit le 19 septembre pour que la methode affichee
+    soit lue et non recopiee. Le 20, en armant la famille « momentum »
+    sur la demo 2, il annoncait toujours « Canal 10 j » : il lisait
+    `donchian_entrees`, qui existe dans TOUTES les configurations, y
+    compris celles qui ne s'en servent pas. Un champ inutilise rend un
+    chiffre plausible et faux -- la pire des deux options.
+    """
+
+    def _config_momentum(self):
+        from gold_bot.settings import BotConfig
+        cfg = BotConfig.load("robot.demo.json")
+        cfg.strategy.famille = "momentum"
+        cfg.strategy.momentum_formation = 28
+        cfg.trade.detention_max_jours = 5.0
+        cfg.trade.time_stop_minutes = 0.0
+        return cfg
+
+    def test_le_resume_ne_parle_jamais_de_canal(self):
+        from gold_bot.methode import resume_methode
+        texte = resume_methode(self._config_momentum())
+        assert "Canal" not in texte, texte
+        assert "Momentum 28 j" in texte, texte
+
+    def test_la_phrase_ne_parle_jamais_de_cassure(self):
+        from gold_bot.methode import phrase_methode
+        texte = phrase_methode(self._config_momentum())
+        assert "cassure" not in texte.lower(), texte
+        assert "28 jours" in texte and "5e jour" in texte, texte
+
+    def test_les_deux_comptes_demo_ne_disent_pas_la_meme_chose(self):
+        # Un selecteur qui ne distingue pas ce qu'il selectionne ne sert
+        # a rien. C'est arrive trois fois en deux jours.
+        from gold_bot.settings import BotConfig
+        from gold_bot.methode import resume_methode
+        un = resume_methode(BotConfig.load("robot.demo.json"))
+        deux = resume_methode(BotConfig.load("robot.demo2.json"))
+        assert un != deux, f"les deux comptes affichent « {un} »"
+
+    def test_la_famille_donchian_est_inchangee(self):
+        from gold_bot.settings import BotConfig
+        from gold_bot.methode import resume_methode, phrase_methode
+        cfg = BotConfig.load("robot.demo.json")
+        assert "Canal" in resume_methode(cfg)
+        assert "cassure de canal" in phrase_methode(cfg)

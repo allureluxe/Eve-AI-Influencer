@@ -35,6 +35,10 @@ def _mot_pyramide(etages: int) -> str:
     return f"pyramidage Turtle jusqu'a {etages} etages"
 
 
+def _est_momentum(cfg: BotConfig) -> bool:
+    return cfg.strategy.famille == "momentum"
+
+
 def phrase_methode(cfg: BotConfig) -> str:
     """La description complete, telle que l'application l'affiche."""
     canal = min(cfg.strategy.donchian_entrees or [20])
@@ -48,6 +52,26 @@ def phrase_methode(cfg: BotConfig) -> str:
            f"a partir de {p.trades_minimum} trades et d'une esperance nette "
            f">= {p.esperance_minimale:+.2f} R".replace(".", ","))
         for p in PALIERS)
+
+    # LA FAMILLE DECIDE DE LA PHRASE, PAS SEULEMENT DE SON TITRE.
+    #
+    # Ce module a ete ecrit le 19 septembre pour que la methode soit LUE
+    # au lieu d'etre recopiee -- et le 20, en armant la famille
+    # « momentum » sur la demo 2, il annoncait toujours « cassure de
+    # canal a 10 jours ». Lire le bon fichier ne suffit pas : il faut
+    # lire le bon CHAMP. `donchian_entrees` existe dans toutes les
+    # configurations, y compris celles qui ne s'en servent pas, donc il
+    # rendait un chiffre plausible et faux.
+    if _est_momentum(cfg):
+        formation = int(cfg.strategy.momentum_formation)
+        detention = float(cfg.trade.detention_max_jours or 0.0)
+        return (
+            f"Strategie {cfg.strategy.entry_tf} Momentum {formation}/{detention:.0f} "
+            f"(achat si la crypto monte sur {formation} jours, revente au "
+            f"{detention:.0f}e jour quoi qu'il arrive), {pyramide}, stop "
+            f"suiveur a {trail} ATR en filet. "
+            f"Le risque par trade suit le palier atteint : {paliers}."
+        )
 
     return (
         f"Strategie {cfg.strategy.entry_tf} {cfg.strategy.famille.capitalize()}-{canal} "
@@ -65,8 +89,18 @@ def resume_methode(cfg: BotConfig) -> str:
     strategie. On ne garde donc que ce qui DIFFERE en pratique entre
     deux simulations — le canal, le pyramidage, la reserve.
     """
-    canal = min(cfg.strategy.donchian_entrees or [20])
-    morceaux = [f"Canal {canal} j"]
+    # Le PREMIER mot doit nommer la famille, parce que c'est desormais ce
+    # qui differe le plus entre deux comptes. Afficher « Canal 10 j » sur
+    # un compte qui tourne au momentum serait le mensonge exact que ce
+    # module a ete ecrit pour empecher.
+    if _est_momentum(cfg):
+        formation = int(cfg.strategy.momentum_formation)
+        detention = float(cfg.trade.detention_max_jours or 0.0)
+        morceaux = [f"Momentum {formation} j",
+                    f"revente au {detention:.0f}e jour"]
+    else:
+        canal = min(cfg.strategy.donchian_entrees or [20])
+        morceaux = [f"Canal {canal} j"]
 
     etages = cfg.risk.pyramide_max
     if etages >= 99:
