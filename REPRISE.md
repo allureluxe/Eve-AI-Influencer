@@ -1,3 +1,80 @@
+# Ou on en est — mis a jour le 20 septembre 2026 (02h30)
+
+## TROIS COMPTES DEMO, dont DEUX qui tournent
+
+Chacun part de 3 300 EUR et ne differe du compte 1 que par UN reglage :
+
+    demo    reference    reserve 1/3, a l'abri des 0,7x le risque   TOURNE
+    demo2   experience   MEME chose sauf AUCUNE reserve             TOURNE
+    demo3   experience   MEME chose sauf a l'abri des 0,5x          EN ATTENTE
+
+demo3 n'est pas demarre : ~700 Mo libres, il en faudrait 1 300. Ce
+serveur ne tient pas trois robots. Son service est pret
+(`systemd/robot-demo2.service` comme patron, `robot.demo3.json` existe).
+
+**La question que ces deux robots mesurent** : reserver du budget aux
+renforcements change-t-il quelque chose quand le budget sature ? Le
+rejeu ne peut PAS y repondre -- sur 40 paires, zero reserve et la
+moitie reservee donnent le meme resultat au centime, parce que le
+budget n'y sature jamais. Il faut les 240 cryptos du vrai robot.
+
+## MEMOIRE : deux erreurs a moi, corrigees le 20 a 02h20
+
+1. `systemctl set-property MemoryMax=2400M` (19 sept. 19h50) **n'a
+   jamais pris effet** : systemd applique les fragments par ordre de NOM
+   de fichier, et `memoire.conf` passe apres `50-MemoryMax.conf`. Le
+   robot est reste a 1 800 Mo pendant que je le croyais a 2 400.
+2. `MemorySwapMax=0` interdisait au robot d'utiliser le swap. Les 2 Go
+   ajoutes la veille, justement pour qu'un pic ne tue plus rien, ne lui
+   servaient a RIEN.
+
+Reglage actuel, ecrit dans
+`/etc/systemd/system/robot-demo{,2}.service.d/memoire.conf` :
+
+    demo    high 1400M  max 2000M  swap 1G
+    demo2   high 1000M  max 1400M  swap 512M
+
+Principe : le compte de REFERENCE ralentit sous pression au lieu de
+mourir ; si le serveur manque d'air, c'est le compte d'EXPERIENCE qui
+cede. **Toujours verifier avec `systemctl show -p MemoryMax --value`,
+jamais supposer qu'un set-property a pris.**
+
+## DISQUE : 83 % -> 42 %
+
+`/var/log/syslog` pesait 7,6 Go, ses archives 4,6, le journal 3,8. Le
+robot ecrivait un message PAR CRYPTO ecartee, 240 fois par cycle --
+pres d'un million de lignes par jour. Corrige a la source (un motif
+repete ne s'ecrit plus qu'une fois) + limites posees
+(`/etc/systemd/journald.conf.d/taille.conf`, `/etc/logrotate.d/syslog-taille`).
+
+## L'AGENT PEUT GERER LES COMPTES D'EXPERIENCE
+
+Depuis le 20 sept. : il modifie `robot.demo2.json` / `robot.demo3.json`
+et pilote `robot-demo2` / `robot-demo3` (`piloter_simulation`, sudoers
+nominatif). Il refuse de demarrer sous 1 300 Mo libres.
+
+**Restent interdits** : `robot.bitvavo.json` (argent reel),
+`robot.demo.json` (la mesure de reference), `robot-dual-live`,
+`alluxe-agent` lui-meme.
+
+## LA CAMPAGNE DE NUIT CEDE LA PLACE
+
+`ops/campagne_nuit.sh` ne demarre plus sous 1 600 Mo libres, et l'ecrit
+dans son fichier de sortie. Avec deux simulations en cours elle passera
+son tour -- une mesure vaut moins qu'une mesure EN COURS.
+
+## A FAIRE AU REVEIL
+
+1. Envoyer le lien de l'APK (build de 9844b7b lance a 00h09). Il
+   contient : 3 onglets demo, ecran de detail d'une position avec
+   graphique, tri, Discussion, jaune adouci.
+2. Point du matin sur les deux simulations : comparer demo et demo2.
+3. Luna : les deux generateurs d'images etaient a sec (HF 402,
+   Cloudflare 429). Cloudflare se remet a zero a 00h00 UTC -- verifier
+   que ca reproduit.
+
+---
+
 # Ou on en est — mis a jour le 20 septembre 2026 (00h45)
 
 ## TELEGRAM EST RETIRE. Tout passe par l'onglet Discussion.

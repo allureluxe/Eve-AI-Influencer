@@ -17,6 +17,26 @@
 cd "$(dirname "$0")/.." || exit 1
 SORTIE="data/campagne-strategies-$(date +%Y%m%d).txt"
 
+# ELLE NE DEMARRE PAS SI LA PLACE MANQUE.
+#
+# Le 20 septembre, DEUX simulations tournent en parallele (comptes demo
+# et demo2) et occupent ~2,2 Go des 3,8 de ce serveur. Une campagne qui
+# en reclame 1,5 de plus ne se contenterait pas d'echouer : le noyau
+# tuerait un processus au hasard, possiblement la simulation sur
+# laquelle Monsieur decide son depot du 28.
+#
+# Une mesure vaut moins qu'une mesure en cours. Si la place manque, on
+# passe notre tour et on le DIT -- un silence laisserait croire qu'elle
+# a tourne.
+LIBRE=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
+BESOIN=1600
+if [ "${LIBRE:-0}" -lt "$BESOIN" ]; then
+    echo "campagne reportee : ${LIBRE} Mo libres, il en faut ${BESOIN}." \
+         "Les simulations en cours passent avant." >> "$SORTIE"
+    echo "campagne reportee : ${LIBRE} Mo libres sur ${BESOIN} necessaires"
+    exit 0
+fi
+
 exec systemd-run --scope --quiet --unit=campagne-nuit \
     -p MemoryMax=1500M -p MemorySwapMax=0 -p CPUWeight=20 \
     nice -n 19 ./.venv/bin/python comparer.py \
