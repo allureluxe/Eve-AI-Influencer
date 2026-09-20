@@ -1,0 +1,256 @@
+<title>Les moteurs de Luna</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --sol:#F3F4F7;
+    --carte:#FFFFFF;
+    --encre:#15171C;
+    --doux:#5C626D;
+    --trait:#DDE0E6;
+    --rouge:#B3202C;
+    --vert:#1B6B58;
+    --ambre:#8A6510;
+    --ombre:0 1px 2px rgba(21,23,28,.06), 0 8px 24px rgba(21,23,28,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --sol:#0F1114;
+      --carte:#181B20;
+      --encre:#ECEEF2;
+      --doux:#99A0AC;
+      --trait:#2B2F37;
+      --rouge:#FF7A80;
+      --vert:#5CCBAC;
+      --ambre:#E0B color;
+      --ambre:#E5B košice;
+      --ambre:#E3B75A;
+      --ombre:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --sol:#0F1114;
+    --carte:#181B20;
+    --encre:#ECEEF2;
+    --doux:#99A0AC;
+    --trait:#2B2F37;
+    --rouge:#FF7A80;
+    --vert:#5CCBAC;
+    --ambre:#E3B75A;
+    --ombre:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--sol);
+    color:var(--encre);
+    font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:16px; line-height:1.6;
+    padding-inline:20px; padding-block:0;
+  }
+  .page{max-width:900px;margin:0 auto;padding-block:48px 72px}
+
+  .chapeau{border-bottom:2px solid var(--encre);padding-bottom:22px;margin-bottom:34px}
+  .date{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.12em;
+        text-transform:uppercase;color:var(--doux)}
+  h1{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;
+     font-size:clamp(34px,6.4vw,54px);line-height:1.02;margin:10px 0 12px;
+     letter-spacing:-.025em;text-wrap:balance}
+  .sous{font-size:17px;color:var(--doux);max-width:60ch;margin:0}
+
+  h2{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;
+     font-size:25px;letter-spacing:-.015em;margin:52px 0 6px;text-wrap:balance}
+  h2 .num{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;
+          color:var(--rouge);display:block;letter-spacing:.1em;margin-bottom:6px}
+  .intro{color:var(--doux);max-width:64ch;margin:0 0 20px}
+
+  .encadre{background:var(--carte);border:1px solid var(--trait);border-radius:10px;
+           padding:22px 24px;box-shadow:var(--ombre);margin:22px 0}
+  .encadre.alerte{border-left:4px solid var(--rouge)}
+
+  .grille{display:grid;gap:14px;margin:18px 0}
+  .fiche{background:var(--carte);border:1px solid var(--trait);border-radius:10px;
+         padding:18px 20px;box-shadow:var(--ombre);
+         display:grid;grid-template-columns:1fr auto;gap:6px 20px;align-items:start}
+  .fiche.retenu{border-color:var(--rouge);border-width:1.5px}
+  .nom{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:700;
+       font-size:18px;letter-spacing:-.01em}
+  .badge{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+         font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+         padding:3px 8px;border-radius:4px;vertical-align:2px;margin-left:8px}
+  .badge.pick{background:var(--rouge);color:#fff}
+  .badge.warn{background:transparent;color:var(--ambre);border:1px solid var(--ambre)}
+  .prix{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:600;
+        white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+  .prix small{display:block;font-size:11px;font-weight:400;color:var(--doux);
+              letter-spacing:.02em}
+  .quoi{grid-column:1/-1;color:var(--doux);font-size:14.5px;margin:2px 0 0}
+  .quoi b{color:var(--encre);font-weight:600}
+
+  .tableau{width:100%;border-collapse:collapse;font-size:14.5px;margin:6px 0}
+  .enrob{overflow-x:auto;background:var(--carte);border:1px solid var(--trait);
+         border-radius:10px;box-shadow:var(--ombre);margin:20px 0}
+  .tableau th{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:11px;
+              letter-spacing:.09em;text-transform:uppercase;color:var(--doux);
+              font-weight:600;padding:14px 16px;border-bottom:1px solid var(--trait)}
+  .tableau td{padding:12px 16px;border-bottom:1px solid var(--trait);vertical-align:top}
+  .tableau tr:last-child td{border-bottom:none}
+  .tableau td.n{font-family:"IBM Plex Mono",monospace;text-align:right;
+                font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tableau tr.total td{font-weight:600;background:color-mix(in srgb,var(--rouge) 7%,transparent)}
+
+  .deuxcol{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:640px){ .deuxcol{grid-template-columns:1fr}
+    .fiche{grid-template-columns:1fr} .prix{text-align:left} }
+
+  .note{font-size:13.5px;color:var(--doux);border-left:2px solid var(--trait);
+        padding-left:14px;margin:16px 0}
+  .note b{color:var(--encre)}
+  em.mot{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:.92em;
+         background:color-mix(in srgb,var(--doux) 13%,transparent);
+         padding:1px 5px;border-radius:3px}
+  .pied{margin-top:60px;padding-top:20px;border-top:1px solid var(--trait);
+        font-size:13px;color:var(--doux)}
+  a{color:var(--rouge)}
+</style>
+
+<div class="page">
+
+<header class="chapeau">
+  <div class="date">Préparé le 20 septembre 2026 · pour la décision du 28</div>
+  <h1>Les moteurs de Luna</h1>
+  <p class="sous">Ce qui se fait de mieux aujourd'hui pour l'image, la vidéo, la voix et le texte — avec les prix réels, et ce que ça coûterait par mois au rythme de Luna.</p>
+</header>
+
+<div class="encadre alerte">
+  <p style="margin:0 0 10px"><strong>Le problème n'est pas le réalisme. C'est le visage.</strong></p>
+  <p style="margin:0;color:var(--doux)">Les photos actuelles sont crédibles prises une par une — lumière, tissu, pose. Mais celle du 19 septembre et celle du 20 montrent <b style="color:var(--encre)">deux femmes différentes</b> : blond miel contre blond platine, yeux bleu-gris contre vert vif, visage rond contre visage allongé. Aucune description, si précise soit-elle, ne corrige ça. Il faut un moteur qui accepte une <b style="color:var(--encre)">photo de référence</b> — c'est exactement ce que les moteurs gratuits actuels ne savent pas faire.</p>
+</div>
+
+<h2><span class="num">01 — IMAGE</span>Refaire le même visage, à volonté</h2>
+<p class="intro">Deux chemins. Le premier se branche en une journée. Le second demande une mise en route, puis donne un verrouillage quasi parfait.</p>
+
+<div class="grille">
+  <div class="fiche retenu">
+    <div class="nom">Nano Banana Pro <span class="badge pick">à prendre le 28</span></div>
+    <div class="prix">0,12 €<small>par photo · 2K</small></div>
+    <p class="quoi">Le moteur image de Google (Gemini 3 Pro Image). Il accepte <b>jusqu'à 14 photos de référence</b> et tient le visage d'une image à l'autre. C'est le plus simple : on lui donne les meilleures photos de Luna déjà générées, il refait la même personne. <b>Aucun entraînement, aucune attente.</b> Tarif réduit de moitié en mode différé (0,06 €), ce qui convient parfaitement à des publications programmées.</p>
+  </div>
+
+  <div class="fiche">
+    <div class="nom">Flux + LoRA dédiée <span class="badge warn">le plus abouti</span></div>
+    <div class="prix">2 à 8 €<small>une seule fois</small></div>
+    <p class="quoi">On entraîne un petit modèle <em class="mot">LoRA</em> sur le visage de Luna — une trentaine de photos, vingt minutes, entre 2 et 8 € <b>payés une fois pour toutes</b>. Ensuite chaque image sort avec le bon visage. C'est le montage utilisé par les comptes d'influenceuses IA les plus suivis, avec 97 à 99 % de constance. Flux Krea est de plus entraîné exprès pour <b>effacer le « rendu IA »</b>.</p>
+  </div>
+
+  <div class="fiche">
+    <div class="nom">Midjourney</div>
+    <div class="prix">écarté<small>pas d'API</small></div>
+    <p class="quoi">Le plus beau rendu du marché, et <b>inutilisable ici</b> : pas d'interface machine officielle. Luna publie toute seule depuis le serveur ; un outil qui exige de cliquer dans un navigateur ne rentre pas dans la chaîne.</p>
+  </div>
+</div>
+
+<p class="note"><b>Ce que je recommande :</b> commencer par Nano Banana Pro le 28 — branché dans l'heure, on voit tout de suite si le visage tient. Garder la LoRA en seconde étape si la constance n'est pas suffisante. Les deux ne s'excluent pas, et la LoRA coûte moins cher qu'un mois d'abonnement.</p>
+
+<h2><span class="num">02 — VIDÉO</span>Le poste le plus cher, et de loin</h2>
+<p class="intro">La vidéo se paie <strong>à la seconde</strong>. C'est ce chiffre qui décide du budget, pas l'abonnement.</p>
+
+<div class="enrob">
+<table class="tableau">
+  <thead><tr><th>Moteur</th><th>Ce qu'il apporte</th><th class="n">la seconde</th><th class="n">clip de 8 s</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Kling 3.0 Turbo</strong> <span class="badge pick">à prendre</span></td>
+        <td>Le meilleur rapport qualité-prix. Sorti en février 2026, il <b>verrouille le visage d'un plan à l'autre</b> — exactement notre problème.</td>
+        <td class="n">0,07 €</td><td class="n">0,55 €</td></tr>
+    <tr><td><strong>Veo 3.1</strong> (Google)</td>
+        <td>4K jusqu'à 60 images/s avec <b>son intégré et synchronisation des lèvres</b>. Le plus abouti quand Luna doit parler.</td>
+        <td class="n">0,03 à 0,28 €</td><td class="n">0,25 à 2,20 €</td></tr>
+    <tr><td><strong>Seedance 2.0</strong></td>
+        <td>Le mieux noté pour le réalisme brut et les plans guidés par une photo de référence.</td>
+        <td class="n">0,17 à 0,28 €</td><td class="n">1,40 à 2,20 €</td></tr>
+    <tr><td><strong>Runway Gen-4.5</strong></td>
+        <td>Le plus de contrôle sur le cadrage et le mouvement de caméra. Utile plus tard, pas au départ.</td>
+        <td class="n">variable</td><td class="n">—</td></tr>
+    <tr><td style="color:var(--doux)"><strong>Sora 2</strong> (OpenAI)</td>
+        <td style="color:var(--doux)"><b style="color:var(--rouge)">À ne pas utiliser.</b> Abandonné en avril 2026, l'accès machine ferme le <b style="color:var(--rouge)">24 septembre 2026</b> — dans quatre jours.</td>
+        <td class="n">—</td><td class="n">—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p class="note"><b>Une réserve honnête sur Veo :</b> les sources donnent 0,03 € la seconde chez les unes et près de dix fois plus chez les autres. L'écart est trop grand pour que je vous le présente comme acquis. <b>À vérifier sur la facturation officielle le 28</b>, avant d'engager quoi que ce soit dessus.</p>
+
+<h2><span class="num">03 — VOIX</span>Là où on peut économiser sans perdre</h2>
+
+<div class="grille deuxcol">
+  <div class="fiche retenu" style="grid-template-columns:1fr">
+    <div class="nom">ElevenLabs v3 <span class="badge pick">à prendre</span></div>
+    <div class="prix" style="text-align:left">46 à 92 €<small>le million de caractères</small></div>
+    <p class="quoi">La référence. 70 langues, français compris, et des <b>marques d'intonation</b> pour jouer l'émotion. Au rythme de Luna — quelques milliers de caractères par mois — la facture réelle tourne autour de <b>0,50 € par mois</b>. Le tarif au million fait peur ; il ne nous concerne pas.</p>
+  </div>
+  <div class="fiche" style="grid-template-columns:1fr">
+    <div class="nom">Fish Audio</div>
+    <div class="prix" style="text-align:left">5 €<small>par mois, usage commercial</small></div>
+    <p class="quoi">Le plus proche d'ElevenLabs en qualité, à prix fixe. <b>Le repli si la facture au caractère dérape.</b> À garder en réserve, pas à prendre d'emblée.</p>
+  </div>
+</div>
+
+<h2><span class="num">04 — TEXTE</span>Le poste qui ne coûte rien, et qui casse quand même</h2>
+<p class="intro">C'est lui qui écrit les légendes et décrit les scènes. Deux des quatre échecs de Luna viennent de là — pas de la qualité du texte, mais de sa fiabilité.</p>
+
+<div class="encadre">
+  <table class="tableau" style="margin:0">
+    <tbody>
+      <tr><td><b>Trop de requêtes</b> (erreur 429)</td><td style="color:var(--doux)">2 échecs les 19 et 20 septembre. Le moteur gratuit sature. <b style="color:var(--encre)">Se règle en réessayant</b>, pas en payant.</td></tr>
+      <tr><td><b>Réponse sans étiquettes</b></td><td style="color:var(--doux)">Le moteur a rendu une légende et une scène parfaites, mais sans les repères attendus — tout a été jeté. <b style="color:var(--encre)">Troisième fois en trois jours.</b></td></tr>
+      <tr><td><b>Faux signalement</b></td><td style="color:var(--doux)">Une scène de café refusée pour « contenu inapproprié ». La publication a été marquée <b style="color:var(--encre)">« terminée » sans aucune photo</b>.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p class="note">Ces trois-là se réparent <b>gratuitement, tout de suite</b>, sans attendre le 28. Le taux de réussite passerait de 50 % à près de 100 %. Payer des moteurs haut de gamme pour qu'une génération sur deux échoue encore serait de l'argent jeté.</p>
+
+<h2><span class="num">05 — BUDGET</span>Ce que ça coûte vraiment par mois</h2>
+<p class="intro">Au rythme de trois photos par jour et d'une vidéo par semaine — le rythme d'un vrai compte d'influenceuse.</p>
+
+<div class="enrob">
+<table class="tableau">
+  <thead><tr><th>Poste</th><th>Volume mensuel</th><th class="n">Coût</th></tr></thead>
+  <tbody>
+    <tr><td>Photos — Nano Banana Pro</td><td>90 images en 2K</td><td class="n">11,10 €</td></tr>
+    <tr><td><span style="color:var(--doux)">↳ en mode différé</span></td><td><span style="color:var(--doux)">mêmes 90 images, publication programmée</span></td><td class="n" style="color:var(--vert)">5,55 €</td></tr>
+    <tr><td>Vidéo — Kling 3.0</td><td>4 clips de 8 s en 1080p</td><td class="n">2,65 €</td></tr>
+    <tr><td>Voix — ElevenLabs</td><td>~10 000 caractères</td><td class="n">0,50 €</td></tr>
+    <tr><td>Texte — moteur gratuit</td><td>illimité en pratique</td><td class="n" style="color:var(--vert)">0 €</td></tr>
+    <tr class="total"><td>Total mensuel</td><td>en mode différé</td><td class="n">8,70 €</td></tr>
+    <tr class="total"><td>Total mensuel</td><td>en mode immédiat</td><td class="n">14,25 €</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="encadre">
+  <p style="margin:0 0 8px"><strong>Plus un seul versement de 2 à 8 €</strong> si on entraîne la LoRA de Luna.</p>
+  <p style="margin:0;color:var(--doux)">Votre enveloppe était de <b style="color:var(--encre)">100 €</b>. Le meilleur de ce qui existe aujourd'hui, pour l'image, la vidéo et la voix réunies, tient dans <b style="color:var(--encre)">moins de 15 € par mois</b>. Le budget n'est pas le facteur limitant — il reste de quoi tenir six mois et financer le domaine et la publication sur Google Play.</p>
+</div>
+
+<h2><span class="num">06 — ORDRE</span>Ce que je ferais, et dans quel ordre</h2>
+
+<div class="enrob">
+<table class="tableau">
+  <thead><tr><th style="width:1%">Quand</th><th>Quoi</th><th class="n">Coût</th></tr></thead>
+  <tbody>
+    <tr><td class="n"><b>Avant le 28</b></td><td>Réparer les trois pannes : réessai automatique, accepter les réponses sans étiquettes, et <b>refuser de marquer « terminée » une publication sans photo</b>.</td><td class="n" style="color:var(--vert)">0 €</td></tr>
+    <tr><td class="n"><b>Le 28</b></td><td>Brancher Nano Banana Pro avec les meilleures photos de Luna en référence. <b>Juger sur pièces</b> : dix photos d'affilée, est-ce la même femme ?</td><td class="n">~2 €</td></tr>
+    <tr><td class="n"><b>Le 28</b></td><td>Brancher Kling 3.0 sur une première vidéo de 8 secondes.</td><td class="n">~0,55 €</td></tr>
+    <tr><td class="n"><b>Ensuite</b></td><td>Si le visage ne tient toujours pas : entraîner la LoRA. C'est la solution qui marche à coup sûr, elle demande juste une demi-journée.</td><td class="n">2 à 8 €</td></tr>
+    <tr><td class="n"><b>Plus tard</b></td><td>Veo 3.1 le jour où Luna doit <b>parler à l'image</b> — c'est le seul à synchroniser les lèvres proprement. Vérifier son tarif réel d'abord.</td><td class="n">à vérifier</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p class="note"><b>Une chose à ne pas faire :</b> tout brancher le même jour. Si le visage n'est toujours pas constant après avoir changé quatre moteurs d'un coup, on ne saura pas lequel est en cause — et on aura payé les quatre. Un moteur à la fois, on regarde, on décide.</p>
+
+<footer class="pied">
+  Prix relevés le 20 septembre 2026, convertis à 1 $ ≈ 0,92 €. Les tarifs à la seconde et au million de caractères évoluent vite : <strong>à revérifier le 28 avant de payer</strong>. Le chiffre de Veo 3.1 est donné par les sources dans une fourchette de 1 à 10 — ne pas s'engager dessus sans la facturation officielle.
+</footer>
+
+</div>

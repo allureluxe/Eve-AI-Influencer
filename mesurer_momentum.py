@@ -65,6 +65,10 @@ def main() -> int:
     ap.add_argument("--bride", action="store_true",
                     help="garder max_per_correlation_group tel qu'il est "
                          "dans la config (par defaut on le retire)")
+    ap.add_argument("--seulement", choices=("temoin", "candidat"),
+                    help="ne mesurer qu'une des deux methodes. Ce serveur "
+                         "fait tourner deux robots ; les deux rejeux dans "
+                         "le meme processus se font tuer par la memoire.")
     ap.add_argument("--pourquoi", action="store_true",
                     help="detailler les motifs de refus d'entree")
     args = ap.parse_args()
@@ -123,10 +127,12 @@ def main() -> int:
           f" {'incert.':>7}  verdict")
     print("  " + "-" * 108)
 
-    for nom, cfg in (
-        (f"canal 10 j (en service)", temoin),
-        (f"momentum {args.formation}j / {args.detention}j", cand),
-    ):
+    a_mesurer = [(f"canal 10 j (en service)", "temoin", temoin),
+                 (f"momentum {args.formation}j / {args.detention}j",
+                  "candidat", cand)]
+    for nom, cle, cfg in a_mesurer:
+        if args.seulement and args.seulement != cle:
+            continue
         res = BacktestPortefeuille(cfg).run(
             symboles, bars=args.bougies, start_balance=args.capital,
             decalage=args.decalage)
