@@ -456,8 +456,29 @@ class GenerateurImages:
             url, data=corps, method="POST",
             headers={"authorization": f"Bearer {cle}",
                      "content-type": f"multipart/form-data; boundary={limite}"})
-        with urllib.request.urlopen(requete, timeout=240) as reponse:
-            brut = reponse.read()
+        # LES ERREURS RESEAU DOIVENT DEVENIR DES `ErreurMoteur`, SINON LE
+        # REPLI NE S'EXECUTE PAS.
+        #
+        # `generer()` essaie les fournisseurs l'un apres l'autre et n'attrape
+        # que `ErreurMoteur`. Cette methode-ci, seule de toutes, laissait
+        # remonter l'`HTTPError` brute d'urllib : une panne de Cloudflare
+        # faisait donc echouer TOUTE la chaine au lieu de passer au suivant.
+        #
+        # Constate le 20 septembre : « HTTP Error 408: Request Timeout »
+        # remonte jusqu'a l'appelant alors que Hugging Face et Stability
+        # etaient configures a cote et n'ont jamais ete essayes. Le repli
+        # existait, il etait teste, il etait documente -- il ne s'executait
+        # simplement pas sur ce chemin-la. Meme piege que le pyramidage et
+        # que la pause du rejeu : un garde-fou doit etre verifie SUR CHAQUE
+        # CHEMIN, pas une fois dans le cas nominal.
+        try:
+            with urllib.request.urlopen(requete, timeout=240) as reponse:
+                brut = reponse.read()
+        except urllib.error.HTTPError as e:
+            raise ErreurMoteur(
+                f"HTTP {e.code} : {e.read().decode('utf-8', 'replace')[:300]}") from e
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            raise ErreurMoteur(f"reseau : {e}") from e
         if brut[:1] != b"{":
             return brut
         rep = json.loads(brut.decode("utf-8"))
@@ -491,8 +512,52 @@ class GenerateurImages:
         # anodines comme "etudiante sur un campus" ("Input prompt contains
         # NSFW content") : c'est ce qui faisait echouer des generations
         # sans raison lisible. FLUX.2 accepte les memes prompts.
+        # 20 SEPT. : FLUX.2 TOMBE, ET IL EMPORTAIT TOUT AVEC LUI.
+        #
+        # Cloudflare a rendu « AiError: Request timeout » (HTTP 408) sur
+        # CHAQUE appel FLUX.2 de la soiree -- y compris sur un prompt
+        # trivial (« une pomme rouge sur une table »), donc ce n'etait ni
+        # la scene ni le filtre de contenu. Le meme soir, flux-1-schnell
+        # repondait en 2 secondes et SDXL en 9.
+        #
+        # Un fournisseur ne se resume pas a un modele. La chaine de repli
+        # d'origine passait de Hugging Face a Cloudflare, mais si LE
+        # modele Cloudflare est en panne, elle n'avait plus rien a
+        # proposer -- alors que deux autres modeles du MEME fournisseur
+        # fonctionnaient. On redescend donc d'un cran avant d'abandonner.
+        #
+        # L'ordre traduit ce qu'on perd a chaque marche : flux-1-schnell
+        # est moins realiste que FLUX.2 et refuse parfois des scenes
+        # anodines ; SDXL rend des illustrations plutot que des photos.
+        # On preferera toujours FLUX.2 -- mais une photo un peu moins
+        # belle vaut mieux que pas de photo.
         if "flux-2" in url:
-            return self._requeter_multipart(url, cle, {"prompt": prompt})
+            # SDXL A ETE RETIRE DE CE REPLI LE 20 SEPTEMBRE, apres essai.
+            #
+            # Il ne comprend pas l'ancre d'apparence de Luna : sur le
+            # prompt complet il a rendu une PLANCHE DE TRENTE visages
+            # deformes -- precisement ce que l'ancre lui interdit ("not a
+            # collage, not a contact sheet"). Un repli qui rend une image
+            # inutilisable est pire qu'un echec : il rend un fichier
+            # valide, de la bonne taille, que rien ne signale comme rate.
+            #
+            # Il reste bon pour un prompt court et simple ; il n'a rien a
+            # faire dans la chaine d'un personnage recurrent.
+            replis = ("@cf/black-forest-labs/flux-1-schnell",)
+            try:
+                return self._requeter_multipart(url, cle, {"prompt": prompt})
+            except ErreurMoteur as principale:
+                base = url.rsplit("/ai/run/", 1)[0] + "/ai/run/"
+                for modele in replis:
+                    try:
+                        logger.warning(
+                            "FLUX.2 indisponible (%s) -- repli sur %s",
+                            principale, modele)
+                        return self._generer_cloudflare(
+                            cle, base + modele, prompt, negatif, graine, format)
+                    except ErreurMoteur:
+                        continue
+                raise
 
         corps = {"prompt": prompt, "steps": 8}
         brut = self._requeter(url, cle, corps)

@@ -1,3 +1,4 @@
+import pytest
 import unittest
 
 from config import IMAGE_NEGATIVE_PROMPT, IMAGE_PROMPTS, IMAGE_SEED
@@ -35,3 +36,44 @@ class TestImageGeneratorConfig(unittest.TestCase):
         self.assertEqual(body["input"]["width"], 1024)
         self.assertEqual(body["input"]["height"], 1024)
         self.assertEqual(body["input"]["negative_prompt"], "cartoon")
+
+
+class TestLeRepliSExecuteSurTousLesChemins:
+    """Une panne d'un fournisseur doit passer au SUIVANT, pas tout casser.
+
+    Le 20 septembre, Cloudflare a rendu « HTTP Error 408: Request
+    Timeout » et l'erreur est remontee jusqu'a l'appelant alors que deux
+    autres fournisseurs etaient configures a cote. `generer()` n'attrape
+    que `ErreurMoteur` ; `_requeter_multipart` -- seule de toutes les
+    methodes -- laissait filer l'`HTTPError` brute d'urllib.
+
+    Le repli existait, il etait documente, il etait teste sur le chemin
+    JSON. Il ne s'executait pas sur le chemin multipart. C'est le meme
+    piege que le pyramidage et la pause du rejeu : un garde-fou se
+    verifie sur CHAQUE chemin.
+    """
+
+    def test_une_erreur_http_devient_une_erreur_moteur(self, monkeypatch):
+        import urllib.error
+        from luna.moteurs import ErreurMoteur, GenerateurImages
+
+        def tombe(*a, **k):
+            raise urllib.error.HTTPError(
+                "https://exemple", 408, "Request Timeout", {}, None)
+
+        monkeypatch.setattr("urllib.request.urlopen", tombe)
+        with pytest.raises(ErreurMoteur):
+            GenerateurImages._requeter_multipart(
+                "https://exemple", "cle", {"prompt": "x"})
+
+    def test_une_panne_reseau_devient_une_erreur_moteur(self, monkeypatch):
+        import urllib.error
+        from luna.moteurs import ErreurMoteur, GenerateurImages
+
+        def tombe(*a, **k):
+            raise urllib.error.URLError("connexion refusee")
+
+        monkeypatch.setattr("urllib.request.urlopen", tombe)
+        with pytest.raises(ErreurMoteur):
+            GenerateurImages._requeter_multipart(
+                "https://exemple", "cle", {"prompt": "x"})
