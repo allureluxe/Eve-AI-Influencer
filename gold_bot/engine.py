@@ -203,8 +203,27 @@ class TradingEngine:
         # methodes ne peut lever : une base injoignable ne doit jamais
         # empecher un stop de partir.
         from .signal_publisher import SignalPublisher
+        # LE NOM DE L'INSTANCE NE SUFFIT PLUS A ISOLER.
+        #
+        # Il valait « paper » pour TOUTE simulation. Des que deux comptes
+        # demo ont tourne en parallele (20 sept.), ils ont partage ce
+        # fichier et se sont ecrase mutuellement leurs publications en
+        # attente.
+        #
+        # Constate le jour meme : le 2e etage de POL, publie a 02h26, est
+        # reste coince dans la file et n'est jamais arrive dans
+        # l'application. Resultat, elle annoncait +13,32 EUR sur ce trade
+        # la ou le robot avait encaisse +23,89 -- et c'est l'operateur qui
+        # a vu que le compte ne tombait pas juste.
+        #
+        # SIXIEME fuite de cette famille dans ce projet : deux processus,
+        # un fichier commun, une perte silencieuse. La regle reste la
+        # meme qu'au 18 septembre -- chercher TOUS les fichiers partages
+        # avant de lancer un second processus.
+        compte = os.environ.get("GB_COMPTE_DEMO", "").strip()
+        suffixe = compte if compte else instance
         self.publisher = SignalPublisher.depuis_env(
-            fichier_file=Path(f"data/signaux_en_attente_{instance}.jsonl"),
+            fichier_file=Path(f"data/signaux_en_attente_{suffixe}.jsonl"),
             est_demo=(cfg.engine.broker == "paper"))
         # L'agenda REUTILISE le filtre d'actualites du robot : c'est le
         # meme code qui bloque les entrees et qui redige la regle affichee

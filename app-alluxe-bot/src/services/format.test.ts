@@ -36,3 +36,56 @@ describe("le resultat en direct d'une position ouverte", () => {
     expect(r.eur).toBe(0);
   });
 });
+
+describe("le gain d'une position pyramidée", () => {
+  const { gainEnEuros, regrouperLesEtages } = require("./format");
+
+  // Le cas réel du 20 septembre. DYDX, deux étages, perte réelle du
+  // robot : −7,95 €. L'application en affichait −18,81.
+  const DYDX = {
+    entree: 0.1153249, stop: 0.1115238,   // après fusion : stop collé à l'entrée
+    volume: 2079.83771362, resultatPct: -3.2959,
+    risquePct: 0.6, capital: 3300,
+  };
+
+  it("utilise le volume quand on l'a, au lieu de diviser par la distance au stop", () => {
+    const juste = gainEnEuros(DYDX.entree, DYDX.stop, DYDX.resultatPct,
+                              DYDX.risquePct, DYDX.capital, DYDX.volume);
+    expect(juste).toBeCloseTo(-7.9, 0);
+  });
+
+  it("sans le volume, la déduction explose après une fusion", () => {
+    // On documente le défaut plutôt que de prétendre qu'il n'existe pas :
+    // ce repli reste juste pour une position à UN seul étage, où le stop
+    // est à sa distance d'origine.
+    const faux = gainEnEuros(DYDX.entree, DYDX.stop, DYDX.resultatPct,
+                             DYDX.risquePct, DYDX.capital);
+    expect(Math.abs(faux!)).toBeGreaterThan(15);
+  });
+
+  it("ne garde qu'une ligne par position, celle de l'étage le plus haut", () => {
+    const lignes = [
+      { id: "a", reference: "fbac:1" },
+      { id: "b", reference: "fbac:2" },
+      { id: "c", reference: "autre:1" },
+    ];
+    const groupees = regrouperLesEtages(lignes);
+    expect(groupees).toHaveLength(2);
+    expect(groupees.find((l: any) => l.reference.startsWith("fbac")).reference)
+      .toBe("fbac:2");
+  });
+
+  it("garde l'étage le plus haut quel que soit l'ordre d'arrivée", () => {
+    const groupees = regrouperLesEtages([
+      { id: "b", reference: "x:3" },
+      { id: "a", reference: "x:1" },
+      { id: "c", reference: "x:2" },
+    ]);
+    expect(groupees).toHaveLength(1);
+    expect(groupees[0].reference).toBe("x:3");
+  });
+
+  it("laisse tranquille une position sans étage dans sa référence", () => {
+    expect(regrouperLesEtages([{ id: "seul", reference: null }])).toHaveLength(1);
+  });
+});

@@ -161,9 +161,66 @@ export function resultatEnDirect(
 export function gainEnEuros(
   entree: number, stop: number, resultatPct: number | null,
   partRisqueePct: number | null, capital: number,
+  volume?: number | null,
 ): number | null {
   if (resultatPct == null) return null;
+
+  // LE VOLUME D'ABORD, QUAND ON L'A. C'est le calcul exact :
+  //
+  //     gain = quantité × prix d'achat × variation
+  //
+  // La déduction par la distance au stop (plus bas) reste juste tant
+  // que la position n'a qu'un étage. Dès qu'une pyramide FUSIONNE, elle
+  // devient fausse -- et spectaculairement.
+  //
+  // Vu le 20 septembre sur DYDX : après la fusion, le prix d'achat
+  // devient une moyenne et le stop remonte sous le dernier achat, donc
+  // la distance entre les deux DEVIENT MINUSCULE. Or la mise se calcule
+  // en divisant PAR cette distance : l'application annonçait 538 € de
+  // mise pour une position qui en engageait 240, et une perte de
+  // 17,72 € là où le robot avait perdu 7,95 €.
+  //
+  // C'est la même division par un nombre qui rétrécit que le 18
+  // septembre, quand une position simulée affichait « 600 % de
+  // bénéfice ». L'opérateur l'a repérée les deux fois avant moi.
+  if (volume != null && volume > 0 && entree > 0) {
+    return volume * entree * (resultatPct / 100);
+  }
+
   const mise = miseConseillee(entree, stop, partRisqueePct ?? 0, capital);
   if (mise <= 0) return null;
   return mise * (resultatPct / 100);
+}
+
+/**
+ * Regroupe les étages d'une même position en UNE ligne.
+ *
+ * Un trade pyramidé est publié en plusieurs lignes -- une par étage,
+ * référence `<id>:1`, `<id>:2`... C'est voulu : chaque renfort est un
+ * signal à part entière pour l'utilisateur. Mais à la CLÔTURE, il n'y a
+ * qu'une position qui se ferme une seule fois.
+ *
+ * L'historique les additionnait : DYDX apparaissait deux fois, et sa
+ * perte était comptée deux fois.
+ *
+ * On garde l'étage le PLUS HAUT de chaque position : c'est lui qui
+ * porte le volume cumulé et le prix d'achat moyen, donc le seul qui
+ * décrive la position telle qu'elle s'est fermée.
+ */
+export function regrouperLesEtages<T extends {
+  reference: string | null; id: string;
+}>(lignes: T[]): T[] {
+  const parPosition = new Map<string, T>();
+  for (const l of lignes) {
+    const ref = l.reference ?? l.id;
+    const [identifiant, etage] = ref.split(":");
+    const cle = identifiant || l.id;
+    const n = Number.parseInt(etage ?? "1", 10) || 1;
+    const deja = parPosition.get(cle);
+    if (!deja) { parPosition.set(cle, l); continue; }
+    const nDeja = Number.parseInt(
+      (deja.reference ?? "").split(":")[1] ?? "1", 10) || 1;
+    if (n > nDeja) parPosition.set(cle, l);
+  }
+  return [...parPosition.values()];
 }

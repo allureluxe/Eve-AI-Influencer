@@ -164,7 +164,8 @@ class Backtester:
     def preparer(self, symbol: str, bars: int, start_balance: float,
                  series: Optional[dict[str, list[Candle]]] = None,
                  broker: Optional[PaperBroker] = None,
-                 risk: Optional[RiskManager] = None) -> "Prepare":
+                 risk: Optional[RiskManager] = None,
+                 decalage: int = 0) -> "Prepare":
         """Prepare le rejeu d'un instrument et rend `(resultat, parcours)`.
 
         `parcours` est un generateur qui rend la main AVANT de traiter
@@ -191,7 +192,24 @@ class Backtester:
         if series and entry_tf in series:
             base = list(series[entry_tf])
         else:
-            base = self.registry.candles(instrument.symbol, instrument.asset_class, entry_tf, bars)
+            # DECALAGE : reculer dans le temps pour mesurer HORS
+            # ECHANTILLON.
+            #
+            # Un reglage choisi sur une periode y parait toujours bon --
+            # c'est la definition du sur-ajustement, et ce depot l'a paye
+            # en septembre : cinq configurations de pyramidage
+            # amelioraient TOUTES la periode d'apprentissage et
+            # degradaient TOUTES la suivante.
+            #
+            # `decalage` coupe les N dernieres bougies : on mesure alors
+            # sur une periode que le reglage n'a jamais vue. Sans cet
+            # outil, le rejeu de portefeuille ne pouvait produire qu'une
+            # seule periode -- donc aucune verification possible.
+            base = self.registry.candles(
+                instrument.symbol, instrument.asset_class, entry_tf,
+                bars + max(0, decalage))
+            if decalage > 0:
+                base = base[:-decalage] if decalage < len(base) else []
         if len(base) < 200:
             raise ValueError(f"historique insuffisant ({len(base)} bougies)")
 
@@ -407,6 +425,30 @@ class Backtester:
             if not ok:
                 result.rejections[why.split("(")[0].strip()] = \
                     result.rejections.get(why.split("(")[0].strip(), 0) + 1
+                return
+
+            # LA LIMITE PAR FAMILLE DE CRYPTOS, et pourquoi elle est ici.
+            #
+            # TROISIEME FOIS QUE CE PIEGE SE REFERME. L'avertissement est
+            # ecrit dix lignes plus haut pour la carence : `check_exposure`
+            # n'est appele QUE par le moteur reel, jamais par le rejeu.
+            # Quelqu'un a rapatrie la carence et laisse la correlation
+            # derriere.
+            #
+            # Resultat, mesure le 20 septembre : faire varier
+            # `max_per_correlation_group` de 99 a 1 rendait QUATRE FOIS
+            # le meme chiffre, au centime. On aurait conclu « ce reglage
+            # ne change rien » alors qu'il ne s'executait pas.
+            #
+            # Le rejeu n'a qu'UN symbole dans son courtier, donc cette
+            # porte ne mord que dans le rejeu de PORTEFEUILLE -- ou elle
+            # est justement la seule a pouvoir repondre.
+            ok, why = risk.check_exposure(
+                instrument, Side.BUY, broker.positions(), self.universe.get,
+                now=candle.ts)
+            if not ok:
+                cle = why.split("'")[0].strip() or "exposition"
+                result.rejections[cle] = result.rejections.get(cle, 0) + 1
                 return
 
             ev = strategy.evaluate(instrument, indicators, tick, news=None,

@@ -7,6 +7,7 @@
  * pour tout utilisateur connecte -- voir supabase/migrations).
  */
 import { supabase } from "./supabase";
+import { regrouperLesEtages } from "./format";
 
 export interface EtatCapital {
   capital_eur: number;
@@ -135,7 +136,7 @@ export async function historique(limite = 100): Promise<Position[]> {
     .eq("is_demo", false)
     .not("published_at", "is", null)
     .order("closed_at", { ascending: false })
-    .limit(limite));
+    .limit(limite)).then(regrouperLesEtages);
 }
 
 /**
@@ -174,7 +175,7 @@ export async function historiqueDemo(limite = 100,
     .eq("compte", compte)
     .not("published_at", "is", null)
     .order("closed_at", { ascending: false })
-    .limit(limite));
+    .limit(limite)).then(regrouperLesEtages);
 }
 
 /** Les 40 trades de preuve + objectifs -- table privee, reservee admin.

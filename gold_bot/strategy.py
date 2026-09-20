@@ -289,6 +289,27 @@ class StrategyConfig:
     # S2 la reprend. On ne modelise ici que S1.
     donchian_filtre_precedent: bool = False
 
+    #: FILTRE DE TENDANCE : n'acheter une cassure que si la tendance de
+    #: fond va dans le meme sens.
+    #:
+    #: Propose par l'agent d'Alluxe le 19 sept. (« trend-following
+    #: multi-time-frame EMA ») : n'ouvrir que si les moyennes de deux
+    #: unites de temps sont alignees, pour « reduire les faux signaux ».
+    #:
+    #: SIMPLIFICATION ASSUMEE, et il faut la connaitre avant de lire le
+    #: resultat. L'agent voulait une moyenne journaliere ET une moyenne
+    #: 4 heures. Le robot tourne en D1 sur 240 instruments ; ajouter un
+    #: flux 4 h pour chacun multiplierait par deux les donnees chargees
+    #: sur un serveur qui manque deja de memoire. On garde donc l'idee --
+    #: la tendance de fond doit valider la cassure -- avec la moyenne de
+    #: l'unite d'entree : le prix doit etre AU-DESSUS d'elle, et elle
+    #: doit MONTER.
+    #:
+    #: A zero, rien ne change : c'est le reglage par defaut, et le rejeu
+    #: doit avoir tranche avant qu'il bouge.
+    donchian_ema_periode: int = 0        # 0 = filtre desarme
+    donchian_ema_pente_min: float = 0.0  # hausse minimale de la moyenne, en %
+
     # Plafond de progression sur 20 jours, en %. Au-dela, la cassure est
     # refusee : le mouvement a deja eu lieu. A 0, aucun filtre.
     # Voir le bloc commente dans `_evaluer_donchian` pour la mesure.
@@ -897,6 +918,36 @@ class Strategy:
                     "donchian_filtre", False,
                     "cassure precedente GAGNANTE : on saute celle-ci "
                     "(regle System 1)"))
+                return ev
+
+        # FILTRE DE TENDANCE (desarme par defaut, voir `donchian_ema_periode`).
+        #
+        # Une cassure dans un marche qui descend est un piege connu : le
+        # prix depasse son plus-haut de dix jours tout en restant sous sa
+        # moyenne longue, parce que ces dix jours n'etaient qu'un repli
+        # dans une baisse. On exige donc que la tendance de fond soit
+        # d'accord.
+        if cfg.donchian_ema_periode > 0:
+            n_ema = int(cfg.donchian_ema_periode)
+            if len(bougies) < n_ema + 2:
+                ev.gates.append(Gate(
+                    "tendance_de_fond", False,
+                    f"historique insuffisant ({len(bougies)}/{n_ema + 2})"))
+                return ev
+            closes = [c.close for c in bougies]
+            # Moyenne simple : une EMA demanderait un etat persistant par
+            # symbole, et la difference est marginale sur 50 bougies.
+            moyenne = sum(closes[-n_ema:]) / n_ema
+            precedente = sum(closes[-n_ema - 1:-1]) / n_ema
+            pente = ((moyenne / precedente - 1) * 100) if precedente else 0.0
+            au_dessus = price > moyenne
+            monte = pente >= cfg.donchian_ema_pente_min
+            ev.gates.append(Gate(
+                "tendance_de_fond", au_dessus and monte,
+                f"prix {'au-dessus' if au_dessus else 'SOUS'} la moyenne "
+                f"{n_ema} ({moyenne:.6g}), pente {pente:+.2f} % "
+                f"(minimum {cfg.donchian_ema_pente_min:+.2f} %)"))
+            if not (au_dessus and monte):
                 return ev
 
         # CASSURE D'EPUISEMENT : le mouvement a deja eu lieu.

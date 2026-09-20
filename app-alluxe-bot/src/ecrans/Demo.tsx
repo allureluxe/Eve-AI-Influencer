@@ -51,7 +51,7 @@ function LigneFermee({ p, capital }: { p: Position; capital: number }) {
   const c = useCouleurs();
   const gagnant = (p.result_pct ?? 0) > 0;
   const gain = gainEnEuros(p.entry_price, p.stop_loss, p.result_pct,
-                            p.position_size_pct, p.capital_eur ?? capital);
+                            p.position_size_pct, p.capital_eur ?? capital, p.volume);
   const couleur = p.result_pct == null ? c.encreDouce : gagnant ? c.gain : c.perte;
   return (
     <View style={{
@@ -130,7 +130,7 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
           const clos = await historiqueDemo(100, cle);
           const realise = clos.reduce((somme, t) => somme + (gainEnEuros(
             t.entry_price, t.stop_loss, t.result_pct, t.position_size_pct,
-            t.capital_eur ?? f.capital_depart) ?? 0), 0);
+            t.capital_eur ?? f.capital_depart, t.volume) ?? 0), 0);
           resultats[cle] = f.capital_depart + realise;
         } catch { resultats[cle] = f.capital_depart; }
       }
@@ -158,7 +158,7 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
     if (!fermees) return 0;
     return fermees.reduce((somme, t) => somme + (gainEnEuros(
       t.entry_price, t.stop_loss, t.result_pct, t.position_size_pct,
-      t.capital_eur ?? capitalDepart) ?? 0), 0);
+      t.capital_eur ?? capitalDepart, t.volume) ?? 0), 0);
   }, [fermees, capitalDepart]);
 
   // L'onglet ouvert connait ses positions en cours ; les autres non.

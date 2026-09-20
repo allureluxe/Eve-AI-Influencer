@@ -127,7 +127,14 @@ class BacktestPortefeuille:
         self.config = self.rejeu.config
 
     def run(self, symbols: list[str], bars: int = 1500,
-            start_balance: float = 1000.0) -> ResultatPortefeuille:
+            start_balance: float = 1000.0,
+            decalage: int = 0) -> ResultatPortefeuille:
+        """`decalage` : reculer de N bougies pour mesurer HORS ECHANTILLON.
+
+        Un reglage choisi sur une periode y parait toujours bon. La seule
+        facon de savoir s'il vaut quelque chose est de le rejouer sur une
+        periode qu'il n'a jamais vue.
+        """
         cfg = self.config
         broker = PaperBroker(PaperConfig(
             start_balance=start_balance, currency=cfg.engine.currency,
@@ -140,7 +147,8 @@ class BacktestPortefeuille:
         for sym in symbols:
             try:
                 prets.append(self.rejeu.preparer(
-                    sym, bars, start_balance, broker=broker, risk=risk))
+                    sym, bars, start_balance, broker=broker, risk=risk,
+                    decalage=decalage))
             except Exception as exc:  # noqa: BLE001
                 resultat.ecartes[sym.upper()] = str(exc)[:80]
                 logger.info("ecarte du portefeuille : %s (%s)", sym,
