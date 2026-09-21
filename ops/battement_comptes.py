@@ -43,8 +43,22 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from gold_bot.env import charger_env                          # noqa: E402
 from gold_bot.methode import phrase_methode, resume_methode   # noqa: E402
 from gold_bot.settings import BotConfig                        # noqa: E402
+
+# CRON N'HERITE D'AUCUN ENVIRONNEMENT. Premiere version de ce fichier :
+# la tache tournait toutes les cinq minutes et echouait a chaque fois sur
+# « identifiants Supabase absents » -- donc le pouls qu'elle devait
+# retablir n'a jamais battu, et les comptes seraient restes affiches
+# « arretes ».
+#
+# C'est la meme famille de piege que le chien de garde du 31 aout
+# (chemin relatif sans `cd`, donc jamais execute) : un travail planifie
+# qui echoue en silence ressemble exactement a un travail qui n'existe
+# pas. Tous les autres scripts d'`ops/` appellent `charger_env()` pour
+# cette raison.
+charger_env()
 
 log = logging.getLogger("battement")
 
