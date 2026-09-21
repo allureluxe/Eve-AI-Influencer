@@ -143,6 +143,40 @@ class TradeManagerConfig:
     detention_max_jours: float = 0.0
     time_stop_min_r: float = 0.25
     reversal_exit_r: float = 0.5
+
+    # --- LA SORTIE SUR RETOURNEMENT, MAIS EN PERTE (21 septembre) -------
+    #
+    # L'ANGLE MORT. La regle historique s'ecrit :
+    #
+    #     if r_now >= reversal_exit_r and momentum.score <= -0.45
+    #
+    # Le premier terme la reserve aux positions DEJA EN BENEFICE. Une
+    # position en perte dont la tendance se retourne franchement n'est
+    # donc pas coupee : le robot la laisse descendre jusqu'au stop
+    # complet, alors que l'indicateur a vu le retournement et que rien
+    # n'agit. C'est le cas qui coute le plus cher.
+    #
+    # Demande de l'operateur : « je veux un indicateur qui detecte le
+    # retournement de tendance ». Il existe -- `compute_momentum` agrege
+    # Supertrend, EMA, MACD, ADX, RSI, bougies, marge au prochain niveau
+    # et regime. Il n'etait simplement pas branche de ce cote-la.
+    #
+    # DEUX GARDE-FOUS, parce que couper un perdant tot interdit toute
+    # reprise :
+    #
+    #   * le seuil de score est PLUS EXIGEANT qu'en benefice (-0,60 contre
+    #     -0,45) : en benefice on protege un gain acquis, en perte on
+    #     renonce a une reprise possible, donc il faut etre plus sur ;
+    #   * `reversal_exit_perte_r` impose d'etre deja nettement sous l'eau,
+    #     pour ne pas couper sur le bruit des premieres heures.
+    #
+    # ARME PAR UN BOOLEEN. Un seuil qui sert aussi d'interrupteur est le
+    # piege du `tp_r_multiple = 99` -- on s'y est repris ce matin meme sur
+    # le filtre de tendance longue.
+    reversal_exit_en_perte: bool = False
+    reversal_exit_perte_score: float = -0.60
+    reversal_exit_perte_r: float = -0.30
+
     news_tighten_atr_mult: float = 0.9
     max_adverse_r: float = 1.0
 
@@ -622,6 +656,25 @@ class TradeManager:
             return TradeAction(ActionType.CLOSE, position.id,
                 reason=(f"retournement confirme a {r_now:+.2f}R (dynamique {momentum.score:+.2f} : "
                         f"{momentum.reasons[0] if momentum.reasons else ''})"))
+
+        # LE MEME INDICATEUR, MAIS DU COTE OU IL NE REGARDAIT PAS.
+        #
+        # La regle au-dessus ne voit que les positions en benefice. Ici on
+        # coupe une position DEJA SOUS L'EAU dont la tendance s'est
+        # clairement retournee, plutot que d'attendre le stop complet :
+        # sur une position a -0,30 R, cela economise les 0,70 R restants.
+        #
+        # Le seuil de score est volontairement plus severe qu'en benefice
+        # (voir `reversal_exit_perte_score`) : renoncer a une reprise
+        # possible demande plus de certitude que proteger un gain acquis.
+        if (cfg.reversal_exit_en_perte
+                and r_now <= cfg.reversal_exit_perte_r
+                and momentum.score <= cfg.reversal_exit_perte_score):
+            return TradeAction(ActionType.CLOSE, position.id,
+                reason=(f"retournement en perte a {r_now:+.2f}R "
+                        f"(dynamique {momentum.score:+.2f} : "
+                        f"{momentum.reasons[0] if momentum.reasons else ''}) : "
+                        f"on coupe avant le stop"))
         age_min = (now - position.opened_at) / 60.0
 
         # --- SORTIE SUR STAGNATION, ET NON SUR DUREE --------------------

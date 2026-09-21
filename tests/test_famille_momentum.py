@@ -180,3 +180,135 @@ def _porte(ev, nom: str):
     porte = next((g for g in ev.gates if g.name == nom), None)
     assert porte is not None, f"la porte « {nom} » n'a pas ete evaluee"
     return porte
+
+
+class TestLeCroisementDesDeuxFamilles:
+    """Exiger la cassure ET la tendance longue.
+
+    Demande de l'operateur le 21 septembre : « fais un test en melangeant
+    nos 2 methodes ». La cassure est un EVENEMENT, le momentum un ETAT ;
+    rien n'oblige a choisir.
+    """
+
+    def _cfg(self, plancher: float, fenetre: int = 4):
+        return StrategyConfig(
+            famille="donchian", donchian_entrees=(3,),
+            donchian_tendance_longue=True,
+            donchian_momentum_min_pct=plancher,
+            donchian_momentum_fenetre=fenetre)
+
+    def test_une_cassure_dans_une_baisse_de_fond_est_refusee(self):
+        # Le prix casse son plus-haut de 3 bougies, mais il est TRES bas
+        # par rapport a il y a 4 bougies : c'est un rebond, pas une
+        # tendance. C'est exactement le cas que le croisement doit fermer.
+        ev = _casser([200.0, 100.0, 100.0, 100.0, 101.0, 102.0], prix=103.0,
+                     cfg=self._cfg(plancher=0.0, fenetre=5))
+        porte = _porte(ev, "tendance_longue")
+        assert not porte.passed, porte.detail
+        assert ev.side is None
+
+    def test_une_cassure_en_tendance_haussiere_passe(self):
+        ev = _casser([100.0, 105.0, 110.0, 115.0, 118.0], prix=125.0,
+                     cfg=self._cfg(plancher=0.0))
+        assert _porte(ev, "tendance_longue").passed
+        assert ev.side is Side.BUY
+
+    def test_le_plancher_s_execute_vraiment(self):
+        serie = [100.0, 101.0, 102.0, 103.0, 104.0]
+        assert _porte(_casser(serie, 105.0, self._cfg(2.0)),
+                      "tendance_longue").passed
+        assert not _porte(_casser(serie, 105.0, self._cfg(20.0)),
+                          "tendance_longue").passed
+
+    def test_a_zero_le_croisement_est_desarme(self):
+        # Desarme, la porte ne doit meme pas etre evaluee : la
+        # configuration en service ne change pas d'un iota.
+        serie = [200.0, 100.0, 100.0, 100.0, 101.0, 102.0]
+        ev = _casser(serie, prix=103.0, cfg=self._cfg(plancher=0.0, fenetre=5))
+        ev2 = _casser(serie, prix=103.0,
+                      cfg=StrategyConfig(famille="donchian",
+                                         donchian_entrees=(3,)))
+        assert any(g.name == "tendance_longue" for g in ev.gates)
+        assert not any(g.name == "tendance_longue" for g in ev2.gates)
+        assert ev2.side is Side.BUY
+
+    def test_la_fenetre_par_defaut_suit_momentum_formation(self):
+        cfg = StrategyConfig(famille="donchian", donchian_entrees=(3,),
+                             donchian_tendance_longue=True,
+                             donchian_momentum_min_pct=1.0,
+                             donchian_momentum_fenetre=0,
+                             momentum_formation=4)
+        ev = _casser([100.0, 101.0, 102.0, 103.0, 104.0], 105.0, cfg)
+        assert "sur 4 bougies" in _porte(ev, "tendance_longue").detail
+
+
+def _casser(closes, prix, cfg):
+    """Fait passer une cassure de canal dans `_finish_donchian`."""
+    from gold_bot.core import Tick
+    from gold_bot.strategy import Evaluation
+    from gold_bot.universe import instrument_crypto
+    strat = Strategy(cfg)
+    ev = Evaluation(symbol="BTCEUR", asset_class="crypto")
+    ind = _indicateurs(closes)
+    atr = max(prix * 0.02, 1e-6)
+    tick = Tick(ts=0.0, bid=prix * 0.999, ask=prix * 1.001)
+    return strat._finish_donchian(ev, instrument_crypto("BTC", "majeures"),
+                                  ind, prix, atr, tick)
+
+
+class TestLaSortieSurRetournementEnPerte:
+    """Couper un perdant dont la tendance s'est retournee.
+
+    L'angle mort : `r_now >= reversal_exit_r` reservait la regle aux
+    positions DEJA EN BENEFICE. Une position en perte dont la tendance se
+    retourne descendait jusqu'au stop complet, alors que l'indicateur
+    avait vu le retournement.
+    """
+
+    def _tm(self, **kw):
+        # Le stop temporel est repousse tres loin : sinon c'est LUI qui
+        # ferme la position d'un jour, et le test ne dirait rien de la
+        # regle qu'il pretend verifier. (Pas 0 : a zero, `age >= 0` est
+        # toujours vrai et il se declencherait en permanence.)
+        base = dict(reversal_exit_en_perte=True, reversal_exit_perte_r=-0.30,
+                    reversal_exit_perte_score=-0.60, reversal_exit_r=0.25,
+                    time_stop_minutes=9_999_999.0)
+        base.update(kw)
+        return TradeManager(TradeManagerConfig(**base))
+
+    def _momentum(self, score):
+        from gold_bot.trade_manager import Momentum
+        return Momentum(score=score, reasons=["supertrend retourne"])
+
+    def test_coupe_un_perdant_dont_la_tendance_se_retourne(self):
+        a = self._tm()._safety_exits(
+            _position(1.0), price=97.0, r_now=-0.50,
+            momentum=self._momentum(-0.75), now=time.time())
+        assert a is not None and a.type is ActionType.CLOSE
+        assert "retournement en perte" in a.reason
+
+    def test_ne_coupe_pas_sur_un_retournement_tiede(self):
+        # -0,50 passe le seuil du BENEFICE (-0,45) mais pas celui de la
+        # PERTE (-0,60) : en perte on exige plus de certitude.
+        assert self._tm()._safety_exits(
+            _position(1.0), price=97.0, r_now=-0.50,
+            momentum=self._momentum(-0.50), now=time.time()) is None
+
+    def test_ne_coupe_pas_sur_le_bruit_des_premieres_heures(self):
+        # A peine sous l'eau : on laisse respirer, meme si le score est mauvais.
+        assert self._tm()._safety_exits(
+            _position(0.1), price=99.5, r_now=-0.05,
+            momentum=self._momentum(-0.90), now=time.time()) is None
+
+    def test_desarmee_rien_ne_change(self):
+        assert self._tm(reversal_exit_en_perte=False)._safety_exits(
+            _position(1.0), price=97.0, r_now=-0.50,
+            momentum=self._momentum(-0.90), now=time.time()) is None
+
+    def test_le_benefice_garde_son_seuil_a_lui(self):
+        # La regle historique ne doit pas etre durcie par la nouvelle.
+        a = self._tm()._safety_exits(
+            _position(1.0), price=103.0, r_now=0.40,
+            momentum=self._momentum(-0.46), now=time.time())
+        assert a is not None
+        assert "retournement confirme" in a.reason

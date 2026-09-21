@@ -129,13 +129,25 @@ class BotConfig:
         if s.famille == "momentum":
             if s.momentum_formation < 2:
                 problems.append("momentum_formation trop courte (< 2 bougies)")
-            # La sortie a date fixe EST la strategie. Armer la famille sans
-            # elle donnerait un achat de tendance sans regle de sortie, qui
-            # n'est plus la methode mesuree par le papier.
-            if t.detention_max_jours <= 0:
+            # UNE SORTIE, N'IMPORTE LAQUELLE, MAIS UNE.
+            #
+            # Cette regle exigeait `detention_max_jours > 0` -- la sortie a
+            # date fixe, qui est bien la regle du papier. Assoupli le
+            # 21 septembre : elle interdisait de MESURER le croisement
+            # « entree momentum + sortie au stop suiveur », demande par
+            # l'operateur, alors que cette configuration a une sortie
+            # parfaitement valide.
+            #
+            # Le vrai invariant n'a jamais ete « la sortie a date fixe » :
+            # c'est « il existe une regle qui ferme ». Une entree de
+            # tendance sans aucune sortie tiendrait ses positions
+            # indefiniment, et c'est CA qu'il faut refuser.
+            if (t.detention_max_jours <= 0 and t.time_stop_minutes <= 0
+                    and t.stagnation_jours <= 0):
                 problems.append(
-                    "la famille 'momentum' exige trade.detention_max_jours > 0 : "
-                    "la sortie a date fixe est sa regle de sortie, pas une option")
+                    "la famille 'momentum' n'a aucune regle de sortie : armer "
+                    "au moins trade.detention_max_jours (la regle du papier), "
+                    "trade.time_stop_minutes ou trade.stagnation_jours")
         if s.famille == "reversion":
             if s.reversion_ma_periode < 5:
                 problems.append("reversion_ma_periode trop courte (< 5)")

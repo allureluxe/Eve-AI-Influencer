@@ -314,6 +314,37 @@ class StrategyConfig:
     # refusee : le mouvement a deja eu lieu. A 0, aucun filtre.
     # Voir le bloc commente dans `_evaluer_donchian` pour la mesure.
     donchian_momentum_max_pct: float = 0.0
+
+    # --- LE CROISEMENT DES DEUX METHODES (21 septembre) -----------------
+    #
+    # Demande de l'operateur : « fais un test en melangeant nos 2
+    # methodes ». Nos deux familles reposent sur des idees differentes --
+    # la cassure est un EVENEMENT (le prix depasse une valeur extreme), le
+    # momentum est un ETAT (la pente des N derniers jours). Rien n'oblige
+    # a choisir : on peut exiger les DEUX.
+    #
+    # Concretement : n'accepter une cassure que si la crypto monte AUSSI
+    # sur la fenetre longue du momentum. Une cassure dans une baisse de
+    # fond n'est qu'un rebond dans un marche qui descend.
+    #
+    # A ne pas confondre avec `donchian_momentum_max_pct`, qui est le
+    # PLAFOND (« le mouvement a deja eu lieu »). Celui-ci est le PLANCHER
+    # (« le mouvement n'a pas commence »). Les deux peuvent tourner
+    # ensemble et se referment sur une fenetre : ni trop mou, ni epuise.
+    #
+    # ARME PAR UN BOOLEEN, PAS PAR SON SEUIL. Premier jet : le filtre
+    # s'armait des que `min_pct > 0`. Impossible alors d'exprimer « il
+    # suffit que ca monte » (seuil 0), qui est pourtant le reglage le
+    # plus naturel -- zero servait a la fois de « desarme » et de seuil
+    # legitime. C'est le piege du `tp_r_multiple = 99` recense dans le
+    # CLAUDE.md : un nombre qui neutralise une barriere en silence. D'ou
+    # `tp_actif` la-bas, et ce booleen ici.
+    donchian_tendance_longue: bool = False
+    donchian_momentum_min_pct: float = 0.0
+    #: Fenetre du plancher, en bougies. 0 = utiliser `momentum_formation`,
+    #: pour que le croisement mesure bien la MEME fenetre que la famille
+    #: momentum, et pas une variante choisie au hasard.
+    donchian_momentum_fenetre: int = 0
     # --- Famille « momentum » : momentum de series temporelles ----------
     #
     # UNE FAMILLE ENTIEREMENT DIFFERENTE, PAS UN REGLAGE DE LA NOTRE.
@@ -1037,6 +1068,31 @@ class Strategy:
                         f"(plafond {cfg.donchian_momentum_max_pct:.0f} %) : "
                         "cassure d'epuisement, le mouvement a eu lieu"))
                     return ev
+
+        # PLANCHER DE TENDANCE : le croisement des deux familles.
+        #
+        # La cassure dit « le prix vient de depasser son plus-haut de N
+        # jours ». Elle ne dit rien de la fenetre longue. On exige ici que
+        # la crypto monte AUSSI sur la fenetre du momentum -- sinon la
+        # cassure n'est qu'un rebond dans un marche qui descend.
+        if cfg.donchian_tendance_longue:
+            fenetre = int(cfg.donchian_momentum_fenetre
+                          or cfg.momentum_formation)
+            if fenetre >= 2 and len(bougies) >= fenetre + 1:
+                depart = bougies[-(fenetre + 1)].close
+                progression = ((price / depart - 1) * 100) if depart > 0 else 0.0
+                assez = progression >= cfg.donchian_momentum_min_pct
+                ev.gates.append(Gate(
+                    "tendance_longue", assez,
+                    f"{progression:+.1f} % sur {fenetre} bougies "
+                    f"(minimum {cfg.donchian_momentum_min_pct:+.1f} %)"))
+                if not assez:
+                    return ev
+            else:
+                ev.gates.append(Gate(
+                    "tendance_longue", False,
+                    f"historique insuffisant ({len(bougies)}/{fenetre + 1})"))
+                return ev
 
         ev.side = Side.BUY
         ev.setup = "donchian_cassure"
