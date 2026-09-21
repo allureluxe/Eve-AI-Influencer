@@ -89,3 +89,53 @@ describe("le gain d'une position pyramidée", () => {
     expect(regrouperLesEtages([{ id: "seul", reference: null }])).toHaveLength(1);
   });
 });
+
+describe("la mise et le gain d'une position OUVERTE", () => {
+  const { resultatEnDirect, miseReelle } = require("./format");
+
+  // Chiffres reels de RUNE, demo 1, 21 septembre, pyramide a 3 etages.
+  // L'entree est une MOYENNE et le stop est remonte sous le DERNIER
+  // achat : la distance entre les deux est minuscule, et toute formule
+  // qui DIVISE par elle explose.
+  const RUNE = {
+    entree: 0.49865655, stop: 0.49596495,
+    volume: 1104.02362394, risque: 0.6, capital: 3357.87,
+  };
+
+  it("lit le volume au lieu de deduire la mise", () => {
+    const mise = miseReelle(RUNE.entree, RUNE.stop, RUNE.risque,
+                            RUNE.capital, RUNE.volume);
+    expect(mise).toBeCloseTo(550.53, 1);
+    // Sans le volume, l'ancienne deduction depasse le capital entier.
+    const deduite = miseReelle(RUNE.entree, RUNE.stop, RUNE.risque,
+                               RUNE.capital, null);
+    expect(deduite).toBeGreaterThan(RUNE.capital);
+  });
+
+  it("calcule le gain sur le volume, pas sur la distance au stop", () => {
+    const prixActuel = 0.4993;
+    const { eur } = resultatEnDirect(
+      RUNE.entree, RUNE.stop, prixActuel, "buy",
+      RUNE.risque, RUNE.capital, RUNE.volume);
+    // 1104,02 x (0,4993 - 0,49866) = +0,71 EUR
+    expect(eur).toBeCloseTo(0.71, 1);
+  });
+
+  it("l'ancienne formule gonflait le gain d'un facteur 6", () => {
+    const prixActuel = 0.4993;
+    const sansVolume = resultatEnDirect(
+      RUNE.entree, RUNE.stop, prixActuel, "buy",
+      RUNE.risque, RUNE.capital, null).eur;
+    const avecVolume = resultatEnDirect(
+      RUNE.entree, RUNE.stop, prixActuel, "buy",
+      RUNE.risque, RUNE.capital, RUNE.volume).eur;
+    expect(sansVolume / avecVolume).toBeGreaterThan(5);
+  });
+
+  it("sans volume publie, la deduction reste utilisee", () => {
+    // Une position a UN seul etage : les deux calculs concordent, et le
+    // repli doit continuer de fonctionner pour les vieilles lignes.
+    const { eur } = resultatEnDirect(100, 90, 105, "buy", 0.6, 1000, null);
+    expect(eur).toBeCloseTo(3.0, 1);
+  });
+});

@@ -125,7 +125,7 @@ export async function positionsOuvertes(): Promise<Position[]> {
     .eq("status", "active")
     .eq("is_demo", false)
     .not("published_at", "is", null)
-    .order("published_at", { ascending: false }));
+    .order("published_at", { ascending: false })).then(regrouperLesEtages);
 }
 
 export async function historique(limite = 100): Promise<Position[]> {
@@ -157,7 +157,7 @@ export async function positionsOuvertesDemo(compte = "demo"): Promise<Position[]
     .eq("is_demo", true)
     .eq("compte", compte)
     .not("published_at", "is", null)
-    .order("published_at", { ascending: false }));
+    .order("published_at", { ascending: false })).then(regrouperLesEtages);
 }
 
 export async function historiqueDemo(limite = 100,

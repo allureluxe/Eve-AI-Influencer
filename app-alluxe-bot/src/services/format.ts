@@ -135,14 +135,66 @@ export interface ResultatDirect {
 export function resultatEnDirect(
   entree: number, stop: number, prixActuel: number,
   side: "buy" | "sell", partRisqueePct: number, capital: number,
+  volume?: number | null,
 ): ResultatDirect {
   const sens = side === "sell" ? -1 : 1;
   const pctPrix = entree > 0 ? ((prixActuel - entree) / entree) * 100 * sens : 0;
+
+  // LE VOLUME D'ABORD -- MEME CORRECTION QUE `gainEnEuros`, ET ELLE
+  // AVAIT ETE OUBLIEE ICI.
+  //
+  // Le 20 septembre, `gainEnEuros` a ete corrigee pour lire le volume
+  // plutot que de deduire la mise de la distance au stop. Cette
+  // fonction-ci fait le meme calcul pour les positions OUVERTES, et
+  // elle est restee sur l'ancienne formule : l'historique disait vrai
+  // pendant que l'ecran en direct mentait.
+  //
+  // Mesure du 21 septembre sur RUNE, demo 1, pyramide a 3 etages :
+  //
+  //     mise reelle      1 104,02 RUNE x 0,49866  =   550,53 EUR
+  //     mise affichee                                3 732,55 EUR
+  //     gain reel                                       +0,71 EUR
+  //     gain affiche                                    +4,89 EUR
+  //
+  // La cause est toujours la meme division : apres une fusion, le stop
+  // remonte sous le DERNIER achat alors que l'entree est une MOYENNE,
+  // donc la distance entre les deux devient minuscule -- et la mise,
+  // qui se calcule en divisant par elle, explose. Sur un compte de
+  // 3 300 EUR, l'application annoncait 3 732 EUR engages sur une seule
+  // crypto.
+  //
+  // TROISIEME FOIS que cette division se retourne (18, 20 et 21
+  // septembre), et TROISIEME FOIS que l'operateur la voit avant moi :
+  // « un chiffre qui es faut rune qui es a 3700 mise on les a meme
+  // pas ». La lecon n'est pas « corriger la formule » mais « corriger
+  // TOUS les appelants » -- une correction posee a un seul endroit
+  // laisse l'autre mentir.
+  if (volume != null && volume > 0 && entree > 0) {
+    return { pctPrix, eur: volume * (prixActuel - entree) * sens };
+  }
+
   const distanceStop = Math.abs(entree - stop);
   if (distanceStop <= 0) return { pctPrix, eur: 0 };
   const rCourant = ((prixActuel - entree) * sens) / distanceStop;
   const eur = rCourant * perteMax(partRisqueePct ?? 0, capital);
   return { pctPrix, eur };
+}
+
+/**
+ * La somme REELLEMENT engagee sur une position ouverte.
+ *
+ * `miseConseillee` repond a « combien FAUDRAIT-IL acheter ? » a partir
+ * du risque et de la distance au stop. Ce n'est pas la meme question
+ * que « combien A-T-ON achete ? », et les deux reponses divergent des
+ * qu'une pyramide fusionne. Quand le volume est publie, il n'y a rien
+ * a deduire : on multiplie.
+ */
+export function miseReelle(
+  entree: number, stop: number, partRisqueePct: number, capital: number,
+  volume?: number | null,
+): number {
+  if (volume != null && volume > 0 && entree > 0) return volume * entree;
+  return miseConseillee(entree, stop, partRisqueePct, capital);
 }
 
 /**

@@ -50,27 +50,46 @@ describe("le tri par gain", () => {
 });
 
 describe("le tri par mise", () => {
+  // CES TROIS TESTS ONT ETE REECRITS LE 21 SEPTEMBRE.
+  //
+  // Ils verifiaient la mise DEDUITE de la distance au stop. Depuis que
+  // le robot publie le volume, la mise se LIT (`miseReelle`) au lieu de
+  // se deduire -- parce que la deduction explose sur une pyramide
+  // fusionnee : RUNE affichait 3 732 EUR engages pour 550 reels, sur un
+  // compte de 3 300. L'assertion etait donc fausse, pas le code.
+  //
+  // Leur intention est conservee : le tri classe bien sur la somme
+  // engagee, et le capital fige a l'ouverture sert toujours -- mais
+  // seulement la ou il compte encore, c'est-a-dire sans volume publie.
   it("classe sur la somme engagee, pas sur le gain", () => {
-    // Meme risque en pourcentage, mais un stop deux fois plus proche :
-    // la mise est donc deux fois plus grosse.
-    const serre = position({ id: "serre", pair: "A/EUR", stop_loss: 95 });
-    const large = position({ id: "large", pair: "B/EUR", stop_loss: 90 });
-    const ordre = trier([large, serre], "mise", true, 1000,
+    const grosse = position({ id: "grosse", pair: "A/EUR", volume: 10 });
+    const petite = position({ id: "petite", pair: "B/EUR", volume: 1 });
+    const ordre = trier([petite, grosse], "mise", true, 1000,
                         { "A/EUR": 100, "B/EUR": 100 }).map((p) => p.id);
-    expect(ordre).toEqual(["serre", "large"]);
+    expect(ordre).toEqual(["grosse", "petite"]);
+  });
+
+  it("lit le volume plutot que de deduire la mise", () => {
+    const ch = chiffresDe(position({ id: "v", pair: "A/EUR", volume: 3 }),
+                          1000, 110);
+    expect(ch!.mise).toBeCloseTo(300, 6);      // 3 x 100 EUR d'achat
   });
 });
 
-describe("le capital retenu", () => {
+describe("le capital retenu, quand il compte encore", () => {
+  // Sans volume publie (vieilles lignes), la mise se deduit du risque :
+  // c'est la que le capital d'ouverture fait la difference.
   it("est celui FIGE a l'ouverture, pas le capital courant", () => {
-    const ancienne = position({ id: "vieille", pair: "A/EUR", capital_eur: 500 });
+    const ancienne = position({ id: "vieille", pair: "A/EUR",
+                                capital_eur: 500, volume: null });
     const ch = chiffresDe(ancienne, 3300, 110);
     // 0,6 % de 500 EUR sur une distance au stop de 10 % => 30 EUR mises.
     expect(ch!.mise).toBeCloseTo(30, 6);
   });
 
   it("retombe sur le capital courant quand la ligne n'en porte pas", () => {
-    const sansCapital = position({ id: "x", pair: "A/EUR", capital_eur: null });
+    const sansCapital = position({ id: "x", pair: "A/EUR",
+                                   capital_eur: null, volume: null });
     const ch = chiffresDe(sansCapital, 500, 110);
     expect(ch!.mise).toBeCloseTo(30, 6);
   });

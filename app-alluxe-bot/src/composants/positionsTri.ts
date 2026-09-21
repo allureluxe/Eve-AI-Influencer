@@ -11,7 +11,7 @@
  * compilation, et rien de `robot.ts` n'est charge a l'execution.
  */
 import type { Position } from "../services/robot";
-import { miseConseillee, nomCrypto, resultatEnDirect } from "../services/format";
+import { miseReelle, nomCrypto, resultatEnDirect } from "../services/format";
 
 /** L'etage de pyramide : 1 = position d'origine, 2 et au-dela = renforts
  *  ajoutes quand elle etait deja a l'abri. Lu en fin de reference
@@ -89,12 +89,15 @@ export function chiffresDe(
   const capitalOuverture = p.capital_eur ?? capital;
   const { pctPrix, eur } = resultatEnDirect(
     p.entry_price, p.stop_loss, prixActuel, p.side,
-    p.position_size_pct ?? 0, capitalOuverture,
+    p.position_size_pct ?? 0, capitalOuverture, p.volume,
   );
   return {
     eur, pctPrix,
-    mise: miseConseillee(p.entry_price, p.stop_loss,
-                         p.position_size_pct ?? 0, capitalOuverture),
+    // `miseReelle`, pas `miseConseillee` : sur une pyramide fusionnee la
+    // deduction par la distance au stop explose (RUNE : 3 732 EUR
+    // affiches pour 550 engages, sur un compte de 3 300).
+    mise: miseReelle(p.entry_price, p.stop_loss,
+                     p.position_size_pct ?? 0, capitalOuverture, p.volume),
     etage: etagePyramide(p),
   };
 }
