@@ -25,12 +25,11 @@ import { RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CompteDemo, Position, comptesDemo, historiqueDemo } from "../services/robot";
 import { useSuiviPositions } from "../services/suiviPositions";
-import { euros, gainEnEuros, nomCrypto, pourcent, quand,
-         resultatEnDirect } from "../services/format";
+import { euros, gainEnEuros, nomCrypto, pourcent, quand } from "../services/format";
 import { espace, rayon } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 import { BarreDeTri, LignePosition, Tri, trier } from "../composants/ListePositions";
-import { etagesAffiches } from "../composants/positionsTri";
+import { etagesAffiches, gainTotalEnDirect } from "../composants/positionsTri";
 import { CleCompte, ChoixCompte, COMPTES } from "../composants/ChoixCompte";
 
 // Repli quand la fiche du compte n'est pas encore lue. Les trois
@@ -139,17 +138,12 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
     return () => { vivant = false; };
   }, [fiches]);
 
-  const gainTotal = React.useMemo(() => {
-    if (!positions) return 0;
-    return positions.reduce((somme, p) => {
-      const prixActuel = prixLive[p.pair];
-      if (prixActuel == null) return somme;
-      return somme + resultatEnDirect(
-        p.entry_price, p.stop_loss, prixActuel, p.side, p.position_size_pct ?? 0,
-        p.capital_eur ?? capitalDepart,
-      ).eur;
-    }, 0);
-  }, [positions, prixLive, capitalDepart]);
+  // Le total passe par la MEME fonction que les lignes. Ecrit a la main
+  // ici, il a menti pendant que les lignes disaient vrai -- voir
+  // `gainTotalEnDirect`.
+  const gainTotal = React.useMemo(
+    () => (positions ? gainTotalEnDirect(positions, capitalDepart, prixLive) : 0),
+    [positions, prixLive, capitalDepart]);
 
   // LE CAPITAL DOIT INCLURE CE QUI EST DEJA ENCAISSE. Il affichait le
   // depart + les positions ouvertes, en ignorant les trades deja fermes

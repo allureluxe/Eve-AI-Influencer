@@ -103,6 +103,32 @@ export function chiffresDe(
 }
 
 /**
+ * Le gain latent de TOUTES les positions, en euros.
+ *
+ * POURQUOI CETTE FONCTION EXISTE. Ce total etait calcule a la main dans
+ * `Demo.tsx`, par un `reduce` de quatre lignes. Le 21 septembre, les
+ * LIGNES affichaient les bons chiffres (RUNE +10,92 EUR) pendant que ce
+ * total annoncait 154,45 EUR pour 54,80 reels : l'appel inline avait
+ * ete ecrit sans le volume, donc il retombait sur l'ancienne deduction
+ * par la distance au stop.
+ *
+ * C'etait la QUATRIEME fois que cette division se retournait. La cause
+ * n'est pas la formule -- elle est juste depuis le 20 septembre -- mais
+ * le fait qu'un ECRAN refasse le calcul dans son coin, hors de portee
+ * des tests. On passe donc par `chiffresDe`, exactement comme les
+ * lignes : un seul chemin, un seul resultat possible.
+ */
+export function gainTotalEnDirect(
+  positions: Position[], capital: number,
+  prixLive: Record<string, number>,
+): number {
+  return positions.reduce((somme, p) => {
+    const ch = chiffresDe(p, capital, prixLive[p.pair]);
+    return ch == null ? somme : somme + ch.eur;
+  }, 0);
+}
+
+/**
  * Trie les positions. Les cotations manquantes finissent toujours en bas
  * -- une position dont on ignore le resultat n'a pas sa place au milieu
  * d'un classement par resultat.

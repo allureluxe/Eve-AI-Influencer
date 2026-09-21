@@ -145,3 +145,40 @@ describe("les étages vus depuis la liste", () => {
     expect(e["n"]).toBe(1);
   });
 });
+
+describe("le total des positions en cours", () => {
+  const { gainTotalEnDirect } = require("./positionsTri");
+
+  // CE TEST EXISTE A CAUSE DU 21 SEPTEMBRE. Les LIGNES affichaient les
+  // bons chiffres pendant que le TOTAL annoncait 154,45 EUR pour 54,80
+  // reels : l'ecran refaisait le calcul a la main, sans le volume.
+  // Quatrieme fois que cette division se retournait.
+  it("additionne les gains calcules sur le VOLUME", () => {
+    const a = position({ id: "a", pair: "A/EUR", entry_price: 100, volume: 2 });
+    const b = position({ id: "b", pair: "B/EUR", entry_price: 100, volume: 3 });
+    const total = gainTotalEnDirect([a, b], 1000,
+                                    { "A/EUR": 110, "B/EUR": 90 });
+    // 2 x (+10) + 3 x (-10) = -10 EUR
+    expect(total).toBeCloseTo(-10, 6);
+  });
+
+  it("ignore les positions dont la cotation manque", () => {
+    const connue = position({ id: "a", pair: "A/EUR", volume: 2 });
+    const inconnue = position({ id: "z", pair: "Z/EUR", volume: 99 });
+    expect(gainTotalEnDirect([connue, inconnue], 1000, { "A/EUR": 110 }))
+      .toBeCloseTo(20, 6);
+  });
+
+  it("vaut la somme exacte des lignes affichees", () => {
+    // L'invariant qui manquait : le total et les lignes passent par le
+    // MEME chemin, donc ils ne peuvent plus diverger.
+    const ps = [
+      position({ id: "a", pair: "A/EUR", entry_price: 100, volume: 2 }),
+      position({ id: "b", pair: "B/EUR", entry_price: 100, volume: 3 }),
+    ];
+    const prix = { "A/EUR": 110, "B/EUR": 90 };
+    const sommeDesLignes = ps.reduce(
+      (s, p) => s + (chiffresDe(p, 1000, prix[p.pair as keyof typeof prix])?.eur ?? 0), 0);
+    expect(gainTotalEnDirect(ps, 1000, prix)).toBeCloseTo(sommeDesLignes, 9);
+  });
+});

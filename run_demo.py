@@ -27,6 +27,8 @@ import datetime as dt
 import json
 import logging
 import os
+import threading
+import time
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -74,11 +76,37 @@ class NotifierDemo(Notifier):
         super().send(note, throttle_key=throttle_key, throttle_seconds=throttle_seconds)
 
 
-def _publier_la_fiche_du_compte(compte: str, cfg) -> None:
-    """Depose la methode de ce compte dans `alluxe_bot_comptes`.
+def _publier_la_fiche_du_compte(compte: str, cfg, capital: float | None = None) -> None:
+    """Depose la methode et le capital de ce compte dans `alluxe_bot_comptes`.
 
-    Ne leve jamais : l'affichage ne doit pas pouvoir empecher une
-    simulation de demarrer.
+    ELLE SE REPUBLIE EN BOUCLE, ET C'EST LE POINT.
+    =============================================
+
+    Elle n'etait appelee qu'au DEMARRAGE. L'application declare un compte
+    « arrete » quand sa fiche n'a pas ete rafraichie depuis un quart
+    d'heure -- donc les deux robots etaient affiches arretes en
+    permanence alors qu'ils tournaient. Constate le 21 septembre :
+
+        demo    vu_le = la veille 13h14   (20 heures)
+        demo2   vu_le = 05h43             (3 h 30)
+
+    Un voyant qui est toujours rouge ne dit plus rien : on cesse de le
+    regarder, et le jour ou un robot tombe vraiment, personne ne le voit.
+
+    `capital` remplit la colonne qui restait vide : l'operateur avait
+    demande « le nom de la methode utilise avec le capital en direct en
+    euro », et seul le capital de DEPART etait publie.
+
+    Ne leve jamais : l'affichage ne doit pas pouvoir empecher ni
+    interrompre une simulation.
+
+    NOTE DU 21 SEPTEMBRE : la table `alluxe_bot_comptes` n'a PAS de
+    colonne `capital_eur` (colonnes reelles : capital_depart, compte,
+    cree_le, methode, resume_methode, vu_le). Le capital vivant y a donc
+    ete retire -- l'application le reconstitue de son cote. L'ajouter
+    serait une modification de schema pour un besoin non demontre ; a
+    reconsiderer seulement si les onglets NON ouverts affichent un
+    capital faux (ils ignorent aujourd'hui leurs positions ouvertes).
     """
     import urllib.request
     from gold_bot.methode import phrase_methode, resume_methode
@@ -87,13 +115,19 @@ def _publier_la_fiche_du_compte(compte: str, cfg) -> None:
     cle = os.environ.get("SUPABASE_SERVICE_KEY", "")
     if not url or not cle:
         return
-    corps = json.dumps({
+    corps = {
         "compte": compte,
         "resume_methode": resume_methode(cfg),
         "methode": phrase_methode(cfg),
         "capital_depart": float(getattr(cfg.engine, "start_balance", 0.0) or 0.0),
         "vu_le": dt.datetime.now(dt.timezone.utc).isoformat(),
-    }).encode()
+    }
+    # `capital` n'est PAS envoye : la table n'a pas de colonne pour lui
+    # (verifie le 21 septembre -- PGRST204). Il reste dans la signature
+    # parce que le battement le calcule deja, et que la colonne pourrait
+    # etre ajoutee ; envoyer un champ inconnu fait echouer TOUTE la
+    # requete en 400, donc le pouls serait perdu avec lui.
+    corps = json.dumps(corps).encode()
     try:
         requete = urllib.request.Request(
             f"{url}/rest/v1/alluxe_bot_comptes", data=corps,
@@ -251,6 +285,30 @@ def main() -> int:
             "is_demo -- la simulation publierait ses positions comme si "
             "elles etaient reelles. Arret.")
         return 2
+
+    # LA FICHE SE REPUBLIE TOUTES LES CINQ MINUTES.
+    #
+    # `engine.run()` est une boucle bloquante : sans ce fil de fond, la
+    # fiche ne serait publiee qu'au demarrage, et l'application
+    # declarerait le compte arrete un quart d'heure plus tard. Cinq
+    # minutes laissent trois battements avant que le voyant passe au
+    # rouge -- il ne s'allumera donc que pour un vrai arret.
+    #
+    # Fil DEMON : il ne doit jamais retenir le processus a l'extinction.
+    # Et il n'appelle que `_publier_la_fiche_du_compte`, qui avale ses
+    # propres erreurs : un probleme d'affichage ne peut pas interrompre
+    # une simulation en cours.
+    def _battement() -> None:
+        while True:
+            time.sleep(300)
+            try:
+                capital = engine.broker.account().equity
+            except Exception:                                 # noqa: BLE001
+                capital = None
+            _publier_la_fiche_du_compte(compte, cfg, capital)
+
+    threading.Thread(target=_battement, daemon=True,
+                     name=f"fiche-{compte}").start()
 
     engine.run()
     return 0
