@@ -141,3 +141,38 @@ class TestChaquePhotoEstPrenableParLuna:
         assert "not bright green" in ancre
         assert "not glowing" in ancre
         assert "blue-green eyes" not in ancre
+
+
+class TestLaCoiffureChangeDUnJourALAutre:
+    """« De nos jours on ne va pas au coiffeur tous les jours. »
+
+    L'ancre disait « long wavy platinum blonde hair » : Luna etait donc
+    coiffee a l'identique sur chaque photo. La coiffure est desormais
+    portee par la scene ; seules la longueur et la couleur restent dans
+    l'identite, parce que c'est a elles qu'on la reconnait.
+    """
+
+    def test_chaque_scene_a_sa_coiffure(self):
+        from luna.photos import SCENES
+        sans = [s.cle for s in SCENES if not s.coiffure]
+        assert not sans, f"scenes sans coiffure : {sans}"
+
+    def test_la_coiffure_arrive_jusqu_au_moteur(self):
+        from luna.photos import SCENES, prompt_photo
+        for s in SCENES:
+            p = prompt_photo(s.cle, registre=s.registre)["prompt"]
+            assert s.coiffure in p, f"{s.cle} : coiffure absente du prompt"
+
+    def test_plusieurs_coiffures_differentes(self):
+        # Une seule coiffure repetee partout ne vaudrait pas mieux que
+        # l'ancre figee qu'on vient de retirer.
+        from luna.photos import SCENES
+        assert len({s.coiffure for s in SCENES}) >= 5
+
+    def test_l_identite_ne_porte_plus_de_mise_en_pli(self):
+        from luna.persona import LUNA
+        ancre = LUNA.apparence.ancre.lower()
+        assert "wavy platinum" not in ancre
+        # Les racines, elles, restent : elles ne dependent pas de la
+        # scene mais de son budget.
+        assert "regrowth at the roots" in ancre

@@ -75,6 +75,9 @@ class Scene:
     #: faux compte en trois secondes. Chaque scene nomme donc son
     #: appareil et la main qui le tient.
     cadrage: str = ""
+    #: LA COIFFURE DU JOUR. Portee par la scene, pas par l'identite --
+    #: voir `COIFFURES` plus haut et le commentaire de `persona.ancre`.
+    coiffure: str = ""
 
 
 
@@ -104,6 +107,27 @@ LIEUX = {
     "bistro": "the staff corridor of a bistro in the Metz old town",
     "salle": "a municipal gym in Metz",
 }
+
+# LES COIFFURES, UNE PAR SCENE.
+#
+# « De nos jours on ne va pas au coiffeur tous les jours. » Une vraie
+# personne se coiffe en trente secondes avec ce qu'elle a sous la main,
+# et sa tete change d'un jour a l'autre. Aucune de ces coiffures ne
+# demande un salon ; plusieurs sont franchement negligees, et c'est
+# voulu.
+#
+# La longueur et la couleur restent dans l'ancre (persona.py) : ce sont
+# elles qui font reconnaitre Luna. La coiffure, elle, doit varier --
+# sinon chaque photo ressemble a la precedente.
+CHIGNON = ("hair scraped up into a messy bun with a claw clip, loose "
+           "strands falling around her face")
+QUEUE = "hair pulled back into a simple high ponytail, a few flyaways"
+LACHES = "hair loose and a little flat, second-day hair, not styled"
+MOUILLES = "hair still damp from the shower, pushed back, darker at the roots"
+TRESSE = "hair in a quick loose plait over one shoulder, already coming undone"
+BONNET = "hair tucked under a knitted beanie, ends sticking out"
+SOIGNES = ("hair brushed out and loosely waved, the one evening she "
+           "made an effort")
 
 # LES QUATRE SEULES FACONS DONT LUNA PEUT PRENDRE UNE PHOTO.
 #
@@ -162,14 +186,14 @@ SCENES = (
           "plain afternoon daylight, all of them laughing at something "
           "off-camera",
           "Revisions... enfin, on avait dit revisions \u2615\ufe0f",
-          GROUPE),
+          GROUPE, QUEUE),
     Scene("matin", "Selfie du matin", TENDRE,
           "in her small student bedroom, unmade bed and a drying rack "
           "visible behind her, oversized band t-shirt, hair still messy "
           "from the night, grey morning light through a single window, "
           "no plunging neckline, laughing candidly with eyes crinkled",
           "Prete a sortir \U0001f604 Tu en penses quoi de cette tenue ?",
-          MIROIR),
+          MIROIR, MOUILLES),
     Scene("bureau", "Avant les cours", TENDRE,
           f"standing in {LIEUX['campus']}, oversized cream knit sweater "
           "tucked loosely into baggy wide-leg light-wash jeans, scuffed "
@@ -178,14 +202,14 @@ SCENES = (
           "classmates walking past behind her, plain overcast daylight, "
           "soft closed-mouth smile",
           "Cours de finance dans dix minutes \U0001f4da Souhaite-moi bon courage.",
-          AMIE),
+          AMIE, CHIGNON),
     Scene("restaurant", "Le bar ou elle bosse", TENDRE,
           f"in {LIEUX['bistro']} where she waits tables at the weekend, "
           "black work shirt with the apron untied around her hips, "
           "shelves of glasses and a service door behind her, harsh "
           "overhead strip light, tired but content half-smile",
           "Service fini. 52 couverts et un partiel mardi \U0001fae0",
-          MIROIR),
+          MIROIR, CHIGNON),
     Scene("sport", "Seance de sport", TENDRE,
           f"in the changing room of {LIEUX['salle']}, oversized cropped "
           "t-shirt over a high-neck sports top and high-waisted leggings, "
@@ -193,28 +217,28 @@ SCENES = (
           "flush, a friend beside her also in gym clothes, flat "
           "fluorescent lighting, both slightly out of breath and laughing",
           "Seance finie \U0001f4aa J'ai pense a toi entre deux series \U0001f605",
-          GROUPE),
+          GROUPE, QUEUE),
     Scene("voyage", "Le train du dimanche", TENDRE,
           f"on a regional train leaving {LIEUX['gare']}, forehead near "
           "the window, simple hoodie, tote bag on the seat beside her, "
           "flat winter landscape blurred outside, dull overcast daylight, "
           "quiet thoughtful expression, not smiling at the camera",
           "Deux heures de train et un dossier a finir \U0001f686",
-          BRAS_TENDU),
+          BRAS_TENDU, BONNET),
     Scene("cuisine", "Cuisine a la maison", TENDRE,
           "in a cramped shared student kitchen, chipped worktop, "
           "mismatched pans, an oversized shirt with sleeves rolled up, "
           "cheap ingredients laid out, a flatmate reaching past her for a "
           "glass, warm evening light from a bare bulb, playful smirk",
           "Je teste une nouvelle recette \U0001f373 Tu gouterais ?",
-          POSE),
+          POSE, TRESSE),
     Scene("soiree", "Soiree chez des amis", TENDRE,
           "in the bathroom of a friend's flat before going out, simple "
           "fitted black dress she has clearly worn before, small gold "
           "hoops, two friends getting ready behind her, coats piled on "
           "the floor, warm yellow bathroom light, confident half-smile",
           "Alors, cette robe ? Sois honnete \U0001f457",
-          AMIE),
+          AMIE, SOIGNES),
     Scene("shopping", "Leche-vitrine", TENDRE,
           f"standing outside a shop window on {LIEUX['rue']}, oversized "
           "tailored jacket over a simple top and wide-leg trousers, "
@@ -222,20 +246,20 @@ SCENES = (
           "at something in the window, her reflection in the glass next "
           "to the price tag, flat daylight, wistful half-smile",
           "J'ai craque \U0001f6cd\ufe0f ... enfin, presque.",
-          AMIE),
+          AMIE, LACHES),
     Scene("promenade", "Au bord de la Moselle", TENDRE,
           f"walking along {LIEUX['parc']}, long coat over a hoodie, hands "
           "in her pockets, bare trees and grey water behind, a friend "
           "half in frame beside her, flat winter daylight, easy natural "
           "smile",
           "Une heure dehors avant de m'y remettre \U0001f342",
-          AMIE),
+          AMIE, BONNET),
     Scene("romantique", "Selfie romantique", TENDRE,
           "sitting on a worn sofa at home wrapped in a cheap fleece "
           "blanket, oversized knit sweater, tousled hair, soft morning "
           "light, warm playful smile, natural makeup",
           "Un petit selfie pour te faire sourire \U0001f970",
-          BRAS_TENDU),
+          BRAS_TENDU, LACHES),
     # --- Registre SENSUEL -------------------------------------------
     # Meme regle de cadrage, et elle est ici naturelle : personne d'autre
     # n'est dans la piece, c'est precisement ce que la scene raconte.
@@ -245,25 +269,25 @@ SCENES = (
           "fully covering outfit, cheap coloured fairy lights as the only "
           "light source, confident pose",
           "Devine ce que je porte ce soir \U0001f60f",
-          MIROIR),
+          MIROIR, SOIGNES),
     Scene("boudoir", "Lingerie elegante", SENSUEL,
           "seated on the edge of her own bed, elegant black lace lingerie "
           "set fully covering, sheer stockings, a robe slipping off one "
           "shoulder, dim warm bedside lamp, modest framing, no nudity",
           "Juste pour toi \U0001f48b ... et personne d'autre.",
-          POSE),
+          POSE, LACHES),
     Scene("fenetre", "Lumiere de fenetre", SENSUEL,
           "standing by her bedroom window with thin curtains, fitted lace "
           "bodysuit fully covering, backlit by soft morning light, "
           "looking over her shoulder, elegant and modest, no nudity",
           "La lumiere est belle ce matin... et je pense a toi \U0001f60f",
-          POSE),
+          POSE, MOUILLES),
     Scene("talons", "Talons et bas", SENSUEL,
           "in the hallway of her flat, elegant lingerie set fully "
           "covering with sheer stockings, a long coat held open, black "
           "heels, single warm ceiling light, no nudity",
           "Je sors... ou je reste ? A toi de choisir \U0001f48b",
-          MIROIR),
+          MIROIR, SOIGNES),
 )
 
 SCENES_PAR_CLE = {s.cle: s for s in SCENES}
@@ -296,6 +320,7 @@ def prompt_photo(cle: str, registre: str = TENDRE,
     # le prompt final.
     prompt = ", ".join(x for x in (
         persona.apparence.ancre,
+        scene.coiffure,
         scene.cadrage,
         scene.decor,
         RENDU,

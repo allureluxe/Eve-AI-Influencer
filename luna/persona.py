@@ -75,7 +75,28 @@ class Apparence:
         "She is a 25-year-old adult woman, "
         "clearly adult mature facial structure, defined jawline and cheekbones, "
         "adult woman's face and body proportions, not a teenager, "
-        "long wavy platinum blonde hair, "
+        # LA LONGUEUR ET LA COULEUR SONT SON IDENTITE ; LA COIFFURE NON.
+        #
+        # L'ancre disait « long wavy platinum blonde hair » : elle etait
+        # donc coiffee a l'identique sur chaque photo, comme si elle
+        # sortait du salon a chaque fois. Remarque de l'operateur le
+        # 21 septembre : « fais-lui aussi des coiffures differentes, de
+        # nos jours on ne va pas au coiffeur tous les jours ».
+        #
+        # La coiffure est desormais portee par la SCENE (voir
+        # `COIFFURES` dans photos.py) : chignon fait a la main, queue de
+        # cheval, cheveux encore mouilles, pince a cheveux. Seules la
+        # longueur et la couleur restent ici -- c'est a elles qu'on
+        # reconnait le personnage d'une photo a l'autre.
+        #
+        # LES RACINES, elles, restent dans l'ancre : elles ne dependent
+        # pas de la scene mais de son budget. Une decoloration platine se
+        # reprend toutes les six semaines chez un coiffeur ; une
+        # etudiante qui fait des extras le week-end ne le fait pas, et ca
+        # se voit. C'est exactement le genre de detail qui separe une
+        # vraie personne d'une image de banque d'images.
+        "long platinum blonde hair with visible darker regrowth at the "
+        "roots, a few split ends, not freshly salon-styled, "
         # LES YEUX, REECRITS LE 21 SEPTEMBRE.
         #
         # L'ancienne formule disait « blue-green eyes with a subtle green
