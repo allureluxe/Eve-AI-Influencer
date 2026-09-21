@@ -780,12 +780,34 @@ class BitvavoBroker(Broker):
         return (valeur / quantite if quantite else 0.0), quantite, frais
 
     def _prix_du_marche(self) -> dict[str, float]:
-        """Tous les derniers prix en un appel plutot qu'un par actif detenu."""
+        """Tous les prix courants en UN appel, lus dans le carnet.
+
+        Meme correction que `_prix` : `/ticker/price` se fige sur les
+        marches peu echanges. Ici le prix sert a valoriser les avoirs du
+        compte, donc un prix en retard fausse le capital -- et le capital
+        commande le dimensionnement de chaque position.
+        """
+        try:
+            lignes = self._appel("GET", "/ticker/book", signe=False)
+        except BrokerError:
+            lignes = None
+        prix: dict[str, float] = {}
+        for ligne in lignes if isinstance(lignes, list) else []:
+            try:
+                bid = float(ligne.get("bid") or 0.0)
+                ask = float(ligne.get("ask") or 0.0)
+                valeur = (bid + ask) / 2.0 if bid > 0 and ask > 0 else (bid or ask)
+                if valeur > 0:
+                    prix[str(ligne["market"])] = valeur
+            except (KeyError, TypeError, ValueError):
+                continue
+        if prix:
+            return prix
+        # Repli : mieux vaut un prix approximatif que pas de valorisation.
         try:
             lignes = self._appel("GET", "/ticker/price", signe=False)
         except BrokerError:
             return {}
-        prix: dict[str, float] = {}
         for ligne in lignes if isinstance(lignes, list) else []:
             try:
                 prix[str(ligne["market"])] = float(ligne["price"])
@@ -794,6 +816,44 @@ class BitvavoBroker(Broker):
         return prix
 
     def _prix(self, code: str) -> Optional[float]:
+        """Le prix COURANT, lu dans le carnet d'ordres.
+
+        `/ticker/price` REND UN PRIX PERIME SUR LES MARCHES PEU ECHANGES,
+        et c'est l'operateur qui l'a vu : « une position qui ne bouge pas
+        d'un centime en 1 h, je n'ai jamais vu ca ». Mesure du
+        21 septembre sur RUNE-EUR :
+
+            /ticker/price        0,53083   <- fige depuis une heure
+            /ticker/24h « last » 0,53502   <- dernier echange reel
+            carnet : achat       0,53553
+                     vente       0,53695
+
+        Cette adresse rend le dernier prix d'echange, et sur un marche ou
+        personne n'echange pendant vingt minutes elle ne bouge pas --
+        alors que le carnet, lui, suit en continu.
+
+        CE QUE CA COUTAIT. `_prix` sert notamment a decider si un stop est
+        DEJA DECLENCHE, auquel cas la position est liquidee AU MARCHE. Un
+        prix en retard de 0,9 % suffit a liquider une position qui ne
+        devait pas l'etre -- ou a en garder une qui devait partir.
+
+        On lit donc le carnet, et on prend le cote qui compte : pour
+        revendre un avoir c'est le MEILLEUR ACHETEUR (bid). Repli sur
+        l'ancienne adresse si le carnet est indisponible : un prix
+        approximatif vaut mieux que pas de prix du tout, et tous les
+        appelants savent deja traiter `None`.
+        """
+        try:
+            carnet = self._appel("GET", "/ticker/book",
+                                 params={"market": code}, signe=False)
+            bid = float(carnet.get("bid") or 0.0)
+            ask = float(carnet.get("ask") or 0.0)
+            if bid > 0 and ask > 0:
+                return (bid + ask) / 2.0
+            if bid > 0:
+                return bid
+        except Exception:  # noqa: BLE001
+            pass
         try:
             data = self._appel("GET", "/ticker/price", params={"market": code}, signe=False)
             return float(data["price"])
