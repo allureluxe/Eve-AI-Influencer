@@ -27,6 +27,7 @@ import {
 } from "../services/luna";
 import { espace, rayon, TRAIT } from "../theme";
 import { Bouton, Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
+import { EtatReseaux, Reseau, etatReseaux } from "../services/reseaux";
 
 const RYTHME_MS = 15_000;
 
@@ -42,6 +43,113 @@ function couleurStatut(c: ReturnType<typeof useCouleurs>, s: StatutPublication):
   if (s === "echec") return c.perte;
   if (s === "en_cours") return c.vigilance;
   return c.encrePale;
+}
+
+/** « il y a 3 min », « hier » -- un horodatage lisible d'un coup d'oeil. */
+function quandCourt(iso: string): string {
+  const min = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 2) return "a l'instant";
+  if (min < 60) return `il y a ${Math.round(min)} min`;
+  if (min < 48 * 60) return `il y a ${Math.round(min / 60)} h`;
+  return `il y a ${Math.round(min / 1440)} j`;
+}
+
+type Section = "reseaux" | "atelier" | "personnage";
+
+const SECTIONS: { cle: Section; libelle: string }[] = [
+  { cle: "reseaux", libelle: "Reseaux" },
+  { cle: "atelier", libelle: "Atelier" },
+  { cle: "personnage", libelle: "Luna" },
+];
+
+/** Le selecteur de section -- meme geste que la barre de tri des positions. */
+function BarreSections({ actif, surChoix }: {
+  actif: Section; surChoix: (s: Section) => void;
+}) {
+  const c = useCouleurs();
+  return (
+    <View style={{ flexDirection: "row", gap: espace.s, marginBottom: espace.l }}>
+      {SECTIONS.map(({ cle, libelle }) => {
+        const choisi = cle === actif;
+        return (
+          <Pressable
+            key={cle}
+            onPress={() => surChoix(cle)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: choisi }}
+            style={{
+              flex: 1, paddingVertical: espace.s, borderRadius: rayon.l,
+              alignItems: "center",
+              backgroundColor: choisi ? c.jauneAplat : c.surface,
+              borderWidth: choisi ? 0 : TRAIT, borderColor: c.filetDoux,
+            }}
+          >
+            <T v="petit" couleur={choisi ? c.surJaune : c.encreDouce}>{libelle}</T>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Un chiffre et son libelle, alignes en colonne. */
+function Chiffre({ valeur, libelle }: { valeur: string; libelle: string }) {
+  const c = useCouleurs();
+  return (
+    <View style={{ alignItems: "center", flex: 1 }}>
+      <T v="sousTitre">{valeur}</T>
+      <T v="legende" couleur={c.encrePale} style={{ marginTop: 2 }}>{libelle}</T>
+    </View>
+  );
+}
+
+/**
+ * La carte d'un reseau social.
+ *
+ * ELLE DIT CE QUI MANQUE, PAS « BIENTOT ». Un compte non branche affiche
+ * la raison exacte -- TikTok exige une validation de plusieurs jours,
+ * un jeton Instagram expire au bout de 60 jours. Une promesse vague
+ * n'aide personne a savoir quoi faire.
+ */
+function CarteReseau({ nom, icone, r }: {
+  nom: string; icone: keyof typeof Ionicons.glyphMap; r?: Reseau;
+}) {
+  const c = useCouleurs();
+  const connecte = !!r?.connecte;
+  return (
+    <Carte style={{ marginBottom: espace.m }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: espace.s }}>
+        <Ionicons name={icone} size={22} color={c.encre} />
+        <View style={{ flex: 1 }}>
+          <T v="sousTitre">{nom}</T>
+          {!!r?.identifiant && (
+            <T v="petit" couleur={c.encreDouce}>@{r.identifiant}</T>
+          )}
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4,
+                         backgroundColor: connecte ? c.gain : c.encrePale }} />
+          <T v="petit" couleur={connecte ? c.gain : c.encrePale}>
+            {connecte ? "connecte" : "non connecte"}
+          </T>
+        </View>
+      </View>
+
+      {connecte ? (
+        <View style={{ flexDirection: "row", marginTop: espace.m }}>
+          <Chiffre valeur={String(r?.abonnes ?? "—")} libelle="abonnes" />
+          <Chiffre valeur={String(r?.publications ?? "—")} libelle="publications" />
+          <Chiffre valeur={String(r?.abonnements ?? "—")} libelle="abonnements" />
+        </View>
+      ) : (
+        !!r?.detail && (
+          <T v="petit" couleur={c.encreDouce} style={{ marginTop: espace.s }}>
+            {r.detail}
+          </T>
+        )
+      )}
+    </Carte>
+  );
 }
 
 function CartePersona({ p }: { p: Persona }) {
@@ -209,6 +317,8 @@ export function EcranLuna() {
   const [envoi, setEnvoi] = React.useState(false);
   const [rafraichit, setRafraichit] = React.useState(false);
   const [erreur, setErreur] = React.useState("");
+  const [section, setSection] = React.useState<Section>("reseaux");
+  const [reseaux, setReseaux] = React.useState<EtatReseaux | null>(null);
 
   const charger = React.useCallback(async () => {
     try {
@@ -244,6 +354,12 @@ export function EcranLuna() {
     }
   };
 
+  React.useEffect(() => {
+    let vivant = true;
+    etatReseaux().then((e) => { if (vivant) setReseaux(e); });
+    return () => { vivant = false; };
+  }, []);
+
   const enCours = (liste ?? []).some((pub) => pub.statut === "en_attente" || pub.statut === "en_cours");
 
   return (
@@ -261,40 +377,70 @@ export function EcranLuna() {
 
       {!!erreur && <T v="petit" couleur={c.perte} style={{ marginBottom: espace.m }}>{erreur}</T>}
 
-      {p ? <CartePersona p={p} /> : <View style={{ marginBottom: espace.l }}><Chargement /></View>}
+      <BarreSections actif={section} surChoix={setSection} />
 
-      <Carte style={{ marginBottom: espace.l }}>
-        <T v="sousTitre">Nouveau post</T>
-        <T v="petit" couleur={c.encreDouce} style={{ marginTop: 2, marginBottom: espace.m }}>
-          Laisse vide pour que Luna improvise toute seule.
-        </T>
-        <TextInput
-          value={demande}
-          onChangeText={setDemande}
-          placeholder="ex. un post sur son week-end au ski"
-          placeholderTextColor={c.encrePale}
-          multiline
-          style={{
-            borderWidth: TRAIT, borderColor: c.filet, borderRadius: rayon.s,
-            padding: espace.m, minHeight: 60, color: c.encre,
-            marginBottom: espace.m, textAlignVertical: "top",
-          }}
-        />
-        <Bouton
-          titre={enCours ? "Une generation est deja en cours..." : "Generer"}
-          onPress={surGenerer}
-          desactive={envoi || enCours}
-        />
-      </Carte>
-
-      <T v="sousTitre" style={{ marginBottom: espace.m }}>Historique</T>
-      {liste === null ? (
-        <Chargement />
-      ) : liste.length === 0 ? (
-        <Vide titre="Aucun post genere pour l'instant" />
-      ) : (
-        liste.map((pub) => <CartePublication key={pub.id} pub={pub} />)
+      {/* ----- RESEAUX : ou Luna publie, et ce qui manque ----- */}
+      {section === "reseaux" && (
+        <>
+          <CarteReseau nom="Instagram" icone="logo-instagram"
+                       r={reseaux?.instagram} />
+          <CarteReseau nom="TikTok" icone="logo-tiktok"
+                       r={reseaux?.tiktok} />
+          {reseaux === null && <Chargement />}
+          {!!reseaux && (
+            <T v="legende" couleur={c.encrePale}
+               style={{ textAlign: "center", marginTop: espace.s }}>
+              releve {quandCourt(reseaux.vu_le)}
+            </T>
+          )}
+        </>
       )}
+
+      {/* ----- ATELIER : demander une publication, suivre la file ----- */}
+      {section === "atelier" && (
+        <>
+          <Carte style={{ marginBottom: espace.l }}>
+            <T v="sousTitre">Nouvelle publication</T>
+            <T v="petit" couleur={c.encreDouce} style={{ marginTop: 2, marginBottom: espace.m }}>
+              Laisse vide pour que Luna choisisse elle-meme.
+            </T>
+            <TextInput
+              value={demande}
+              onChangeText={setDemande}
+              placeholder="ex. un cafe avec ses copines apres les cours"
+              placeholderTextColor={c.encrePale}
+              multiline
+              style={{
+                borderWidth: TRAIT, borderColor: c.filet, borderRadius: rayon.s,
+                padding: espace.m, minHeight: 60, color: c.encre,
+                marginBottom: espace.m, textAlignVertical: "top",
+              }}
+            />
+            <Bouton
+              titre={enCours ? "Une generation est en cours..." : "Generer"}
+              onPress={surGenerer}
+              desactive={envoi || enCours}
+            />
+          </Carte>
+
+          <T v="sousTitre" style={{ marginBottom: espace.m }}>Ses publications</T>
+          {liste === null ? (
+            <Chargement />
+          ) : liste.length === 0 ? (
+            <Vide titre="Rien encore"
+                  detail="Demande une publication ci-dessus." />
+          ) : (
+            liste.map((pub) => <CartePublication key={pub.id} pub={pub} />)
+          )}
+        </>
+      )}
+
+      {/* ----- LUNA : qui elle est ----- */}
+      {section === "personnage" && (
+        p ? <CartePersona p={p} />
+          : <View style={{ marginBottom: espace.l }}><Chargement /></View>
+      )}
+
     </ScrollView>
   );
 }
