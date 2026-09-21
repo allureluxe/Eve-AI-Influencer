@@ -77,3 +77,67 @@ class TestLeRepliSExecuteSurTousLesChemins:
         with pytest.raises(ErreurMoteur):
             GenerateurImages._requeter_multipart(
                 "https://exemple", "cle", {"prompt": "x"})
+
+
+class TestChaquePhotoEstPrenableParLuna:
+    """Une photo sans photographe plausible trahit un faux compte.
+
+    Remarque de l'operateur le 21 septembre : « elle fait des photos
+    amateur avec son telephone, donc elle ne peut pas etre prise en
+    photo dans son lit avec son telephone dans la main ». Il avait
+    raison : une seule scene sur douze etait realisable par elle-meme,
+    et le vocabulaire demandait explicitement un shooting professionnel
+    (« travel magazine photography », « high fashion editorial »).
+    """
+
+    def test_chaque_scene_nomme_son_cadrage(self):
+        from luna.photos import SCENES
+        sans = [s.cle for s in SCENES if not s.cadrage]
+        assert not sans, f"scenes sans cadrage : {sans}"
+
+    def test_le_cadrage_arrive_jusqu_au_moteur(self):
+        # Un cadrage qui n'est pas dans le prompt ne cadre rien.
+        from luna.photos import SCENES, prompt_photo
+        for s in SCENES:
+            p = prompt_photo(s.cle, registre=s.registre)["prompt"]
+            assert s.cadrage in p, f"{s.cle} : cadrage absent du prompt"
+
+    def test_aucun_vocabulaire_de_studio(self):
+        from luna.photos import SCENES
+        interdits = ("editorial", "magazine", "luxury lifestyle",
+                     "glamour photography", "fashion photography",
+                     "studio", "photoshoot", "professional photographer")
+        fautifs = [(s.cle, m) for s in SCENES for m in interdits
+                   if m in s.decor.lower()]
+        assert not fautifs, f"vocabulaire de shooting : {fautifs}"
+
+    def test_les_scenes_sensuelles_n_ont_jamais_de_tiers(self):
+        # Personne d'autre n'est dans la piece : c'est ce que la scene
+        # raconte, et un photographe la contredirait.
+        from luna.photos import SCENES, SENSUEL, AMIE, GROUPE
+        for s in SCENES:
+            if s.registre == SENSUEL:
+                assert s.cadrage not in (AMIE, GROUPE), \
+                    f"{s.cle} : un tiers photographie une scene intime"
+
+    def test_luna_n_est_pas_toujours_seule(self):
+        # « Elle est tres sociable, donc si elle est au cafe elle est
+        # avec ses amies. » Et sept selfies miroir d'affilee, c'est
+        # monotone autant qu'invraisemblable.
+        from luna.photos import SCENES, TENDRE
+        tendres = [s for s in SCENES if s.registre == TENDRE]
+        avec = [s for s in tendres
+                if any(m in s.decor for m in
+                       ("friend", "classmate", "flatmate", "friends"))]
+        assert len(avec) >= len(tendres) // 3, (
+            f"seulement {len(avec)} scenes sur {len(tendres)} montrent "
+            "quelqu'un d'autre")
+
+    def test_les_yeux_ne_sont_pas_fluo(self):
+        # L'ancienne formule « blue-green eyes with a subtle green hue »
+        # rendait des yeux vert fluo, comme un personnage de jeu video.
+        from luna.persona import LUNA
+        ancre = LUNA.apparence.ancre.lower()
+        assert "not bright green" in ancre
+        assert "not glowing" in ancre
+        assert "blue-green eyes" not in ancre

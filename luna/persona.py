@@ -75,8 +75,26 @@ class Apparence:
         "She is a 25-year-old adult woman, "
         "clearly adult mature facial structure, defined jawline and cheekbones, "
         "adult woman's face and body proportions, not a teenager, "
-        "long wavy platinum blonde hair, blue-green eyes with a subtle green "
-        "hue, not pure blue, both eyes symmetrical, well-aligned and "
+        "long wavy platinum blonde hair, "
+        # LES YEUX, REECRITS LE 21 SEPTEMBRE.
+        #
+        # L'ancienne formule disait « blue-green eyes with a subtle green
+        # hue, not pure blue ». Le moteur a retenu « green » et rendu des
+        # yeux VERT FLUO, lumineux, comme un personnage de jeu video --
+        # exactement ce que le negatif interdit par ailleurs. Retour de
+        # l'operateur : « les yeux ca va pas ».
+        #
+        # Deux corrections. D'abord nommer une couleur REELLE et
+        # DESATUREE plutot qu'un melange que le moteur doit interpreter :
+        # un vert-gris sourd, la couleur la plus banale qui soit. Ensuite
+        # dire explicitement ce qu'on ne veut pas -- une interdiction
+        # posee dans l'ancre pese plus lourd que la meme dans le negatif,
+        # qui n'est meme pas transmis a FLUX.2 (il ne prend qu'un prompt).
+        "muted greyish-green eyes, low saturation, natural dull eye color "
+        "like a real person's, soft and matte, NOT bright green, NOT "
+        "vivid, NOT glowing, NOT emerald, NOT neon, no colored contact "
+        "lenses, iris slightly darker at the rim, "
+        "both eyes symmetrical, well-aligned and "
         "looking in the same direction, bare minimal makeup, no mature or "
         "sophisticated makeup look, high cheekbones, small delicate nose, "
         "naturally imperfect skin like a real adult woman, at most one or two "
