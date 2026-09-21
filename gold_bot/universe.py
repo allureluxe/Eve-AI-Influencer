@@ -225,6 +225,76 @@ def instrument_crypto(actif: str, groupe: str, priorite: float = 0.75,
     )
 
 
+def instrument_action(ticker: str, groupe: str,
+                      priorite: float = 0.75) -> Instrument:
+    """Une action americaine, cotee en dollars.
+
+    POURQUOI CE FICHIER EN AVAIT BESOIN. Le CLAUDE.md reclame depuis le
+    9 septembre qu'on remesure la strategie sur des DONNEES ACTIONS avant
+    de transferer quoi que ce soit chez IBKR -- « un Donchian 20 jours
+    sur actions n'est pas le meme animal qu'en crypto : horaires, gaps
+    d'ouverture, correlations ». Ces donnees n'avaient jamais ete
+    telechargees, faute d'un instrument pour les porter.
+
+    CE QUI DIFFERE D'UNE CRYPTO, ET POURQUOI CA COMPTE :
+
+      * `weekend=False` : la bourse ferme. Une strategie qui tient ses
+        positions plusieurs jours traverse donc des trous de 64 heures
+        pendant lesquels elle ne peut ni suivre son stop ni sortir.
+      * `digits=2` et `min_lot=1` : on achete des actions ENTIERES. Sur
+        une action a 340 $, le plus petit ticket vaut 340 $ -- soit un
+        dixieme d'un compte de 3 300 EUR. C'est une contrainte que la
+        crypto n'a pas (on achete 0,00001 bitcoin), et elle limite
+        fortement le nombre de positions tenables.
+      * `round_step=1.0` : les chiffres ronds comptent en bourse (les
+        100 $, les 50 $), contrairement aux cryptos ou aucune echelle ne
+        fait reference.
+
+    `max_spread` reste infini pour la meme raison qu'en crypto : le
+    controle qui vaut est relatif (`max_spread_atr_ratio`).
+    """
+    return Instrument(
+        symbol=ticker.upper(),
+        asset_class="stock",
+        digits=2,
+        contract_size=1.0,
+        min_lot=1.0,
+        lot_step=1.0,
+        max_lot=1e6,
+        round_step=1.0,
+        typical_spread=0.0,
+        max_spread=math.inf,
+        weekend=False,
+        priority=priorite,
+        quote_currency="USD",
+        correlation_group=groupe,
+    )
+
+
+#: Actions americaines les plus echangees, par secteur. Le secteur sert de
+#: groupe de correlation : deux valeurs technologiques montent et
+#: descendent ensemble, et les acheter toutes les deux n'est qu'un seul
+#: pari repete. Liste volontairement courte -- elle sert a MESURER, pas a
+#: trader : trente valeurs suffisent a savoir si la methode tient.
+ACTIONS_US: dict[str, str] = {
+    "AAPL": "tech", "MSFT": "tech", "NVDA": "tech", "AVGO": "tech",
+    "AMD": "tech", "ORCL": "tech", "CRM": "tech", "ADBE": "tech",
+    "GOOGL": "internet", "META": "internet", "AMZN": "internet",
+    "NFLX": "internet", "UBER": "internet",
+    "JPM": "banque", "BAC": "banque", "GS": "banque", "MS": "banque",
+    "V": "paiement", "MA": "paiement",
+    "JNJ": "sante", "UNH": "sante", "LLY": "sante", "ABBV": "sante",
+    "XOM": "energie", "CVX": "energie", "COP": "energie",
+    "WMT": "conso", "COST": "conso", "PG": "conso", "KO": "conso",
+    "TSLA": "auto", "CAT": "industrie", "BA": "industrie",
+}
+
+
+def univers_actions() -> list[Instrument]:
+    """Les actions americaines, pretes pour le rejeu."""
+    return [instrument_action(t, g) for t, g in ACTIONS_US.items()]
+
+
 DEFAULT_UNIVERSE: list[Instrument] = [
     # --- Metaux : coeur du systeme ---
     Instrument("XAUUSD", "metal", 2, 100.0, 0.01, 0.01, 50.0, 10.0, 0.30, 0.60,

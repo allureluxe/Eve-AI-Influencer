@@ -129,7 +129,18 @@ class ProviderCapabilities:
     intraday: bool = True
     daily: bool = True
     quotes: bool = True
-    asset_classes: tuple[str, ...] = ("metal", "forex", "crypto", "index")
+    # « stock » ajoute le 21 septembre. Une source qui ne se DECLARE pas
+    # capable d'une classe d'actif n'est jamais interrogee, meme si elle
+    # sait la servir : `DataRegistry.usable` filtre la-dessus avant tout
+    # appel reseau. Yahoo cotait deja les actions americaines ; il etait
+    # ecarte en amont, et le rejeu rendait « aucune source active » --
+    # un message qui ressemble a une panne alors que c'est une
+    # declaration manquante.
+    #
+    # Les fournisseurs purement crypto (Bitvavo, Binance, OKX) surchargent
+    # ce tuple par ("crypto",) : ils ne sont pas concernes.
+    asset_classes: tuple[str, ...] = ("metal", "forex", "crypto", "index",
+                                      "stock")
     requires_key: bool = False
     rate_limit_per_min: int = 60
 

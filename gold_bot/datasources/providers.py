@@ -71,6 +71,18 @@ class YahooProvider(PriceProvider):
                  "H1": "60m", "H4": "1h", "D1": "1d"}
 
     def symbol_for(self, symbol: str, asset_class: str) -> Optional[str]:
+        # LES ACTIONS PASSENT TELLES QUELLES. Yahoo les cote sous leur
+        # ticker nu (AAPL, MSFT, JPM), sans suffixe -- contrairement au
+        # forex (EURUSD=X) et aux cryptos (BTC-USD), qui ont besoin de la
+        # table ci-dessus.
+        #
+        # Sans ce passage, aucune action n'etait interrogeable : la table
+        # ne contient que ce qu'on y a ecrit a la main, et le depot n'a
+        # jamais telecharge une seule donnee d'action -- ce que le
+        # CLAUDE.md reclame pourtant depuis le 9 septembre avant tout
+        # transfert chez IBKR.
+        if asset_class in ("stock", "action", "equity"):
+            return symbol.upper()
         return self.MAP.get(symbol.upper())
 
     def fetch_candles(self, symbol: str, asset_class: str, timeframe: str, limit: int) -> list[Candle]:
@@ -91,8 +103,16 @@ class YahooProvider(PriceProvider):
             rng = "1mo"
         elif needed <= 90 * 86400:
             rng = "3mo"
-        else:
+        elif needed <= 330 * 86400:
             rng = "1y"
+        elif needed <= 700 * 86400:
+            rng = "2y"
+        else:
+            # Le plafond etait a "1y", ce qui suffisait aux mesures
+            # intraday mais PAS a un rejeu journalier : 330 bougies D1 de
+            # trading (six mois) plus 150 de prechauffage reclament deja
+            # deux ans de calendrier, week-ends et jours feries compris.
+            rng = "5y"
 
         self.throttle()
         data = http_get(
