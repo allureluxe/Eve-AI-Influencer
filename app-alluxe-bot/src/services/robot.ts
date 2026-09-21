@@ -264,13 +264,44 @@ export interface CompteDemo {
   resume_methode: string;
   methode: string;
   capital_depart: number;
+  /** Le capital VIVANT : solde + gain latent. Ecrit par le serveur
+   *  toutes les 5 minutes. `null` tant qu'aucun releve n'est arrive. */
+  capital_eur: number | null;
   vu_le: string;
+}
+
+/** Un point de la courbe de capital. */
+export interface PointCapital { vu_le: string; capital_eur: number; }
+
+/**
+ * L'historique du capital d'un compte, pour tracer sa courbe.
+ *
+ * Le serveur enregistre un releve toutes les cinq minutes
+ * (`ops/battement_comptes.py`). On ne peut pas reconstituer apres coup
+ * une valeur qu'on n'a jamais enregistree : la courbe commence donc le
+ * 22 septembre 2026, date du premier releve.
+ *
+ * `depuis` est une date ISO ; l'appelant decide de la fenetre (1 jour,
+ * 7 jours, 30 jours, 1 an).
+ */
+export async function courbeCapital(
+  compte: string, depuis: string, limite = 500,
+): Promise<PointCapital[]> {
+  const { data, error } = await supabase
+    .from("alluxe_bot_capital")
+    .select("vu_le, capital_eur")
+    .eq("compte", compte)
+    .gte("vu_le", depuis)
+    .order("vu_le", { ascending: true })
+    .limit(limite);
+  if (error) throw error;
+  return (data ?? []) as PointCapital[];
 }
 
 export async function comptesDemo(): Promise<CompteDemo[]> {
   const { data, error } = await supabase
     .from("alluxe_bot_comptes")
-    .select("compte, resume_methode, methode, capital_depart, vu_le")
+    .select("compte, resume_methode, methode, capital_depart, capital_eur, vu_le")
     .order("compte");
   if (error) {
     // Table pas encore migree : on ne casse pas l'ecran pour autant.

@@ -128,11 +128,20 @@ def publier(compte: str, fichier: str) -> bool:
         "capital_depart": float(getattr(cfg.engine, "start_balance", 0.0) or 0.0),
         "vu_le": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
-    # Le capital est calcule pour le JOURNAL, pas pour la base : la table
-    # n'a pas de colonne pour lui (PGRST204, verifie le 21 septembre), et
-    # un champ inconnu fait echouer toute la requete en 400 -- le pouls
-    # serait perdu avec lui.
+    # LE CAPITAL VA MAINTENANT EN BASE.
+    #
+    # Il n'y allait pas le 21 septembre : la colonne n'existait pas
+    # (PGRST204) et le jeton d'administration avait expire, donc aucune
+    # migration ne passait. Consequence visible pour l'operateur : le
+    # capital affiche sur l'onglet demo qu'on NE regarde PAS ne comptait
+    # que les trades fermes -- il ignorait toutes les positions
+    # ouvertes, et paraissait fige.
+    #
+    # Le jeton a ete regenere le 22 ; la colonne et la table
+    # d'historique existent.
     capital = capital_du_compte(compte)
+    if capital is not None:
+        corps["capital_eur"] = round(capital, 2)
 
     try:
         requete = urllib.request.Request(
@@ -146,6 +155,29 @@ def publier(compte: str, fichier: str) -> bool:
     except Exception as exc:                                   # noqa: BLE001
         log.warning("fiche « %s » non publiee : %s", compte, str(exc)[:160])
         return False
+    # UN RELEVE DE PLUS DANS L'HISTORIQUE, pour la courbe.
+    #
+    # Une ligne toutes les cinq minutes et par compte : c'est peu de
+    # donnees, et c'est ce qui permet de tracer 1 jour, 7 jours, 30
+    # jours et 1 an. Sans releve regulier, aucune courbe n'est possible
+    # -- on ne peut pas reconstituer apres coup une valeur qu'on n'a
+    # jamais enregistree.
+    #
+    # L'echec n'est pas fatal : mieux vaut un trou dans la courbe qu'un
+    # pouls perdu.
+    if capital is not None:
+        try:
+            r = urllib.request.Request(
+                f"{url}/rest/v1/alluxe_bot_capital",
+                data=json.dumps({"compte": compte,
+                                 "capital_eur": round(capital, 2)}).encode(),
+                headers={"apikey": cle, "authorization": f"Bearer {cle}",
+                         "content-type": "application/json"},
+                method="POST")
+            urllib.request.urlopen(r, timeout=20).close()
+        except Exception as exc:                               # noqa: BLE001
+            log.warning("releve de capital non enregistre : %s", str(exc)[:120])
+
     log.info("fiche « %s » publiee — capital %s",
              compte, f"{capital:.2f} EUR" if capital is not None else "inconnu")
     return True

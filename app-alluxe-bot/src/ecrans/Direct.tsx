@@ -26,6 +26,7 @@ import { espace } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 import { BarreDeTri, LignePosition, Tri, trier } from "../composants/ListePositions";
 import { etagesAffiches, resteAInvestir } from "../composants/positionsTri";
+import { CourbeCapital } from "../composants/CourbeCapital";
 
 export function EcranDirect({ navigation }: { navigation?: any }) {
   const c = useCouleurs();
@@ -98,6 +99,14 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
             )}
           </>
         ) : <Chargement />}
+      </Carte>
+
+      {/* La meme courbe qu'en demo -- consigne de l'operateur du
+          19 septembre : toute modification sur l'un se fait sur
+          l'autre. */}
+      <Carte style={{ marginBottom: espace.l }}>
+        <CourbeCapital compte="reel"
+                       capitalDepart={capitalEtat?.capital_eur ?? 0} />
       </Carte>
 
       <T v="sousTitre" style={{ marginBottom: espace.s }}>

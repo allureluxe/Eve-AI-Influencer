@@ -30,6 +30,7 @@ import { espace, rayon } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 import { BarreDeTri, LignePosition, Tri, trier } from "../composants/ListePositions";
 import { etagesAffiches, gainTotalEnDirect, resteAInvestir } from "../composants/positionsTri";
+import { CourbeCapital } from "../composants/CourbeCapital";
 import { CleCompte, ChoixCompte, COMPTES } from "../composants/ChoixCompte";
 
 // Repli quand la fiche du compte n'est pas encore lue. Les trois
@@ -125,6 +126,17 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
       for (const { cle } of COMPTES) {
         const f = fiches[cle];
         if (!f) { resultats[cle] = null; continue; }
+        // LE CAPITAL VIVANT VIENT DU SERVEUR quand il l'a publie.
+        //
+        // On le recalculait a partir des seuls trades FERMES, donc
+        // en ignorant les positions ouvertes : le chiffre affiche
+        // sur l'onglet qu'on NE regarde PAS paraissait fige.
+        // Releve par l'operateur le 22 septembre.
+        //
+        // `capital_eur` est ecrit toutes les 5 minutes par
+        // ops/battement_comptes.py : solde + gain latent, la
+        // definition meme du simulateur.
+        if (f.capital_eur != null) { resultats[cle] = f.capital_eur; continue; }
         try {
           const clos = await historiqueDemo(100, cle);
           const realise = clos.reduce((somme, t) => somme + (gainEnEuros(
@@ -157,14 +169,26 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
 
   // L'onglet ouvert connait ses positions en cours ; les autres non.
   // On remplace donc son chiffre par le capital COMPLET.
-  // Apres `gainRealise` : le capital de reference inclut ce qui est deja
-  // encaisse, sinon le reste a investir serait calcule sur un capital
-  // perime (le meme defaut que le capital affiche, corrige plus haut).
+  // LE GAIN LATENT COMPTE DANS CE QUI RESTE A INVESTIR.
+  //
+  // Cette ligne passait `capitalDepart + gainRealise` : elle ignorait
+  // les plus-values des positions OUVERTES. Or le simulateur calcule sa
+  // marge disponible sur la valeur TOTALE du compte (`equity = solde +
+  // gain flottant`), donc l'application annoncait moins de marge que le
+  // robot n'en a reellement.
+  //
+  // Mesure du 22 septembre sur la demo 1 : 165 EUR affiches pour 526
+  // disponibles. Releve par l'operateur -- « on n'a pas les memes
+  // chiffres sur reste a investir ».
+  //
+  // `capitalDepart + gainRealise + gainTotal` est exactement le capital
+  // affiche en gros au-dessus : les deux chiffres de la carte parlent
+  // desormais du meme compte.
   const reste = React.useMemo(
     () => (positions
-      ? resteAInvestir(positions, capitalDepart + gainRealise, prixLive)
+      ? resteAInvestir(positions, capitalDepart + gainRealise + gainTotal, prixLive)
       : 0),
-    [positions, prixLive, capitalDepart, gainRealise]);
+    [positions, prixLive, capitalDepart, gainRealise, gainTotal]);
 
   const capitauxAffiches = React.useMemo(() => ({
     ...capitaux,
@@ -237,6 +261,15 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
             {fiche.methode}
           </T>
         )}
+      </Carte>
+
+      {/* LA COURBE DU CAPITAL, facon Bitvavo -- demande de l'operateur
+          le 22 septembre. Elle ne montre que ce qui a ete RELEVE :
+          le serveur enregistre un point toutes les cinq minutes
+          depuis ce jour-la, et on ne reconstitue pas apres coup une
+          valeur qu'on n'a jamais notee. */}
+      <Carte style={{ marginBottom: espace.l }}>
+        <CourbeCapital compte={compte} capitalDepart={capitalDepart} />
       </Carte>
 
       {!fiche && (
