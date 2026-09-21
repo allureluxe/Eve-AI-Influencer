@@ -11,8 +11,17 @@ migration ne passe, et attendre un nouveau jeton bloquait tout l'ecran.
 
 Un fichier JSON depose dans le seau PUBLIC `marque` fait le meme travail
 sans DDL : l'application le lit par une URL publique, exactement comme
-elle lit le logo. Quand le jeton reviendra, ce fichier pourra devenir
-une table sans que l'ecran change -- il ne connait qu'une adresse.
+elle lit le logo. L'ecran ne connait qu'une adresse.
+
+MISE A JOUR DU 21 SEPTEMBRE, 22h30 : le jeton a ete regenere et la
+table `luna_reseaux` EXISTE desormais. On n'y bascule PAS tout de
+suite -- le fichier fonctionne, il est en service, et remplacer une
+piece qui marche par une autre « plus propre » en fin de soiree est
+exactement la decision qui casse quelque chose sans rien apporter.
+
+La bascule est un chantier de quinze lignes (ce script ecrit la table,
+`services/reseaux.ts` la lit par PostgREST) a faire de jour, avec les
+tests sous la main.
 
 CE QUE L'APPLICATION NE DOIT JAMAIS AVOIR
 =========================================
