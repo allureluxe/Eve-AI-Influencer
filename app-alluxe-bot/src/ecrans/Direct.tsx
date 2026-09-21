@@ -25,7 +25,7 @@ import { euros, pourcent } from "../services/format";
 import { espace } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 import { BarreDeTri, LignePosition, Tri, trier } from "../composants/ListePositions";
-import { etagesAffiches } from "../composants/positionsTri";
+import { etagesAffiches, resteAInvestir } from "../composants/positionsTri";
 
 export function EcranDirect({ navigation }: { navigation?: any }) {
   const c = useCouleurs();
@@ -51,6 +51,11 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   // reference dit « 1 » (positions ouvertes avant la fusion du 19 sept.).
   const etages = React.useMemo(
     () => (positions ? etagesAffiches(positions) : {}), [positions]);
+
+  const reste = React.useMemo(
+    () => (positions && capitalEtat
+      ? resteAInvestir(positions, capitalEtat.capital_eur, prixLive) : 0),
+    [positions, capitalEtat, prixLive]);
 
   const ordonnees = React.useMemo(
     () => (positions ? trier(positions, tri, descendant, capital, prixLive) : null),
@@ -82,6 +87,15 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
                style={{ marginTop: espace.xs }}>
               {pourcent(capitalEtat.variation_jour_pct)} aujourd'hui
             </T>
+            {/* LE MEME CHIFFRE QU'EN DEMO. Consigne de l'operateur du
+                19 septembre : « tu fais le mode demo et reel identique,
+                a chaque fois ; si je fais une modif sur l'un ca la fait
+                sur l'autre ». Ajoute en demo le 21, donc ajoute ici. */}
+            {positions != null && (
+              <T v="petit" couleur={c.encrePale} style={{ marginTop: espace.xs }}>
+                {euros(reste)} restants à investir
+              </T>
+            )}
           </>
         ) : <Chargement />}
       </Carte>

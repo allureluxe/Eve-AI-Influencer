@@ -129,6 +129,39 @@ export function gainTotalEnDirect(
 }
 
 /**
+ * Ce qui reste disponible pour ouvrir une nouvelle position.
+ *
+ * Demande de l'operateur le 21 septembre : « il y a un truc qui manque
+ * dans les demo, c'est le capital restant a investir ». C'est en effet
+ * la seule facon de savoir, d'un coup d'oeil, si le robot peut encore
+ * acheter quelque chose ou s'il est a l'arret faute de place.
+ *
+ *     reste = capital - somme des sommes engagees
+ *
+ * La somme engagee d'une position, c'est `volume x prix d'achat` --
+ * `miseReelle`, jamais la deduction par la distance au stop, qui
+ * explose sur une pyramide fusionnee (RUNE : 3 732 EUR annonces pour
+ * 550 engages).
+ *
+ * CE QUE CE CHIFFRE NE DIT PAS. Le robot s'arrete aussi quand son
+ * BUDGET DE RISQUE est plein (`max_total_risk_pct`, 5 %) -- et c'est
+ * le plus souvent LUI qui bloque en premier, bien avant le cash. Un
+ * compte peut donc afficher plusieurs centaines d'euros disponibles et
+ * ne plus rien ouvrir. Les deux limites ne sont pas interchangeables ;
+ * celle-ci est la plus facile a comprendre, pas toujours la mordante.
+ */
+export function resteAInvestir(
+  positions: Position[], capital: number,
+  prixLive: Record<string, number>,
+): number {
+  const engage = positions.reduce((somme, p) => {
+    const ch = chiffresDe(p, capital, prixLive[p.pair]);
+    return ch == null ? somme : somme + ch.mise;
+  }, 0);
+  return Math.max(0, capital - engage);
+}
+
+/**
  * Trie les positions. Les cotations manquantes finissent toujours en bas
  * -- une position dont on ignore le resultat n'a pas sa place au milieu
  * d'un classement par resultat.

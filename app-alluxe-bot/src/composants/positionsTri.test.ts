@@ -182,3 +182,27 @@ describe("le total des positions en cours", () => {
     expect(gainTotalEnDirect(ps, 1000, prix)).toBeCloseTo(sommeDesLignes, 9);
   });
 });
+
+describe("le capital restant a investir", () => {
+  const { resteAInvestir } = require("./positionsTri");
+
+  it("retranche du capital les sommes deja engagees", () => {
+    const ps = [
+      position({ id: "a", pair: "A/EUR", entry_price: 100, volume: 2 }),
+      position({ id: "b", pair: "B/EUR", entry_price: 100, volume: 3 }),
+    ];
+    // 200 + 300 engages sur 1000 => 500 disponibles
+    expect(resteAInvestir(ps, 1000, { "A/EUR": 110, "B/EUR": 90 }))
+      .toBeCloseTo(500, 6);
+  });
+
+  it("ne descend jamais sous zero", () => {
+    const grosse = position({ id: "a", pair: "A/EUR",
+                              entry_price: 100, volume: 50 });
+    expect(resteAInvestir([grosse], 1000, { "A/EUR": 100 })).toBe(0);
+  });
+
+  it("vaut le capital entier quand rien n'est ouvert", () => {
+    expect(resteAInvestir([], 3300, {})).toBeCloseTo(3300, 6);
+  });
+});

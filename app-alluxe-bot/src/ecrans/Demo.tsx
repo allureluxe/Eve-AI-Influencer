@@ -29,7 +29,7 @@ import { euros, gainEnEuros, nomCrypto, pourcent, quand } from "../services/form
 import { espace, rayon } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 import { BarreDeTri, LignePosition, Tri, trier } from "../composants/ListePositions";
-import { etagesAffiches, gainTotalEnDirect } from "../composants/positionsTri";
+import { etagesAffiches, gainTotalEnDirect, resteAInvestir } from "../composants/positionsTri";
 import { CleCompte, ChoixCompte, COMPTES } from "../composants/ChoixCompte";
 
 // Repli quand la fiche du compte n'est pas encore lue. Les trois
@@ -157,6 +157,15 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
 
   // L'onglet ouvert connait ses positions en cours ; les autres non.
   // On remplace donc son chiffre par le capital COMPLET.
+  // Apres `gainRealise` : le capital de reference inclut ce qui est deja
+  // encaisse, sinon le reste a investir serait calcule sur un capital
+  // perime (le meme defaut que le capital affiche, corrige plus haut).
+  const reste = React.useMemo(
+    () => (positions
+      ? resteAInvestir(positions, capitalDepart + gainRealise, prixLive)
+      : 0),
+    [positions, prixLive, capitalDepart, gainRealise]);
+
   const capitauxAffiches = React.useMemo(() => ({
     ...capitaux,
     [compte]: capitalDepart + gainRealise + gainTotal,
@@ -212,6 +221,16 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
             {euros(gainTotal)} en cours
           </T>
         </View>
+        {/* CE QUI RESTE A INVESTIR. Demande de l'operateur le 21 sept. :
+            sans ce chiffre, on ne sait pas si le robot peut encore
+            acheter ou s'il est a l'arret faute de place. Il s'affiche en
+            gris et non en vert/rouge : ce n'est ni un gain ni une perte,
+            c'est de la place disponible. */}
+        {positions != null && (
+          <T v="petit" couleur={c.encrePale} style={{ marginTop: espace.xs }}>
+            {euros(reste)} restants à investir
+          </T>
+        )}
         {!!fiche?.methode && (
           <T v="legende" couleur={c.encrePale}
              style={{ marginTop: espace.s, textAlign: "center" }}>
