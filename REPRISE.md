@@ -1,4 +1,63 @@
-# Ou on en est — mis a jour le 20 septembre 2026 (02h30)
+# Ou on en est — mis a jour le 22 septembre 2026
+
+## CE QUI A ETE ARME CE SOIR, ET CE QUI NE L'A PAS ETE
+
+**`trail_atr_mult` 3,0 -> 2,0 dans `robot.bitvavo.json`.** Parti d'une
+observation de l'operateur sur le BTC de la demo 2, repetee trois fois
+avant que je la mesure : « le stop est a 4 000 du cours, c'est enorme ».
+Mesure sur le banc de PORTEFEUILLE (un seul compte), 25 cryptos, deux
+periodes : 3,0 ATR etait **le seul reglage a perdre de l'argent** sur la
+periode recente. Detail complet dans CLAUDE.md, section « le coussin du
+suiveur ». 1 092 tests verts.
+
+**Les demos ne sont PAS touchees** — gel jusqu'au 28 demande par
+l'operateur. Elles tournent toujours a 3,0 ATR. Le robot reel est a
+l'arret depuis le retrait du 16 : le nouveau reglage prendra effet au
+depot du 28.
+
+**Son mecanisme de resserrage progressif : mesure, ecarte.** Les trois
+reglages qu'il decrivait existaient deja. Aucun dosage ne bat le reglage
+simple, et `serrage 3,0 / plancher 0,8` reproduit exactement `1,0 ATR` —
+le serrage ne fait que pousser le multiple a son plancher.
+`trail_serrage_apres_abri` reste a 0,5, `trail_min_atr_mult` a 0,8.
+
+**Arbitrage laisse a l'operateur** : 1,5 ATR gagne moins (+174 / +657
+contre +297 / +819) mais recule bien moins (12,2 % / 9,9 % contre
+14,0 % / 12,2 %). Choix de temperament, pas de calcul. Il n'a pas
+tranche.
+
+## DEUX DEFAUTS TROUVES AU PASSAGE
+
+1. **CORRIGE** — l'ecran d'une position affichait « Au pire -17,52 EUR »
+   alors que son stop etait AU-DESSUS du prix d'achat (gain garanti de
+   +3,02). Il lisait le stop d'origine, remplace depuis. C'est ce
+   chiffre qui a lance toute la discussion du soir.
+2. **EN ATTENTE** — deux lignes EGLD a **volume zero** dans
+   `state-demo2.json` (`bc2a33259540`, `11851843dfe0`). Fiches vides qui
+   occupent une place pour 0 EUR investi. A nettoyer le 28, demos gelees.
+
+## AVANT CA, LA NUIT DU 21 AU 22
+
+La carte de prix de `ops/battement_comptes.py` etait indexee par ACTIF
+et non par MARCHE : les cotations USDC ecrasaient les EUR (+15 % sur onze
+actifs), d'ou une courbe a 3 716 EUR contre 3 569 sur la carte de
+l'application. **L'application avait raison, pas moi**, et je lui avais
+dit l'inverse. Corrige, les quatre releves contamines retires de
+`alluxe_bot_capital`.
+
+## A FAIRE LE 28
+
+- recompiler l'APK (correction d'affichage « Au pire » non livree)
+- nettoyer les deux lignes EGLD fantomes
+- decider si on arme 2,0 ATR aussi sur les demos (demande un redemarrage)
+- depot Bitvavo < 500 EUR, moteurs d'images de Luna, domaine reel
+- tester ChatGPT Images 2.5 pour Luna : ~3 EUR/mois a notre rythme, mais
+  le filtre d'OpenAI refuse peut-etre l'envoi du visage de reference.
+  5 EUR de credit suffisent a le savoir.
+
+---
+
+# Ce qui precede date du 20 septembre 2026 (02h30)
 
 ## TROIS COMPTES DEMO, dont DEUX qui tournent
 
