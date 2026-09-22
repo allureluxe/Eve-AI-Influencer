@@ -11,13 +11,22 @@
  * kilo-octets a l'application pour des fonctions qu'on n'utiliserait
  * pas, et imposerait son propre style la ou on veut celui de la marque.
  *
- * CE QU'ELLE NE FAIT PAS, ET IL FAUT LE SAVOIR : elle ne montre que ce
- * qui a ete ENREGISTRE. Le serveur releve le capital toutes les cinq
- * minutes depuis le 22 septembre 2026 ; avant cette date il n'existe
- * aucune donnee, et on ne peut pas reconstituer apres coup une valeur
- * qu'on n'a jamais notee. Les fenetres longues (30 jours, 1 an) seront
- * donc vides au debut -- l'ecran le dit plutot que de tracer une ligne
- * plate qui ressemblerait a un capital immobile.
+ * D'OU VIENNENT LES POINTS. Le serveur releve le capital toutes les
+ * cinq minutes (`ops/battement_comptes.py`), mais il n'a commence que le
+ * 21 septembre au soir : la courbe n'avait donc que deux points, et les
+ * quatre fenetres montraient la meme chose. « Le graphique ne bouge pas,
+ * les euros restent les memes qu'au debut. »
+ *
+ * `ops/reconstituer_capital.py` a comble le passe, heure par heure,
+ * depuis l'ouverture de chaque compte : solde realise a cette heure-la
+ * plus la valeur de marche des positions alors ouvertes. Meme definition
+ * que celle du simulateur, donc la reconstitution se raccorde exactement
+ * aux releves en direct.
+ *
+ * ET QUAND LA FENETRE DEPASSE L'AGE DU COMPTE, on le dit. Un compte de
+ * quatre jours n'a pas trente jours d'historique ; afficher « 30 jours »
+ * sur une courbe qui en couvre quatre donnerait l'impression d'un
+ * capital immobile depuis un mois.
  */
 import React from "react";
 import { Pressable, View } from "react-native";
@@ -79,6 +88,27 @@ export function CourbeCapital({ compte, capitalDepart }: {
   }, [compte, fenetre]);
 
   const assez = points !== null && points.length >= 2;
+
+  // LA FENETRE DEMANDEE N'EST PAS TOUJOURS LA FENETRE MONTREE.
+  //
+  // Un compte ouvert il y a quatre jours n'a pas trente jours
+  // d'historique : « 30 jours » et « 1 an » affichent alors exactement
+  // la meme courbe que « 7 jours ». Laisser l'etiquette mentir donnerait
+  // l'impression d'un capital immobile depuis un an -- c'est ce que
+  // l'operateur a vu et signale : « le graphique ne bouge pas, les
+  // euros restent les memes qu'au debut ».
+  //
+  // On annonce donc la periode REELLEMENT couverte des qu'elle est plus
+  // courte que celle demandee.
+  const couverture = React.useMemo(() => {
+    if (!assez) return "";
+    const debut = new Date(points![0].vu_le);
+    const jours = (Date.now() - debut.getTime()) / 86400_000;
+    const demande = FENETRES.find((f) => f.cle === fenetre)!.jours;
+    if (jours >= demande * 0.9) return "";
+    return `depuis le ${debut.toLocaleDateString("fr-FR",
+      { day: "numeric", month: "long" })}`;
+  }, [points, fenetre, assez]);
   const premier = assez ? Number(points![0].capital_eur) : capitalDepart;
   const dernier = assez ? Number(points![points!.length - 1].capital_eur) : capitalDepart;
   const variation = premier > 0 ? (dernier / premier - 1) * 100 : 0;
@@ -96,6 +126,17 @@ export function CourbeCapital({ compte, capitalDepart }: {
           </T>
         )}
       </View>
+
+      {/* LE PLUS BAS ATTEINT, qu'aucun chiffre unique ne montre. La
+          demo 1 est descendue a 3 162 EUR le 19 septembre -- 4 % sous
+          la mise -- alors qu'elle affiche +11 % aujourd'hui. C'est
+          precisement ce qu'une courbe sert a voir. */}
+      {assez && (
+        <T v="legende" couleur={c.encrePale} style={{ marginBottom: espace.xs }}>
+          plus bas {euros(Math.min(...points!.map((p) => Number(p.capital_eur))))}
+          {"  ·  "}plus haut {euros(Math.max(...points!.map((p) => Number(p.capital_eur))))}
+        </T>
+      )}
 
       <View
         onLayout={(e) => setLargeur(e.nativeEvent.layout.width)}
@@ -130,6 +171,13 @@ export function CourbeCapital({ compte, capitalDepart }: {
           </T>
         )}
       </View>
+
+      {!!couverture && (
+        <T v="legende" couleur={c.encrePale}
+           style={{ textAlign: "center", marginTop: espace.xs }}>
+          {couverture} — le compte n'est pas plus ancien
+        </T>
+      )}
 
       <View style={{ flexDirection: "row", gap: espace.xs, marginTop: espace.s }}>
         {FENETRES.map(({ cle, libelle }) => {
