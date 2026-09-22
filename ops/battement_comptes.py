@@ -100,14 +100,30 @@ def _charger_les_cours() -> None:
             lignes = json.loads(r.read().decode())
     except Exception:                                          # noqa: BLE001
         return
+    # LA CLE EST LE MARCHE, PAS LA CRYPTO. Onze actifs sont cotes chez
+    # Bitvavo DANS DEUX DEVISES (EUR et USDC) : BTC, SUI, ADA et huit
+    # autres. Ranger les prix par crypto faisait ecraser le prix en
+    # euros par celui en dollars, soit +15 % sur ces positions.
+    #
+    # Erreur introduite le 22 septembre a 00h32 en corrigeant le prix
+    # perime, et repercutee dans la courbe : elle annoncait 3 716 EUR la
+    # ou le compte en valait 3 569. C'est l'operateur qui a vu les deux
+    # chiffres se contredire sur le meme ecran.
+    #
+    # On ne garde donc QUE les marches en euros -- le robot ne negocie
+    # rien d'autre.
     out: dict[str, float] = {}
     for l in lignes:
         try:
+            marche = str(l["market"])
+            actif, _, devise = marche.partition("-")
+            if devise != "EUR":
+                continue
             b = float(l.get("bid") or 0)
             a = float(l.get("ask") or 0)
             v = (b + a) / 2 if b > 0 and a > 0 else (b or a)
             if v > 0:
-                out[str(l["market"]).split("-")[0]] = v
+                out[actif] = v
         except (KeyError, TypeError, ValueError):
             continue
     if out:
