@@ -25,7 +25,7 @@ import { RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CompteDemo, Position, comptesDemo, historiqueDemo } from "../services/robot";
 import { useSuiviPositions } from "../services/suiviPositions";
-import { euros, gainEnEuros, nomCrypto, pourcent, quand } from "../services/format";
+import { euros, gainRealiseDe, nomCrypto, pourcent, quand } from "../services/format";
 import { espace, rayon } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 import { BarreDeTri, LignePosition, Tri, trier } from "../composants/ListePositions";
@@ -50,8 +50,7 @@ const LIBELLE_STATUT: Record<string, string> = {
 function LigneFermee({ p, capital }: { p: Position; capital: number }) {
   const c = useCouleurs();
   const gagnant = (p.result_pct ?? 0) > 0;
-  const gain = gainEnEuros(p.entry_price, p.stop_loss, p.result_pct,
-                            p.position_size_pct, p.capital_eur ?? capital, p.volume);
+  const gain = gainRealiseDe(p, capital);
   const couleur = p.result_pct == null ? c.encreDouce : gagnant ? c.gain : c.perte;
   return (
     <View style={{
@@ -137,11 +136,15 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
         // ops/battement_comptes.py : solde + gain latent, la
         // definition meme du simulateur.
         if (f.capital_eur != null) { resultats[cle] = f.capital_eur; continue; }
+        // Meme regle que pour l'onglet ouvert : le chiffre du serveur
+        // d'abord, la somme des lignes seulement a defaut.
+        if (f.encaisse_eur != null) {
+          resultats[cle] = f.capital_depart + f.encaisse_eur; continue;
+        }
         try {
           const clos = await historiqueDemo(100, cle);
-          const realise = clos.reduce((somme, t) => somme + (gainEnEuros(
-            t.entry_price, t.stop_loss, t.result_pct, t.position_size_pct,
-            t.capital_eur ?? f.capital_depart, t.volume) ?? 0), 0);
+          const realise = clos.reduce(
+            (somme, t) => somme + (gainRealiseDe(t, f.capital_depart) ?? 0), 0);
           resultats[cle] = f.capital_depart + realise;
         } catch { resultats[cle] = f.capital_depart; }
       }
@@ -160,12 +163,35 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   // LE CAPITAL DOIT INCLURE CE QUI EST DEJA ENCAISSE. Il affichait le
   // depart + les positions ouvertes, en ignorant les trades deja fermes
   // -- donc il ne bougeait jamais malgre les gains realises.
+  // LE CHIFFRE PUBLIE D'ABORD, LA RECONSTITUTION SEULEMENT A DEFAUT.
+  //
+  // La reconstitution vaut `volume x prix d'achat x result_pct`, donc le
+  // gain du PRIX — sans les frais que le robot a pourtant payes. Releve
+  // par l'operateur le 22 septembre : la demo 2 annoncait 128,28 EUR
+  // encaisses quand le solde du simulateur en portait 117,08. Sept
+  // trades suffisaient, dont 7,93 EUR de frais et 3,27 d'arrondis.
+  //
+  // `profit_eur` est desormais publie par le robot, frais deduits, une
+  // seule fois par position (zero sur les etages 2+ d'une pyramide). Les
+  // lignes fermees AVANT cette date ne l'ont pas : elles retombent sur
+  // l'ancien calcul, qui reste la meilleure approximation disponible
+  // pour elles. L'historique ne se reecrit pas.
+  //
+  // ET MEME `profit_eur` NE SUFFIT PAS. Il vaut `ClosedTrade.profit`,
+  // qui ne deduit que les frais de VENTE : ceux d'ACHAT sont preleves a
+  // l'ouverture et n'apparaissent dans AUCUN trade ferme tant que la
+  // position reste ouverte. Sur la demo 2, 25 positions ouvertes depuis
+  // le debut representaient 7,93 EUR deja payes et invisibles.
+  //
+  // Le seul chiffre qui les porte tous est le solde du simulateur, que
+  // le serveur publie desormais dans `encaisse_eur`. On le prend des
+  // qu'il est la ; la somme des lignes reste le repli.
   const gainRealise = React.useMemo(() => {
+    if (fiche?.encaisse_eur != null) return fiche.encaisse_eur;
     if (!fermees) return 0;
-    return fermees.reduce((somme, t) => somme + (gainEnEuros(
-      t.entry_price, t.stop_loss, t.result_pct, t.position_size_pct,
-      t.capital_eur ?? capitalDepart, t.volume) ?? 0), 0);
-  }, [fermees, capitalDepart]);
+    return fermees.reduce(
+      (somme, t) => somme + (gainRealiseDe(t, capitalDepart) ?? 0), 0);
+  }, [fiche, fermees, capitalDepart]);
 
   // L'onglet ouvert connait ses positions en cours ; les autres non.
   // On remplace donc son chiffre par le capital COMPLET.

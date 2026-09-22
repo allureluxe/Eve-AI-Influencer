@@ -388,5 +388,66 @@ class TestLeMoteurPubliePourDeVraiUnePositionReelle(unittest.TestCase):
         self.assertIsNotNone(ligne["published_at"])
 
 
+class TestLeBeneficeReelEstPublie(unittest.TestCase):
+    """Le chiffre exact, pose UNE fois, frais deduits.
+
+    L'application reconstituait le benefice a l'arrivee, a partir du
+    pourcentage publie : `volume x prix d'achat x result_pct`. C'est le
+    gain du PRIX, sans les frais que le robot a pourtant payes.
+
+    Releve par l'operateur le 22 septembre en comparant ses ecrans au
+    serveur : la demo 2 affichait 128,28 EUR encaisses pour 117,08
+    reels. Sept trades suffisaient a creuser 11,20 EUR — 7,93 de frais
+    et 3,27 d'arrondis sur les pourcentages.
+    """
+
+    def setUp(self) -> None:
+        self._dossier = TemporaryDirectory()
+        self.addCleanup(self._dossier.cleanup)
+        self.chemin = Path(self._dossier.name) / "file.jsonl"
+
+    def test_le_profit_part_avec_la_cloture(self):
+        client = ClientFactice()
+        pub = SignalPublisher(client=client, fichier_file=self.chemin)
+        pub.publier_cloture("pos-1:1", "closed_tp", 1_700_000_000.0, 4.2,
+                            profit_eur=36.55)
+        _, _, champs = client.patchs[0]
+        self.assertEqual(champs["profit_eur"], 36.55)
+
+    def test_sans_profit_la_colonne_n_est_pas_envoyee(self):
+        """Une cloture sans montant ne doit pas ecrire NULL par-dessus.
+
+        Les appelants qui ne le passent pas encore ne doivent rien
+        casser : l'absence de cle laisse la colonne telle quelle.
+        """
+        client = ClientFactice()
+        pub = SignalPublisher(client=client, fichier_file=self.chemin)
+        pub.publier_cloture("pos-1:1", "closed_tp", 1_700_000_000.0, 4.2)
+        _, _, champs = client.patchs[0]
+        self.assertNotIn("profit_eur", champs)
+
+    def test_une_pyramide_ne_compte_son_benefice_QU_UNE_FOIS(self):
+        """Le piege que cette colonne aurait cree sans precaution.
+
+        Une pyramide publie une ligne PAR ETAGE et elles se ferment
+        toutes ensemble. Si chacune portait le benefice entier, une
+        pyramide a quatre etages serait comptee quatre fois par
+        l'application, qui additionne les lignes. L'etage 1 porte le
+        montant, les suivants zero.
+        """
+        client = ClientFactice()
+        pub = SignalPublisher(client=client, fichier_file=self.chemin)
+        montants = []
+        for etage in range(1, 5):
+            pub.publier_cloture(f"pos-9:{etage}", "closed_tp",
+                                1_700_000_000.0, 4.2,
+                                profit_eur=120.0 if etage == 1 else 0.0)
+        for _, _, champs in client.patchs:
+            montants.append(champs["profit_eur"])
+        self.assertEqual(montants, [120.0, 0.0, 0.0, 0.0])
+        self.assertEqual(sum(montants), 120.0,
+                         "le benefice d'une pyramide est compte plusieurs fois")
+
+
 if __name__ == "__main__":
     unittest.main()

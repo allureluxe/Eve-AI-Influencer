@@ -1412,10 +1412,18 @@ class TradingEngine:
             result_pct = sens * (trade.exit_price - trade.entry_price) \
                 / trade.entry_price * 100.0
             statut = "closed_tp" if trade.profit >= 0 else "closed_sl"
+            # LE BENEFICE REEL NE SE POSE QU'UNE FOIS.
+            #
+            # `result_pct` est le meme sur tous les etages — c'est le
+            # pourcentage du PRIX. Le benefice en euros, lui, est celui de
+            # la position ENTIERE : le mettre sur chaque etage ferait
+            # compter une pyramide a quatre etages quatre fois par
+            # l'application, qui additionne les lignes.
             for etage in range(1, (getattr(trade, "etages", 1) or 1) + 1):
                 self.publisher.publier_cloture(
                     f"{trade.position_id}:{etage}",
-                    statut, trade.closed_at, result_pct)
+                    statut, trade.closed_at, result_pct,
+                    profit_eur=float(trade.profit) if etage == 1 else 0.0)
         except Exception as exc:                            # noqa: BLE001
             logger.warning("publication de la cloture impossible : %s", exc)
 

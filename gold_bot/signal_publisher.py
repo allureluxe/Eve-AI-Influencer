@@ -515,21 +515,47 @@ class SignalPublisher:
         })
 
     def publier_cloture(self, reference: str, status: str,
-                        closed_at: float, result_pct: float) -> bool:
-        """Ferme un signal deja publie. Seule modification autorisee."""
+                        closed_at: float, result_pct: float,
+                        profit_eur: float | None = None) -> bool:
+        """Ferme un signal deja publie. Seule modification autorisee.
+
+        `profit_eur` EST LE BENEFICE REEL, FRAIS DEDUITS, et il existe
+        parce que l'application le reconstituait a l'arrivee :
+
+            gain = volume x prix d'achat x result_pct / 100
+
+        — c'est-a-dire le gain du PRIX, sans les frais que le robot a
+        pourtant payes. Releve par l'operateur le 22 septembre en
+        comparant ses ecrans au serveur : la demo 2 affichait 128,28 EUR
+        encaisses pour 117,08 reels. Sept trades suffisaient a creuser
+        11 EUR, dont 7,93 de frais et 3,27 d'arrondis sur les
+        pourcentages publies.
+
+        Le robot, lui, connait le chiffre au centime. Il n'y avait aucune
+        raison de le faire recalculer par le telephone.
+
+        A POSER UNE SEULE FOIS PAR POSITION. Une pyramide publie une
+        ligne par etage et elles se ferment toutes ensemble ; si chacune
+        portait le benefice entier, l'application le compterait autant de
+        fois qu'il y a d'etages. L'appelant met donc le montant sur
+        l'etage 1 et zero sur les suivants.
+        """
         if not self.actif:
             return False
         if status not in ("closed_tp", "closed_sl", "cancelled"):
             raise ValueError(f"statut de cloture inconnu : {status}")
+        corps: Dict[str, Any] = {
+            "status": status,
+            "closed_at": _iso(closed_at),
+            "result_pct": round(result_pct, 3),
+        }
+        if profit_eur is not None:
+            corps["profit_eur"] = round(float(profit_eur), 2)
         return self._envoyer({
             "type": "cloture",
             "table": "signals",
             "filtre": f"reference=eq.{reference}",
-            "corps": {
-                "status": status,
-                "closed_at": _iso(closed_at),
-                "result_pct": round(result_pct, 3),
-            },
+            "corps": corps,
         })
 
     # -- transport et file d'attente ----------------------------------

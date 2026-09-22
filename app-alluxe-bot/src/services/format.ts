@@ -245,6 +245,42 @@ export function gainEnEuros(
 }
 
 /**
+ * Ce qu'un trade FERMÉ a réellement rapporté, en euros.
+ *
+ * UNE SEULE FONCTION, PARCE QUE QUATRE ÉCRANS POSAIENT LA QUESTION.
+ * `Demo` deux fois, `Historique` une, et le total encaissé une
+ * quatrième. Corriger un seul de ces endroits aurait laissé les trois
+ * autres mentir — c'est le défaut que ce dépôt a déjà rencontré cinq
+ * fois, toujours de la même façon : une règle appliquée à un endroit
+ * pendant que les autres appelants gardent l'ancien comportement.
+ *
+ * L'ORDRE COMPTE. `profit_eur` est publié par le robot, frais déduits,
+ * et c'est le chiffre exact — celui du solde. `gainEnEuros` ne connaît
+ * que le prix : il rend le gain BRUT, avant les 0,5 % d'aller-retour
+ * que Bitvavo prélève. Relevé par l'opérateur le 22 septembre en
+ * comparant ses écrans au serveur : 128,28 € affichés pour 117,08
+ * réels sur la démo 2, soit 7,93 € de frais et 3,27 d'arrondis.
+ *
+ * Les lignes fermées avant cette date n'ont pas `profit_eur` et
+ * retombent sur l'estimation — c'est la meilleure disponible pour
+ * elles, et on ne réécrit pas l'historique.
+ */
+export function gainRealiseDe(
+  p: {
+    profit_eur?: number | null;
+    entry_price: number; stop_loss: number;
+    result_pct: number | null; position_size_pct: number | null;
+    capital_eur?: number | null; volume?: number | null;
+  },
+  capitalParDefaut: number,
+): number | null {
+  if (p.profit_eur != null) return p.profit_eur;
+  return gainEnEuros(p.entry_price, p.stop_loss, p.result_pct,
+                     p.position_size_pct, p.capital_eur ?? capitalParDefaut,
+                     p.volume);
+}
+
+/**
  * Regroupe les étages d'une même position en UNE ligne.
  *
  * Un trade pyramidé est publié en plusieurs lignes -- une par étage,

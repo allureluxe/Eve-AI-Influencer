@@ -46,6 +46,14 @@ export interface Position {
   status: string;
   closed_at: string | null;
   result_pct: number | null;
+  /** Le benefice REEL en euros, frais deduits, tel que le robot l'a
+   *  encaisse. Jusqu'au 22 septembre l'application le reconstituait
+   *  (`volume x prix x result_pct`), donc SANS les frais : la demo 2
+   *  affichait 128,28 EUR encaisses pour 117,08 reels. Pose une seule
+   *  fois par position -- zero sur les etages 2 et suivants d'une
+   *  pyramide, pour que la somme des lignes reste juste. Nul sur les
+   *  lignes fermees avant cette date. */
+  profit_eur: number | null;
 }
 
 export async function etatCapital(): Promise<EtatCapital | null> {
@@ -74,7 +82,7 @@ export async function etatCapital(): Promise<EtatCapital | null> {
  * toujours.
  */
 const COLONNES_BASE = "id, reference, capital_eur, pair, side, entry_price, stop_loss, take_profit_1, take_profit_2, position_size_pct, published_at, status, closed_at, result_pct";
-const COLONNES_CONFORT = `${COLONNES_BASE}, volume, stop_loss_actuel`;
+const COLONNES_CONFORT = `${COLONNES_BASE}, volume, stop_loss_actuel, profit_eur`;
 
 /** Une fois la reponse connue, on ne retente plus : inutile de payer un
  *  aller-retour rate a chaque rafraichissement. */
@@ -267,6 +275,18 @@ export interface CompteDemo {
   /** Le capital VIVANT : solde + gain latent. Ecrit par le serveur
    *  toutes les 5 minutes. `null` tant qu'aucun releve n'est arrive. */
   capital_eur: number | null;
+  /** Le gain REELLEMENT encaisse : solde du simulateur moins le depart.
+   *
+   *  A PREFERER a la somme des trades fermes, qui en ignore deux parts.
+   *  `ClosedTrade.profit` ne deduit que les frais de VENTE ; ceux d'ACHAT
+   *  sont preleves a l'ouverture et n'apparaissent donc dans aucun trade
+   *  ferme tant que la position reste ouverte. Sur la demo 2, 25
+   *  positions ouvertes depuis le debut faisaient 7,93 EUR deja payes et
+   *  invisibles — releve par l'operateur le 22 septembre, 128,28 EUR
+   *  affiches pour 117,08 reels.
+   *
+   *  `null` tant qu'aucun releve n'est arrive. */
+  encaisse_eur: number | null;
   vu_le: string;
 }
 
@@ -301,7 +321,7 @@ export async function courbeCapital(
 export async function comptesDemo(): Promise<CompteDemo[]> {
   const { data, error } = await supabase
     .from("alluxe_bot_comptes")
-    .select("compte, resume_methode, methode, capital_depart, capital_eur, vu_le")
+    .select("compte, resume_methode, methode, capital_depart, capital_eur, encaisse_eur, vu_le")
     .order("compte");
   if (error) {
     // Table pas encore migree : on ne casse pas l'ecran pour autant.

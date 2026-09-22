@@ -136,6 +136,18 @@ def _cours(actif: str) -> float | None:
     return _CACHE.get(actif)
 
 
+def _solde_du_compte(compte: str) -> float | None:
+    """Le liquide seul, sans le gain latent. Frais d'achat deduits."""
+    chemin = Path(f"data/state-{compte}.json")
+    if not chemin.exists():
+        return None
+    try:
+        solde = json.loads(chemin.read_text()).get("solde_simule")
+    except Exception:                                          # noqa: BLE001
+        return None
+    return float(solde) if solde is not None else None
+
+
 def capital_du_compte(compte: str) -> float | None:
     """Le capital VIVANT : liquide + gain latent des positions ouvertes.
 
@@ -199,6 +211,28 @@ def publier(compte: str, fichier: str) -> bool:
     capital = capital_du_compte(compte)
     if capital is not None:
         corps["capital_eur"] = round(capital, 2)
+
+    # CE QUI EST VRAIMENT DANS LA CAISSE.
+    #
+    # L'application additionnait les benefices des trades fermes pour
+    # afficher « X EUR encaisses ». Deux choses manquaient a ce total, et
+    # l'operateur les a vues le 22 septembre en comparant ses ecrans au
+    # serveur (128,28 affiches pour 117,08 reels) :
+    #
+    #   - les arrondis des pourcentages publies, ~3 EUR sur 7 trades ;
+    #   - surtout, LES FRAIS D'ACHAT DES POSITIONS ENCORE OUVERTES.
+    #     `ClosedTrade.profit` ne deduit que les frais de VENTE ; ceux
+    #     d'achat sont preleves a l'ouverture et n'apparaissent donc
+    #     dans aucun trade ferme. Sur la demo 2, 25 positions ouvertes
+    #     depuis le debut : 7,93 EUR deja payes, invisibles.
+    #
+    # Le solde du simulateur, lui, les porte tous. C'est le seul chiffre
+    # qui ne se reconstitue pas — et c'est celui sur lequel le robot
+    # dimensionne ses positions.
+    solde = _solde_du_compte(compte)
+    depart = corps["capital_depart"]
+    if solde is not None and depart > 0:
+        corps["encaisse_eur"] = round(solde - depart, 2)
 
     try:
         requete = urllib.request.Request(
