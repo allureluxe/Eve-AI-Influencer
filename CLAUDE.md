@@ -563,16 +563,41 @@ la comparaison des deux méthodes. Seule `robot.bitvavo.json` est
 modifiée — le robot réel est à l'arrêt depuis le retrait du 16, le
 réglage prendra effet au dépôt du 28.
 
-**Le mécanisme complet demandé reste à doser.** L'opérateur veut que le
-resserrage s'accentue à chaque montée, avec un plancher « pour pas faire
-fermer la position sur un petit retournement ». Ces trois réglages
-existent déjà — `trail_atr_mult` (coussin de départ),
-`trail_serrage_apres_abri` (0,5) et `trail_min_atr_mult` (0,8, le
-plancher). Mesuré : **pousser le serrage SEUL ne sert presque à rien**
-(3,0 + serrage 1,5 → −10 € ; + serrage 3,0 → +21 €), parce qu'il n'agit
-qu'après le point mort alors que le mal se fait pendant la montée. Les
-dosages combinés sont en cours de mesure dans
-`mesurer_stop_suiveur.py`.
+### Le mécanisme demandé : MESURÉ, et il ne bat pas le réglage simple
+
+L'opérateur voulait que le resserrage s'accentue à chaque montée, avec
+un plancher « pour pas faire fermer la position sur un petit
+retournement ». Les trois réglages existaient déjà : `trail_atr_mult`
+(coussin de départ), `trail_serrage_apres_abri` (0,5) et
+`trail_min_atr_mult` (0,8, le plancher). Rien à construire, seulement à
+doser. Quatre dosages, les deux mêmes périodes :
+
+    variante                            récent          antérieur
+    2,0 ATR seul (ARMÉ)           +297 / 14,0 % / 24    +819 / 12,2 % / 29
+    2,0 + serrage 3,0 + pl. 0,8   +258 / 13,6 % / 26    +579 /  8,2 % / 35
+    2,0 + serrage 3,0 + pl. 1,2   +227 / 13,5 % / 24    +445 / 10,0 % / 30
+    2,5 + serrage 3,0 + pl. 1,2   +136 / 13,5 % / 23    +522 / 10,0 % / 28
+    2,0 + serrage 6,0 + pl. 1,2   +234 / 13,4 % / 25    +466 / 10,0 % / 31
+
+**Aucun dosage ne bat le réglage simple, sur aucune des deux périodes.**
+Le serrage fort achète de la « garde » (24 → 35 %) et un recul plus
+petit, mais il le paie plus cher qu'il ne rapporte.
+
+**Et il n'apporte rien de propre.** À `serrage 3,0 / plancher 0,8` sur
+la période antérieure, le résultat (+579 €), le recul (8,2 %) et la
+garde (35 %) sont ceux de **1,0 ATR tout court** (+584, 8,2 %, 37 %).
+Le serrage fort ne fait que ramener le multiple à son plancher : c'est
+une façon compliquée d'obtenir un coussin serré, avec deux réglages de
+plus à surveiller.
+
+`trail_serrage_apres_abri` reste donc à **0,5** et `trail_min_atr_mult`
+à **0,8** — inchangés. La seule variable qui compte est le coussin.
+
+**L'arbitrage qui reste, et il appartient à l'opérateur :** 2,0 ATR
+gagne le plus ; 1,5 ATR gagne moins (+174 / +657) mais recule beaucoup
+moins (12,2 % / 9,9 % contre 14,0 % / 12,2 %) et garde davantage
+(26 % / 35 %). C'est un choix de tempérament, pas un calcul — armer 2,0
+est la réponse de la mesure, pas la fin de la discussion.
 
 ---
 
