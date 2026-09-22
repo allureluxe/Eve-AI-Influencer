@@ -68,15 +68,56 @@ COMPTES = {
 }
 
 
-def _cours(actif: str) -> float | None:
-    """Le cours en euros, chez le courtier du robot."""
+#: Les cours de TOUS les marches, lus une fois par passage.
+#: Un appel par crypto sur 24 positions, c'est 24 allers-retours pour
+#: une donnee que Bitvavo rend entiere en un seul.
+_CACHE: dict[str, float] = {}
+
+
+def _charger_les_cours() -> None:
+    """Le CARNET D'ORDRES, pas le prix du dernier echange.
+
+    CINQUIEME ENDROIT OU CETTE MEME ERREUR SE REPETE. Ce script lisait
+    `/ticker/price`, qui rend le prix de la derniere TRANSACTION : sur
+    un marche peu echange il ne bouge pas tant que personne n'echange,
+    et il affiche alors un cours vieux d'une heure.
+
+    Le robot (20 sept.) et l'application (21 sept.) ont deja ete
+    corriges. Ce script-ci a ete ecrit AVANT la decouverte et n'a pas
+    ete repris -- d'ou l'ecart vu par l'operateur le 22 :
+
+        verite (carnet)                   3 716,22 EUR
+        gros chiffre de l'application     3 714,91 EUR   juste
+        courbe et fiche du serveur        3 553,61 EUR   162 de moins
+
+    Corriger la formule ne suffit jamais : il faut corriger TOUS ceux
+    qui la calculent. C'est la lecon qui revient depuis le 18 septembre.
+    """
+    global _CACHE
     try:
         with urllib.request.urlopen(
-                f"https://api.bitvavo.com/v2/ticker/price?market={actif}-EUR",
-                timeout=10) as r:
-            return float(json.loads(r.read().decode())["price"])
+                "https://api.bitvavo.com/v2/ticker/book", timeout=25) as r:
+            lignes = json.loads(r.read().decode())
     except Exception:                                          # noqa: BLE001
-        return None
+        return
+    out: dict[str, float] = {}
+    for l in lignes:
+        try:
+            b = float(l.get("bid") or 0)
+            a = float(l.get("ask") or 0)
+            v = (b + a) / 2 if b > 0 and a > 0 else (b or a)
+            if v > 0:
+                out[str(l["market"]).split("-")[0]] = v
+        except (KeyError, TypeError, ValueError):
+            continue
+    if out:
+        _CACHE = out
+
+
+def _cours(actif: str) -> float | None:
+    if not _CACHE:
+        _charger_les_cours()
+    return _CACHE.get(actif)
 
 
 def capital_du_compte(compte: str) -> float | None:

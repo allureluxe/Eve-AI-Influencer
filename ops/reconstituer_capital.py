@@ -27,7 +27,17 @@ valeur de marche des positions ouvertes a ce moment-la. C'est la meme
 definition que celle du simulateur (`equity = solde + gain flottant`),
 donc elle se raccorde exactement aux releves en direct.
 
-Sa limite : elle ne connait que les positions dont on a gardé la trace.
+SA LIMITE, ET ELLE EST IRREDUCTIBLE : les bougies horaires donnent le
+prix de la derniere TRANSACTION de l'heure. Sur une crypto peu echangee,
+une heure sans transaction n'a pas de bougie, et on reporte le dernier
+cours connu -- donc le niveau reconstitue peut etre legerement SOUS la
+realite. C'est la meme cause que le prix perime corrige le 21 septembre
+dans le robot et l'application ; ici elle n'a pas de remede, personne
+n'enregistre le carnet d'ordres du passe. Le TRACE reste juste ; son
+niveau absolu peut lagger de quelques pour cent sur les periodes les
+plus creuses. Les points ENREGISTRES EN DIRECT, eux, sont exacts.
+
+Autre limite : elle ne connait que les positions dont on a gardé la trace.
 Une position ouverte PUIS fermee figure bien (elle est dans les trades),
 mais son gain n'apparait qu'a sa cloture -- on ne sait pas a quel prix
 elle valait a chaque heure pendant qu'elle etait ouverte, faute d'avoir
