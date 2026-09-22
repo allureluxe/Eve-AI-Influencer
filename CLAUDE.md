@@ -593,11 +593,24 @@ plus à surveiller.
 `trail_serrage_apres_abri` reste donc à **0,5** et `trail_min_atr_mult`
 à **0,8** — inchangés. La seule variable qui compte est le coussin.
 
-**L'arbitrage qui reste, et il appartient à l'opérateur :** 2,0 ATR
-gagne le plus ; 1,5 ATR gagne moins (+174 / +657) mais recule beaucoup
-moins (12,2 % / 9,9 % contre 14,0 % / 12,2 %) et garde davantage
-(26 % / 35 %). C'est un choix de tempérament, pas un calcul — armer 2,0
-est la réponse de la mesure, pas la fin de la discussion.
+### L'arbitrage a été tranché : « le plus rentable »
+
+Deux réglages se tenaient, et le choix n'était pas calculable :
+
+    2,0 ATR   +297 / +819 EUR   recul 14,0 % / 12,2 %   garde 24 % / 29 %
+    1,5 ATR   +174 / +657 EUR   recul 12,2 % /  9,9 %   garde 26 % / 35 %
+
+1,5 rapporte ~160 EUR de moins sur la période mais creuse ~75 EUR de
+moins dans les mauvais moments. Question de tempérament, pas de mesure.
+
+**Décision de l'opérateur, 22 septembre : « le plus rentable ».**
+`trail_atr_mult = 2.0`, déjà armé. Ne pas redescendre à 1,5 « pour
+lisser la courbe » : le recul plus élevé est accepté en connaissance de
+cause, les deux chiffres lui ont été donnés côte à côte.
+
+Le corollaire à ne pas oublier quand la courbe piquera : à 2,0 ATR le
+recul mesuré monte jusqu'à **14 %**. Ce n'est pas une dérive, c'est le
+prix du réglage choisi.
 
 ---
 

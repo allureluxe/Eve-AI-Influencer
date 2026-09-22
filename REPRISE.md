@@ -21,10 +21,11 @@ simple, et `serrage 3,0 / plancher 0,8` reproduit exactement `1,0 ATR` —
 le serrage ne fait que pousser le multiple a son plancher.
 `trail_serrage_apres_abri` reste a 0,5, `trail_min_atr_mult` a 0,8.
 
-**Arbitrage laisse a l'operateur** : 1,5 ATR gagne moins (+174 / +657
-contre +297 / +819) mais recule bien moins (12,2 % / 9,9 % contre
-14,0 % / 12,2 %). Choix de temperament, pas de calcul. Il n'a pas
-tranche.
+**Arbitrage TRANCHE** : le choix etait entre 2,0 ATR (le plus rentable,
+recul 14,0 % / 12,2 %) et 1,5 ATR (le plus calme, recul 12,2 % / 9,9 %
+pour ~160 EUR de moins). L'operateur a choisi **le plus rentable** :
+2,0 ATR, deja arme. Le recul de 14 % est accepte en connaissance de
+cause — ne pas redescendre a 1,5 « pour lisser la courbe ».
 
 ## DEUX DEFAUTS TROUVES AU PASSAGE
 
