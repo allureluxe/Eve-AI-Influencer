@@ -470,6 +470,112 @@ perdantes sans le résultat en euros à côté.
 
 ---
 
+## Le coussin du suiveur : 3,0 → 2,0 ATR — armé le 22 septembre
+
+Décision de l'opérateur, sur sa propre observation, répétée trois fois
+avant que je la mesure :
+
+    « 70 900 stop et cours actuel 74 900, c'est énorme sur le BTC. Pour
+    redescendre de 4 000 on perd tout le bénéf. »
+
+    « Le stop doit monter à chaque fois que la position monte. Et 4 000
+    entre les deux c'est beaucoup trop. »
+
+### Ce qu'il fallait lui répondre d'abord, et qui reste vrai
+
+Deux de ses trois griefs ne tenaient pas, et il faut les avoir en tête
+pour ne pas sur-corriger :
+
+- **Le stop montait déjà à chaque nouveau plus-haut.** `trail =
+  max_favorable − mult × ATR`, cliquet, jamais redescendu. Le mécanisme
+  ne manquait pas.
+- **Le stop en question ne pouvait plus perdre** : à 70 993 pour un
+  achat à 70 421, c'était le POINT MORT, pas un stop de perte. Ce que
+  l'écran appelait « au pire −17,52 € » était le coût de l'ancien stop,
+  disparu depuis. **Défaut d'affichage à corriger.**
+- **Le stop est déjà calculé crypto par crypto** — c'est l'ATR. Et en
+  pourcentage du prix, le BTC avait le stop LE PLUS SERRÉ des deux
+  comptes (4,8 %, contre 8 à 15 % ailleurs). Ce qui trompe l'œil, c'est
+  que 4,8 % de 75 000 € fait un gros nombre.
+- **Un stop large ne risque pas plus d'argent**, il achète moins. Les
+  risques par position de la démo 2 : 17,85 € sur BTC, 17,75 € sur RUNE,
+  19,46 € sur ATOM. Identiques par construction.
+
+### Ce sur quoi il avait raison, et que la mesure confirme
+
+Le troisième grief — **le coussin est trop large** — est exact. Banc de
+portefeuille (UN compte, le cadre qui reproduit le robot réel),
+25 cryptos, 500 jours, `robot.demo.json` :
+
+    coussin                    trades  perdantes  résultat  recul  garde
+    3,0 ATR (en service)         162    111 (69%)    −36 €  15,5 %   18 %
+    2,5 ATR                      159    107 (67%)   +181 €  13,5 %   21 %
+    2,0 ATR                      158    104 (66%)   +297 €  14,0 %   24 %  <- armé
+    1,5 ATR                      164    105 (64%)   +174 €  12,2 %   26 %
+    1,0 ATR                      158     94 (59%)   +104 €  12,5 %   32 %
+
+Période ANTÉRIEURE (décalage 500), que le réglage n'a pas servi à choisir :
+
+    3,0 ATR                      140     80 (57%)   +580 €  15,5 %   25 %
+    2,5 ATR                      141     81 (57%)   +735 €  14,2 %   27 %
+    2,0 ATR                      141     81 (57%)   +819 €  12,2 %   29 %
+    1,5 ATR                      141     79 (56%)   +657 €   9,9 %   35 %
+
+**Même classement, même vainqueur, sur les deux périodes.** Et le réglage
+en service était le SEUL à perdre de l'argent sur la période récente.
+
+La colonne « garde » est celle qui traduit la plainte : part du meilleur
+parcours réellement encaissée sur les trades gagnants. 18 % à 3,0 ATR —
+on rendait 82 % de ce qu'on avait vu.
+
+**Le bas de l'échelle existe.** À 1,5 puis 1,0 le résultat redescend :
+on recommence à couper les gagnants, le frein identifié le 12 septembre.
+2,0 est un sommet, pas une direction.
+
+### Pourquoi ça ne contredit PAS la mesure du 12 septembre
+
+Le 12 septembre, 3,0 battait 2,0 — « médiane 697 € contre 519 €, six
+périodes sur six ». Cette mesure venait de `comparer.py`, qui ouvre **un
+compte neuf par crypto** et additionne. Celle-ci vient de
+`backtest_portefeuille.py` : **un seul compte**, budget de risque
+partagé, comme le vrai robot.
+
+Ce n'est pas la même question, et le cadre change la réponse : à comptes
+séparés, une position qui respire longtemps ne prive personne. Sur un
+compte unique, elle occupe le budget que la crypto suivante attend. Un
+coussin large y coûte deux fois — en bénéfice rendu, et en occasions
+manquées.
+
+Et le rejeu de portefeuille était **à l'arrêt 99,2 % du temps** jusqu'au
+20 septembre (voir la section « deux horloges »). Aucune mesure de
+coussin n'avait donc jamais été faite dans ce cadre.
+
+`tests/test_pyramide.py` verrouille la plage 1,6–3,5 ATR : 2,0 y entre.
+La borne basse tient toujours — sous 1,6 la mesure honnête est négative
+hors échantillon dès que le gap d'ouverture est modélisé.
+
+### Ce qui n'est PAS armé, et pourquoi
+
+**Les démos ne sont pas touchées.** Consigne de l'opérateur du
+20 septembre : « on laisse tourner les mode démo jusqu'au 28 sans rien
+toucher ». Changer leur configuration en cours d'expérience détruirait
+la comparaison des deux méthodes. Seule `robot.bitvavo.json` est
+modifiée — le robot réel est à l'arrêt depuis le retrait du 16, le
+réglage prendra effet au dépôt du 28.
+
+**Le mécanisme complet demandé reste à doser.** L'opérateur veut que le
+resserrage s'accentue à chaque montée, avec un plancher « pour pas faire
+fermer la position sur un petit retournement ». Ces trois réglages
+existent déjà — `trail_atr_mult` (coussin de départ),
+`trail_serrage_apres_abri` (0,5) et `trail_min_atr_mult` (0,8, le
+plancher). Mesuré : **pousser le serrage SEUL ne sert presque à rien**
+(3,0 + serrage 1,5 → −10 € ; + serrage 3,0 → +21 €), parce qu'il n'agit
+qu'après le point mort alors que le mal se fait pendant la montée. Les
+dosages combinés sont en cours de mesure dans
+`mesurer_stop_suiveur.py`.
+
+---
+
 ## D1 « Turtle » — armé le 3 septembre, remplace le M30
 
 **Le M30 était perdant, et la mesure est certaine :** −0,158 R sur
@@ -508,7 +614,7 @@ chez Bitvavo) et **6 mois** en walk-forward, le classement s'inverse.
 | `strategy.donchian_entrees` | **[10]** | 12 sept. : le canal 10 bat le canal 20 sur les SIX périodes mesurées (médiane 1 109 € contre 323 €) | [20] |
 | `trade.tp_actif` | **false** | 9 trades sur 469 font 124 % du bénéfice ; le plafond les coupait tous à 5,77 R | — |
 | `trade.micro_profit_enabled` | **false** | coupait ~70 gagnants entre 1 et 2 R — le plus gros frein | — |
-| `trade.trail_atr_mult` | **3.0** | 12 sept. : remesuré avec le canal 10, 3,0 l'emporte | 2.2 |
+| `trade.trail_atr_mult` | **2.0** | 22 sept. : remesuré SUR UN COMPTE UNIQUE, deux périodes — voir la section « le coussin du suiveur » | 2.2 puis 3.0 |
 | `risk.pyramide_max` | **99** (illimité) | 9 et 12 sept. : mesuré PAR NOMBRE D'ÉTAGES, pas par présence/absence — voir la section pyramidage | 0 puis 3 |
 | `risk.pyramide_locked_r_min` | **0.01** | un étage ne s'ajoute que si la pyramide est déjà à l'abri (stop au-dessus du prix moyen) | 0,5 N « Turtle » |
 | `risk.pyramide_espacement_atr` | **0.25** | 12 sept., mesuré avec le canal 10 | 0.5 |
