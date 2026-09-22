@@ -62,6 +62,52 @@ export function etagesAffiches(positions: Position[]): Record<string, number> {
   return etages;
 }
 
+/**
+ * Une pyramide = UNE position, pas une ligne par étage.
+ *
+ * DEMANDE DE L'OPÉRATEUR, 21 septembre : « les étages ne devraient pas
+ * faire plusieurs positions mais une seule ». Elle n'était satisfaite
+ * qu'à moitié — les étages recevaient bien un numéro, mais chaque ligne
+ * restait comptée à part dans les totaux.
+ *
+ * CE QUE LE ROBOT PUBLIE, ET POURQUOI ÇA TROMPE. Chaque étage est publié
+ * comme une ligne, et son `volume` est le volume **cumulé après fusion**,
+ * pas l'ajout de cet étage-là. Sur le BTC de la démo 1 :
+ *
+ *     étage 1   0,00079782
+ *     étage 2   0,00682272     ← déjà le cumul
+ *     étage 3   0,00730848
+ *     étage 4   0,01380458     ← le vrai total détenu
+ *     ──────────────────────
+ *     somme     0,02873360     ← ce qui était additionné
+ *
+ * Additionner les quatre comptait donc la position **deux fois**.
+ * Mesuré le 22 septembre : « en cours » affichait +120,57 € pour
+ * +69,56 € réellement détenus, soit 51 € de trop sur la démo 1. La
+ * démo 2, qui ne pyramide pas, n'était pas touchée — c'est ce qui
+ * rendait l'écart difficile à voir.
+ *
+ * LA DERNIÈRE LIGNE PORTE LA VÉRITÉ : son volume et son prix d'entrée
+ * sont ceux de la position fusionnée, exactement ce que le robot
+ * détient. On ne garde qu'elle. Vérifié : le total retombe alors au
+ * centime sur le chiffre du robot.
+ */
+export function fusionnerEtages(positions: Position[]): Position[] {
+  const derniere = new Map<string, { n: number; p: Position }>();
+  const ordre: string[] = [];
+  for (const p of positions) {
+    // "<id interne>:<etage>" — sans suffixe, la ligne est seule.
+    const ref = p.reference ?? p.id;
+    const sep = ref.lastIndexOf(":");
+    const cle = sep > 0 ? ref.slice(0, sep) : ref;
+    const n = sep > 0 ? Number(ref.slice(sep + 1)) || 1 : 1;
+    const vu = derniere.get(cle);
+    if (!vu) { derniere.set(cle, { n, p }); ordre.push(cle); }
+    else if (n > vu.n) derniere.set(cle, { n, p });
+  }
+  return ordre.map((cle) => derniere.get(cle)!.p);
+}
+
 export const TRIS = [
   { cle: "gain", libelle: "Gain" },
   { cle: "mise", libelle: "Mise" },

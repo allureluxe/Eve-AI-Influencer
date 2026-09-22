@@ -9,7 +9,7 @@
  * 500 EUR et relue a 3 300 pese 6,6 fois trop lourd dans le tri.
  */
 import { Position } from "../services/robot";
-import { chiffresDe, trier } from "./positionsTri";
+import { chiffresDe, fusionnerEtages, gainTotalEnDirect, trier } from "./positionsTri";
 
 function position(sur: Partial<Position> & { id: string }): Position {
   return {
@@ -204,5 +204,62 @@ describe("le capital restant a investir", () => {
 
   it("vaut le capital entier quand rien n'est ouvert", () => {
     expect(resteAInvestir([], 3300, {})).toBeCloseTo(3300, 6);
+  });
+});
+
+/**
+ * Une pyramide est UNE position, pas une ligne par étage.
+ *
+ * Les chiffres ci-dessous sont ceux relevés en production le
+ * 22 septembre 2026 sur le BTC de la démo 1 : quatre étages publiés,
+ * chacun portant le volume CUMULÉ après fusion. Les additionner donnait
+ * 0,02873360 BTC pour 0,01380458 réellement détenu — la position
+ * comptée deux fois, et 51 € de gain latent en trop sur le compte.
+ */
+describe("la fusion des étages d'une pyramide", () => {
+  const btc = [
+    position({ id: "p1", reference: "2e9ab4875955:1",
+               entry_price: 70599.65, volume: 0.00079782 }),
+    position({ id: "p2", reference: "2e9ab4875955:2",
+               entry_price: 72572.26, volume: 0.00682272 }),
+    position({ id: "p3", reference: "2e9ab4875955:3",
+               entry_price: 72646.98, volume: 0.00730848 }),
+    position({ id: "p4", reference: "2e9ab4875955:4",
+               entry_price: 73537.85, volume: 0.01380458 }),
+  ];
+
+  it("ne garde qu'une ligne, celle du dernier étage", () => {
+    const f = fusionnerEtages(btc);
+    expect(f).toHaveLength(1);
+    expect(f[0].volume).toBeCloseTo(0.01380458, 8);
+    expect(f[0].entry_price).toBeCloseTo(73537.85, 2);
+  });
+
+  it("le total cesse de compter la position plusieurs fois", () => {
+    const prixLive = { "BTC/EUR": 75000 };
+    const avant = gainTotalEnDirect(btc, 3300, prixLive);
+    const apres = gainTotalEnDirect(fusionnerEtages(btc), 3300, prixLive);
+    // Ce que le robot détient vraiment, au prix du marché.
+    const vrai = 0.01380458 * (75000 - 73537.85);
+    expect(apres).toBeCloseTo(vrai, 2);
+    expect(avant).toBeGreaterThan(apres * 1.9);
+  });
+
+  it("laisse tranquilles les positions sans étage", () => {
+    const simples = [
+      position({ id: "a", reference: "aaa:1", pair: "A/EUR" }),
+      position({ id: "b", reference: "bbb:1", pair: "B/EUR" }),
+    ];
+    expect(fusionnerEtages(simples)).toHaveLength(2);
+  });
+
+  it("garde l'ordre d'arrivée, pour que la liste ne saute pas", () => {
+    const melange = [
+      position({ id: "x", reference: "xxx:1", pair: "X/EUR" }),
+      ...btc,
+      position({ id: "z", reference: "zzz:1", pair: "Z/EUR" }),
+    ];
+    expect(fusionnerEtages(melange).map((p) => p.pair))
+      .toEqual(["X/EUR", "BTC/EUR", "Z/EUR"]);
   });
 });
