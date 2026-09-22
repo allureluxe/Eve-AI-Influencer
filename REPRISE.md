@@ -33,9 +33,22 @@ cause — ne pas redescendre a 1,5 « pour lisser la courbe ».
    alors que son stop etait AU-DESSUS du prix d'achat (gain garanti de
    +3,02). Il lisait le stop d'origine, remplace depuis. C'est ce
    chiffre qui a lance toute la discussion du soir.
-2. **EN ATTENTE** — deux lignes EGLD a **volume zero** dans
-   `state-demo2.json` (`bc2a33259540`, `11851843dfe0`). Fiches vides qui
-   occupent une place pour 0 EUR investi. A nettoyer le 28, demos gelees.
+2. **EN ATTENTE** — des lignes EGLD a **volume zero** dans
+   `state-demo2.json` (`bc2a33259540` le 20/09, `11851843dfe0` le 21/09,
+   et une 3e apparue le 22 a 15h33 : **ca se reproduit**).
+
+   DIAGNOSTIC PARTIEL, fait le 22 au soir. Elles sont INOFFENSIVES :
+   `StateStore.position_memorisee()` refuse un volume <= 0, donc elles
+   ne sont **jamais** rendues au courtier au redemarrage ; elles ne sont
+   **jamais** publiees, donc l'application ne les voit pas ; 0 EUR
+   investi, 0 EUR de risque. Ce sont des residus inertes dans le fichier
+   d'etat, qui s'accumulent et faussent le COMPTE de positions.
+
+   CE QUI RESTE A TROUVER : le chemin d'ecriture qui met volume=0.
+   `PaperBroker.open_position` refuse `lots <= 0`, donc ce n'est pas a
+   l'ouverture. Piste a explorer : une cloture partielle qui ramene le
+   volume a zero sans appeler `forget_position`. Demande une session
+   dediee, pas un coup d'oeil.
 
 ## AVANT CA, LA NUIT DU 21 AU 22
 
