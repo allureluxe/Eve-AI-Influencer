@@ -234,15 +234,38 @@ export function EcranPosition({ route }: any) {
         {!!p.take_profit_1 && (
           <Ligne libelle="Objectif" valeur={fmtPrix(p.take_profit_1)} />
         )}
-        <Ligne
-          libelle="Au pire"
-          valeur={ch != null
-            ? euros(-Math.abs((p.capital_eur ?? capital)
-                * ((p.position_size_pct ?? 0) / 100)))
-            : "—"}
-          couleur={c.perte}
-          aide="ce que coûterait le stop d'origine"
-        />
+        {/* « AU PIRE −17,52 € » SUR UNE POSITION QUI NE PEUT PLUS PERDRE.
+            Releve par l'operateur le 22 septembre sur le BTC de la
+            demo 2 : achat a 70 421, stop remonte a 70 993 — donc AU-DESSUS
+            du prix d'achat. Si ce stop saute, la position rend +3 €, pas
+            −17,52. Le chiffre affiche etait celui du stop D'ORIGINE, que
+            le suiveur avait remplace depuis longtemps.
+
+            Ce n'est pas un detail d'affichage : c'est ce chiffre qui lui
+            a fait croire que le robot risquait encore de l'argent sur
+            cette ligne, et la conversation est partie de la. Une fois la
+            position a l'abri, la seule phrase vraie est ce qu'elle
+            GARANTIT. */}
+        {aLAbri && p.volume != null ? (
+          <Ligne
+            libelle="Au pire"
+            valeur={euros(p.volume * (p.side === "sell"
+              ? p.entry_price - stopCourant
+              : stopCourant - p.entry_price))}
+            couleur={c.gain}
+            aide="le stop est au-dessus du prix d'achat : c'est un gain garanti"
+          />
+        ) : (
+          <Ligne
+            libelle="Au pire"
+            valeur={ch != null
+              ? euros(-Math.abs((p.capital_eur ?? capital)
+                  * ((p.position_size_pct ?? 0) / 100)))
+              : "—"}
+            couleur={c.perte}
+            aide="ce que coûterait le stop d'origine"
+          />
+        )}
       </Carte>
 
       <T v="legende" couleur={c.encrePale}
