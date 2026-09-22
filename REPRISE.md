@@ -59,6 +59,17 @@ l'application. **L'application avait raison, pas moi**, et je lui avais
 dit l'inverse. Corrige, les quatre releves contamines retires de
 `alluxe_bot_capital`.
 
+## LUNA — la photo de profil, 22 sept. au soir
+
+Elle echouait depuis des jours (`0/2 images`). Ce n'etait PAS « pas
+assez de quota » : la tache tournait a **00h05 Paris = 22h05 UTC**,
+soit deux heures AVANT la remise a zero de Cloudflare (00h00 UTC).
+Elle n'a jamais eu la moindre chance. Decalee a **02h20 Paris**, juste
+apres la remise a zero.
+
+Hugging Face reste a sec pour un autre motif : credits MENSUELS epuises
+(HTTP 402), pas journaliers. Il ne revient pas avant le mois prochain.
+
 ## A FAIRE LE 28
 
 - recompiler l'APK (correction d'affichage « Au pire » non livree)
