@@ -332,8 +332,23 @@ class TradingEngine:
                 ok.dry_run = True
             broker = OkxBroker(ok)
         else:
-            broker = PaperBroker(PaperConfig(start_balance=cfg.start_balance,
-                                             currency=cfg.currency))
+            # LA DEMO DOIT REJOUER LE MEME CONTRAT ECONOMIQUE QUE BITVAVO.
+            #
+            # Avant ce correctif, PaperBroker reprenait ses valeurs par
+            # defaut (0,02 % de commission et 100x de levier) alors que la
+            # configuration Bitvavo impose 0,25 % taker et 1x au comptant.
+            # Une strategie validee dans ces conditions ne mesurait donc
+            # ni les vrais frais, ni la vraie contrainte de capital.
+            #
+            # Les tests unitaires peuvent toujours construire PaperBroker
+            # explicitement avec leurs propres parametres; seul le moteur
+            # de production/demo herite maintenant des parametres du fichier.
+            broker = PaperBroker(PaperConfig(
+                start_balance=cfg.start_balance,
+                currency=cfg.currency,
+                commission_pct=self.config.risk.commission_pct,
+                leverage=self.config.risk.max_leverage,
+            ))
 
         # Un lieu d'execution ne propose pas forcement tout l'univers : scanner
         # un instrument qu'on ne pourra pas trader gaspille des appels reseau
