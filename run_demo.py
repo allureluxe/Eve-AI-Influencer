@@ -123,11 +123,21 @@ def _publier_la_fiche_du_compte(compte: str, cfg, capital: float | None = None,
         "capital_depart": float(getattr(cfg.engine, "start_balance", 0.0) or 0.0),
         "vu_le": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
-    # `capital` n'est PAS envoye : la table n'a pas de colonne pour lui
-    # (verifie le 21 septembre -- PGRST204). Il reste dans la signature
-    # parce que le battement le calcule deja, et que la colonne pourrait
-    # etre ajoutee ; envoyer un champ inconnu fait echouer TOUTE la
-    # requete en 400, donc le pouls serait perdu avec lui.
+    # Depuis la migration du 24 septembre, ces deux champs sont la
+    # source de verite de l'application : equity vivante et solde liquide.
+    # Au premier battement, avant que le moteur soit construit, le compte
+    # vaut exactement son capital de depart et aucun gain n'est encaisse.
+    if capital is not None:
+        corps["capital_eur"] = round(float(capital), 2)
+    if balance is not None:
+        depart = float(getattr(cfg.engine, "start_balance", 0.0) or 0.0)
+        corps["encaisse_eur"] = round(float(balance) - depart, 2)
+    else:
+        corps["encaisse_eur"] = 0.0
+    # Les colonnes capital_eur/encaisse_eur sont ajoutees par
+    # supabase/migrations/20260924000000_capital_comptes_demo.sql.
+    # Tant que la migration n'est pas appliquee en base, la publication
+    # echouera proprement dans le try/except au lieu d'arreter le moteur.
     corps = json.dumps(corps).encode()
     try:
         requete = urllib.request.Request(
