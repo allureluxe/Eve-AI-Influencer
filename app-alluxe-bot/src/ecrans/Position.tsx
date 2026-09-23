@@ -149,9 +149,16 @@ export function EcranPosition({ route }: any) {
           / ajoutVolume
         : ligne.entry_price;
       const miseAjout = ajoutVolume != null ? ajoutVolume * prixAjout : null;
-      return { ligne, index, ajoutVolume, prixAjout, miseAjout };
+      const prixEtageActuel = prixLive[ligne.pair];
+      const resultatEtage = ajoutVolume != null && prixEtageActuel != null
+        ? ajoutVolume * (prixEtageActuel - prixAjout) * (ligne.side === "sell" ? -1 : 1)
+        : null;
+      const pctEtage = miseAjout != null && miseAjout > 0 && resultatEtage != null
+        ? (resultatEtage / miseAjout) * 100
+        : null;
+      return { ligne, index, ajoutVolume, prixAjout, miseAjout, resultatEtage, pctEtage };
     });
-  }, [etages, p]);
+  }, [etages, p, prixLive]);
 
   const niveaux: NiveauTrace[] = React.useMemo(() => {
     const n: NiveauTrace[] = [
@@ -260,7 +267,7 @@ export function EcranPosition({ route }: any) {
             Chaque renfort est détaillé séparément. Le volume affiché pour un étage
             est uniquement la quantité ajoutée à ce moment-là.
           </T>
-          {detailsEtages.map(({ ligne, index, ajoutVolume, prixAjout, miseAjout }) => (
+          {detailsEtages.map(({ ligne, index, ajoutVolume, prixAjout, miseAjout, resultatEtage, pctEtage }) => (
             <Carte key={ligne.id} style={{ marginBottom: espace.s }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between",
                               alignItems: "center", marginBottom: espace.s }}>
@@ -275,6 +282,10 @@ export function EcranPosition({ route }: any) {
                        : "—"} />
               <Ligne libelle="Montant ajouté"
                      valeur={miseAjout != null ? euros(miseAjout) : "—"} />
+              <Ligne libelle="Résultat actuel de cet étage"
+                     valeur={resultatEtage != null ? euros(resultatEtage) : "—"}
+                     couleur={resultatEtage == null ? undefined : resultatEtage >= 0 ? c.gain : c.perte}
+                     aide={pctEtage != null ? pourcent(pctEtage) : undefined} />
               <Ligne libelle="Prix moyen après l'étage"
                      valeur={fmtPrix(ligne.entry_price)} />
               <Ligne libelle="Quantité totale après l'étage"
