@@ -447,3 +447,24 @@ class TestStopTemporelTransposeParLeMoteur:
 
         calibrage_qui_ralentit()
         assert m.trade_manager.config.time_stop_minutes == pytest.approx(23040.0)
+
+
+class TestPariteExecutionDemoReel:
+    """La demo herite les contraintes economiques du compte Bitvavo."""
+
+    def test_paper_reprend_commission_et_levier_de_la_config(self):
+        from gold_bot.config import BotConfig
+        from gold_bot.engine import TradingEngine
+        from gold_bot.brokers.paper import PaperBroker
+
+        cfg = BotConfig.load("robot.demo.json")
+        cfg.engine.offline = True
+        moteur = TradingEngine(cfg)
+
+        assert isinstance(moteur.broker, PaperBroker)
+        assert moteur.broker.config.commission_pct == pytest.approx(
+            cfg.risk.commission_pct
+        )
+        assert moteur.broker.config.leverage == pytest.approx(
+            cfg.risk.max_leverage
+        )
