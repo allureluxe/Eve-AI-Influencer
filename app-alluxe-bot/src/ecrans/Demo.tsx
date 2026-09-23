@@ -262,18 +262,18 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   // `capitalDepart + gainRealise + gainTotal` est exactement le capital
   // affiche en gros au-dessus : les deux chiffres de la carte parlent
   // desormais du meme compte.
-  const reste = React.useMemo(
-    () => (positions
-      ? resteAInvestir(positions, capitalAffiche, prixLive)
-      : 0),
-    [positions, prixLive, capitalAffiche]);
-
   // Le capital publie par le simulateur est son equity exacte :
   // solde + P/L latent. On l'utilise quand disponible au lieu de
   // reconstruire le capital a partir de l'historique public.
   const capitalAffiche = fiche?.capital_eur != null
     ? fiche.capital_eur
     : capitalDepart + gainRealise + gainTotal - fraisEntreeOuverts;
+
+  const reste = React.useMemo(
+    () => (positions
+      ? resteAInvestir(positions, capitalAffiche, prixLive)
+      : 0),
+    [positions, prixLive, capitalAffiche]);
 
   const capitauxAffiches = React.useMemo(() => ({
     ...capitaux,
