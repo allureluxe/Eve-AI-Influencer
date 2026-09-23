@@ -19,8 +19,12 @@ class BaseBroker(unittest.TestCase):
     def setUp(self):
         self.universe = Universe()
         self.gold = self.universe.get("XAUUSD")
+        # Les tests d'execution portent sur la mecanique (spread, stops,
+        # cloture), pas sur la contrainte de levier 1x de la demo Bitvavo.
+        # Le levier est donc explicite ici afin que le notionnel XAUUSD de
+        # 0.1 lot reste financable avec le compte de test de 10 000 EUR.
         self.broker = PaperBroker(PaperConfig(start_balance=10000.0, commission_pct=0.0,
-                                              slippage_atr=0.0))
+                                              slippage_atr=0.0, leverage=10.0))
         self.broker.connect()
         self.broker.register_instrument(self.gold)
         self.broker.set_price("XAUUSD", Tick(0, 2649.85, 2650.15), atr=2.0)
