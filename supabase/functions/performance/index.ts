@@ -25,8 +25,9 @@
  *    affirmation ; avec elles, c'est un calcul verifiable.
  *
  * Ce que la simulation N'EST PAS : le resultat d'un utilisateur. Elle
- * ne connait ni ses frais, ni son moment d'entree, ni s'il a suivi tous
- * les signaux. L'application doit le dire a l'ecran, pas seulement ici.
+ * ne connait pas les frais PERSONNELS d'un utilisateur ni son moment
+ * d'entree. Elle applique toutefois le tarif taker Bitvavo de reference
+ * et les regles de dimensionnement du signal. L'application doit le dire.
  */
 
 import { filtrerPourLePalier, reponse, servir, Signal } from "../_partage/commun.ts";
