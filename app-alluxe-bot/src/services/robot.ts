@@ -132,7 +132,7 @@ async function lirePositions(
  * volume cumule), mais le detail doit pouvoir raconter chaque renfort.
  * On filtre sur la reference de base avant le suffixe ":etage".
  */ 
-export async function etagesPosition(p: Position, mode: "demo" | "reel"): Promise<Position[]> {
+export async function etagesPosition(p: Position, mode: "demo" | "reel", compte?: string): Promise<Position[]> {
   const ref = p.reference ?? p.id;
   const sep = ref.lastIndexOf(":");
   const base = sep > 0 ? ref.slice(0, sep) : ref;
@@ -145,7 +145,7 @@ export async function etagesPosition(p: Position, mode: "demo" | "reel"): Promis
       .eq("pair", p.pair)
       .not("published_at", "is", null)
       .order("published_at", { ascending: true });
-    if (mode === "demo") q = q.eq("compte", p.reference?.startsWith("demo") ? "demo" : "demo");
+    if (mode === "demo") q = q.eq("compte", compte ?? "demo");
     return q;
   };
   const lignes = await lirePositions((colonnes) => requete(colonnes));
