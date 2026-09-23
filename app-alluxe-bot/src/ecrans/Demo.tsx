@@ -93,6 +93,7 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   // chiffre sans qu'on ait a les ouvrir un par un.
   const [capitaux, setCapitaux] = React.useState<Record<string, number | null>>({});
   const [positionsParCompte, setPositionsParCompte] = React.useState<Record<string, Position[]>>({});
+  const [historiquesParCompte, setHistoriquesParCompte] = React.useState<Record<string, Position[]>>({});
   const [tri, setTri] = React.useState<Tri>("gain");
   const [descendant, setDescendant] = React.useState(true);
 
@@ -132,6 +133,19 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
     return () => { vivant = false; };
   }, [compte, fiches]);
 
+  React.useEffect(() => {
+    let vivant = true;
+    (async () => {
+      const resultat: Record<string, Position[]> = {};
+      await Promise.all(COMPTES.map(async ({ cle }) => {
+        try { resultat[cle] = await historiqueDemo(1000, cle); }
+        catch { resultat[cle] = []; }
+      }));
+      if (vivant) setHistoriquesParCompte(resultat);
+    })();
+    return () => { vivant = false; };
+  }, [compte, fiches]);
+
   const toutesLesPairesDemo = React.useMemo(
     () => Array.from(new Set(Object.values(positionsParCompte).flat().map((p) => p.pair))),
     [positionsParCompte],
@@ -144,7 +158,7 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   const capitalReconstruit = React.useCallback((cle: string): number => {
     const f = fiches[cle];
     const depart = f?.capital_depart ?? CAPITAL_DEMO_EUR;
-    const clos = cle === compte && fermees ? fermees : [];
+    const clos = cle === compte && fermees ? fermees : (historiquesParCompte[cle] ?? []);
     const realise = clos.reduce((somme, t) => somme + (gainRealiseDe(t, depart) ?? 0), 0);
     const ouverts = positionsParCompte[cle] ?? [];
     const latent = ouverts.reduce((somme, p) => {
@@ -156,7 +170,7 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
       return somme + brut - fraisEntree;
     }, 0);
     return depart + realise + latent;
-  }, [fiches, fermees, positionsParCompte, prixDemoLive, compte]);
+  }, [fiches, fermees, historiquesParCompte, positionsParCompte, prixDemoLive, compte]);
 
   React.useEffect(() => {
     let vivant = true;
