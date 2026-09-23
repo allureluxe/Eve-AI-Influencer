@@ -23,10 +23,11 @@
 import React from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CompteDemo, Position, comptesDemo, historiqueDemo } from "../services/robot";
+import { CompteDemo, Position, comptesDemo, historiqueDemo, positionsOuvertesDemo } from "../services/robot";
 import { useSuiviPositions } from "../services/suiviPositions";
 import { euros, gainRealiseDe, nomCrypto, pourcent, quand } from "../services/format";
 import { espace, rayon } from "../theme";
+import { usePrixLive } from "../services/prixLive";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 import { BarreDeTri, LignePosition, Tri, trier } from "../composants/ListePositions";
 import { etagesAffiches, gainTotalEnDirect, resteAInvestir } from "../composants/positionsTri";
@@ -43,6 +44,8 @@ const CAPITAL_DEMO_EUR = 3300;
 // Les chiffres historiques sont reconstruits depuis les trades fermes corriges
 // (profit_eur net), pas depuis une ancienne valeur de cache serveur.
 const HISTORIQUE_CORRIGE_LE_23_09_2026 = true;
+
+const COMMISSION_DEMO_PCT = 0.0025;
 
 const LIBELLE_STATUT: Record<string, string> = {
   closed_tp: "Objectif atteint",
@@ -89,6 +92,7 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   // Le capital de CHAQUE compte, pour que les trois onglets affichent un
   // chiffre sans qu'on ait a les ouvrir un par un.
   const [capitaux, setCapitaux] = React.useState<Record<string, number | null>>({});
+  const [positionsParCompte, setPositionsParCompte] = React.useState<Record<string, Position[]>>({});
   const [tri, setTri] = React.useState<Tri>("gain");
   const [descendant, setDescendant] = React.useState(true);
 
@@ -115,13 +119,45 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   React.useEffect(() => { chargerFiches(); }, [chargerFiches]);
   React.useEffect(() => { chargerFermees(); }, [chargerFermees]);
 
-  // LE CAPITAL DES AUTRES ONGLETS.
-  //
-  // Il ne suffit pas de le calculer pour le compte affiche : les trois
-  // onglets montrent un chiffre, et un onglet qui affiche « — » pendant
-  // qu'on regarde le voisin ne sert a rien. On lit donc l'historique de
-  // chaque compte une fois -- leurs positions ouvertes, elles, n'ont pas
-  // de cotation en memoire, donc ce chiffre-la est le capital ENCAISSE.
+  React.useEffect(() => {
+    let vivant = true;
+    (async () => {
+      const resultat: Record<string, Position[]> = {};
+      await Promise.all(COMPTES.map(async ({ cle }) => {
+        try { resultat[cle] = await positionsOuvertesDemo(cle); }
+        catch { resultat[cle] = []; }
+      }));
+      if (vivant) setPositionsParCompte(resultat);
+    })();
+    return () => { vivant = false; };
+  }, [compte, fiches]);
+
+  const toutesLesPairesDemo = React.useMemo(
+    () => Array.from(new Set(Object.values(positionsParCompte).flat().map((p) => p.pair))),
+    [positionsParCompte],
+  );
+  const prixDemoLive = usePrixLive(toutesLesPairesDemo.length > 0);
+
+  // Meme definition que PaperBroker.account : capital de depart + profits
+  // fermes nets + P/L latent brut - frais d'entree deja payes sur les
+  // positions ouvertes. Le frais de sortie n'est pas encore paye.
+  const capitalReconstruit = React.useCallback((cle: string): number => {
+    const f = fiches[cle];
+    const depart = f?.capital_depart ?? CAPITAL_DEMO_EUR;
+    const clos = cle === compte && fermees ? fermees : [];
+    const realise = clos.reduce((somme, t) => somme + (gainRealiseDe(t, depart) ?? 0), 0);
+    const ouverts = positionsParCompte[cle] ?? [];
+    const latent = ouverts.reduce((somme, p) => {
+      const courant = prixDemoLive[p.pair];
+      if (courant == null || p.volume == null || p.volume <= 0) return somme;
+      const sens = p.side === "sell" ? -1 : 1;
+      const brut = p.volume * (courant - p.entry_price) * sens;
+      const fraisEntree = p.volume * p.entry_price * COMMISSION_DEMO_PCT;
+      return somme + brut - fraisEntree;
+    }, 0);
+    return depart + realise + latent;
+  }, [fiches, fermees, positionsParCompte, prixDemoLive, compte]);
+
   React.useEffect(() => {
     let vivant = true;
     (async () => {
@@ -129,30 +165,13 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
       for (const { cle } of COMPTES) {
         const f = fiches[cle];
         if (!f) { resultats[cle] = null; continue; }
-        // LE CAPITAL VIVANT VIENT DU SERVEUR quand il l'a publie.
-        //
-        // On le recalculait a partir des seuls trades FERMES, donc
-        // en ignorant les positions ouvertes : le chiffre affiche
-        // sur l'onglet qu'on NE regarde PAS paraissait fige.
-        // Releve par l'operateur le 22 septembre.
-        //
-        // `capital_eur` est ecrit toutes les 5 minutes par
-        // ops/battement_comptes.py : solde + gain latent, la
-        // definition meme du simulateur.
-        // SOURCE UNIQUE : trades fermes corriges. Les anciennes valeurs
-        // capital_eur/encaisse_eur peuvent dater d'avant la correction.
-        try {
-          const clos = await historiqueDemo(1000, cle);
-          const realise = clos.reduce(
-            (somme, t) => somme + (gainRealiseDe(t, f.capital_depart) ?? 0), 0);
-          resultats[cle] = f.capital_depart + realise;
-        } catch { resultats[cle] = f.capital_depart; }
+        try { resultats[cle] = capitalReconstruit(cle); }
+        catch { resultats[cle] = f.capital_depart ?? CAPITAL_DEMO_EUR; }
       }
       if (vivant) setCapitaux(resultats);
     })();
     return () => { vivant = false; };
-  }, [fiches]);
-
+  }, [fiches, capitalReconstruit]);
   // Le total passe par la MEME fonction que les lignes. Ecrit a la main
   // ici, il a menti pendant que les lignes disaient vrai -- voir
   // `gainTotalEnDirect`.
@@ -187,13 +206,16 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   // le serveur publie desormais dans `encaisse_eur`. On le prend des
   // qu'il est la ; la somme des lignes reste le repli.
   const gainRealise = React.useMemo(() => {
-    // NE PLUS UTILISER encaisse_eur : cette valeur peut etre ancienne.
-    // Le montant corrige vient directement des trades fermes et de
-    // profit_eur quand il est disponible.
     if (!fermees) return 0;
     return fermees.reduce(
       (somme, t) => somme + (gainRealiseDe(t, capitalDepart) ?? 0), 0);
   }, [fermees, capitalDepart]);
+
+  const fraisEntreeOuverts = React.useMemo(() =>
+    (positions ?? []).reduce((somme, p) => {
+      if (p.volume == null || p.volume <= 0 || p.entry_price <= 0) return somme;
+      return somme + p.volume * p.entry_price * COMMISSION_DEMO_PCT;
+    }, 0), [positions]);
 
   // L'onglet ouvert connait ses positions en cours ; les autres non.
   // On remplace donc son chiffre par le capital COMPLET.
@@ -218,10 +240,12 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
       : 0),
     [positions, prixLive, capitalDepart, gainRealise, gainTotal]);
 
+  const capitalAffiche = capitalDepart + gainRealise + gainTotal - fraisEntreeOuverts;
+
   const capitauxAffiches = React.useMemo(() => ({
     ...capitaux,
-    [compte]: capitalDepart + gainRealise + gainTotal,
-  }), [capitaux, compte, capitalDepart, gainRealise, gainTotal]);
+    [compte]: capitalAffiche,
+  }), [capitaux, compte, capitalAffiche]);
 
   const surRafraichir = async () => {
     setRafraichit(true);
@@ -263,7 +287,7 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
           {nomCompte} · {euros(capitalDepart)} de départ
         </T>
         <T v="titreGrand" style={{ marginTop: espace.xs }}>
-          {euros(capitalDepart + gainRealise + gainTotal)}
+          {euros(capitalAffiche)}
         </T>
         <View style={{ flexDirection: "row", gap: espace.m, marginTop: espace.xs }}>
           <T v="petit" couleur={gainRealise >= 0 ? c.gain : c.perte}>
