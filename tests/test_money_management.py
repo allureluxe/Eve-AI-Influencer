@@ -15,6 +15,7 @@ import pytest
 from helpers import *  # noqa: F401,F403 - insere la racine du projet dans sys.path
 
 from gold_bot.core import Side
+from gold_bot.settings import BotConfig
 from gold_bot.risk import EquityLadder, RiskConfig, RiskManager
 from gold_bot.universe import Universe
 
@@ -453,7 +454,6 @@ class TestPariteExecutionDemoReel:
     """La demo herite les contraintes economiques du compte Bitvavo."""
 
     def test_paper_reprend_commission_et_levier_de_la_config(self):
-        from gold_bot.config import BotConfig
         from gold_bot.engine import TradingEngine
         from gold_bot.brokers.paper import PaperBroker
 
