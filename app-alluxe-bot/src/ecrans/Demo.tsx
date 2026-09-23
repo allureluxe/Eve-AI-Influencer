@@ -117,7 +117,14 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
     catch { setFermees([]); }
   }, [compte]);
 
-  React.useEffect(() => { chargerFiches(); }, [chargerFiches]);
+  React.useEffect(() => {
+    chargerFiches();
+    // Le capital vivant est publie par le simulateur toutes les 5 minutes.
+    // L'application le relit plus souvent pour que l'affichage ne reste
+    // jamais fige entre deux releves.
+    const id = setInterval(() => { chargerFiches(); }, 10000);
+    return () => clearInterval(id);
+  }, [chargerFiches]);
   React.useEffect(() => { chargerFermees(); }, [chargerFermees]);
 
   React.useEffect(() => {
