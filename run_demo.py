@@ -76,7 +76,8 @@ class NotifierDemo(Notifier):
         super().send(note, throttle_key=throttle_key, throttle_seconds=throttle_seconds)
 
 
-def _publier_la_fiche_du_compte(compte: str, cfg, capital: float | None = None) -> None:
+def _publier_la_fiche_du_compte(compte: str, cfg, capital: float | None = None,
+                                balance: float | None = None) -> None:
     """Depose la methode et le capital de ce compte dans `alluxe_bot_comptes`.
 
     ELLE SE REPUBLIE EN BOUCLE, ET C'EST LE POINT.
@@ -302,10 +303,13 @@ def main() -> int:
         while True:
             time.sleep(300)
             try:
-                capital = engine.broker.account().equity
+                compte_simule = engine.broker.account()
+                capital = compte_simule.equity
+                balance = compte_simule.balance
             except Exception:                                 # noqa: BLE001
                 capital = None
-            _publier_la_fiche_du_compte(compte, cfg, capital)
+                balance = None
+            _publier_la_fiche_du_compte(compte, cfg, capital, balance)
 
     threading.Thread(target=_battement, daemon=True,
                      name=f"fiche-{compte}").start()
