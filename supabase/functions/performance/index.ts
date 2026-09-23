@@ -45,7 +45,7 @@ Deno.serve((requete) =>
     const { data } = await service
       .from("signals")
       .select(`id, published_at, pair, side, closed_at, result_pct,
-               position_size_pct, status`)
+               position_size_pct, entry_price, stop_loss, status`)
       .not("published_at", "is", null)
       .not("closed_at", "is", null)
       .not("result_pct", "is", null)
@@ -82,9 +82,25 @@ Deno.serve((requete) =>
     ];
 
     for (const s of signaux) {
-      // La part engagee vient du signal lui-meme quand elle existe.
-      const part = (s.position_size_pct ?? PART_PAR_DEFAUT) / 100;
-      const resultat = capital * part * ((s.result_pct ?? 0) / 100);
+      // position_size_pct est le RISQUE du signal, pas la somme engagee.
+      // Pour rester coherent avec le moteur, on reconstruit la mise a partir
+      // de la distance au stop. Avant ce correctif, la demo traitait 0,6 %
+      // de risque comme 0,6 % du capital engage : elle sous-estimait donc
+      // l'exposition d'un facteur pouvant etre tres important.
+      const risque = (s.position_size_pct ?? PART_PAR_DEFAUT) / 100;
+      const distanceStop = s.entry_price && s.stop_loss
+        ? Math.abs(s.entry_price - s.stop_loss) / Math.abs(s.entry_price)
+        : 0;
+      const part = distanceStop > 0
+        ? Math.min(0.90, risque / distanceStop)
+        : 0;
+
+      const variationPrix = (s.result_pct ?? 0) / 100;
+      const notionnel = capital * part;
+      // Bitvavo spot : taker a l'entree ET a la sortie, palier de base.
+      // La simulation publique doit etre prudente et annoncer ce cout.
+      const frais = notionnel * 0.0025 + notionnel * (1 + variationPrix) * 0.0025;
+      const resultat = notionnel * variationPrix - frais;
       capital += resultat;
 
       if (resultat > 0) { gains += 1; sommeGains += resultat; }
@@ -123,8 +139,9 @@ Deno.serve((requete) =>
       hypotheses: [
         `Depart a ${DEPART.toLocaleString("fr-FR")} EUR.`,
         "Tous les signaux suivis, aucun manque.",
-        "Frais de plateforme et ecart de prix non deduits.",
-        "Resultat calcule sur le mouvement du prix entre l'entree et la sortie.",
+        "Frais taker Bitvavo de 0,25 % a l'entree et a la sortie deduits.",
+        "Mise reconstruite depuis le risque du signal et la distance au stop, plafonnee a 90 % du capital.",
+        "Le spread et le slippage reel peuvent encore rendre le resultat reel different.",
         "Ceci est une simulation, pas le resultat d'un compte reel.",
       ],
     });
