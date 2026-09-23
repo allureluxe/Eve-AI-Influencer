@@ -26,9 +26,9 @@ class PaperConfig:
     start_balance: float = 1000.0
     currency: str = "EUR"
     commission_per_lot: float = 0.0      # commission fixe par lot
-    commission_pct: float = 0.0002       # 0.02 % du notionnel
+    commission_pct: float = 0.0025       # 0.25 % taker Bitvavo par cote
     slippage_atr: float = 0.05           # slippage en fraction d'ATR
-    leverage: float = 100.0
+    leverage: float = 1.0
 
 
 class PaperBroker(Broker):
