@@ -15,7 +15,7 @@ import React from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Pressable } from "react-native";
-import { Position } from "../services/robot";
+import { Position, etagesPosition } from "../services/robot";
 import { Bougie, UNITES, Unite, bougies } from "../services/bougies";
 import { usePrixLive } from "../services/prixLive";
 import { chiffresDe } from "../composants/positionsTri";
@@ -98,6 +98,20 @@ export function EcranPosition({ route }: any) {
 
   const [unite, setUnite] = React.useState<Unite>("1h");
   const [barres, setBarres] = React.useState<Bougie[] | null>(null);
+  const [etages, setEtages] = React.useState<Position[] | null>(null);
+
+  const modeEstDemo = mode.toLowerCase().includes("demo");
+  // Le detail recharge toutes les lignes de la pyramide. La liste, elle,
+  // n'en garde qu'une pour ne pas compter plusieurs fois le volume cumule.
+  React.useEffect(() => {
+    let vivant = true;
+    setEtages(null);
+    etagesPosition(p, modeEstDemo ? "demo" : "reel",
+      modeEstDemo ? (route.params?.compte as string | undefined) : undefined)
+      .then((lignes) => { if (vivant) setEtages(lignes); })
+      .catch(() => { if (vivant) setEtages([p]); });
+    return () => { vivant = false; };
+  }, [p.id, p.reference, p.pair, mode, modeEstDemo, route.params?.compte]);
 
   // La cotation en direct, meme source et meme rythme que les listes --
   // un seul appel rend tous les marches, donc suivre une position ne
@@ -119,6 +133,25 @@ export function EcranPosition({ route }: any) {
   const aLAbri = p.side === "sell"
     ? stopCourant < p.entry_price
     : stopCourant > p.entry_price;
+
+  const detailsEtages = React.useMemo(() => {
+    const lignes = [...(etages ?? [p])].sort(
+      (a, b) => new Date(a.published_at).getTime() - new Date(b.published_at).getTime());
+    return lignes.map((ligne, index) => {
+      const precedent = index > 0 ? lignes[index - 1] : null;
+      const volumeCumul = ligne.volume ?? null;
+      const volumeAvant = precedent?.volume ?? 0;
+      const ajoutVolume = volumeCumul != null
+        ? Math.max(0, volumeCumul - volumeAvant)
+        : null;
+      const prixAjout = ajoutVolume != null && ajoutVolume > 1e-12 && precedent?.volume != null
+        ? ((ligne.entry_price * volumeCumul) - (precedent.entry_price * precedent.volume!))
+          / ajoutVolume
+        : ligne.entry_price;
+      const miseAjout = ajoutVolume != null ? ajoutVolume * prixAjout : null;
+      return { ligne, index, ajoutVolume, prixAjout, miseAjout };
+    });
+  }, [etages, p]);
 
   const niveaux: NiveauTrace[] = React.useMemo(() => {
     const n: NiveauTrace[] = [
@@ -216,6 +249,46 @@ export function EcranPosition({ route }: any) {
                couleur={ch != null && ch.eur >= 0 ? c.gain : c.perte} />
         <Ligne libelle="Ouverte" valeur={quand(p.published_at)} />
       </Carte>
+
+      {/* --- Les etages de la pyramide --- */}
+      {detailsEtages.length > 1 && (
+        <>
+          <T v="sousTitre" style={{ marginTop: espace.xl, marginBottom: espace.xs }}>
+            Détail des étages · {detailsEtages.length}
+          </T>
+          <T v="legende" couleur={c.encrePale} style={{ marginBottom: espace.s }}>
+            Chaque renfort est détaillé séparément. Le volume affiché pour un étage
+            est uniquement la quantité ajoutée à ce moment-là.
+          </T>
+          {detailsEtages.map(({ ligne, index, ajoutVolume, prixAjout, miseAjout }) => (
+            <Carte key={ligne.id} style={{ marginBottom: espace.s }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between",
+                              alignItems: "center", marginBottom: espace.s }}>
+                <T v="sousTitre">Étage {index + 1}</T>
+                <T v="legende" couleur={c.encreDouce}>{quand(ligne.published_at)}</T>
+              </View>
+              <Ligne libelle="Prix d'ouverture de l'étage"
+                     valeur={fmtPrix(prixAjout)} />
+              <Ligne libelle="Quantité achetée à cet étage"
+                     valeur={ajoutVolume != null
+                       ? ajoutVolume.toLocaleString("fr-FR", { maximumFractionDigits: 8 }) + " " + ligne.pair.split("/")[0]
+                       : "—"} />
+              <Ligne libelle="Montant ajouté"
+                     valeur={miseAjout != null ? euros(miseAjout) : "—"} />
+              <Ligne libelle="Prix moyen après l'étage"
+                     valeur={fmtPrix(ligne.entry_price)} />
+              <Ligne libelle="Quantité totale après l'étage"
+                     valeur={ligne.volume != null
+                       ? ligne.volume.toLocaleString("fr-FR", { maximumFractionDigits: 8 }) + " " + ligne.pair.split("/")[0]
+                       : "—"} />
+              <Ligne libelle="Stop de l'étage" valeur={fmtPrix(ligne.stop_loss)} />
+              {!!ligne.take_profit_1 && (
+                <Ligne libelle="Objectif de l'étage" valeur={fmtPrix(ligne.take_profit_1)} />
+              )}
+            </Carte>
+          ))}
+        </>
+      )}
 
       {/* --- La protection --- */}
       <T v="sousTitre" style={{ marginTop: espace.xl, marginBottom: espace.xs }}>
