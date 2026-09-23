@@ -380,7 +380,7 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
                            prixActuel={prixLive[p.pair]}
                            etage={etages[p.id]}
                            surAppui={navigation ? () => navigation.navigate("Position", {
-                             position: p, capital: capitalDepart, mode: nomCompte,
+                             position: p, capital: capitalDepart, mode: nomCompte, compte,
                            }) : undefined} />
           ))}
         </>
