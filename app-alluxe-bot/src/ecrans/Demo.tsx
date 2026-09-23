@@ -219,11 +219,17 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   // Le seul chiffre qui les porte tous est le solde du simulateur, que
   // le serveur publie desormais dans `encaisse_eur`. On le prend des
   // qu'il est la ; la somme des lignes reste le repli.
+  // SOURCE DE VERITE : le robot publie le gain reel encaisse et
+  // l'equity vivante dans alluxe_bot_comptes. Les lignes de l'historique
+  // restent utiles pour le detail, mais ne doivent plus reconstruire le
+  // capital : les anciennes lignes sans profit_eur peuvent etre
+  // incompletes (frais/arrondis/pyramides).
   const gainRealise = React.useMemo(() => {
+    if (fiche?.encaisse_eur != null) return fiche.encaisse_eur;
     if (!fermees) return 0;
     return fermees.reduce(
       (somme, t) => somme + (gainRealiseDe(t, capitalDepart) ?? 0), 0);
-  }, [fermees, capitalDepart]);
+  }, [fiche?.encaisse_eur, fermees, capitalDepart]);
 
   const fraisEntreeOuverts = React.useMemo(() =>
     (positions ?? []).reduce((somme, p) => {
@@ -254,7 +260,12 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
       : 0),
     [positions, prixLive, capitalDepart, gainRealise, gainTotal]);
 
-  const capitalAffiche = capitalDepart + gainRealise + gainTotal - fraisEntreeOuverts;
+  // Le capital publie par le simulateur est son equity exacte :
+  // solde + P/L latent. On l'utilise quand disponible au lieu de
+  // reconstruire le capital a partir de l'historique public.
+  const capitalAffiche = fiche?.capital_eur != null
+    ? fiche.capital_eur
+    : capitalDepart + gainRealise + gainTotal - fraisEntreeOuverts;
 
   const capitauxAffiches = React.useMemo(() => ({
     ...capitaux,
