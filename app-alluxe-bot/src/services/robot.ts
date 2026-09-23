@@ -126,6 +126,37 @@ async function lirePositions(
 // les fonctions REELLES filtrent `is_demo=false`, les fonctions DEMO
 // filtrent `is_demo=true` -- jamais l'un sans l'autre, jamais melange.
 
+/** Retourne TOUTES les lignes publiees d'une pyramide ouverte.
+ *
+ * La liste principale garde une seule ligne (la derniere, qui porte le
+ * volume cumule), mais le detail doit pouvoir raconter chaque renfort.
+ * On filtre sur la reference de base avant le suffixe ":etage".
+ */ 
+export async function etagesPosition(p: Position, mode: "demo" | "reel"): Promise<Position[]> {
+  const ref = p.reference ?? p.id;
+  const sep = ref.lastIndexOf(":");
+  const base = sep > 0 ? ref.slice(0, sep) : ref;
+  const requete = (colonnes: string) => {
+    let q = supabase
+      .from("signals")
+      .select(colonnes)
+      .eq("status", "active")
+      .eq("is_demo", mode === "demo")
+      .eq("pair", p.pair)
+      .not("published_at", "is", null)
+      .order("published_at", { ascending: true });
+    if (mode === "demo") q = q.eq("compte", p.reference?.startsWith("demo") ? "demo" : "demo");
+    return q;
+  };
+  const lignes = await lirePositions((colonnes) => requete(colonnes));
+  const groupe = lignes.filter((x) => {
+    const r = x.reference ?? x.id;
+    const b = r.includes(":") ? r.slice(0, r.lastIndexOf(":")) : r;
+    return b === base;
+  });
+  return groupe.length ? groupe : [p];
+}
+
 export async function positionsOuvertes(): Promise<Position[]> {
   return lirePositions((colonnes) => supabase
     .from("signals")
