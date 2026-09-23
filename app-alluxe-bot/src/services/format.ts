@@ -312,3 +312,7 @@ export function regrouperLesEtages<T extends {
   }
   return [...parPosition.values()];
 }
+
+
+// Rebuild marker: donnees demo/frais realistes synchronisees le 23 septembre 2026.
+// Le calcul de gainRealiseDe() utilise profit_eur quand il est publie.
