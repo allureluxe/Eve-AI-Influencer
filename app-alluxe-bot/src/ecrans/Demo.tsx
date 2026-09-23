@@ -179,6 +179,14 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
       for (const { cle } of COMPTES) {
         const f = fiches[cle];
         if (!f) { resultats[cle] = null; continue; }
+        // Chaque onglet doit afficher la MEME valeur de verite, meme
+        // lorsqu'il n'est pas selectionne. Sinon le compte ouvert utilise
+        // capital_eur publie, tandis que les autres retombent sur une
+        // reconstruction locale potentiellement ancienne.
+        if (f.capital_eur != null) {
+          resultats[cle] = f.capital_eur;
+          continue;
+        }
         try { resultats[cle] = capitalReconstruit(cle); }
         catch { resultats[cle] = f.capital_depart ?? CAPITAL_DEMO_EUR; }
       }
@@ -256,9 +264,9 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   // desormais du meme compte.
   const reste = React.useMemo(
     () => (positions
-      ? resteAInvestir(positions, capitalDepart + gainRealise + gainTotal, prixLive)
+      ? resteAInvestir(positions, capitalAffiche, prixLive)
       : 0),
-    [positions, prixLive, capitalDepart, gainRealise, gainTotal]);
+    [positions, prixLive, capitalAffiche]);
 
   // Le capital publie par le simulateur est son equity exacte :
   // solde + P/L latent. On l'utilise quand disponible au lieu de
