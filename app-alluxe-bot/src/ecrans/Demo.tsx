@@ -40,6 +40,10 @@ import { CleCompte, ChoixCompte, COMPTES } from "../composants/ChoixCompte";
 // lui-meme -- l'application ne la devine pas.
 const CAPITAL_DEMO_EUR = 3300;
 
+// Les chiffres historiques sont reconstruits depuis les trades fermes corriges
+// (profit_eur net), pas depuis une ancienne valeur de cache serveur.
+const HISTORIQUE_CORRIGE_LE_23_09_2026 = true;
+
 const LIBELLE_STATUT: Record<string, string> = {
   closed_tp: "Objectif atteint",
   closed_sl: "Stop touche",
@@ -135,14 +139,10 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
         // `capital_eur` est ecrit toutes les 5 minutes par
         // ops/battement_comptes.py : solde + gain latent, la
         // definition meme du simulateur.
-        if (f.capital_eur != null) { resultats[cle] = f.capital_eur; continue; }
-        // Meme regle que pour l'onglet ouvert : le chiffre du serveur
-        // d'abord, la somme des lignes seulement a defaut.
-        if (f.encaisse_eur != null) {
-          resultats[cle] = f.capital_depart + f.encaisse_eur; continue;
-        }
+        // SOURCE UNIQUE : trades fermes corriges. Les anciennes valeurs
+        // capital_eur/encaisse_eur peuvent dater d'avant la correction.
         try {
-          const clos = await historiqueDemo(100, cle);
+          const clos = await historiqueDemo(1000, cle);
           const realise = clos.reduce(
             (somme, t) => somme + (gainRealiseDe(t, f.capital_depart) ?? 0), 0);
           resultats[cle] = f.capital_depart + realise;
@@ -187,11 +187,13 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   // le serveur publie desormais dans `encaisse_eur`. On le prend des
   // qu'il est la ; la somme des lignes reste le repli.
   const gainRealise = React.useMemo(() => {
-    if (fiche?.encaisse_eur != null) return fiche.encaisse_eur;
+    // NE PLUS UTILISER encaisse_eur : cette valeur peut etre ancienne.
+    // Le montant corrige vient directement des trades fermes et de
+    // profit_eur quand il est disponible.
     if (!fermees) return 0;
     return fermees.reduce(
       (somme, t) => somme + (gainRealiseDe(t, capitalDepart) ?? 0), 0);
-  }, [fiche, fermees, capitalDepart]);
+  }, [fermees, capitalDepart]);
 
   // L'onglet ouvert connait ses positions en cours ; les autres non.
   // On remplace donc son chiffre par le capital COMPLET.
