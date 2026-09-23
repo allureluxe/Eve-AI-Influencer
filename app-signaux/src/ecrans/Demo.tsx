@@ -220,8 +220,9 @@ export function EcranDemo({ versAbonnement }: { versAbonnement: () => void }) {
               </T>
             ))}
             <T v="legende" style={{ marginTop: espace.xs, lineHeight: 16 }}>
-              • Un utilisateur reel gagnerait moins : les frais de
-              plateforme ne sont pas deduits.
+              • Les frais taker Bitvavo de 0,25 % a l'entree et a
+              la sortie sont deja deduits. Le spread et le slippage
+              peuvent encore rendre le resultat reel different.
             </T>
           </Carte>
 
