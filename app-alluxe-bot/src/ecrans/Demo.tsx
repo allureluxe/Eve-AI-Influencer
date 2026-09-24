@@ -278,14 +278,48 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
 
   const reste = React.useMemo(
     () => (positions
-      ? resteAInvestir(positions, capitalAffiche, prixLive)
+      ? resteAInvestir(positions, capitalAfficheDynamique, prixLive)
       : 0),
-    [positions, prixLive, capitalAffiche]);
+    [positions, prixLive, capitalAfficheDynamique]);
+
+  // Le serveur publie le solde encaisse toutes les 5 minutes, mais les
+  // positions et leurs cours changent toutes les 3 secondes. Le capital
+  // affiche doit donc etre une EQUITY vivante :
+  //   encaisse_eur + P/L latent courant
+  // et non pas le dernier snapshot capital_eur. Ainsi le chiffre monte
+  // ou descend immediatement quand une position evolue.
+  const capitauxDynamique = React.useMemo(() => {
+    const resultat: Record<string, number | null> = {};
+    for (const { cle } of COMPTES) {
+      const f = fiches[cle];
+      const ouverts = positionsParCompte[cle] ?? [];
+      if (!f) {
+        resultat[cle] = null;
+        continue;
+      }
+      const base = f.encaisse_eur ?? f.capital_eur;
+      if (base == null) {
+        resultat[cle] = f.capital_depart ?? CAPITAL_DEMO_EUR;
+        continue;
+      }
+      const latent = gainTotalEnDirect(
+        ouverts,
+        f.capital_depart ?? CAPITAL_DEMO_EUR,
+        prixDemoLive,
+      );
+      resultat[cle] = base + latent;
+    }
+    return resultat;
+  }, [fiches, positionsParCompte, prixDemoLive]);
+
+  const capitalAfficheDynamique =
+    capitauxDynamique[compte] ?? capitalAffiche;
 
   const capitauxAffiches = React.useMemo(() => ({
     ...capitaux,
-    [compte]: capitalAffiche,
-  }), [capitaux, compte, capitalAffiche]);
+    ...capitauxDynamique,
+    [compte]: capitalAfficheDynamique,
+  }), [capitaux, capitauxDynamique, compte, capitalAfficheDynamique]);
 
   const surRafraichir = async () => {
     setRafraichit(true);
@@ -327,7 +361,7 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
           {nomCompte} · {euros(capitalDepart)} de départ
         </T>
         <T v="titreGrand" style={{ marginTop: espace.xs }}>
-          {euros(capitalAffiche)}
+          {euros(capitalAfficheDynamique)}
         </T>
         <View style={{ flexDirection: "row", gap: espace.m, marginTop: espace.xs }}>
           <T v="petit" couleur={gainRealise >= 0 ? c.gain : c.perte}>
