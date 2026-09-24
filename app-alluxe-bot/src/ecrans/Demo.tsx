@@ -285,17 +285,18 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
         resultat[cle] = null;
         continue;
       }
-      const base = f.encaisse_eur ?? f.capital_eur;
-      if (base == null) {
-        resultat[cle] = f.capital_depart ?? CAPITAL_DEMO_EUR;
-        continue;
-      }
+      // encaisse_eur est le BENEFICE encaissé (solde courant - capital
+      // de départ), pas le capital total. Le capital affiché doit donc
+      // repartir du capital de départ avant d'ajouter ce bénéfice et le
+      // P/L latent des positions ouvertes.
+      const depart = f.capital_depart ?? CAPITAL_DEMO_EUR;
+      const encaisse = f.encaisse_eur ?? 0;
       const latent = gainTotalEnDirect(
         ouverts,
-        f.capital_depart ?? CAPITAL_DEMO_EUR,
+        depart,
         prixDemoLive,
       );
-      resultat[cle] = base + latent;
+      resultat[cle] = depart + encaisse + latent;
     }
     return resultat;
   }, [fiches, positionsParCompte, prixDemoLive]);
