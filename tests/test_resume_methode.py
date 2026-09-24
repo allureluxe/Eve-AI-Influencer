@@ -47,11 +47,24 @@ class TestLeResumeSuitLesREGLAGES:
         assert f"Canal {min(cfg.strategy.donchian_entrees)} j" in resume_methode(cfg)
 
     def test_la_reserve_apparait_et_se_lit_en_francais(self):
-        # Le compte 2 a repris la reserve du compte 1 le 20 sept. : il
-        # teste desormais la limite par famille, et deux ecarts a la fois
-        # rendraient la mesure illisible.
-        assert "⅓" in resume_methode(_cfg("robot.demo.json"))
+        """UN COMPORTEMENT, PAS L'ETAT D'UN FICHIER.
+
+        L'assertion portait sur `robot.demo.json` tel qu'il etait ce
+        jour-la (reserve a 1,67). Le 25 septembre la demo 1 a ete
+        REALIGNEE sur le robot reel, qui n'a pas de reserve depuis que
+        la mesure du 20 l'a condamnee -- et ce test a casse sur du code
+        parfaitement correct.
+
+        C'est le defaut que le test suivant raconte deja, mot pour mot :
+        verifier un FICHIER au lieu d'un COMPORTEMENT casse a chaque
+        fois qu'un compte change de reglage. On verifie donc les deux
+        cas sur des configurations construites ici, et le resume peut
+        alors suivre n'importe quel fichier sans rien casser.
+        """
         cfg = _cfg("robot.demo.json")
+        cfg.risk.reserve_pyramide_pct = cfg.risk.max_total_risk_pct / 3
+        assert "⅓" in resume_methode(cfg)
+
         cfg.risk.reserve_pyramide_pct = 0.0
         assert "rien de réservé" in resume_methode(cfg)
 
