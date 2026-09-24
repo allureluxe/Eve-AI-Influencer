@@ -276,18 +276,6 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
     ? fiche.capital_eur
     : capitalDepart + gainRealise + gainTotal - fraisEntreeOuverts;
 
-  const reste = React.useMemo(
-    () => (positions
-      ? resteAInvestir(positions, capitalAfficheDynamique, prixLive)
-      : 0),
-    [positions, prixLive, capitalAfficheDynamique]);
-
-  // Le serveur publie le solde encaisse toutes les 5 minutes, mais les
-  // positions et leurs cours changent toutes les 3 secondes. Le capital
-  // affiche doit donc etre une EQUITY vivante :
-  //   encaisse_eur + P/L latent courant
-  // et non pas le dernier snapshot capital_eur. Ainsi le chiffre monte
-  // ou descend immediatement quand une position evolue.
   const capitauxDynamique = React.useMemo(() => {
     const resultat: Record<string, number | null> = {};
     for (const { cle } of COMPTES) {
@@ -315,6 +303,19 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   const capitalAfficheDynamique =
     capitauxDynamique[compte] ?? capitalAffiche;
 
+
+  const reste = React.useMemo(
+    () => (positions
+      ? resteAInvestir(positions, capitalAfficheDynamique, prixLive)
+      : 0),
+    [positions, prixLive, capitalAfficheDynamique]);
+
+  // Le serveur publie le solde encaisse toutes les 5 minutes, mais les
+  // positions et leurs cours changent toutes les 3 secondes. Le capital
+  // affiche doit donc etre une EQUITY vivante :
+  //   encaisse_eur + P/L latent courant
+  // et non pas le dernier snapshot capital_eur. Ainsi le chiffre monte
+  // ou descend immediatement quand une position evolue.
   const capitauxAffiches = React.useMemo(() => ({
     ...capitaux,
     ...capitauxDynamique,
