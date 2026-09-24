@@ -333,7 +333,26 @@ class TradeJournal:
         le gain BRUT vaut `(sortie - entree) x sens x volume`, et il vaut
         aussi `r_multiple` fois le risque. Le rapport des deux donne le
         risque, et `profit / risque` donne le R net.
+
+        CORRECTION DU 25 SEPTEMBRE : la deduction ci-dessous divise par
+        `r_multiple`, donc elle HERITE de son defaut. Sur une pyramide,
+        `Position.initial_risk` est recalcule a chaque etage — a juste
+        titre, le pilotage en depend — et comme un etage ne s'ajoute
+        qu'une fois le stop au-dessus du prix moyen, cette distance
+        s'effondre et le R explose. RUNE, demo 1, quatre etages :
+        **r_multiple = 46,05 pour +94,99 EUR**. Le risque deduit valait
+        alors 2,06 EUR au lieu de ~20, et le R net restait tout aussi
+        faux. L'esperance du compte annoncait +1,641 R pour +0,317 R
+        reels.
+
+        `ClosedTrade.risque_eur` porte desormais ce que la position a
+        REELLEMENT mis en jeu, accumule etage par etage et jamais
+        recalcule. On le prend des qu'il est la ; la deduction ne sert
+        plus qu'aux trades fermes AVANT cette date.
         """
+        if trade.risque_eur > 0:
+            return trade.profit / trade.risque_eur
+
         brut = (trade.exit_price - trade.entry_price) * trade.side.sign * trade.volume
         if abs(trade.r_multiple) < 1e-9 or abs(brut) < 1e-12:
             return None

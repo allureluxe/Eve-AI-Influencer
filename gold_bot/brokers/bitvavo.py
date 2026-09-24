@@ -711,6 +711,7 @@ class BitvavoBroker(Broker):
             tp_extensions=position.tp_extensions,
             max_favorable_r=round(position.r_multiple(position.max_favorable), 3),
             partial=not invendable,
+            risque_eur=round(getattr(position, "risque_eur_engage", 0.0), 6),
             etages=int(getattr(position, "etages", 1) or 1))
         self._closed.append(trade)
 
@@ -1011,6 +1012,22 @@ class BitvavoBroker(Broker):
             # bilan. Une pyramide faisait donc travailler quatre regles sur
             # un chiffre faux, sans qu'aucune ne signale quoi que ce soit.
             existante.initial_risk = abs(existante.entry_price - nouveau_stop)
+            # LE RISQUE ENGAGE S'ACCUMULE, LUI, ET NE SE RECALCULE JAMAIS.
+            #
+            # La ligne au-dessus est juste pour le PILOTAGE, et fausse pour
+            # la MESURE : un etage ne s'ajoute qu'une fois le stop au-dessus
+            # du prix moyen, donc cette distance s'effondre et le R, qui
+            # divise par elle, explose. Mesure du 25 septembre sur la
+            # demo 1 : RUNE, quatre etages, R = 46,05 pour +94,99 EUR.
+            #
+            # On accumule donc ce que CHAQUE etage a reellement mis en jeu.
+            # Meme calcul que dans `paper._fusionner` : toute divergence
+            # ferait mesurer a la demo autre chose que le compte reel.
+            # `obtenu` = le volume de CET etage, `rempli` son prix reel,
+            # `stop_loss` le stop demande pour lui (avant le cliquet qui
+            # l'empeche de descendre).
+            existante.risque_eur_engage += abs(
+                obtenu * (regle.arrondir_prix(rempli) - regle.arrondir_prix(stop_loss)))
             # Le point mort se rejoue sur la NOUVELLE entree moyenne : celle
             # d'avant ne veut plus rien dire, et sans cette remise a zero le
             # drapeau empecherait le stop de revenir proteger la pyramide.
@@ -1454,6 +1471,13 @@ class BitvavoBroker(Broker):
             reason=reason, tp_extensions=position.tp_extensions,
             max_favorable_r=round(position.r_multiple(position.max_favorable), 3),
             partial=partielle,
+            # Une sortie PARTIELLE n'emporte qu'une part du risque engage :
+            # on lui attribue la fraction correspondant au volume sorti,
+            # sinon la somme des parts depasserait le risque reellement
+            # pris sur la position.
+            risque_eur=round(
+                getattr(position, "risque_eur_engage", 0.0)
+                * (quantite / position.volume if position.volume > 0 else 1.0), 6),
             etages=int(getattr(position, "etages", 1) or 1))
         self._closed.append(trade)
 

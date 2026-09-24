@@ -199,6 +199,20 @@ class PaperBroker(Broker):
         # LE R DOIT SUIVRE LA POSITION, SINON TOUTES LES REGLES MENTENT :
         # point mort a 0,7 R, suiveur a 1,1 R, stop temporel sous 0,4 R.
         existante.initial_risk = abs(existante.entry_price - existante.stop_loss)
+        # LE RISQUE ENGAGE S'ACCUMULE, IL NE SE RECALCULE PAS.
+        #
+        # La ligne au-dessus est volontaire : le R courant doit suivre la
+        # position pour que le point mort, le suiveur et le stop temporel
+        # restent justes. Mais elle rend `initial_risk` inutilisable pour
+        # MESURER : un etage ne s'ajoute qu'une fois le stop au-dessus du
+        # prix moyen, donc la distance s'effondre et le R explose (RUNE,
+        # 25 sept. : R = 46 pour 95 EUR).
+        #
+        # Ici on ajoute ce que CE etage a mis en jeu, au moment ou il le
+        # met en jeu. La somme reste le vrai denominateur de la
+        # performance, quoi qu'il advienne du stop ensuite.
+        existante.risque_eur_engage += abs(
+            ajout.volume * (ajout.entry_price - ajout.stop_loss))
         existante.breakeven_done = False
         self._instruments[instrument.symbol] = instrument
         logger.info("[SIMU] etage %d sur %s : %.4f lots @ %.5f "
@@ -254,6 +268,13 @@ class PaperBroker(Broker):
             max_favorable_r=round(pos.r_multiple(pos.max_favorable), 3),
             partial=is_partial,
             etages=int(getattr(pos, "etages", 1) or 1),
+            # Une sortie PARTIELLE n'engage qu'une part du risque :
+            # on n'attribue a ce trade que la fraction du risque qui
+            # correspond au volume sorti, sinon la somme des parts
+            # depasserait le risque reellement pris.
+            risque_eur=round(
+                getattr(pos, "risque_eur_engage", 0.0)
+                * (vol / pos.volume if pos.volume > 0 else 1.0), 6),
         )
         self._closed.append(trade)
 

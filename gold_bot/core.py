@@ -166,6 +166,30 @@ class Position:
     # sa protection.
     trail_arme: bool = False
 
+    # CE QUE LA POSITION A REELLEMENT MIS EN JEU, EN EUROS, A L'ENTREE.
+    #
+    # `initial_risk` ne peut PAS servir a mesurer la performance, et ce
+    # n'est pas un defaut : il est RECALCULE a chaque etage de pyramide,
+    # volontairement, pour que le point mort (0,7 R), le stop suiveur
+    # (1,1 R) et le stop temporel (sous 0,4 R) continuent de parler de la
+    # position telle qu'elle est maintenant.
+    #
+    # Mais un etage ne s'ajoute que si le stop est DEJA au-dessus du prix
+    # moyen : la distance entree <-> stop devient donc minuscule, et comme
+    # le R DIVISE par elle, il explose. Mesure du 25 septembre sur la
+    # demo 1 : RUNE, quatre etages, **R = 46,05 pour +94,99 EUR** — un R
+    # de 46 vaudrait ~911 EUR. L'esperance du compte affichait +1,641 R
+    # pour +0,317 R reels, soit cinq fois trop.
+    #
+    # Ce chiffre-la aurait decide, a 40 trades, de faire passer le risque
+    # de 0,6 % a 1,0 % : doubler la mise sur un avantage surestime.
+    #
+    # D'ou ce champ SEPARE, qui ne se recalcule jamais : il ACCUMULE le
+    # risque engage par chaque etage, au moment ou cet etage est pris. Le
+    # pilotage en direct garde `initial_risk` ; la mesure de performance
+    # utilise celui-ci. Un seul chiffre ne peut pas servir les deux.
+    risque_eur_engage: float = 0.0
+
     @property
     def prix_dernier_etage(self) -> float:
         """Prix de reference pour l'espacement de la pyramide."""
@@ -182,6 +206,11 @@ class Position:
             self.max_favorable = self.entry_price
         if not self.max_adverse:
             self.max_adverse = self.entry_price
+        if not self.risque_eur_engage:
+            # A l'ouverture, les deux coincident : volume x distance au
+            # stop. Ils divergent des le premier etage, et c'est tout
+            # l'interet de les separer.
+            self.risque_eur_engage = abs(self.volume * self.initial_risk)
 
     # --- Mesures en R (1R = risque initial) ---
     def r_multiple(self, price: float) -> float:
@@ -254,6 +283,41 @@ class ClosedTrade:
     # que le robot atteignait encore les etages qui payent. (Il ne les
     # atteignait plus : budget de risque sature, verifie le 19 sept.)
     etages: int = 1
+
+    # LE DENOMINATEUR HONNETE DE LA PERFORMANCE, EN EUROS.
+    #
+    # `r_multiple` se calcule sur `Position.initial_risk`, qui est
+    # RECALCULE a chaque etage de pyramide — volontairement, pour que le
+    # pilotage en direct reste juste. Resultat : sur une pyramide, il
+    # divise par une distance qui s'est effondree et le R explose. Mesure
+    # du 25 septembre, demo 1 : RUNE, quatre etages, **R = 46,05 pour
+    # +94,99 EUR**, et l'esperance du compte affichait +1,641 R pour
+    # +0,317 R reels.
+    #
+    # Ce chiffre-la decide, a 40 trades, de faire passer le risque de
+    # 0,6 % a 1,0 %. Le laisser faux, c'est doubler la mise sur un
+    # avantage surestime cinq fois.
+    #
+    # `risque_eur` porte ce que la position a REELLEMENT mis en jeu,
+    # etage par etage, accumule a l'ouverture de chacun et jamais
+    # recalcule. L'esperance honnete vaut `profit / risque_eur`, et elle
+    # se verifie a la calculette : gain moyen divise par risque moyen.
+    #
+    # Nul sur les trades fermes AVANT le 25 septembre 2026 : on ne
+    # reecrit pas l'historique, on le marque comme inconnu.
+    risque_eur: float = 0.0
+
+    @property
+    def r_net(self) -> float | None:
+        """Le R mesure sur le risque reellement engage, ou None.
+
+        Renvoie None plutot que zero quand le risque n'a pas ete
+        enregistre : un trade dont on ignore la mise ne doit pas entrer
+        dans une moyenne comme s'il avait rapporte zero.
+        """
+        if self.risque_eur <= 0:
+            return None
+        return self.profit / self.risque_eur
 
 
 def round_price(price: float, digits: int) -> float:
