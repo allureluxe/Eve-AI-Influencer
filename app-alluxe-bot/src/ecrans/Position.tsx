@@ -144,8 +144,15 @@ export function EcranPosition({ route }: any) {
       const ajoutVolume = volumeCumul != null
         ? Math.max(0, volumeCumul - volumeAvant)
         : null;
-      const prixAjout = ajoutVolume != null && ajoutVolume > 1e-12 && precedent?.volume != null
-        ? ((ligne.entry_price * volumeCumul) - (precedent.entry_price * precedent.volume!))
+      // `volumeCumul != null` doit figurer ICI et pas seulement dans le
+      // calcul d'`ajoutVolume` : TypeScript ne suit pas la deduction a
+      // travers une variable intermediaire, et le fichier ne compilait
+      // pas (TS18047). Ce n'est pas une precaution decorative -- sans
+      // elle, une ligne sans volume publie ferait une multiplication
+      // par `null`, donc un prix d'ajout a zero.
+      const prixAjout = volumeCumul != null && precedent?.volume != null
+        && ajoutVolume != null && ajoutVolume > 1e-12
+        ? ((ligne.entry_price * volumeCumul) - (precedent.entry_price * precedent.volume))
           / ajoutVolume
         : ligne.entry_price;
       const miseAjout = ajoutVolume != null ? ajoutVolume * prixAjout : null;

@@ -17,7 +17,6 @@ import React from "react";
 import { supabase } from "./supabase";
 import { Position, positionsOuvertes, positionsOuvertesDemo, etatCapital } from "./robot";
 import { usePrixLive, PrixLive } from "./prixLive";
-import { fusionnerEtages } from "../composants/positionsTri";
 
 export interface SuiviPositions {
   positions: Position[] | null;
@@ -37,14 +36,11 @@ export function useSuiviPositions(estDemo: boolean, capitalDemo: number,
   const charger = React.useCallback(async () => {
     try {
       const p = await (estDemo ? positionsOuvertesDemo(compte) : positionsOuvertes());
-      // UNE PYRAMIDE EST UNE POSITION. Le robot publie une ligne par
-      // etage, chacune portant le volume CUMULE apres fusion : les
-      // additionner comptait la position plusieurs fois (+51 EUR sur la
-      // demo 1, le 22 septembre). On fusionne ICI, a l'entree, pour que
-      // la liste, les totaux et le reste a investir voient tous la meme
-      // chose -- corriger un seul de ces trois endroits aurait laisse
-      // les deux autres mentir.
-      setPositions(fusionnerEtages(p));
+      // Les etages sont deja regroupes par `regrouperLesEtages`, applique
+      // dans robot.ts sur les QUATRE requetes (ouvertes et historique,
+      // reel et demo). Une seconde fusion ici serait un doublon -- deux
+      // implementations de la meme regle qui finissent par diverger.
+      setPositions(p);
       setErreur("");
     } catch (err: any) {
       setErreur(err?.message ?? "Erreur de chargement");
