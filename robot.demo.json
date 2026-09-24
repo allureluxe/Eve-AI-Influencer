@@ -89,7 +89,7 @@
     "ticket_min_eur": 15.0,
     "carence_meme_bougie": true,
     "unite_du_signal": "D1",
-    "reserve_pyramide_pct": 1.67
+    "reserve_pyramide_pct": 0.0
   },
   "trade": {
     "atr_stop_mult": 1.6,

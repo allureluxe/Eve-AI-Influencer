@@ -439,6 +439,37 @@ budget saturerait davantage. Le signe est net, l'amplitude est petite.
 raffinement qui corrige un cas doit d'abord prouver que le cas **se
 produit**. Ici le cas n'existait pas sous la forme qu'on lui prêtait.
 
+### La démo est restée désalignée CINQ JOURS — corrigé le 25 septembre
+
+La mesure du 20 septembre condamne la réserve, et `robot.bitvavo.json`
+la porte bien à 0. **Mais `robot.demo.json` est resté à 1,67** jusqu'au
+25 septembre au matin.
+
+Conséquence : pendant cinq jours, le compte de référence — celui qui
+sert à décider du dépôt réel du 28 — testait une configuration que le
+robot réel n'a pas. Un résultat de démo ne vaut que si la démo est le
+robot.
+
+Trouvé en répondant à une remarque de l'opérateur, qui avait travaillé
+de son côté et pensait qu'il y avait « plusieurs anomalies entre le mode
+démo et le mode réel ». L'audit complet — les trois configurations champ
+par champ, puis les quatre endroits du code qui se comportent
+différemment en simulation — n'en a trouvé **qu'une**, celle-ci.
+
+**Ce que l'audit a confirmé au passage**, et qui vaut d'être écrit parce
+que c'est la question qu'on se reposera : la démo paie les mêmes coûts
+que le réel. Commission 0,25 % par côté, **fourchette achat/vente
+réellement payée** (le simulateur achète à l'`ask` et revend au `bid`,
+avec les vrais écarts du carnet — 0,003 % sur BTC, 0,299 % sur TIA),
+glissement de 0,05 ATR ajouté PAR-DESSUS, levier 1,0, même ticket
+minimum, même budget de risque, même univers dynamique. Sur les coûts,
+la démo est plus dure que la réalité, pas plus tendre.
+
+**La règle qui manquait** : tout réglage armé ou désarmé sur
+`robot.bitvavo.json` se répercute le jour même sur `robot.demo.json`,
+sauf si la différence EST l'expérience en cours (c'est le cas de
+`robot.demo2.json`, qui teste le momentum et doit diverger).
+
 ### `reserve_pyramide_pct` — décidé, pas encore armé (19 septembre)
 
 Décision de l'opérateur le 19 septembre : « tu bloques désormais un
