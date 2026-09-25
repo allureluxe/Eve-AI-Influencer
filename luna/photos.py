@@ -201,6 +201,20 @@ SCENES = (
     # litteralement un shooting professionnel au moteur.
     # LES TROIS PREMIERES PUBLICATIONS -- demandees le 25 septembre.
     #
+    # LE DECALAGE EST DANS LA LEGENDE, PAS DANS LA PHOTO.
+    #
+    # Choix de l'operateur le 25 septembre, parmi trois pistes. Une belle
+    # photo fait un « j'aime » ; une histoire fait un abonne. Luna en a
+    # deja une, et c'est la meilleure qu'elle puisse avoir : etudiante en
+    # FINANCE et fauchee -- quelqu'un qui etudie l'argent et qui n'en a
+    # pas.
+    #
+    # La piscine, le gateau, les guirlandes : tout ca fait joli et ne
+    # raconte rien. C'est la legende qui casse le glamour et installe le
+    # personnage des le premier post. « La piscine est a Mai. Moi j'ai un
+    # Velux et un ventilo a 12 euros. » On suit quelqu'un pour ce qu'il
+    # assume, pas pour ce qu'il montre.
+    #
     # « Attention, les premieres sont tres importantes. » Elles le sont
     # doublement : ce sont elles qui decident si quelqu'un s'abonne, et
     # ce sont elles qu'on verra encore dans un an en haut du profil.
@@ -215,7 +229,7 @@ SCENES = (
           "towel bunched beside her, shoulders relaxed, looking straight "
           "at the camera with an easy unforced smile, late afternoon "
           "summer light, no posing, no pout",
-          "Anniversaire de Ma\u00ef \U0001f382 On a squatt\u00e9 sa piscine toute la journ\u00e9e",
+          "Rappel : la piscine est \u00e0 Ma\u00ef. Moi j'ai un Velux et un ventilo \u00e0 12\u20ac \u2600\ufe0f",
           AMIE, QUEUE),
     # LA MEME SCENE A DEUX -- demandee le 25 septembre : « tu mets une
     # amie a cote d'elle, genre on les prend toutes les deux en photo au
@@ -237,7 +251,7 @@ SCENES = (
           "swimsuit, shoulders touching, both turned towards the camera "
           "mid-laugh, the friend's arm slung around her, wet hair, late "
           "afternoon summer light",
-          "Ma\u00ef a 24 ans aujourd'hui \U0001f382 et elle nous a tous pouss\u00e9s dans l'eau",
+          "24 ans, et elle nous a tous pouss\u00e9s dans l'eau. La prochaine fois c'est moi qui tiens le t\u00e9l\u00e9phone \U0001f4f1\U0001f480",
           AMIE, MOUILLES),
     Scene("piscine_story", "Story -- pieds dans l'eau", TENDRE,
           f"at {LIEUX['piscine']}, phone held low and pointed down at "
@@ -245,7 +259,7 @@ SCENES = (
           "ripples filling most of the frame, her face not visible or "
           "only partly at the very top, slightly crooked framing, "
           "harsh midday sun, grainy",
-          "Elles chantent encore... moi je reste l\u00e0 \U0001f60c",
+          "Elles chantent encore. Moi je bouge plus \U0001f60c",
           BRAS_TENDU, QUEUE),
     Scene("cafe", "Au cafe avec les copines", TENDRE,
           f"crammed around a small table on {LIEUX['cafe']}, two friends "
