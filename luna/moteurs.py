@@ -292,6 +292,19 @@ class GenerateurImages:
     # plus photorealiste, et il n'a pas les refus intempestifs de
     # flux-1-schnell sur des scenes anodines.
     MODELE_DEFAUT_CLOUDFLARE = "@cf/black-forest-labs/flux-2-dev"
+    # TOGETHER AI — AJOUTE LE 25 SEPTEMBRE, ET PLACE EN TETE.
+    #
+    # FLUX.1 Schnell y est GRATUIT ET ILLIMITE : pas de quota
+    # journalier a epuiser, contrairement aux 10 000 neurones de
+    # Cloudflare que FLUX.2 brule en une poignee d'images. Le
+    # 25 septembre, les trois fournisseurs configures etaient a sec
+    # en meme temps — Stability sans cle, Hugging Face a court de
+    # credits MENSUELS, Cloudflare de credits JOURNALIERS — et Luna
+    # n'avait aucun moyen de produire la moindre image.
+    #
+    # Il passe AVANT Cloudflare dans l'ordre des candidats : on garde
+    # le quota de FLUX.2, plus beau, pour ce qui en vaut la peine.
+    MODELE_DEFAUT_TOGETHER = "black-forest-labs/FLUX.1-schnell-Free"
 
     def __init__(self, cle: str = "", url: str = "", modele: str = ""):
         stability = cle or os.getenv("STABILITY_API_KEY", "")
@@ -326,6 +339,16 @@ class GenerateurImages:
                 "nom": "huggingface", "cle": huggingface, "modele": m,
                 "url": f"https://router.huggingface.co/hf-inference/models/{m}",
             })
+        together = os.getenv("TOGETHER_API_KEY", "")
+        if together.lower().startswith("your_"):
+            together = ""
+        if together:
+            m = modele or os.getenv("LUNA_IMAGE_MODELE",
+                                    self.MODELE_DEFAUT_TOGETHER)
+            candidats.append({
+                "nom": "together", "cle": together, "modele": m,
+                "url": "https://api.together.xyz/v1/images/generations",
+            })
         if cf_compte and cf_jeton:
             m = modele or os.getenv("LUNA_IMAGE_MODELE", self.MODELE_DEFAUT_CLOUDFLARE)
             candidats.append({
@@ -357,6 +380,7 @@ class GenerateurImages:
         methodes = {
             "stability": self._generer_stability,
             "huggingface": self._generer_huggingface,
+            "together": self._generer_together,
             "cloudflare": self._generer_cloudflare,
         }
         derniere_erreur: ErreurMoteur | None = None
@@ -488,6 +512,87 @@ class GenerateurImages:
         if not b64:
             raise ErreurMoteur("reponse image inattendue (pas d'image)")
         import base64
+        return base64.b64decode(b64)
+
+    def _generer_together(self, cle: str, url: str, prompt: str, negatif: str,
+                          graine: int, format: str) -> bytes:
+        """Together AI — FLUX.1 Schnell, gratuit et sans quota journalier.
+
+        AJOUTE LE 25 SEPTEMBRE, parce que les trois fournisseurs
+        configures etaient a sec EN MEME TEMPS : Stability sans cle,
+        Hugging Face a court de credits MENSUELS (HTTP 402), Cloudflare
+        de credits JOURNALIERS (HTTP 429). Luna n'avait plus aucun moyen
+        de produire une image, et il a fallu attendre minuit UTC.
+
+        Trois fournisseurs qui tombent ensemble, ce n'est pas de la
+        malchance : ils partagent tous le meme mode de panne — un quota
+        qui s'epuise. Celui-ci n'en a pas, c'est ce qui le rend utile ici.
+
+        L'interface suit la convention OpenAI (`/v1/images/generations`),
+        et la reponse porte l'image en base64 dans `data[0].b64_json`.
+        `negatif` n'est pas transmis : FLUX ne le prend pas, exactement
+        comme sur Cloudflare — toute formule protectrice doit donc vivre
+        dans l'ANCRE, pas dans le negatif.
+        """
+        import base64
+
+        corps = {
+            "model": self.modele,
+            "prompt": prompt,
+            "steps": 4,          # schnell est concu pour 1 a 4 etapes
+            "n": 1,
+            "response_format": "b64_json",
+        }
+        # Le format decide des proportions ; les memes que pour les autres
+        # fournisseurs, pour qu'un changement de moteur ne change pas le
+        # cadrage d'une photo de Luna.
+        if format == "carre":
+            corps["width"], corps["height"] = 1024, 1024
+        elif format == "paysage":
+            corps["width"], corps["height"] = 1024, 768
+        else:
+            corps["width"], corps["height"] = 768, 1024
+        if graine:
+            corps["seed"] = int(graine)
+
+        # L'EN-TETE `User-Agent` N'EST PAS DECORATIF ICI.
+        #
+        # Together AI est derriere Cloudflare, qui REJETTE les requetes
+        # sans agent declare : urllib envoie « Python-urllib/3.x » et
+        # recoit un « HTTP 403, error code: 1010 » — un refus de client,
+        # pas un refus d'authentification. Le meme appel en curl passait
+        # et rendait un honnete 401.
+        #
+        # Une heure aurait pu se perdre a chercher un probleme de cle la
+        # ou il n'y en avait pas : 1010 ne dit rien de la cle.
+        requete = urllib.request.Request(
+            url, data=json.dumps(corps).encode("utf-8"), method="POST",
+            headers={"Authorization": f"Bearer {cle}",
+                     "Content-Type": "application/json",
+                     "Accept": "application/json",
+                     "User-Agent": "alluxe-luna/1.0"})
+        try:
+            brut = urllib.request.urlopen(requete, timeout=180).read()
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", "replace")[:300]
+            raise ErreurMoteur(f"HTTP {e.code} : {detail}") from e
+        except Exception as e:                                 # noqa: BLE001
+            raise ErreurMoteur(f"{type(e).__name__} : {str(e)[:200]}") from e
+
+        try:
+            rep = json.loads(brut.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            raise ErreurMoteur("reponse image inattendue") from e
+        donnees = rep.get("data") or []
+        if not donnees:
+            raise ErreurMoteur(f"{rep.get('error', 'pas d image')}"[:300])
+        b64 = donnees[0].get("b64_json")
+        if not b64:
+            # Certaines reponses rendent une URL plutot que le base64.
+            lien = donnees[0].get("url")
+            if not lien:
+                raise ErreurMoteur("reponse image inattendue (ni b64 ni url)")
+            return urllib.request.urlopen(lien, timeout=120).read()
         return base64.b64decode(b64)
 
     def _generer_cloudflare(self, cle: str, url: str, prompt: str, negatif: str,
