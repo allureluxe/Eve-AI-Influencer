@@ -217,6 +217,28 @@ SCENES = (
           "summer light, no posing, no pout",
           "Anniversaire de Ma\u00ef \U0001f382 On a squatt\u00e9 sa piscine toute la journ\u00e9e",
           AMIE, QUEUE),
+    # LA MEME SCENE A DEUX -- demandee le 25 septembre : « tu mets une
+    # amie a cote d'elle, genre on les prend toutes les deux en photo au
+    # bord de la piscine ».
+    #
+    # Elle existe SEPAREMENT de la version seule, et ce n'est pas une
+    # redondance : ce sont deux photos differentes d'une meme journee,
+    # et c'est exactement ce qu'un vrai compte publie. Une personne
+    # seule a tous ses posts se reconnait tout de suite.
+    #
+    # L'amie n'est pas un figurant flou du decor : elle est DANS le
+    # cadre, a la meme distance, en train de faire quelque chose. Une
+    # « amie » qu'on devine derriere n'a jamais fait croire a personne
+    # qu'une photo etait vraie.
+    Scene("piscine_duo", "Anniversaire -- a deux au bord de la piscine", TENDRE,
+          f"sitting side by side on the edge of {LIEUX['piscine']}, both "
+          "of them with their feet in the water, Luna in a simple "
+          "colourful patterned bikini and her friend in a plain one-piece "
+          "swimsuit, shoulders touching, both turned towards the camera "
+          "mid-laugh, the friend's arm slung around her, wet hair, late "
+          "afternoon summer light",
+          "Ma\u00ef a 24 ans aujourd'hui \U0001f382 et elle nous a tous pouss\u00e9s dans l'eau",
+          AMIE, MOUILLES),
     Scene("piscine_story", "Story -- pieds dans l'eau", TENDRE,
           f"at {LIEUX['piscine']}, phone held low and pointed down at "
           "her own feet dangling in the blue water, her legs and the "

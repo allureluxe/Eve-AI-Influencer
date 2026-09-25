@@ -49,7 +49,9 @@ from luna.photos import SCENES_PAR_CLE, prompt_photo        # noqa: E402
 log = logging.getLogger("brouillons")
 
 #: Les trois premieres publications, dans l'ordre ou il les a demandees.
-TRIO = ("piscine_profil", "piscine_story", "cafe")
+#: Seule ET a deux : ce sont deux photos d'une meme journee, et un
+#: compte ou la personne est toujours seule se reconnait tout de suite.
+TRIO = ("piscine_profil", "piscine_duo", "piscine_story")
 
 #: LES ANGLES, ET C'EST EUX QUI FONT CHOISIR -- PAS LA GRAINE.
 #:
