@@ -106,15 +106,26 @@ LIEUX = {
     "parc": "the banks of the Moselle near the Temple Neuf in Metz",
     "bistro": "the staff corridor of a bistro in the Metz old town",
     "salle": "a municipal gym in Metz",
-    # LA PISCINE EST MUNICIPALE, ET CE N'EST PAS UN DETAIL.
-    # « Elle est etudiante, elle ne peut pas se payer des shootings
-    # photo » -- ni un resort a debordement. Le centre nautique de
-    # Metz existe, il coute quelques euros l'entree, et c'est
-    # exactement la que va quelqu'un de son age et de ses moyens.
-    "piscine": "the outdoor pool of the municipal swimming centre "
-               "in Metz, plain tiled edge, other swimmers blurred "
-               "in the background, chain-link fence and trees "
-               "beyond",
+    # LA PISCINE EST CELLE D'UNE AMIE, UN JOUR D'ANNIVERSAIRE.
+    #
+    # Precision de l'operateur le 25 septembre : « elle est sur une
+    # piscine a une fete d'anniversaire d'une de ses amies ». C'est plus
+    # juste que la piscine municipale que j'avais ecrite, et sur deux
+    # plans a la fois.
+    #
+    # Une etudiante n'a pas de piscine -- mais elle est INVITEE, et ca
+    # ne coute rien. Le decor cesse d'etre hors de ses moyens sans
+    # cesser d'etre joli, ce qui etait tout le probleme.
+    #
+    # Et ca sert la deuxieme consigne : « elle est tres sociable, donc
+    # si elle est au cafe elle est avec ses amies ». Une piscine vide
+    # un jour de semaine n'allait pas avec ce personnage. Une fete, si.
+    "piscine": "the small garden pool of a friend's family house, a "
+               "birthday party going on around it -- paper garlands "
+               "strung between two trees, a folding table with plastic "
+               "cups and a half-eaten cake, towels and a speaker on the "
+               "grass, three or four friends in swimwear talking and "
+               "laughing nearby",
 }
 
 # LES COIFFURES, UNE PAR SCENE.
@@ -198,13 +209,13 @@ SCENES = (
     #   - PROFIL  : le visage, reconnaissable, aucune ambiguite
     #   - STORY   : l'instant, imparfait, qui prouve qu'elle est reelle
     #   - PREMIER : celle qui donne envie de s'abonner
-    Scene("piscine_profil", "Photo de profil -- bord de piscine", TENDRE,
+    Scene("piscine_profil", "Photo de profil -- anniversaire au bord de la piscine", TENDRE,
           f"sitting on the tiled edge of {LIEUX['piscine']}, feet in the "
           "water, wearing a simple colourful patterned bikini, a plain "
           "towel bunched beside her, shoulders relaxed, looking straight "
           "at the camera with an easy unforced smile, late afternoon "
           "summer light, no posing, no pout",
-          "Derniers jours avant la rentree \u2600\ufe0f",
+          "Anniversaire de Ma\u00ef \U0001f382 On a squatt\u00e9 sa piscine toute la journ\u00e9e",
           AMIE, QUEUE),
     Scene("piscine_story", "Story -- pieds dans l'eau", TENDRE,
           f"at {LIEUX['piscine']}, phone held low and pointed down at "
@@ -212,7 +223,7 @@ SCENES = (
           "ripples filling most of the frame, her face not visible or "
           "only partly at the very top, slightly crooked framing, "
           "harsh midday sun, grainy",
-          "14h. Personne. Le luxe \U0001f60c",
+          "Elles chantent encore... moi je reste l\u00e0 \U0001f60c",
           BRAS_TENDU, QUEUE),
     Scene("cafe", "Au cafe avec les copines", TENDRE,
           f"crammed around a small table on {LIEUX['cafe']}, two friends "
