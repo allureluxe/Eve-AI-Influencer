@@ -22,7 +22,7 @@ import React from "react";
 import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Position } from "../services/robot";
-import { euros, nomCrypto, pourcent } from "../services/format";
+import { euros, gainRealiseDe, nomCrypto, pourcent, quand } from "../services/format";
 import { Chiffres, TRIS, Tri, chiffresDe, trier } from "./positionsTri";
 
 // Reexportes pour que les ecrans n'aient qu'un seul import a faire.
@@ -154,5 +154,52 @@ export function LignePosition({ p, capital, prixActuel, surAppui, etage }: {
                   style={{ marginLeft: espace.s }} />
       )}
     </Pressable>
+  );
+}
+
+/**
+ * Une position déjà FERMÉE — réel et démo, la même ligne.
+ *
+ * Elle vivait dans `Demo.tsx`, en privé. Demande de l'opérateur le
+ * 25 septembre : « je veux que réel soit à l'identique que démo, sauf
+ * les chiffres bien sûr ». L'écran Direct n'avait tout simplement pas
+ * d'historique.
+ *
+ * On la DÉPLACE ici plutôt que de la recopier : deux lignes identiques
+ * dans deux écrans finissent toujours par diverger, et c'est ce défaut
+ * que ce dépôt a corrigé sept fois — la dernière hier, avec deux
+ * fonctions qui regroupaient les étages de pyramide chacune de son côté.
+ */
+const LIBELLE_STATUT: Record<string, string> = {
+  closed_tp: "Objectif atteint",
+  closed_sl: "Stop touché",
+  cancelled: "Annulé",
+};
+
+export function LigneFermee({ p, capital }: { p: Position; capital: number }) {
+  const c = useCouleurs();
+  const gagnant = (p.result_pct ?? 0) > 0;
+  const gain = gainRealiseDe(p, capital);
+  const couleur = p.result_pct == null ? c.encreDouce : gagnant ? c.gain : c.perte;
+  return (
+    <View style={{
+      flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+      backgroundColor: c.surface, borderRadius: rayon.l,
+      paddingVertical: espace.m, paddingHorizontal: espace.l, marginBottom: espace.s,
+    }}>
+      <View>
+        <T v="sousTitre">{nomCrypto(p.pair)}</T>
+        <T v="legende" style={{ marginTop: 2 }}>
+          {LIBELLE_STATUT[p.status] ?? p.status}
+          {p.closed_at ? " · " + quand(p.closed_at) : ""}
+        </T>
+      </View>
+      <View style={{ alignItems: "flex-end" }}>
+        <T v="chiffre" couleur={couleur}>{gain != null ? euros(gain) : "—"}</T>
+        <T v="petit" couleur={couleur}>
+          {p.result_pct != null ? pourcent(p.result_pct) : ""}
+        </T>
+      </View>
+    </View>
   );
 }

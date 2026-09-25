@@ -29,7 +29,7 @@ import { euros, gainRealiseDe, nomCrypto, pourcent, quand } from "../services/fo
 import { espace, rayon } from "../theme";
 import { usePrixLive } from "../services/prixLive";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
-import { BarreDeTri, LignePosition, Tri, trier } from "../composants/ListePositions";
+import { BarreDeTri, LigneFermee, LignePosition, Tri, trier } from "../composants/ListePositions";
 import { etagesAffiches, gainTotalEnDirect, resteAInvestir } from "../composants/positionsTri";
 import { CourbeCapital } from "../composants/CourbeCapital";
 import { CleCompte, ChoixCompte, COMPTES } from "../composants/ChoixCompte";
@@ -46,41 +46,6 @@ const CAPITAL_DEMO_EUR = 3300;
 const HISTORIQUE_CORRIGE_LE_23_09_2026 = true;
 
 const COMMISSION_DEMO_PCT = 0.0025;
-
-const LIBELLE_STATUT: Record<string, string> = {
-  closed_tp: "Objectif atteint",
-  closed_sl: "Stop touche",
-  cancelled: "Annule",
-};
-
-/** Une position DEMO deja fermee. */
-function LigneFermee({ p, capital }: { p: Position; capital: number }) {
-  const c = useCouleurs();
-  const gagnant = (p.result_pct ?? 0) > 0;
-  const gain = gainRealiseDe(p, capital);
-  const couleur = p.result_pct == null ? c.encreDouce : gagnant ? c.gain : c.perte;
-  return (
-    <View style={{
-      flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-      backgroundColor: c.surface, borderRadius: rayon.l,
-      paddingVertical: espace.m, paddingHorizontal: espace.l, marginBottom: espace.s,
-    }}>
-      <View>
-        <T v="sousTitre">{nomCrypto(p.pair)}</T>
-        <T v="legende" style={{ marginTop: 2 }}>
-          {LIBELLE_STATUT[p.status] ?? p.status}
-          {p.closed_at ? " · " + quand(p.closed_at) : ""}
-        </T>
-      </View>
-      <View style={{ alignItems: "flex-end" }}>
-        <T v="chiffre" couleur={couleur}>{gain != null ? euros(gain) : "—"}</T>
-        <T v="petit" couleur={couleur}>
-          {p.result_pct != null ? pourcent(p.result_pct) : ""}
-        </T>
-      </View>
-    </View>
-  );
-}
 
 export function EcranDemo({ navigation }: { navigation?: any }) {
   const c = useCouleurs();

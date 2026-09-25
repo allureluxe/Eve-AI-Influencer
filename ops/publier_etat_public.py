@@ -110,7 +110,42 @@ def _publier(capital: float, variation_pct: float) -> None:
 def main() -> int:
     capital = _capital_actuel()
     reference = _reference_du_jour(capital)
-    variation = (capital - reference) / reference * 100.0 if reference > 0 else 0.0
+    # UNE REFERENCE MINUSCULE NE PRODUIT PAS UN POURCENTAGE, ELLE PRODUIT
+    # UNE ABSURDITE. Le 25 septembre, la reference valait quelques
+    # millioniemes d'euro (reste des retraits du 16) et le depot de
+    # 120 EUR donnait **+1 108 353 435 753 %**. C'est arithmetiquement
+    # exact et cela ne veut rien dire.
+    #
+    # En dessous d'un euro de reference, la comparaison n'a pas de sens :
+    # on annonce 0 plutot qu'un nombre qui ferait douter de tout le
+    # reste de l'ecran.
+    if reference >= 1.0:
+        variation = (capital - reference) / reference * 100.0
+    else:
+        variation = 0.0
+    # LA COLONNE REFUSE AU-DELA DE 999,999 — ET L'ECHEC EST SILENCIEUX.
+    #
+    # `variation_jour_pct` est un numeric(6,3) : au-dela de 1 000 %,
+    # PostgREST rejette la ligne ENTIERE avec un 22003, donc le CAPITAL
+    # n'est pas ecrit non plus. La table est restee bloquee a 0 EUR du
+    # 14 au 25 septembre pendant que la tache echouait toutes les cinq
+    # minutes dans son journal.
+    #
+    # Ce cas n'est pas exotique : il suffit que la reference du jour soit
+    # minuscule. Le 16, l'operateur a tout retire — reference proche de
+    # zero, puis un depot de 120 EUR le 25, et la variation part a
+    # plusieurs milliers de pour cent. Arithmetiquement correcte, et
+    # refusee par la base.
+    #
+    # On borne donc l'affichage au lieu de perdre la ligne. Un
+    # « +999,9 % » est faux de peu ; un capital a zero est faux de tout.
+    if variation > 999.0:
+        log_borne = variation
+        variation = 999.0
+        print(f"variation bornee : {log_borne:+.0f} % -> +999 % "
+              "(la colonne refuse au-dela, voir le commentaire)")
+    elif variation < -999.0:
+        variation = -999.0
     _publier(capital, variation)
     return 0
 

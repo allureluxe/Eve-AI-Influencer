@@ -19,12 +19,12 @@
 import React from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { EtatCapital, etatCapital } from "../services/robot";
+import { EtatCapital, Position, etatCapital, historique } from "../services/robot";
 import { useSuiviPositions } from "../services/suiviPositions";
 import { euros, pourcent } from "../services/format";
 import { espace } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
-import { BarreDeTri, LignePosition, Tri, trier } from "../composants/ListePositions";
+import { BarreDeTri, LigneFermee, LignePosition, Tri, trier } from "../composants/ListePositions";
 import { etagesAffiches, resteAInvestir } from "../composants/positionsTri";
 import { CourbeCapital } from "../composants/CourbeCapital";
 
@@ -32,6 +32,11 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
   const [capitalEtat, setCapitalEtat] = React.useState<EtatCapital | null>(null);
+  // L'HISTORIQUE MANQUAIT AU REEL, et seulement au reel.
+  // « Je veux que reel soit a l'identique que demo, sauf les chiffres. »
+  // L'ecran Demo montrait ses trades fermes depuis le 20 septembre ;
+  // celui du compte qui engage de l'argent, non.
+  const [fermees, setFermees] = React.useState<Position[] | null>(null);
   const [rafraichit, setRafraichit] = React.useState(false);
   const [tri, setTri] = React.useState<Tri>("gain");
   const [descendant, setDescendant] = React.useState(true);
@@ -39,11 +44,16 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
 
   React.useEffect(() => {
     etatCapital().then(setCapitalEtat).catch(() => {});
+    historique(100).then(setFermees).catch(() => setFermees([]));
   }, []);
 
   const surRafraichir = async () => {
     setRafraichit(true);
-    await Promise.all([rafraichir(), etatCapital().then(setCapitalEtat).catch(() => {})]);
+    await Promise.all([
+      rafraichir(),
+      etatCapital().then(setCapitalEtat).catch(() => {}),
+      historique(100).then(setFermees).catch(() => {}),
+    ]);
     setRafraichit(false);
   };
 
@@ -129,6 +139,27 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
                            surAppui={navigation ? () => navigation.navigate("Position", {
                              position: p, capital, mode: "Réel",
                            }) : undefined} />
+          ))}
+        </>
+      )}
+
+      <T v="sousTitre" style={{ marginTop: espace.xl, marginBottom: espace.s }}>
+        Historique {fermees ? `(${fermees.length})` : ""}
+      </T>
+      {fermees === null ? (
+        <Chargement />
+      ) : fermees.length === 0 ? (
+        <Vide titre="Aucune position fermée pour l'instant"
+              detail="Les trades terminés du compte réel s'afficheront ici." />
+      ) : (
+        <>
+          <T v="petit" couleur={c.encreDouce} style={{ marginBottom: espace.s }}>
+            {fermees.filter((t) => (t.result_pct ?? 0) > 0).length} gagnant(s),{" "}
+            {fermees.filter((t) => (t.result_pct ?? 0) <= 0).length} perdant(s)
+          </T>
+          {fermees.map((t) => (
+            <LigneFermee key={t.id} p={t}
+                         capital={capitalEtat?.capital_eur ?? capital} />
           ))}
         </>
       )}
