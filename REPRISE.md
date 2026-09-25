@@ -603,3 +603,14 @@ Detail complet dans CLAUDE.md, section « Les conversations archivees ».
 **Ne jamais `os.environ.setdefault()` pour isoler un nouveau processus d'un
 `.env` partage** -- une cle deja definie globalement rend le setdefault
 silencieusement inoperant. Assignation directe + verification apres coup.
+
+
+## LUNA — nouveau chantier média automatisé (26 septembre 2026)
+
+Projet décidé pour la reprise : Claude reste l'orchestrateur ; un Media Worker sur le VPS récupère les demandes via `luna_publications`, génère les photos via une API image avec la référence permanente de Luna, génère les vidéos via un vrai service image→vidéo asynchrone, stocke les résultats dans Supabase Storage, puis laisse Claude / le système de publication les publier.
+
+Le détail de l'architecture, du contrat JSON, des colonnes envisagées, de la gestion des tâches asynchrones, des fournisseurs et de la migration progressive est enregistré dans `docs/LUNA_MEDIA_AUTOMATION.md`.
+
+État constaté dans le dépôt : `luna_publications` et `ops/executer_luna.py` existent déjà ; `luna/alluxe_v2.py` fabrique actuellement la vidéo par FFmpeg à partir de la photo + voix, donc ce n'est pas encore une vraie génération image→vidéo ; `ops/instagram.py` contient déjà la publication officielle Instagram.
+
+Prochaine session : ne pas tout réécrire. Relire les modules existants, fixer le contrat exact de la file, ajouter l'adaptateur image, ajouter l'adaptateur vidéo asynchrone, tester en brouillon/non-publication, puis seulement activer la publication automatique.
