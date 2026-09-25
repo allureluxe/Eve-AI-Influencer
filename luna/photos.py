@@ -106,6 +106,15 @@ LIEUX = {
     "parc": "the banks of the Moselle near the Temple Neuf in Metz",
     "bistro": "the staff corridor of a bistro in the Metz old town",
     "salle": "a municipal gym in Metz",
+    # LA PISCINE EST MUNICIPALE, ET CE N'EST PAS UN DETAIL.
+    # « Elle est etudiante, elle ne peut pas se payer des shootings
+    # photo » -- ni un resort a debordement. Le centre nautique de
+    # Metz existe, il coute quelques euros l'entree, et c'est
+    # exactement la que va quelqu'un de son age et de ses moyens.
+    "piscine": "the outdoor pool of the municipal swimming centre "
+               "in Metz, plain tiled edge, other swimmers blurred "
+               "in the background, chain-link fence and trees "
+               "beyond",
 }
 
 # LES COIFFURES, UNE PAR SCENE.
@@ -179,6 +188,32 @@ SCENES = (
     # Le vocabulaire de studio est banni : « editorial », « magazine »,
     # « luxury lifestyle », « glamour photography » demandaient
     # litteralement un shooting professionnel au moteur.
+    # LES TROIS PREMIERES PUBLICATIONS -- demandees le 25 septembre.
+    #
+    # « Attention, les premieres sont tres importantes. » Elles le sont
+    # doublement : ce sont elles qui decident si quelqu'un s'abonne, et
+    # ce sont elles qu'on verra encore dans un an en haut du profil.
+    #
+    # Trois roles distincts, et c'est voulu :
+    #   - PROFIL  : le visage, reconnaissable, aucune ambiguite
+    #   - STORY   : l'instant, imparfait, qui prouve qu'elle est reelle
+    #   - PREMIER : celle qui donne envie de s'abonner
+    Scene("piscine_profil", "Photo de profil -- bord de piscine", TENDRE,
+          f"sitting on the tiled edge of {LIEUX['piscine']}, feet in the "
+          "water, wearing a simple colourful patterned bikini, a plain "
+          "towel bunched beside her, shoulders relaxed, looking straight "
+          "at the camera with an easy unforced smile, late afternoon "
+          "summer light, no posing, no pout",
+          "Derniers jours avant la rentree \u2600\ufe0f",
+          AMIE, QUEUE),
+    Scene("piscine_story", "Story -- pieds dans l'eau", TENDRE,
+          f"at {LIEUX['piscine']}, phone held low and pointed down at "
+          "her own feet dangling in the blue water, her legs and the "
+          "ripples filling most of the frame, her face not visible or "
+          "only partly at the very top, slightly crooked framing, "
+          "harsh midday sun, grainy",
+          "14h. Personne. Le luxe \U0001f60c",
+          BRAS_TENDU, QUEUE),
     Scene("cafe", "Au cafe avec les copines", TENDRE,
           f"crammed around a small table on {LIEUX['cafe']}, two friends "
           "leaning in beside her, empty cups and a laptop pushed aside, "
