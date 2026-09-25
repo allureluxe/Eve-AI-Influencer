@@ -118,9 +118,24 @@ class Apparence:
         "both eyes symmetrical, well-aligned and "
         "looking in the same direction, bare minimal makeup, no mature or "
         "sophisticated makeup look, high cheekbones, small delicate nose, "
+        # AU PLUS DEUX GRAINS DE BEAUTE, ET C'EST UN PLAFOND, PAS UNE CIBLE.
+        #
+        # L'ancre disait « two or three small subtle beauty marks » : le
+        # portrait du 25 septembre en a rendu cinq ou six, tous sur la
+        # joue et le menton. Remarque de l'operateur : « trop de grains de
+        # beaute sur le visage, 1 ou 2 max ».
+        #
+        # Un generateur d'images lit un nombre comme une SUGGESTION et
+        # deborde presque toujours vers le haut. On descend donc le compte
+        # ET on ajoute une interdiction explicite du cas rate, comme pour
+        # les yeux verts : une formule negative posee dans l'ancre pese
+        # plus lourd que la meme rangee dans le negatif, que FLUX.2 ne
+        # recoit meme pas.
         "naturally imperfect skin like a real adult woman, at most one or two "
-        "extremely faint barely visible freckles, two or three small subtle "
-        "beauty marks, small natural skin blemishes and visible pores, "
+        "extremely faint barely visible freckles, at most ONE small subtle "
+        "beauty mark on the face, NOT several moles, NOT a cluster of "
+        "beauty marks, NOT multiple dark spots on the cheeks or chin, "
+        "small natural skin blemishes and visible pores, "
         "slim natural adult body "
         "proportions, average realistic bust size, 160 cm, naturally tanned "
         "golden skin tone as her permanent complexion (not a vacation tan, "
