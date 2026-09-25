@@ -106,8 +106,17 @@ class Apparence:
     #     des planches de trois images.
     ancre: str = (
         "a single photograph of one woman, one frame, not a collage, "
-        "not a contact sheet. She is a woman in her mid-twenties, "
-        "never younger, "
+        # LA MENTION D'AGE EST OBLIGATOIRE — deux tests la verrouillent,
+        # et ils ont raison : c'est elle qui empeche le moteur de
+        # rajeunir Luna, et une scene suggestive sur un rendu d'apparence
+        # adolescente fait bannir un compte definitivement.
+        #
+        # Ce qui declenchait le filtre n'etait PAS « adult woman » seul,
+        # mais son accolement a « body proportions » -- isole par
+        # dichotomie le 26 septembre. On garde donc la mention entiere et
+        # on ne remet jamais le corps a cote.
+        "not a contact sheet. She is a 25-year-old adult woman, "
+        "in her mid-twenties, never younger, "
         "long platinum blonde hair with visible darker regrowth at the "
         "roots, a few split ends, not freshly salon-styled, "
         "muted greyish-green eyes, low saturation, natural dull eye "
