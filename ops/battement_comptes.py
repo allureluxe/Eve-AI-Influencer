@@ -38,6 +38,7 @@ import json
 import logging
 import os
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -63,6 +64,12 @@ charger_env()
 log = logging.getLogger("battement")
 
 COMPTES = {
+    # LE COMPTE REEL A REJOINT LA LISTE le 25 septembre, au depot de
+    # 120 EUR. L'operateur l'a vu tout de suite : « je ne vois toujours
+    # pas 120 EUR de capital dans l'application ». Les positions, elles,
+    # remontaient bien -- c'est le robot qui les publie. Le CAPITAL, lui,
+    # passe par ce battement, qui ne connaissait que les simulations.
+    "reel": "robot.bitvavo.json",
     "demo": "robot.demo.json",
     "demo2": "robot.demo2.json",
 }
@@ -136,9 +143,73 @@ def _cours(actif: str) -> float | None:
     return _CACHE.get(actif)
 
 
+def _avoirs_bitvavo() -> list | None:
+    """Tous les avoirs du compte reel, tels que Bitvavo les rend.
+
+    Le simulateur tient son solde dans son fichier d'etat ; le compte
+    reel, lui, n'a de verite que chez le courtier. On l'interroge
+    directement, sans passer par le robot -- ce battement doit pouvoir
+    publier le capital meme quand le robot est a l'arret.
+    """
+    cle = os.environ.get("BITVAVO_API_KEY", "")
+    secret = os.environ.get("BITVAVO_API_SECRET", "")
+    if not cle or not secret:
+        return None
+    import hashlib
+    import hmac
+    ts = str(int(time.time() * 1000))
+    sig = hmac.new(secret.encode(),
+                   (ts + "GET" + "/v2/balance").encode(),
+                   hashlib.sha256).hexdigest()
+    req = urllib.request.Request(
+        "https://api.bitvavo.com/v2/balance",
+        headers={"Bitvavo-Access-Key": cle, "Bitvavo-Access-Signature": sig,
+                 "Bitvavo-Access-Timestamp": ts,
+                 "Bitvavo-Access-Window": "10000"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            soldes = json.loads(r.read().decode())
+    except Exception as exc:                                   # noqa: BLE001
+        log.warning("solde Bitvavo illisible : %s", str(exc)[:120])
+        return None
+    return soldes
+
+
+def _fichier_etat(compte: str) -> Path:
+    """Le robot REEL ecrit `state.json`, les simulations `state-<nom>.json`."""
+    return Path("data/state.json") if compte == "reel" \
+        else Path(f"data/state-{compte}.json")
+
+
+def _capital_bitvavo() -> float | None:
+    """Euros + valeur de marche de tout ce qui est detenu.
+
+    C'est la definition d'un compte AU COMPTANT, et c'est ce que montre
+    l'application de Bitvavo. On lit tous les avoirs, pas seulement
+    l'euro : un robot qui vient d'acheter a peu d'euros et beaucoup de
+    crypto, et son capital n'a pas bouge pour autant.
+    """
+    soldes = _avoirs_bitvavo()
+    if soldes is None:
+        return None
+    total = 0.0
+    for b in soldes:
+        actif = b.get("symbol", "")
+        quantite = float(b.get("available", 0)) + float(b.get("inOrder", 0))
+        if quantite <= 0:
+            continue
+        if actif == "EUR":
+            total += quantite
+            continue
+        prix = _cours(actif)
+        if prix is not None:
+            total += quantite * prix
+    return total
+
+
 def _solde_du_compte(compte: str) -> float | None:
     """Le liquide seul, sans le gain latent. Frais d'achat deduits."""
-    chemin = Path(f"data/state-{compte}.json")
+    chemin = _fichier_etat(compte)
     if not chemin.exists():
         return None
     try:
@@ -157,16 +228,39 @@ def capital_du_compte(compte: str) -> float | None:
     l'argent deux fois -- erreur commise le 21 septembre, qui annoncait
     6 120 EUR sur un compte de 3 300.
     """
-    chemin = Path(f"data/state-{compte}.json")
+    chemin = _fichier_etat(compte)
     if not chemin.exists():
         return None
     try:
         etat = json.loads(chemin.read_text())
     except Exception:                                          # noqa: BLE001
         return None
+    # LE COMPTANT NE SE COMPTE PAS COMME LE SIMULATEUR.
+    #
+    # Chez `PaperBroker`, la somme achetee n'est JAMAIS debitee du solde
+    # (modele a marge) : le capital vaut donc solde + gain latent, et
+    # additionner la valeur des positions compterait l'argent deux fois.
+    #
+    # Sur le compte REEL, au comptant, c'est l'inverse : les euros
+    # partent vraiment a l'achat et on detient de la crypto. Appliquer la
+    # formule du simulateur annoncait 96,56 EUR pour 120 deposes --
+    # vu par l'operateur des la premiere minute : « je ne vois toujours
+    # pas 120 EUR de capital ».
+    #
+    # Le capital reel vaut donc : euros restants + VALEUR de ce qu'on
+    # detient, exactement ce qu'affiche Bitvavo.
+    if compte == "reel":
+        return _capital_bitvavo()
+
     solde = etat.get("solde_simule")
     if solde is None:
-        return None
+        # LE COMPTE REEL N'A PAS DE SOLDE SIMULE, il a un vrai solde chez
+        # Bitvavo. On va le chercher la-bas plutot que de rendre None --
+        # sinon l'application affiche un capital vide sur le seul compte
+        # qui contient de l'argent.
+        solde = _solde_bitvavo()
+        if solde is None:
+            return None
     latent = 0.0
     for p in (etat.get("position_meta") or {}).values():
         actif = p.get("symbol", "").replace("USD", "").replace("EUR", "")
@@ -229,7 +323,7 @@ def publier(compte: str, fichier: str) -> bool:
     # Le solde du simulateur, lui, les porte tous. C'est le seul chiffre
     # qui ne se reconstitue pas — et c'est celui sur lequel le robot
     # dimensionne ses positions.
-    solde = _solde_du_compte(compte)
+    solde = _solde_du_compte(compte) if compte != "reel" else _capital_bitvavo()
     depart = corps["capital_depart"]
     if solde is not None and depart > 0:
         corps["encaisse_eur"] = round(solde - depart, 2)
@@ -283,8 +377,14 @@ def main() -> int:
     import subprocess
     ok = 0
     for compte, fichier in COMPTES.items():
+        # LE SERVICE REEL NE S'APPELLE PAS `robot-reel`. Les simulations
+        # tournent sous `robot-demo` et `robot-demo2`, mais l'argent reel
+        # sous `robot-dual-live` -- nom herite du moteur a deux strategies.
+        # Sans cette correspondance, le compte qui contient l'argent est
+        # le seul declare « arrete ».
+        service = "robot-dual-live" if compte == "reel" else f"robot-{compte}"
         actif = subprocess.run(
-            ["systemctl", "is-active", f"robot-{compte}"],
+            ["systemctl", "is-active", service],
             capture_output=True, text=True).stdout.strip() == "active"
         if not actif:
             log.info("robot-%s n'est pas actif : fiche non rafraichie", compte)
