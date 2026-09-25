@@ -305,6 +305,9 @@ class GenerateurImages:
     # Il passe AVANT Cloudflare dans l'ordre des candidats : on garde
     # le quota de FLUX.2, plus beau, pour ce qui en vaut la peine.
     MODELE_DEFAUT_TOGETHER = "black-forest-labs/FLUX.1-schnell-Free"
+    #: Le modele des BROUILLONS : ~40 neurones l'image contre ~4 200
+    #: pour FLUX.2-dev, soit 150 images par jour au lieu de 2 ou 3.
+    MODELE_BROUILLON_CLOUDFLARE = "@cf/black-forest-labs/flux-1-schnell"
 
     def __init__(self, cle: str = "", url: str = "", modele: str = ""):
         stability = cle or os.getenv("STABILITY_API_KEY", "")
@@ -374,7 +377,31 @@ class GenerateurImages:
         return any(c["cle"] and c["url"] for c in self._candidats)
 
     def generer(self, prompt: str, negatif: str = "", graine: int = 0,
-                format: str = "portrait") -> bytes:
+                format: str = "portrait", qualite: str = "finale") -> bytes:
+        """`qualite` : « brouillon » pour chercher, « finale » pour garder.
+
+        CENT FOIS MOINS CHER POUR CHERCHER, ET C'EST TOUTE LA DIFFERENCE.
+
+        Tarif Cloudflare, par image de 1024x1024 (4 tuiles) :
+
+            FLUX.2-dev      37,5 neurones x 4 tuiles x ~28 etapes ~ 4 200
+            FLUX.1-schnell   9,6 neurones x 4 etapes              ~    40
+
+        Sur les 10 000 neurones offerts chaque jour, cela fait DEUX OU
+        TROIS images en FLUX.2 contre CENT CINQUANTE en schnell. Le
+        25 septembre, 21 tentatives ont brule la journee entiere : on
+        tirait au canon sur chaque essai, y compris les rates.
+
+        Un brouillon sert a choisir un cadrage, une pose, une lumiere --
+        pas a etre publie. Le passer en schnell rend dix variantes pour
+        le prix d'un quart d'image FLUX.2. La gagnante, elle, est
+        refaite en `finale`.
+
+        Le prix assume : schnell est moins realiste et refuse parfois
+        des scenes anodines. Ce n'est pas le moteur des photos qu'on
+        publie -- c'est celui qui permet de CHERCHER, ce qu'un quota de
+        deux images par jour interdisait.
+        """
         if not self.disponible:
             raise ErreurMoteur("aucune cle d'images configuree")
         methodes = {
@@ -388,8 +415,23 @@ class GenerateurImages:
             if not (candidat["cle"] and candidat["url"]):
                 continue
             try:
-                return methodes[candidat["nom"]](
-                    candidat["cle"], candidat["url"], prompt, negatif, graine, format)
+                url = candidat["url"]
+                modele = candidat["modele"]
+                # LE BROUILLON CHANGE DE MODELE, PAS DE FOURNISSEUR.
+                #
+                # On reste chez Cloudflare -- meme cle, meme chaine de
+                # repli -- en substituant simplement le modele dans
+                # l'adresse. Rien d'autre ne bouge.
+                if qualite == "brouillon" and candidat["nom"] == "cloudflare":
+                    url = url.replace(modele, self.MODELE_BROUILLON_CLOUDFLARE)
+                    modele = self.MODELE_BROUILLON_CLOUDFLARE
+                ancien = self.modele
+                self.modele = modele
+                try:
+                    return methodes[candidat["nom"]](
+                        candidat["cle"], url, prompt, negatif, graine, format)
+                finally:
+                    self.modele = ancien
             except ErreurMoteur as e:
                 derniere_erreur = e
                 logger.warning("generateur d'images %s indisponible (%s) -- "
