@@ -376,7 +376,13 @@ class TestGenerateurImages(unittest.TestCase):
         anciennes = {k: os.environ.pop(k, None) for k in
                      ("STABILITY_API_KEY", "HUGGINGFACE_API_KEY", "LUNA_IMAGE_URL",
                       "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE",
-                      "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN")}
+                      "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN",
+                      # CETTE LISTE DOIT SUIVRE CHAQUE NOUVEAU FOURNISSEUR.
+                      # Elle a lache le 25 septembre a l'ajout de Together
+                      # AI : la cle restait dans l'environnement, Together
+                      # devenait le fournisseur retenu, et le test echouait
+                      # sur du code correct.
+                      "TOGETHER_API_KEY")}
         try:
             # v1.6 ne tient pas sur un portrait realiste : le defaut doit etre SDXL.
             self.assertEqual(GenerateurImages(modele="").modele,
@@ -402,7 +408,13 @@ class TestGenerateurImages(unittest.TestCase):
         anciennes = {k: os.environ.pop(k, None) for k in
                      ("STABILITY_API_KEY", "HUGGINGFACE_API_KEY", "LUNA_IMAGE_URL",
                       "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE",
-                      "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN")}
+                      "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN",
+                      # CETTE LISTE DOIT SUIVRE CHAQUE NOUVEAU FOURNISSEUR.
+                      # Elle a lache le 25 septembre a l'ajout de Together
+                      # AI : la cle restait dans l'environnement, Together
+                      # devenait le fournisseur retenu, et le test echouait
+                      # sur du code correct.
+                      "TOGETHER_API_KEY")}
         try:
             os.environ["HUGGINGFACE_API_KEY"] = "hf_test"
             g = GenerateurImages()
@@ -425,7 +437,13 @@ class TestGenerateurImages(unittest.TestCase):
         anciennes = {k: os.environ.pop(k, None) for k in
                      ("STABILITY_API_KEY", "HUGGINGFACE_API_KEY", "LUNA_IMAGE_URL",
                       "LUNA_IMAGE_KEY", "LUNA_IMAGE_MODELE",
-                      "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN")}
+                      "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN",
+                      # CETTE LISTE DOIT SUIVRE CHAQUE NOUVEAU FOURNISSEUR.
+                      # Elle a lache le 25 septembre a l'ajout de Together
+                      # AI : la cle restait dans l'environnement, Together
+                      # devenait le fournisseur retenu, et le test echouait
+                      # sur du code correct.
+                      "TOGETHER_API_KEY")}
         try:
             os.environ["STABILITY_API_KEY"] = "your_stability_api_key_here"
             os.environ["HUGGINGFACE_API_KEY"] = "hf_test"
