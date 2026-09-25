@@ -51,7 +51,10 @@ log = logging.getLogger("brouillons")
 #: Les trois premieres publications, dans l'ordre ou il les a demandees.
 #: Seule ET a deux : ce sont deux photos d'une meme journee, et un
 #: compte ou la personne est toujours seule se reconnait tout de suite.
-TRIO = ("piscine_profil", "piscine_duo", "piscine_story")
+#: La quatrieme ouvre la serie « Metz gratuit » -- c'est elle qui donne
+#: une raison de REVENIR, la ou les trois autres donnent une raison de
+#: regarder.
+TRIO = ("piscine_profil", "piscine_duo", "piscine_story", "metz_gratuit")
 
 #: LES ANGLES, ET C'EST EUX QUI FONT CHOISIR -- PAS LA GRAINE.
 #:

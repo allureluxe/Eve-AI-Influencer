@@ -106,6 +106,13 @@ LIEUX = {
     "parc": "the banks of the Moselle near the Temple Neuf in Metz",
     "bistro": "the staff corridor of a bistro in the Metz old town",
     "salle": "a municipal gym in Metz",
+    # LA PORTE DES ALLEMANDS -- reelle, gratuite, et photogenique.
+    # C'est le premier episode de la serie « Metz gratuit » : les
+    # endroits qu'une etudiante fauchee peut vraiment s'offrir.
+    "porte": "the Porte des Allemands in Metz at golden hour, the "
+             "medieval stone gatehouse and its towers reflected in "
+             "the Seille below, a few locals walking on the bridge, "
+             "warm low sunlight on the old stone",
     # LA PISCINE EST CELLE D'UNE AMIE, UN JOUR D'ANNIVERSAIRE.
     #
     # Precision de l'operateur le 25 septembre : « elle est sur une
@@ -223,6 +230,30 @@ SCENES = (
     #   - PROFIL  : le visage, reconnaissable, aucune ambiguite
     #   - STORY   : l'instant, imparfait, qui prouve qu'elle est reelle
     #   - PREMIER : celle qui donne envie de s'abonner
+    # LA SERIE « METZ GRATUIT » -- les deux idees combinees, sur sa
+    # demande du 25 septembre : « l'idee de Metz est pas mal aussi,
+    # compile la 1 et la 3 ».
+    #
+    # Elles se renforcent au lieu de se diluer. Le decalage (« je suis
+    # fauchee ») donne la VOIX ; Metz donne le SUJET et, surtout, une
+    # raison de revenir -- un episode numerote se suit, une jolie photo
+    # se regarde une fois.
+    #
+    # Et ca amene de vraies personnes de la region, qui reconnaissent
+    # l'endroit et commentent. Un abonne local vaut dix curieux.
+    #
+    # La contrainte qui tient toute la serie : chaque lieu doit etre
+    # GRATUIT. C'est elle qui rend le personnage credible -- une
+    # etudiante qui dit « entree 0 euro » et qui filme un rooftop a
+    # 15 euros le verre ne trompe personne.
+    Scene("metz_gratuit", "Metz gratuit #1 -- la Porte des Allemands", TENDRE,
+          f"standing on the bridge in front of {LIEUX['porte']}, in a "
+          "plain oversized sweatshirt and jeans, canvas tote over one "
+          "shoulder, turning back towards the camera mid-step, not "
+          "posing, the monument filling the background behind her",
+          "Metz gratuit #1 \u2014 la Porte des Allemands au coucher du soleil. "
+          "Entr\u00e9e : 0\u20ac. Mon budget sorties du mois : 0\u20ac aussi \u2600\ufe0f",
+          AMIE, LACHES),
     Scene("piscine_profil", "Photo de profil -- anniversaire au bord de la piscine", TENDRE,
           f"sitting on the tiled edge of {LIEUX['piscine']}, feet in the "
           "water, wearing a simple colourful patterned bikini, a plain "
