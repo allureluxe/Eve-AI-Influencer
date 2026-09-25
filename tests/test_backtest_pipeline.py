@@ -62,6 +62,11 @@ class _RegistreConstant:
         return self.bougies[-limit:]
 
 
+#: Ancre temporelle des series de test : 1er janvier 2024, 00h00 UTC.
+#: Fixe par construction — voir le commentaire dans `_serie_en_tendance`.
+ANCRE_TEMPS = 1_704_067_200.0
+
+
 def _serie_en_tendance(n: int = 700, depart: float = 68_000.0,
                        pente: float = 0.004, amplitude: float = 0.012,
                        graine: int = 7) -> list[Candle]:
@@ -80,7 +85,24 @@ def _serie_en_tendance(n: int = 700, depart: float = 68_000.0,
     import random
 
     alea = random.Random(graine)
-    out, prix, t0 = [], depart, time.time() - n * 3600
+    # L'ANCRE EST UNE DATE FIXE, PAS `time.time()`.
+    #
+    # Les PRIX etaient deja reproductibles (`random.Random(graine)`), mais
+    # les HORODATAGES partaient de l'instant present : la serie glissait
+    # donc dans le temps a chaque execution. Or le stop temporel (5 jours)
+    # et les frontieres de journee du gestionnaire de risque se calculent
+    # sur l'heure absolue — le nombre d'entrees basculait entre 36 et 37
+    # selon le moment ou la suite tournait.
+    #
+    # Trouve le 25 septembre 2026 : `test_l_ordre_limite_rate_des_trades`
+    # echouait sur « 37 entrees contre 36 » apres avoir ete vert une heure
+    # plus tot, sans qu'une seule ligne de code de production ait bouge.
+    # Un test qui depend de l'heure qu'il est ne verrouille rien : il
+    # accuse au hasard, et on finit par ne plus le croire.
+    #
+    # 1er janvier 2024, 00h00 UTC. La valeur n'a aucune importance ; le
+    # fait qu'elle ne change jamais, si.
+    out, prix, t0 = [], depart, ANCRE_TEMPS
     for i in range(n):
         ouverture = prix
         # La pente varie de bougie en bougie : sans cela l'ATR est constant.
@@ -105,7 +127,8 @@ def _serie_en_escalier(n: int = 700, depart: float = 68_000.0,
     bougies de 1,2 % d'amplitude redescendent toujours toucher une limite
     posee 0,05 % plus bas : le vrai risque est le decrochage, pas le bruit.
     """
-    out, prix, t0 = [], depart, time.time() - n * 3600
+    # Meme ancre fixe que ci-dessus, pour la meme raison.
+    out, prix, t0 = [], depart, ANCRE_TEMPS
     for i in range(n):
         ouverture = prix * (1.0 + marche)          # ouvre AU-DESSUS
         fermeture = ouverture * (1.0 + marche)
