@@ -495,9 +495,28 @@ class TestLevierMaitrise:
         # n'en gardait que 62, et surtout il cesse de se battre avec
         # l'echelle anti-martingale — voir `test_le_plancher_ne_bloque_pas
         # _l_echelle` juste apres.
-        assert plancher >= 12.0, (
-            f"ticket_min_eur vaut {plancher} : le robot rouvrira des "
-            "positions de 5 EUR, mesurees sans interet — voir CLAUDE.md")
+        # LA BORNE BASSE EST CELLE DE LA PLATEFORME, PAS UN GOUT.
+        #
+        # Elle valait 12 EUR, pour empecher le robot de rouvrir des
+        # positions de 5. Mais le commentaire ci-dessus le dit lui-meme :
+        # « le rejeu donne le MEME resultat de 5 a 20 EUR » -- 1 284 EUR
+        # hors echantillon, 392 trades. Le plancher n'a jamais change la
+        # performance, seulement la couverture de l'univers.
+        #
+        # Et il entrait en conflit direct avec la regle de fond ecrite
+        # juste en dessous : le plancher doit rester SOUS ce que le
+        # capital permet. Le 25 septembre, avec un depot reel de 120 EUR,
+        # une position vaut au plus 7,20 EUR -- un plancher a 15 bloquait
+        # TOUT, et le robot tournait sans passer un seul ordre.
+        #
+        # Des deux contraintes, celle du capital est la plus
+        # fondamentale : un plancher de confort qui fige le robot ne
+        # protege rien. La borne basse devient donc le minimum REEL de
+        # Bitvavo, verifie sur les 427 marches en euros : 5,00 EUR.
+        assert plancher >= 5.0, (
+            f"ticket_min_eur vaut {plancher} : sous le minimum d'ordre de "
+            "Bitvavo (5 EUR sur les 427 marches en euros), chaque ordre "
+            "serait refuse par la plateforme")
 
         # La borne haute n'est pas un chiffre libre : c'est le capital qui
         # la fixe. Avec un stop D1 typique, une position vaut au plus
@@ -609,12 +628,27 @@ class TestLevierMaitrise:
             prix + stop * cfg.trade.tp_r_multiple,
             open_positions=[], universe_lookup=u.get,
             spread=spread_estime(inst, prix),
-            available_cash=12.0)          # la caisse ne permet que 12 EUR
+            # LA CAISSE EST RELATIVE AU PLANCHER, PAS UN CHIFFRE FIGE.
+            #
+            # Elle valait 12 EUR en dur, choisi pour tomber sous le
+            # plancher de 15. Le 25 septembre le plancher est descendu a
+            # 5 (le vrai minimum de Bitvavo, pour qu'un depot de 120 EUR
+            # puisse trader) et ce test a casse sur du code CORRECT :
+            # avec 12 EUR de caisse et un plancher a 5, ouvrir 5 EUR est
+            # parfaitement legitime.
+            #
+            # Ce que le test doit verifier n'est pas « 12 EUR », c'est le
+            # COMPORTEMENT : quand la caisse est SOUS le plancher, on
+            # refuse au lieu d'ouvrir au plancher. On derive donc le
+            # montant du plancher lui-meme, et le test survivra au
+            # prochain changement.
+            available_cash=cfg.risk.ticket_min_eur * 0.8)
 
         assert not d.allowed, (
-            f"position de {d.lots * prix:.2f} EUR ouverte avec 12 EUR de "
-            f"cash et un plancher a {cfg.risk.ticket_min_eur:.0f} : le "
-            "plancher a servi a GROSSIR la position au lieu de la refuser")
+            f"position de {d.lots * prix:.2f} EUR ouverte avec "
+            f"{cfg.risk.ticket_min_eur * 0.8:.2f} EUR de cash et un "
+            f"plancher a {cfg.risk.ticket_min_eur:.0f} : le plancher a "
+            "servi a GROSSIR la position au lieu de la refuser")
 
     def test_le_comptant_ne_peut_pas_emprunter(self):
         """Sans marge, engager plus que le capital est impossible."""

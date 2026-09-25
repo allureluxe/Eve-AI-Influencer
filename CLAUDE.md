@@ -688,7 +688,7 @@ chez Bitvavo) et **6 mois** en walk-forward, le classement s'inverse.
 | `risk.pyramide_locked_r_min` | **0.01** | un étage ne s'ajoute que si la pyramide est déjà à l'abri (stop au-dessus du prix moyen) | 0,5 N « Turtle » |
 | `risk.pyramide_espacement_atr` | **0.25** | 12 sept., mesuré avec le canal 10 | 0.5 |
 | `risk.max_total_risk_pct` | **5.0** | 10 sept. : seul palier qui améliore l'apprentissage ET le hors-échantillon, et le recul BAISSE (34,0 → 29,7 %) | 3.5 |
-| `risk.ticket_min_eur` | **15.0** | 10 sept., correction d'un calcul de référence | 20.0 |
+| `risk.ticket_min_eur` | **5.0** | 25 sept. : le vrai minimum de Bitvavo, vérifié sur ses 427 marchés en euros. À 120 € de dépôt réel, un plancher à 15 bloquait TOUT — voir ci-dessous | 20.0 puis 15.0 |
 | `risk.base_risk_pct` | **0.6** | palier « preuve » — pas le 1 % du Turtle | — |
 
 Le prix assumé du canal 10 : **le recul maximal double** (13,8 → 26,9 %),
@@ -696,6 +696,41 @@ et la cadence passe de 83 à 233 trades par an. C'est une décision
 explicite de l'opérateur — « je ne veux pas d'un robot dormeur » — prise
 sur une mesure où le nouveau réglage bat l'ancien dans les six périodes,
 y compris le pire cas.
+
+### Le ticket minimum descend à 5 € — 25 septembre
+
+**Un plancher de confort qui fige le robot ne protège rien.**
+
+Dépôt réel de 120 € le 25 septembre. À 0,6 % de risque et 10 % de
+distance au stop, une position vaut **7,20 €** — sous le plancher de
+15 €. Le robot aurait tourné en évaluant 280 cryptos par cycle et en
+refusant les 280, sans passer un seul ordre. L'argent aurait dormi.
+
+**Ce que la mesure dit, et elle était déjà écrite dans le test :**
+« le rejeu donne le MÊME résultat de 5 à 20 EUR » — 1 284 € hors
+échantillon, 392 trades. **Le plancher n'a jamais changé la
+performance**, seulement la couverture de l'univers. Il n'y avait donc
+rien à sacrifier.
+
+`tests/test_garde_fous.py` portait DEUX règles contradictoires : une
+borne basse à 12 € (du goût), et la règle de fond écrite juste en
+dessous — « le plancher DOIT rester sous ce que le capital permet,
+sinon plus aucune position n'est ouvrable ». À 120 €, elles se
+contredisaient. La seconde est la plus fondamentale ; la borne basse
+devient le **minimum réel de Bitvavo**, vérifié sur ses 427 marchés en
+euros : **5,00 €**.
+
+**À REMONTER À 15 € DÈS QUE LE CAPITAL DÉPASSE 250 €.** En dessous de
+ce seuil, 15 € bloque tout ; au-dessus, il reprend son sens et la
+configuration réelle redevient strictement identique à la démo 1.
+
+Un second test a cassé au passage, et il avait raison de casser :
+`test_le_plancher_refuse_au_lieu_de_raboter` donnait 12 € de caisse,
+un chiffre choisi pour tomber sous l'ancien plancher. Avec un plancher
+à 5, ouvrir 5 € sur 12 € de caisse est **légitime**. La caisse est
+désormais dérivée du plancher (× 0,8), et le test vérifie le
+COMPORTEMENT — refuser quand la caisse est sous le plancher — au lieu
+d'un montant figé. Même défaut que les deux tests corrigés la veille.
 
 ### Mesuré puis écarté — ne pas y revenir sans nouvelle mesure
 
