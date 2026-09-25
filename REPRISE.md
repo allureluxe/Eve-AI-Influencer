@@ -1,5 +1,71 @@
-# Ou on en est — mis a jour le 22 septembre 2026
+# Ou on en est — mis a jour le 26 septembre 2026
 
+## LUNA — la ou on s'est arretes
+
+**Les photos passent par CHATGPT, pas par nos moteurs.** Les quatre
+fournisseurs sont a sec ou payants (Cloudflare quota journalier,
+Hugging Face credits mensuels, Together demande un depot, Pollinations
+un solde). L'operateur a ChatGPT : il televerse `portrait.jpg` comme
+reference et colle les consignes. Le visage tient parfaitement — 19
+images generees, toutes coherentes.
+
+Deux documents lui ont ete envoyes, ils sont dans
+`data/luna-profil/` : `consignes-chatgpt.md` (mode d'emploi) et
+`prompts-une-par-une.md` (les 19 consignes numerotees, haute
+resolution demandee explicitement).
+
+Les 19 vignettes decoupees sont dans `data/luna-choix/`. Elles font
+~200x300 : bonnes pour CHOISIR, pas pour publier. Les versions
+publiables se redemandent a ChatGPT une par une.
+
+**Mes recommandations, non encore tranchees par lui :**
+
+    profil       piscine-seule-1-pres
+    publication  metz-5-cote       <- la premiere, elle installe le personnage
+    seconde      piscine-duo-3-face
+    story        story-pieds-dans-eau
+
+Le raisonnement sur la premiere publication compte : commencer par un
+bikini attire un public qui ne commentera jamais un « Metz gratuit #2 ».
+La premiere publication decide QUEL public arrive.
+
+**A CORRIGER** : un motif type tatouage apparait dans le dos de Luna sur
+les vues de dos. Ajoute aux interdictions dans les consignes, PAS encore
+dans `luna/persona.py`.
+
+## EN ATTENTE DE SA REPONSE — le livre
+
+Il a montre « Les detectives maladroits — Quand la lingerie devient une
+affaire d'Etat », signe « Basutiian liam », et veut une video animee
+racontant l'histoire. DEUX QUESTIONS POSEES, SANS REPONSE :
+
+1. **Est-ce SON livre ?** La couverture a l'air generee par IA et le nom
+   d'auteur est bouscule, ce qui suggere une auto-edition. Si c'est le
+   livre d'un tiers, on ne met pas son histoire en video.
+2. **Quelle est l'histoire ?** Impossible de raconter un livre non lu --
+   il doit envoyer la quatrieme de couverture ou un resume.
+
+Plan propose s'il confirme : scenario decoupe plan par plan, images via
+ChatGPT avec la couverture en reference, montage par lui chez Kling ou
+Pika. JE NE GENERE PAS DE VIDEO -- aucun service branche ne le fait.
+
+## CE QUI A ETE FAIT LE 25-26
+
+- **Pare-feu actif**, SSH seul expose, cupsd coupe et desactive.
+- **Esperance corrigee** : elle se calcule sur les euros engages, plus
+  sur un R qui explosait sur les pyramides (RUNE : 46 R pour 95 EUR).
+  Sans ca le robot aurait double la mise a 40 trades.
+- **Demo 1 realignee** sur le reel (reserve 0).
+- **Suiveur 3,0 -> 2,0 ATR** sur les trois comptes.
+- **Tache de 02h20 DESACTIVEE** : elle brulait les 10 000 neurones a
+  elle seule chaque nuit, en relancant FLUX.2 en boucle. C'est elle qui
+  a fait attendre l'operateur quatre jours.
+- `ops/brouillons_luna.py` tourne desormais a 02h05 : 24 brouillons
+  (4 scenes x 6 angles) en schnell, ~960 neurones.
+
+---
+
+# Ce qui precede date du 25 septembre 2026
 ## CE QUI A ETE ARME CE SOIR, ET CE QUI NE L'A PAS ETE
 
 **`trail_atr_mult` 3,0 -> 2,0 dans `robot.bitvavo.json`.** Parti d'une
