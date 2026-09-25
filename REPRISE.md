@@ -70,6 +70,21 @@ apres la remise a zero.
 Hugging Face reste a sec pour un autre motif : credits MENSUELS epuises
 (HTTP 402), pas journaliers. Il ne revient pas avant le mois prochain.
 
+## SECURITE — 25 septembre
+
+Pare-feu `ufw` ACTIF : refus par defaut en entree, **SSH (22) seul
+autorise**, survit au redemarrage. `cupsd` (port 631), expose au monde
+depuis les essais d'imprimante, arrete ET desactive au demarrage.
+
+Audit verifie, pas suppose : aucun secret dans tout l'historique git
+(7 motifs scannes), 26 tables Supabase sur 27 refusent la cle publique
+de l'APK. Seule `alluxe_bot_capital` est lisible publiquement — courbe
+des DEMOS uniquement, aucune donnee personnelle.
+
+**A TRANCHER LE 28** : quand le compte reel deposera, faut-il publier
+sa courbe de capital dans cette meme table ? Aujourd'hui le battement
+ne connait que `demo` et `demo2`.
+
 ## A FAIRE LE 28
 
 - recompiler l'APK (correction d'affichage « Au pire » non livree)
