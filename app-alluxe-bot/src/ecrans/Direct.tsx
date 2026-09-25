@@ -42,9 +42,31 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   const [descendant, setDescendant] = React.useState(true);
   const { positions, capital, prixLive, erreur, rafraichir } = useSuiviPositions(false, 0);
 
+  // LE CAPITAL SE RELIT, IL NE SE CHARGE PAS UNE FOIS.
+  //
+  // Il etait lu au montage de l'ecran, et jamais ensuite : les positions
+  // bougeaient en direct pendant que le gros chiffre restait fige.
+  // Remarque de l'operateur le 26 septembre, dix minutes apres le premier
+  // depot reel : « le capital il reste fige ».
+  //
+  // L'ecran Demo, lui, recalcule le sien a chaque cotation. Ici on ne
+  // peut PAS recalculer cote application : au comptant, le capital vaut
+  // les euros restants PLUS la valeur de ce qu'on detient, et
+  // l'application ne connait pas le solde en euros. C'est le serveur qui
+  // le sait, et il le republie toutes les cinq minutes.
+  //
+  // On le relit donc au meme rythme. Trente secondes : assez pour que le
+  // chiffre vive, assez peu pour ne pas interroger la base en boucle.
   React.useEffect(() => {
-    etatCapital().then(setCapitalEtat).catch(() => {});
-    historique(100).then(setFermees).catch(() => setFermees([]));
+    let vivant = true;
+    const lire = () => {
+      etatCapital().then((e) => { if (vivant) setCapitalEtat(e); }).catch(() => {});
+    };
+    lire();
+    historique(100).then((h) => { if (vivant) setFermees(h); })
+                   .catch(() => { if (vivant) setFermees([]); });
+    const minuteur = setInterval(lire, 30_000);
+    return () => { vivant = false; clearInterval(minuteur); };
   }, []);
 
   const surRafraichir = async () => {
