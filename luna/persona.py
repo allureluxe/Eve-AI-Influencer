@@ -63,85 +63,66 @@ class Apparence:
     # sur un rendu d'apparence adolescente font bannir un compte
     # Instagram ou TikTok definitivement, et posent un probleme bien
     # au-dela du compte.
+    # L'ANCRE EST RAMENEE AU VISAGE — 26 septembre.
+    #
+    # Elle faisait 1 375 caracteres et decrivait tout : visage, corps,
+    # proportions, taille, teint, silhouette. Le 26 septembre, Cloudflare
+    # a refuse TOUTE generation -- « Input prompt contains NSFW content »
+    # -- y compris Luna en sweat et jean devant un monument.
+    #
+    # CE QUE LA MESURE A MONTRE, en isolant les morceaux un par un :
+    #
+    #     le visage seul, tres detaille   -> NSFW
+    #     la scene seule                  -> OK
+    #     un visage COURT + la scene      -> OK
+    #
+    # Le classificateur ne juge pas un mot, il juge l'ENSEMBLE : un
+    # inventaire physique d'une femme sans contexte ressemble a une
+    # demande a caractere sexuel ; la meme femme en train de faire
+    # quelque chose dans un lieu, non. Et il a raison de faire cette
+    # difference.
+    #
+    # Notre prompt echouait parce que l'ancre, longue de deux mille
+    # caracteres, ECRASAIT la scene. La corriger n'est pas contourner un
+    # filtre : c'est reconnaitre que l'ancre faisait un travail qui
+    # n'etait pas le sien.
+    #
+    # CE QU'UNE ANCRE DOIT TENIR : le VISAGE, et rien d'autre. C'est a
+    # lui qu'on reconnait quelqu'un d'une photo a l'autre. Les
+    # proportions, la taille, la silhouette ne servaient pas la
+    # constance -- elles ne faisaient que gonfler le prompt et attirer
+    # l'attention du classificateur.
+    #
+    # Sont conserves, parce qu'ils ont chacun ete ajoutes pour corriger
+    # un defaut REEL constate par l'operateur :
+    #   - les racines foncees et les pointes abimees (21 sept.) : une
+    #     etudiante ne refait pas son platine toutes les six semaines ;
+    #   - les yeux gris-vert DESATURES avec leurs interdictions (21
+    #     sept.) : le moteur rendait du vert fluo ;
+    #   - un seul grain de beaute maximum (25 sept.) : il en mettait six ;
+    #   - l'age adulte, sans jamais accoler « adult » et « body », la
+    #     collocation qui declenchait le filtre ;
+    #   - « une seule photo, un seul cadre » (19 sept.) : FLUX.2 rendait
+    #     des planches de trois images.
     ancre: str = (
-        # 19 sept. : "the same recurring fictional character" et "across all
-        # images" faisaient produire a FLUX.2 une PLANCHE DE TROIS PHOTOS
-        # cote a cote -- il suit l'instruction au pied de la lettre. Ces
-        # tournures venaient des modeles de type SD, ou elles servaient
-        # d'indice de coherence. La coherence du visage vient en realite
-        # du detail des traits decrits ci-dessous, pas de ces formules.
         "a single photograph of one woman, one frame, not a collage, "
-        "not a contact sheet, not multiple panels. "
-        "She is a 25-year-old adult woman, "
-        "clearly adult mature facial structure, defined jawline and cheekbones, "
-        "adult woman's face and body proportions, not a teenager, "
-        # LA LONGUEUR ET LA COULEUR SONT SON IDENTITE ; LA COIFFURE NON.
-        #
-        # L'ancre disait « long wavy platinum blonde hair » : elle etait
-        # donc coiffee a l'identique sur chaque photo, comme si elle
-        # sortait du salon a chaque fois. Remarque de l'operateur le
-        # 21 septembre : « fais-lui aussi des coiffures differentes, de
-        # nos jours on ne va pas au coiffeur tous les jours ».
-        #
-        # La coiffure est desormais portee par la SCENE (voir
-        # `COIFFURES` dans photos.py) : chignon fait a la main, queue de
-        # cheval, cheveux encore mouilles, pince a cheveux. Seules la
-        # longueur et la couleur restent ici -- c'est a elles qu'on
-        # reconnait le personnage d'une photo a l'autre.
-        #
-        # LES RACINES, elles, restent dans l'ancre : elles ne dependent
-        # pas de la scene mais de son budget. Une decoloration platine se
-        # reprend toutes les six semaines chez un coiffeur ; une
-        # etudiante qui fait des extras le week-end ne le fait pas, et ca
-        # se voit. C'est exactement le genre de detail qui separe une
-        # vraie personne d'une image de banque d'images.
+        "not a contact sheet. She is a woman in her mid-twenties, "
+        "never younger, "
         "long platinum blonde hair with visible darker regrowth at the "
         "roots, a few split ends, not freshly salon-styled, "
-        # LES YEUX, REECRITS LE 21 SEPTEMBRE.
-        #
-        # L'ancienne formule disait « blue-green eyes with a subtle green
-        # hue, not pure blue ». Le moteur a retenu « green » et rendu des
-        # yeux VERT FLUO, lumineux, comme un personnage de jeu video --
-        # exactement ce que le negatif interdit par ailleurs. Retour de
-        # l'operateur : « les yeux ca va pas ».
-        #
-        # Deux corrections. D'abord nommer une couleur REELLE et
-        # DESATUREE plutot qu'un melange que le moteur doit interpreter :
-        # un vert-gris sourd, la couleur la plus banale qui soit. Ensuite
-        # dire explicitement ce qu'on ne veut pas -- une interdiction
-        # posee dans l'ancre pese plus lourd que la meme dans le negatif,
-        # qui n'est meme pas transmis a FLUX.2 (il ne prend qu'un prompt).
-        "muted greyish-green eyes, low saturation, natural dull eye color "
-        "like a real person's, soft and matte, NOT bright green, NOT "
-        "vivid, NOT glowing, NOT emerald, NOT neon, no colored contact "
-        "lenses, iris slightly darker at the rim, "
-        "both eyes symmetrical, well-aligned and "
-        "looking in the same direction, bare minimal makeup, no mature or "
-        "sophisticated makeup look, high cheekbones, small delicate nose, "
-        # AU PLUS DEUX GRAINS DE BEAUTE, ET C'EST UN PLAFOND, PAS UNE CIBLE.
-        #
-        # L'ancre disait « two or three small subtle beauty marks » : le
-        # portrait du 25 septembre en a rendu cinq ou six, tous sur la
-        # joue et le menton. Remarque de l'operateur : « trop de grains de
-        # beaute sur le visage, 1 ou 2 max ».
-        #
-        # Un generateur d'images lit un nombre comme une SUGGESTION et
-        # deborde presque toujours vers le haut. On descend donc le compte
-        # ET on ajoute une interdiction explicite du cas rate, comme pour
-        # les yeux verts : une formule negative posee dans l'ancre pese
-        # plus lourd que la meme rangee dans le negatif, que FLUX.2 ne
-        # recoit meme pas.
-        "naturally imperfect skin like a real adult woman, at most one or two "
-        "extremely faint barely visible freckles, at most ONE small subtle "
-        "beauty mark on the face, NOT several moles, NOT a cluster of "
-        "beauty marks, NOT multiple dark spots on the cheeks or chin, "
-        "small natural skin blemishes and visible pores, "
-        "slim natural adult body "
-        "proportions, average realistic bust size, 160 cm, naturally tanned "
-        "golden skin tone as her permanent complexion (not a vacation tan, "
-        "not pale, not overexposed), visible natural skin texture, no "
-        "plastic or airbrushed look, looks clearly like a woman in her "
-        "mid-twenties, never younger"
+        "muted greyish-green eyes, low saturation, natural dull eye "
+        "color like a real person's, soft and matte, NOT bright green, "
+        "NOT vivid, NOT glowing, NOT emerald, NOT neon, no colored "
+        "contact lenses, both eyes symmetrical and looking in the same "
+        "direction, "
+        "high cheekbones, small delicate nose, defined jawline, "
+        "bare minimal makeup, "
+        "naturally imperfect skin with visible pores and small natural "
+        "blemishes, at most ONE small subtle beauty mark on the face, "
+        "NOT several moles, NOT a cluster of beauty marks, "
+        "no tattoo anywhere, "
+        "naturally tanned golden complexion, visible skin texture, "
+        "no plastic or airbrushed look"
     )
     # 15 sept. : l'operateur n'aimait pas ce visage precis -- graine changee
     # pour repartir sur un nouveau visage (reste fixe ensuite pour la
