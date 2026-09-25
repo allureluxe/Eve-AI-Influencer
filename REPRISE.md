@@ -9,10 +9,9 @@ un solde). L'operateur a ChatGPT : il televerse `portrait.jpg` comme
 reference et colle les consignes. Le visage tient parfaitement — 19
 images generees, toutes coherentes.
 
-Deux documents lui ont ete envoyes, ils sont dans
-`data/luna-profil/` : `consignes-chatgpt.md` (mode d'emploi) et
-`prompts-une-par-une.md` (les 19 consignes numerotees, haute
-resolution demandee explicitement).
+Deux documents lui ont ete envoyes : `docs/consignes-chatgpt-luna.md`
+(mode d'emploi) et `prompts-une-par-une.md` (les 19 consignes
+numerotees, haute resolution demandee explicitement).
 
 Les 19 vignettes decoupees sont dans `data/luna-choix/`. Elles font
 ~200x300 : bonnes pour CHOISIR, pas pour publier. Les versions
