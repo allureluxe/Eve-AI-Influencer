@@ -102,6 +102,24 @@ CLES_DE_FOURNISSEURS = (
     "CLOUDFLARE_API_TOKEN",
     "RUNWAYML_API_SECRET",
     "RUNWAY_API_KEY",
+    # AJOUTES LE 26 SEPTEMBRE, quelques heures apres cette fixture, et
+    # oublies au moment de brancher Kling : six tests sont tombes des
+    # que l'operateur a pose sa cle. C'est la faiblesse de cette liste —
+    # elle ne se met pas a jour toute seule. `test_isolation_des_cles.py`
+    # la compare desormais aux variables reellement lues par le code.
+    "KLING_API_KEY",
+    "KLING_ACCESS_KEY",
+    "KLING_SECRET_KEY",
+    "LUNA_VIDEO_MODELE_KLING",
+    "LUNA_VIDEO_MODELE_SORA",
+    "LUNA_SORA_ACTIF",
+    # Le TEXTE aussi a ses fournisseurs : ce sont eux qui decident si
+    # Luna parle avec Claude, avec un endpoint compatible OpenAI, ou
+    # avec le repli hors ligne. Meme raisonnement que pour l'image.
+    "ANTHROPIC_API_KEY",
+    "LUNA_API_KEY",
+    "LUNA_API_MODELE",
+    "LUNA_MODELE",
     "LUNA_IMAGE_URL",
     "LUNA_IMAGE_KEY",
     "LUNA_IMAGE_MODELE",
