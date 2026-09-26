@@ -633,3 +633,28 @@ Nouveaux éléments :
 - polling persistant des tâches vidéo et verrou anti-chevauchement du cron.
 
 **IMPORTANT :** le code est livré dans GitHub, mais la migration Supabase et la clé Runway doivent encore être installées sur le VPS avant le premier job vidéo réel.
+
+
+## Luna — croissance + monetisation automatisees
+
+Le planificateur editorial est livre : `ops/planifier_luna.py` + timer
+`systemd/luna-planner.timer`. Il prepare Feed, Stories, Reels, TikTok courts
+et TikTok long-form avec objectifs de croissance/monetisation.
+
+Le worker supporte maintenant les videos longues TikTok par assemblage de clips
+et le routage officiel TikTok est implemente, avec `is_aigc=true`.
+
+La derniere passe de code a aussi fixe le grain de beaute unique de Luna au
+dessus du cote gauche de la bouche et conserve 3:4 pour les photos / 9:16 pour
+les videos sociales.
+
+Avant mise en production :
+- appliquer les migrations Supabase `20260926033000_luna_media_jobs.sql`,
+  `20260926050000_luna_growth_monetization.sql`,
+  `20260926053000_luna_publication_status.sql`,
+  `20260926060000_luna_tiktok_longform.sql`,
+  `20260926063000_luna_performance.sql` ;
+- installer `systemd/luna-planner.service` et `.timer` ;
+- renseigner les cles video / TikTok dans le `.env` du VPS ;
+- faire auditer l'application TikTok avant de compter sur une visibilite publique
+  via Direct Post.
