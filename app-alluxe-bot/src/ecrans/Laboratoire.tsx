@@ -4,7 +4,7 @@ import Svg, { Polyline, Line, Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Carte, EnTete, T, Vide, useCouleurs } from "../composants/base";
 import { espace, rayon } from "../theme";
-import { labStatus, labStrategies, LabStatus, LabStrategy } from "../services/lab";
+import { labStatus, labStrategies, ecouterLab, LabStatus, LabStrategy } from "../services/lab";
 
 const LABELS: Record<string,string> = {
   IDLE:"EN ATTENTE", IDEATED:"IDÉE", BACKTEST:"BACKTEST",
@@ -123,8 +123,20 @@ export function EcranLaboratoire() {
 
   React.useEffect(()=>{
     charger();
-    const id=setInterval(charger,5000);
-    return()=>clearInterval(id);
+    const arreterTempsReel = ecouterLab(
+      (nouveau) => setStatus(nouveau),
+      (nouvelle) => {
+        setItems((avant) => {
+          const sans = avant.filter((x) => x.strategy_id !== nouvelle.strategy_id);
+          return [nouvelle, ...sans].slice(0, 50);
+        });
+      },
+    );
+    const id=setInterval(charger,15000);
+    return()=>{
+      arreterTempsReel();
+      clearInterval(id);
+    };
   },[charger]);
 
   const refresh=async()=>{setRefreshing(true);await charger();setRefreshing(false);};
