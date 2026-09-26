@@ -235,6 +235,40 @@ class _Rest:
                               {"content-type": "application/json", **(entetes or {})})
 
 
+# --------------------------------------------------------- observabilite agent
+
+def _publier_statut_agent(rest: _Rest, state: str, task: str = "", tool: str = "",
+                          detail: str = "", last_error: str = "") -> None:
+    """Publie l'etat live de l'agent sans jamais enregistrer de secret."""
+    try:
+        rest.post("/rest/v1/alluxe_agent_status", {
+            "id": "agent",
+            "state": str(state)[:40],
+            "task": str(task)[:300],
+            "tool": str(tool)[:120],
+            "detail": str(detail)[:600],
+            "last_error": str(last_error)[:600],
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }, {"prefer": "resolution=merge-duplicates"})
+    except Exception as exc:
+        print(f"publication statut agent ignoree : {str(exc)[:120]}")
+
+
+def _journal_agent(rest: _Rest, event_type: str, tool: str, status: str,
+                   summary: str, started_at: float) -> None:
+    """Journal court d'une action : jamais le contenu complet d'une commande."""
+    try:
+        rest.post("/rest/v1/alluxe_agent_events", {
+            "event_type": str(event_type)[:80],
+            "tool": str(tool)[:120],
+            "status": str(status)[:40],
+            "summary": str(summary)[:500],
+            "duration_ms": max(0, int((time.time() - started_at) * 1000)),
+        })
+    except Exception as exc:
+        print(f"journal agent ignore : {str(exc)[:120]}")
+
+
 # --------------------------------------------------------- les outils
 
 def _outil_etat_robot(rest: _Rest, _args: dict) -> dict:
@@ -613,6 +647,12 @@ def _repondre(rest_lecture: _Rest, tours: list[dict],
             except json.JSONDecodeError:
                 args = {}
             fonction = OUTILS_PAR_NOM.get(nom)
+            debut_outil = time.time()
+            try:
+                _publier_statut_agent(rest_lecture, "TOOL", task="conversation", tool=nom,
+                                      detail="Execution de l'outil en cours")
+            except Exception:
+                pass
             if fonction is None:
                 resultat = {"erreur": f"outil inconnu : {nom}"}
             else:
@@ -629,6 +669,13 @@ def _repondre(rest_lecture: _Rest, tours: list[dict],
                     # Un outil qui casse ne doit jamais tuer le service :
                     # l'agent doit pouvoir dire qu'il a echoue.
                     resultat = {"erreur": f"{type(e).__name__} : {e}"}
+            try:
+                statut_evt = "error" if isinstance(resultat, dict) and resultat.get("erreur") else ("refused" if isinstance(resultat, dict) and resultat.get("refuse") else "ok")
+                _journal_agent(rest_lecture, "tool", nom, statut_evt,
+                               "outil execute" if statut_evt == "ok" else str(resultat.get(statut_evt, "outil en echec")),
+                               debut_outil)
+            except Exception:
+                pass
             rendu = json.dumps(resultat, ensure_ascii=False)
             if len(rendu) > RESULTAT_OUTIL_MAX:
                 # Une recherche web rend parfois des pages entieres. Le
@@ -800,11 +847,18 @@ def _traiter_un_message(rest: _Rest) -> bool:
     ligne = _reclamer_message_en_attente(rest)
     if ligne is None:
         return False
+    demande = str(ligne.get("contenu") or "")
+    _publier_statut_agent(rest, "WORKING", task=demande, detail="Demande prise en charge")
     tours = _historique_recent(rest)
     try:
         texte, outils_utilises = _repondre(rest, tours)
+        _publier_statut_agent(rest, "DONE", task=demande, detail="Réponse vérifiée")
     except ErreurAgent as e:
         texte, outils_utilises = f"(agent indisponible : {e})", []
+        _publier_statut_agent(rest, "ERROR", task=demande, detail="Le moteur n'a pas répondu", last_error=str(e))
+    except Exception as e:
+        texte, outils_utilises = f"(panne de mon cote : {type(e).__name__} : {e})", []
+        _publier_statut_agent(rest, "ERROR", task=demande, detail="Erreur pendant la tâche", last_error=str(e))
     rest.post("/rest/v1/alluxe_agent_messages", {
         "role": "assistant", "contenu": texte, "traite": True,
         "outils": outils_utilises,
@@ -820,6 +874,7 @@ def main() -> int:
         return 1
     oubliees = _oublier_les_cles_inutiles()
     rest = _Rest(url, cle)
+    _publier_statut_agent(rest, "IDLE", detail="Agent maître démarré")
     print(f"agent Alluxe demarre -- outils d'action actifs, {oubliees} cle(s) "
           f"inutile(s) effacee(s) de la memoire, poll toutes les "
           f"{RYTHME_SECONDES}s")
