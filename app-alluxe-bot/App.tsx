@@ -48,6 +48,7 @@ import { EcranAlertes } from "./src/ecrans/Alertes";
 import { EcranDiscussion } from "./src/ecrans/Discussion";
 import { EcranLuna } from "./src/ecrans/Luna";
 import { EcranAgent } from "./src/ecrans/Agent";
+import { EcranLaboratoire } from "./src/ecrans/Laboratoire";
 import { espace, polices, TRAIT } from "./src/theme";
 
 import { EcranAccueil as EcranAccueilAllure } from "./src/allure/ecrans/Accueil";
@@ -276,6 +277,12 @@ function Navigation() {
             headerBackTitleVisible: false,
           }} />
         <Pile.Screen name="Position" component={EcranPosition}
+          options={{
+            headerShown: true, headerTransparent: true, headerTitle: "",
+            headerTintColor: c.encre, headerShadowVisible: false,
+            headerBackTitleVisible: false,
+          }} />
+        <Pile.Screen name="Laboratoire" component={EcranLaboratoire}
           options={{
             headerShown: true, headerTransparent: true, headerTitle: "",
             headerTintColor: c.encre, headerShadowVisible: false,
