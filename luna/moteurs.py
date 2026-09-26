@@ -310,7 +310,21 @@ class GenerateurImages:
     # le quota de FLUX.2, plus beau, pour ce qui en vaut la peine.
     #: Le modele d'images d'OpenAI. Il accepte une image de reference,
     #: ce qu'aucun des autres fournisseurs de ce fichier ne sait faire.
-    MODELE_DEFAUT_OPENAI = "gpt-image-1"
+    #:
+    #: `gpt-image-2` ET PAS `gpt-image-1` — corrige le 26 septembre.
+    #: J'avais code la generation precedente ; `gpt-image-2` est sorti en
+    #: avril 2026 et c'est le modele de reference. Le 1 existe encore,
+    #: notamment pour l'edition, mais rien ne justifie de partir dessus.
+    #:
+    #: Les endpoints ne changent pas (`/v1/images/generations` et
+    #: `/v1/images/edits`), donc seul ce nom bouge.
+    #:
+    #: GPT Image 2.5 (8 septembre 2026) expose deux variantes, « Flare »
+    #: rapide et « Sunburst » plus detaillee. Elles se choisissent par
+    #: LUNA_IMAGE_MODELE_OPENAI sans toucher au code — c'est exactement a
+    #: ca que sert cette variable, et c'est ce qu'il faudra essayer quand
+    #: on aura une mesure sur `gpt-image-2`.
+    MODELE_DEFAUT_OPENAI = "gpt-image-2"
     MODELE_DEFAUT_TOGETHER = "black-forest-labs/FLUX.1-schnell-Free"
     #: Le modele des BROUILLONS : ~40 neurones l'image contre ~4 200
     #: pour FLUX.2-dev, soit 150 images par jour au lieu de 2 ou 3.

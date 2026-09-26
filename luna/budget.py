@@ -66,7 +66,20 @@ class Depenses:
             plafond_eur = float(os.getenv("LUNA_BUDGET_JOUR_EUR",
                                           PLAFOND_DEFAUT_EUR))
         self.plafond = max(0.0, plafond_eur)
-        self.fichier = fichier or FICHIER
+        # LE CHEMIN SE LIT A LA CONSTRUCTION, PAS A L'IMPORT.
+        #
+        # `FICHIER` est evalue une fois, au chargement du module : un test
+        # qui pose LUNA_DEPENSES_FICHIER apres coup n'avait donc AUCUN
+        # effet, et ecrivait dans le compteur de production. C'est arrive
+        # le 26 septembre — 2,40 EUR fantomes inscrits par trois passages
+        # de la suite de tests, qui auraient bloque les vraies depenses
+        # de la journee.
+        #
+        # Le depot connait deja ce piege : « les diagnostics ET la suite
+        # de tests ecrivaient dans data/ et remettaient l'echantillon a
+        # zero ». Meme cause, meme remede — resoudre le chemin tard.
+        self.fichier = fichier or Path(
+            os.getenv("LUNA_DEPENSES_FICHIER", str(FICHIER)))
 
     def _lire(self) -> dict:
         # UN FICHIER ABSENT EST NORMAL ; UN FICHIER ILLISIBLE NE L'EST PAS.

@@ -67,9 +67,14 @@ class TestLeTelechargementPorteLaCle:
 
 
 class TestIlRefusePlutotQueDeProduireUneInconnue:
-    def test_sans_image_de_depart_lisible_il_echoue(self, monkeypatch):
+    def test_sans_image_de_depart_lisible_il_echoue(self, monkeypatch, tmp_path):
         monkeypatch.setenv("OPENAI_API_KEY", "sk-vraie")
         monkeypatch.setenv("LUNA_BUDGET_JOUR_EUR", "100")
+        # LE COMPTEUR DE TEST N'EST PAS CELUI DE PRODUCTION. Sans cette
+        # ligne, ce test ecrivait dans `data/depenses_luna.json` — 2,40
+        # EUR fantomes inscrits le 26 septembre, qui auraient bloque les
+        # vraies depenses du jour.
+        monkeypatch.setenv("LUNA_DEPENSES_FICHIER", str(tmp_path / "d.json"))
         # TOUT L'INTERET DE SORA EST L'IMAGE DE DEPART : c'est elle qui
         # tient le visage de Luna. Continuer sans elle produirait une
         # video d'une femme qui n'est pas elle — pire qu'une erreur,
@@ -82,3 +87,29 @@ class TestIlRefusePlutotQueDeProduireUneInconnue:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         with pytest.raises(MediaErreur, match="OPENAI_API_KEY"):
             SoraVideo().creer("", "elle marche", "9:16", 8)
+
+
+class TestUnEchecNeCONSOMMEPasLeBudget:
+    """L'argent jamais depense ne doit pas etre compte.
+
+    Ce test existe parce que la premiere version reservait le cout EN
+    TETE de `creer`, avant meme de telecharger l'image de depart. Un
+    echec a ce stade laissait la depense inscrite : 2,40 EUR fantomes le
+    26 septembre, pour zero euro reellement engage.
+    """
+
+    def test_une_image_de_depart_illisible_ne_coute_rien(
+            self, monkeypatch, tmp_path):
+        from luna.budget import Depenses
+
+        compteur = tmp_path / "d.json"
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-vraie")
+        monkeypatch.setenv("LUNA_BUDGET_JOUR_EUR", "100")
+        monkeypatch.setenv("LUNA_DEPENSES_FICHIER", str(compteur))
+
+        with pytest.raises(MediaErreur, match="image de depart"):
+            SoraVideo().creer("https://exemple.invalide/rien.png",
+                              "elle marche", "9:16", 8)
+
+        assert Depenses().total_du_jour() == 0.0, \
+            "un echec avant l'appel a l'API ne doit rien consommer"

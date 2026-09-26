@@ -226,16 +226,6 @@ class SoraVideo:
         taille = self._taille(ratio)
         secondes = self._duree(duree)
 
-        # LE MEME PLAFOND QUE LES IMAGES ET QUE RUNWAY. La video se
-        # facture a la seconde et c'est, de loin, le poste le plus cher.
-        from luna.budget import BudgetEpuise, Depenses
-        cout_seconde = float(os.getenv("LUNA_COUT_VIDEO_SECONDE_EUR", "0.10"))
-        try:
-            Depenses().reserver(cout_seconde * int(secondes),
-                                f"video sora {secondes} s")
-        except BudgetEpuise as exc:
-            raise MediaErreur(str(exc)) from exc
-
         champs = {"model": self.model, "prompt": prompt,
                   "seconds": secondes, "size": taille}
         fichiers = {}
@@ -253,6 +243,26 @@ class SoraVideo:
                     f"image de depart illisible ({exc}) — sans elle le "
                     "visage de Luna derivera, on refuse plutot que de "
                     "produire une inconnue") from exc
+
+        # LA RESERVATION VIENT ICI, PAS PLUS HAUT — corrige le 26 sept.
+        #
+        # Elle etait faite en tete de methode, AVANT le telechargement de
+        # l'image de depart. Une image illisible faisait donc echouer
+        # l'appel apres avoir consomme le budget : de l'argent jamais
+        # depense, compte quand meme. Trois passages de la suite de tests
+        # ont inscrit 2,40 EUR fantomes.
+        #
+        # La regle : on reserve juste avant l'appel QUI DEPENSE, une fois
+        # que plus rien ne peut echouer entre les deux. Avant, on compte
+        # des intentions ; apres, on ne compte pas les cas ou le processus
+        # meurt en route.
+        from luna.budget import BudgetEpuise, Depenses
+        cout_seconde = float(os.getenv("LUNA_COUT_VIDEO_SECONDE_EUR", "0.10"))
+        try:
+            Depenses().reserver(cout_seconde * int(secondes),
+                                f"video sora {secondes} s")
+        except BudgetEpuise as exc:
+            raise MediaErreur(str(exc)) from exc
 
         rep = self._multipart("/v1/videos", champs, fichiers)
         if not rep.get("id"):
