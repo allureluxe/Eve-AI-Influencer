@@ -135,7 +135,8 @@ class Backtester:
         self.universe = Universe()
 
     def run(self, symbol: str, bars: int = 1500, start_balance: float = 1000.0,
-            series: Optional[dict[str, list[Candle]]] = None) -> BacktestResult:
+            series: Optional[dict[str, list[Candle]]] = None,
+            decalage: int = 0) -> BacktestResult:
         """Rejoue la strategie sur un instrument, sur un compte a lui seul.
 
         `series` : si fourni, `{unite: bougies}` remplace le telechargement
@@ -151,7 +152,7 @@ class Backtester:
         separes — pas un robot qui les arbitre sur un seul. Pour cela,
         voir `backtest_portefeuille.BacktestPortefeuille`.
         """
-        prep = self.preparer(symbol, bars, start_balance, series)
+        prep = self.preparer(symbol, bars, start_balance, series, decalage=decalage)
         for _ in prep.parcours:
             pass
         for pos in list(prep.broker.positions()):
