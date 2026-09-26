@@ -211,6 +211,26 @@ class RunwayVideo:
             raise MediaErreur("Runway n'est pas configure")
         if not 4 <= int(duree) <= 30:
             raise MediaErreur("Runway demande une duree video entre 4 et 30 secondes")
+
+        # LA VIDEO PASSE PAR LE MEME PLAFOND QUE LES IMAGES.
+        #
+        # Un plafond qui ne couvre qu'une partie des depenses n'en est
+        # pas un — et c'est la video qui coute le plus cher, de loin :
+        # elle se facture a la SECONDE. Dix secondes valent plusieurs
+        # images, et le planificateur peut en demander plusieurs par jour
+        # sans que personne ne regarde.
+        #
+        # Le cout est reserve AVANT la creation de la tache : une fois
+        # l'identifiant rendu, Runway a commence et facturera, que notre
+        # processus survive ou non.
+        from luna.budget import BudgetEpuise, Depenses
+        cout_seconde = float(os.getenv("LUNA_COUT_VIDEO_SECONDE_EUR", "0.05"))
+        try:
+            Depenses().reserver(cout_seconde * int(duree),
+                                f"video runway {int(duree)} s")
+        except BudgetEpuise as e:
+            raise MediaErreur(str(e)) from e
+
         payload = {
             "model": self.model,
             "promptImage": image_url,

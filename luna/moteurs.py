@@ -29,6 +29,7 @@ import os
 import random
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -307,6 +308,9 @@ class GenerateurImages:
     #
     # Il passe AVANT Cloudflare dans l'ordre des candidats : on garde
     # le quota de FLUX.2, plus beau, pour ce qui en vaut la peine.
+    #: Le modele d'images d'OpenAI. Il accepte une image de reference,
+    #: ce qu'aucun des autres fournisseurs de ce fichier ne sait faire.
+    MODELE_DEFAUT_OPENAI = "gpt-image-1"
     MODELE_DEFAUT_TOGETHER = "black-forest-labs/FLUX.1-schnell-Free"
     #: Le modele des BROUILLONS : ~40 neurones l'image contre ~4 200
     #: pour FLUX.2-dev, soit 150 images par jour au lieu de 2 ou 3.
@@ -326,6 +330,28 @@ class GenerateurImages:
         perso = url or os.getenv("LUNA_IMAGE_URL", "")
 
         candidats = []
+        # OPENAI EN TETE — 26 septembre, et c'est un changement de nature.
+        #
+        # Les quatre autres fournisseurs font du texte vers image : ils
+        # reinventent Luna a chaque appel, et son visage derive. Celui-ci
+        # part de `docs/luna/reference.jpg` et le tient. C'est le seul
+        # critere qui compte pour une influenceuse — pas le quota, pas la
+        # vitesse : la CONSTANCE DU VISAGE.
+        #
+        # Il est payant, donc il est borne par `luna/budget.py`. Quand la
+        # journee est pleine, il leve une erreur comme n'importe quelle
+        # panne, et la chaine bascule sur les gratuits : le systeme
+        # ralentit, il ne s'arrete pas.
+        openai = os.getenv("OPENAI_API_KEY", "")
+        if openai.lower().startswith("your_"):
+            openai = ""
+        if openai:
+            candidats.append({
+                "nom": "openai", "cle": openai,
+                "modele": modele or os.getenv("LUNA_IMAGE_MODELE_OPENAI",
+                                              self.MODELE_DEFAUT_OPENAI),
+                "url": "https://api.openai.com/v1/images/generations",
+            })
         if perso:
             candidats.append({
                 "nom": "stability",     # format de corps suppose
@@ -410,6 +436,7 @@ class GenerateurImages:
         methodes = {
             "stability": self._generer_stability,
             "huggingface": self._generer_huggingface,
+            "openai": self._generer_openai,
             "together": self._generer_together,
             "cloudflare": self._generer_cloudflare,
         }
@@ -510,8 +537,18 @@ class GenerateurImages:
 
 
     @staticmethod
-    def _requeter_multipart(url: str, cle: str, champs: dict) -> bytes:
-        """FLUX.2 n'accepte pas de corps JSON -- il exige du multipart."""
+    def _requeter_multipart(url: str, cle: str, champs: dict,
+                            fichiers: dict | None = None) -> bytes:
+        """FLUX.2 n'accepte pas de corps JSON -- il exige du multipart.
+
+        `fichiers` sert a `/v1/images/edits` d'OpenAI, qui attend une
+        image de reference dans le formulaire : {nom: (nom_fichier,
+        octets, type_mime)}. Il reste optionnel, parce que FLUX.2 n'en
+        envoie aucun -- et parce qu'AJOUTER UNE SECONDE FONCTION
+        MULTIPART aurait refait, le 26 septembre, l'erreur que ce depot
+        raconte sept fois : deux endroits qui decident de la meme chose,
+        dont un seul est corrige le jour ou un defaut apparait.
+        """
         import uuid
 
         limite = uuid.uuid4().hex
@@ -520,6 +557,12 @@ class GenerateurImages:
             corps += (f"--{limite}\r\n"
                       f'Content-Disposition: form-data; name="{nom}"\r\n\r\n'
                       f"{valeur}\r\n").encode("utf-8")
+        for nom, (nom_fichier, octets, type_mime) in (fichiers or {}).items():
+            corps += (f"--{limite}\r\n"
+                      f'Content-Disposition: form-data; name="{nom}"; '
+                      f'filename="{nom_fichier}"\r\n'
+                      f"Content-Type: {type_mime}\r\n\r\n").encode("utf-8")
+            corps += octets + b"\r\n"
         corps += f"--{limite}--\r\n".encode("utf-8")
         requete = urllib.request.Request(
             url, data=corps, method="POST",
@@ -558,6 +601,87 @@ class GenerateurImages:
             raise ErreurMoteur("reponse image inattendue (pas d'image)")
         import base64
         return base64.b64decode(b64)
+
+    def _generer_openai(self, cle: str, url: str, prompt: str, negatif: str,
+                        graine: int, format: str) -> bytes:
+        """`gpt-image-1` — LE SEUL QUI TIENT LE VISAGE DE LUNA.
+
+        C'est la raison d'etre de ce fournisseur, et elle vaut son prix.
+        Les quatre autres moteurs font du texte vers image : on leur
+        decrit Luna, ils inventent une femme qui y ressemble, et elle
+        change d'une photo a l'autre. C'est le defaut numero un des
+        personnages IA, celui que l'operateur voit immediatement.
+
+        Celui-ci accepte une IMAGE DE REFERENCE (`/v1/images/edits`) :
+        on lui donne le visage, il le garde. C'est exactement ce que
+        l'operateur fait a la main dans ChatGPT depuis le 25 septembre,
+        et qui marche — 19 images generees, toutes coherentes.
+
+        DEUX POINTS D'ENTREE, ET LE CHOIX EST AUTOMATIQUE :
+
+            reference presente  ->  /v1/images/edits        (multipart)
+            reference absente   ->  /v1/images/generations  (JSON)
+
+        `negatif` n'est pas transmis : l'API ne l'accepte pas. Comme
+        pour FLUX, toute formule protectrice doit vivre dans l'ANCRE.
+        `graine` non plus — le modele n'expose pas de germe, et c'est la
+        reference qui assure la constance a sa place.
+
+        IL EST PAYANT, DONC IL PASSE PAR LE PLAFOND. `Depenses.reserver`
+        refuse avant l'appel quand la journee est pleine ; la chaine de
+        repli bascule alors sur les moteurs gratuits au lieu de
+        s'arreter. Voir `luna/budget.py` pour le raisonnement.
+        """
+        import base64
+
+        from luna.budget import BudgetEpuise, Depenses
+
+        # Le cout est une ESTIMATION, reglable sans toucher au code : les
+        # tarifs bougent, et un chiffre fige dans le source finit par
+        # mentir. Le plafond, lui, protege quelle que soit sa justesse —
+        # c'est tout l'interet de compter en euros plutot qu'en images.
+        cout = float(os.getenv("LUNA_COUT_IMAGE_EUR", "0.07"))
+        try:
+            Depenses().reserver(cout, f"image openai ({format})")
+        except BudgetEpuise as e:
+            raise ErreurMoteur(str(e)) from e
+
+        # gpt-image-1 n'accepte QUE ces trois tailles (plus « auto ».)
+        # Demander 960x1280 comme aux autres fournisseurs donne un 400.
+        if format in ("carre",):
+            taille = "1024x1024"
+        elif format in ("paysage", "paysage_16_9"):
+            taille = "1536x1024"
+        else:                       # portrait, portrait_3_4, portrait_9_16
+            taille = "1024x1536"
+
+        reference = Path(os.getenv("LUNA_IMAGE_REFERENCE",
+                                   "docs/luna/reference.jpg"))
+        if reference.is_file():
+            brut = self._requeter_multipart(
+                url.replace("/images/generations", "/images/edits"), cle,
+                champs={"model": self.modele, "prompt": prompt,
+                        "size": taille, "n": "1"},
+                fichiers={"image[]": (reference.name,
+                                      reference.read_bytes(), "image/jpeg")})
+        else:
+            logger.warning("reference %s absente : le visage de Luna ne sera "
+                           "pas tenu d'une photo a l'autre.", reference)
+            brut = self._requeter(url, cle, {
+                "model": self.modele, "prompt": prompt,
+                "size": taille, "n": 1,
+            })
+
+        donnees = json.loads(brut.decode("utf-8")).get("data") or []
+        if not donnees:
+            raise ErreurMoteur("reponse openai sans image")
+        b64 = donnees[0].get("b64_json")
+        if b64:
+            return base64.b64decode(b64)
+        lien = donnees[0].get("url")
+        if not lien:
+            raise ErreurMoteur("reponse openai inattendue (ni b64 ni url)")
+        return urllib.request.urlopen(lien, timeout=120).read()
 
     def _generer_together(self, cle: str, url: str, prompt: str, negatif: str,
                           graine: int, format: str) -> bytes:
