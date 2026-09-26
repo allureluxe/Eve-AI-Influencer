@@ -1173,12 +1173,15 @@ class Strategy:
             structure_stop=None, digits=instrument.digits)
         ev.stop_loss = sl
         risque = max(price - sl, 1e-12)
-        # Meme raison que pour le donchian : la cible n'existe que pour le
-        # controle de ratio. Ici la sortie est une DATE, pas un prix.
+        # La famille momentum sort a date fixe : sans TP actif, aucun faux
+        # niveau de prix ne doit etre affiche ou transmis au broker.
         tm = self.trade_manager.config
-        cible_r = tm.tp_r_multiple if tm.tp_actif else 1000.0
-        ev.take_profit = round(price + cible_r * risque, instrument.digits)
-        ev.rr = cible_r
+        if not tm.tp_actif:
+            ev.take_profit = 0.0
+            ev.rr = 0.0
+        else:
+            ev.take_profit = round(price + tm.tp_r_multiple * risque, instrument.digits)
+            ev.rr = tm.tp_r_multiple
         return ev
 
     def _finish_quorum(
