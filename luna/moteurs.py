@@ -247,6 +247,7 @@ def choisir_moteur() -> Moteur:
 # silhouette entiere comme un plan rapproche.
 FORMATS = {
     "portrait": (832, 1216),
+    "portrait_3_4": (960, 1280),
     "carre": (1024, 1024),
     "paysage": (1216, 832),
 }
@@ -592,6 +593,8 @@ class GenerateurImages:
             corps["width"], corps["height"] = 1024, 1024
         elif format == "paysage":
             corps["width"], corps["height"] = 1024, 768
+        elif format == "portrait_3_4":
+            corps["width"], corps["height"] = 960, 1280
         else:
             corps["width"], corps["height"] = 768, 1024
         if graine:
