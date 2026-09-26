@@ -149,7 +149,7 @@ class RunwayVideo:
 
     BASE = "https://api.dev.runwayml.com"
     VERSION = "2024-11-06"
-    MODEL = "gen4.5"
+    MODEL = "seedance2_5"
 
     def __init__(self) -> None:
         self.cle = (os.getenv("RUNWAYML_API_SECRET")
@@ -209,6 +209,8 @@ class RunwayVideo:
               duree: int) -> str:
         if not self.disponible:
             raise MediaErreur("Runway n'est pas configure")
+        if not 4 <= int(duree) <= 30:
+            raise MediaErreur("Runway demande une duree video entre 4 et 30 secondes")
         payload = {
             "model": self.model,
             "promptImage": image_url,
