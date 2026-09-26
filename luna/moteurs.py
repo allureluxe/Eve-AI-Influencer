@@ -605,6 +605,28 @@ class GenerateurImages:
                 f"HTTP {e.code} : {e.read().decode('utf-8', 'replace')[:300]}") from e
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             raise ErreurMoteur(f"reseau : {e}") from e
+        # CETTE METHODE TRANSPORTE, ELLE N'INTERPRETE PAS.
+        #
+        # Elle decodait la reponse AU FORMAT CLOUDFLARE
+        # (`result.image`) et rendait des octets d'image. Le jour ou
+        # OpenAI s'en est servi — 26 septembre — sa reponse, pourtant
+        # parfaitement valide, tombait sur « reponse image inattendue
+        # (pas d'image) » : elle ne porte pas `result.image`, elle
+        # porte `data[0].b64_json`.
+        #
+        # Une fonction qui transporte ET qui interprete ne peut servir
+        # qu'un seul fournisseur. Le decodage appartient a l'appelant,
+        # qui seul sait a qui il parle.
+        return brut
+
+    @staticmethod
+    def _lire_reponse_cloudflare(brut: bytes) -> bytes:
+        """Cloudflare rend `{"success":..., "result":{"image":"<b64>"}}`.
+
+        Sorti de `_requeter_multipart` le 26 septembre : ce decodage
+        etait applique a TOUS les fournisseurs qui passent par du
+        multipart, donc a OpenAI, dont la reponse a une autre forme.
+        """
         if brut[:1] != b"{":
             return brut
         rep = json.loads(brut.decode("utf-8"))
@@ -612,7 +634,7 @@ class GenerateurImages:
             raise ErreurMoteur(f"{rep.get('errors', '')}"[:300])
         b64 = (rep.get("result") or {}).get("image")
         if not b64:
-            raise ErreurMoteur("reponse image inattendue (pas d'image)")
+            raise ErreurMoteur("reponse cloudflare inattendue (pas d'image)")
         import base64
         return base64.b64decode(b64)
 
@@ -650,17 +672,7 @@ class GenerateurImages:
 
         from luna.budget import BudgetEpuise, Depenses
 
-        # Le cout est une ESTIMATION, reglable sans toucher au code : les
-        # tarifs bougent, et un chiffre fige dans le source finit par
-        # mentir. Le plafond, lui, protege quelle que soit sa justesse —
-        # c'est tout l'interet de compter en euros plutot qu'en images.
-        cout = float(os.getenv("LUNA_COUT_IMAGE_EUR", "0.07"))
-        try:
-            Depenses().reserver(cout, f"image openai ({format})")
-        except BudgetEpuise as e:
-            raise ErreurMoteur(str(e)) from e
-
-        # gpt-image-1 n'accepte QUE ces trois tailles (plus « auto ».)
+        # gpt-image-2 n'accepte QUE ces trois tailles (plus « auto ».)
         # Demander 960x1280 comme aux autres fournisseurs donne un 400.
         if format in ("carre",):
             taille = "1024x1024"
@@ -671,6 +683,26 @@ class GenerateurImages:
 
         reference = Path(os.getenv("LUNA_IMAGE_REFERENCE",
                                    "docs/luna/reference.jpg"))
+
+        # LA RESERVATION VIENT ICI, PAS EN TETE DE METHODE.
+        #
+        # Elle etait faite avant le calcul de la taille et la lecture de
+        # la reference. Resultat, le 26 septembre : deux appels rates —
+        # sur un defaut de MON code, pas sur un refus d'OpenAI — ont
+        # consomme 0,14 EUR du plafond pour zero image. Le troisieme
+        # essai partait avec un budget deja entame par des echecs.
+        #
+        # La regle, la meme que pour Sora : on reserve juste avant
+        # l'appel QUI DEPENSE, quand plus rien ne peut echouer entre les
+        # deux. Le cout est une ESTIMATION reglable — les tarifs bougent,
+        # un chiffre fige dans le source finit par mentir — et le plafond
+        # protege quelle que soit sa justesse, puisqu'il compte en euros.
+        cout = float(os.getenv("LUNA_COUT_IMAGE_EUR", "0.07"))
+        try:
+            Depenses().reserver(cout, f"image openai ({format})")
+        except BudgetEpuise as e:
+            raise ErreurMoteur(str(e)) from e
+
         if reference.is_file():
             brut = self._requeter_multipart(
                 url.replace("/images/generations", "/images/edits"), cle,
@@ -839,7 +871,8 @@ class GenerateurImages:
             # faire dans la chaine d'un personnage recurrent.
             replis = ("@cf/black-forest-labs/flux-1-schnell",)
             try:
-                return self._requeter_multipart(url, cle, {"prompt": prompt})
+                return self._lire_reponse_cloudflare(
+                    self._requeter_multipart(url, cle, {"prompt": prompt}))
             except ErreurMoteur as principale:
                 base = url.rsplit("/ai/run/", 1)[0] + "/ai/run/"
                 for modele in replis:

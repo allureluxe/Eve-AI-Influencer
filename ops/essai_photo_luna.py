@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import random
 import sys
 from pathlib import Path
 
@@ -40,19 +41,22 @@ charger_env()
 from luna.budget import Depenses  # noqa: E402
 from luna.moteurs import ErreurMoteur, GenerateurImages  # noqa: E402
 from luna.persona import LUNA  # noqa: E402
+from luna.photos import (  # noqa: E402
+    CADRAGES_DEDANS, CADRAGES_DEHORS, COIFFURES, GARDE_ROBE,
+    POSES_INTERDITES,
+)
 
-#: La scene par defaut : Lyon, ses racines. Decor reel, tenue d'etudiante,
-#: lumiere de fin de journee — les trois choses qui font qu'une photo
-#: passe pour vraie.
+#: La scene par defaut : Lyon, ses racines. Decor reel, lumiere de fin de
+#: journee. LA TENUE N'EST PAS ECRITE ICI — elle est tiree de la
+#: garde-robe, sinon Luna porte le meme sweat noir sur toutes ses photos.
+#: Remarque de l'operateur le 26 septembre, et il avait raison : la
+#: premiere image produite par ce script portait exactement la tenue de
+#: la photo de Metz de la veille.
 SCENE_DEFAUT = (
-    "walking along the Saone riverbank in Vieux Lyon at golden hour, "
-    "turning back toward the camera over her shoulder with a small closed "
-    "smile, wearing an oversized black sweatshirt, light blue jeans and "
-    "white sneakers, a cream canvas tote bag on her shoulder, the "
-    "Renaissance facades of Vieux Lyon and Fourviere hill behind her, a "
-    "few blurred passers-by further away, candid photo taken by a friend "
-    "on a phone, visible skin texture, slightly imperfect, no plastic or "
-    "airbrushed look"
+    "on the Saone riverbank in Vieux Lyon at golden hour, the Renaissance "
+    "facades and Fourviere hill behind her, a few blurred passers-by, "
+    "visible skin texture, slightly imperfect, no plastic or airbrushed "
+    "look"
 )
 
 
@@ -64,6 +68,15 @@ def main() -> int:
                    help="portrait_3_4 (defaut), portrait_9_16, carre, paysage")
     a.add_argument("--sortie", default="data/luna-profil/essai.png")
     a.add_argument("--qualite", default="finale", choices=["finale", "brouillon"])
+    a.add_argument("--tenue", default="",
+                   help="une tenue precise ; sinon tiree de la garde-robe")
+    a.add_argument("--coiffure", default="",
+                   help="une coiffure precise ; sinon tiree au sort")
+    a.add_argument("--cadrage", default="",
+                   help="qui tient le telephone ; sinon tire au sort")
+    a.add_argument("--dedans", action="store_true",
+                   help="scene en interieur : autorise la selfie-miroir, "
+                        "impossible sur un quai")
     args = a.parse_args()
 
     depenses = Depenses()
@@ -93,7 +106,30 @@ def main() -> int:
               "Luna derivera d'une photo a l'autre — c'est le seul de la "
               "chaine qui sache partir d'une reference.")
 
-    prompt = f"{LUNA.apparence.ancre}, {args.scene}"
+    # LA TENUE ET LA COIFFURE SE TIRENT, ELLES NE SE FIGENT PAS.
+    #
+    # Ce sont les deux seules choses qui doivent changer d'une photo a
+    # l'autre : le visage, lui, est tenu par l'ancre et par la
+    # reference. Une femme qui porte le meme sweat sur quarante photos
+    # n'existe pas ; une femme qui change de visage non plus.
+    tenue = args.tenue or random.choice(GARDE_ROBE)
+    coiffure = args.coiffure or random.choice(COIFFURES)
+
+    # QUI TIENT LE TELEPHONE ? C'est la question que mes deux premiers
+    # essais ne posaient pas, et c'est elle qui decide si l'image passe
+    # pour vraie. Luna n'a pas de photographe : toute image qui ne rentre
+    # pas dans l'un de ces cadrages est impossible, et une image
+    # impossible trahit un compte artificiel plus surement qu'un mauvais
+    # rendu.
+    cadrages = CADRAGES_DEDANS if args.dedans else CADRAGES_DEHORS
+    cadrage = args.cadrage or random.choice(cadrages)
+
+    print(f"tenue      : {tenue[:66]}...")
+    print(f"coiffure   : {coiffure[:66]}...")
+    print(f"cadrage    : {cadrage[:66]}...")
+
+    prompt = (f"{LUNA.apparence.ancre}, {coiffure}, wearing {tenue}, "
+              f"{args.scene}, {cadrage}, {POSES_INTERDITES}")
     print(f"prompt     : {len(prompt)} caracteres")
 
     try:

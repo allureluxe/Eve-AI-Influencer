@@ -156,6 +156,109 @@ BONNET = "hair tucked under a knitted beanie, ends sticking out"
 SOIGNES = ("hair brushed out and loosely waved, the one evening she "
            "made an effort")
 
+# LA GARDE-ROBE — ajoutee le 26 septembre, sur une remarque de l'operateur.
+#
+# « Ce sont les memes vetements aussi, il faut que ce soit des vetements
+# differents a chaque fois. » Il avait raison : la tenue etait ecrite en
+# dur dans chaque scene, donc Luna portait le meme sweat noir, le meme
+# jean clair et le meme tote bag sur toutes les photos. Une femme qui ne
+# se change jamais, ca se voit a la deuxieme publication.
+#
+# CE QUI VARIE ET CE QUI NE VARIE PAS. Le visage, la couleur et la
+# longueur des cheveux vivent dans l'ancre (`persona.py`) : ce sont eux
+# qui font reconnaitre Luna, ils ne bougent jamais. La coiffure, le
+# cadrage et maintenant la tenue tournent : ce sont eux qui font qu'une
+# photo n'est pas la precedente.
+#
+# UNE VRAIE PERSONNE REMET SES VETEMENTS. Le piege serait de generer une
+# tenue neuve a chaque fois : quarante tenues differentes en quarante
+# photos, c'est une garde-robe de mannequin, pas d'etudiante qui paie
+# ses etudes en servant le week-end. Douze tenues qui reviennent, c'est
+# une vraie armoire — et reconnaitre un vetement d'une photo a l'autre
+# rend le personnage plus credible, pas moins.
+#
+# ELLES SONT CLASSEES PAR CONTEXTE, et c'est le point important : une
+# tenue de cours au Luxembourg n'est pas une tenue de quai de Saone un
+# dimanche. Piocher au hasard dans un seul sac produirait des photos ou
+# elle est en tailleur pour aller chercher le pain.
+# LE REGISTRE — pose le 26 septembre, apres un premier jet trop sage.
+#
+# L'operateur, devant la premiere garde-robe : « les vetements font trop
+# serieux, elle est jeune et sexy, oublie pas ». Il avait raison :
+# j'avais habille une femme de trente-cinq ans qui va au bureau — gros
+# pull, chemisier, blazer. Luna a 25 ans, elle est etudiante, et
+# l'accroche du compte passe par la.
+#
+# LA LIMITE EST CELLE DE L'OPERATEUR, ecrite par lui le 25 septembre :
+# « aucun contenu erotique ou pornographique, la seule chose qu'elle
+# pourra faire sera d'etre sexy pour attirer l'oeil, ca plus son
+# histoire, ca marche. »
+#
+# Ce que ca autorise : des coupes ajustees, des hauts courts, des jupes,
+# des robes, des epaules et des jambes — ce que porte n'importe quelle
+# fille de 25 ans un samedi. Ce que ca exclut, et qui a deja ete refuse
+# plusieurs fois dans ce projet : la lingerie, la transparence, les
+# poses suggestives.
+#
+# ET LE BUDGET RESTE CELUI D'UNE ETUDIANTE qui sert le week-end pour
+# payer ses cours. Des pieces courantes et bon marche, pas du createur :
+# c'est aussi ce qui la rend credible.
+QUOTIDIEN = (
+    "a fitted cropped white top and high-waisted straight jeans, white "
+    "trainers, a small shoulder bag",
+    "a tight ribbed tank top tucked into low-rise cargo trousers, a thin "
+    "gold chain, trainers",
+    "an oversized denim jacket worn open over a fitted cropped top, high-"
+    "waisted jeans, small hoop earrings",
+    "a short black tennis skirt with a simple fitted t-shirt and trainers, "
+    "bare legs",
+    "a soft fitted bodysuit in a neutral colour with wide-leg jeans, hair "
+    "down, minimal jewellery",
+    "an oversized grey hoodie worn over tiny denim shorts, long bare legs, "
+    "white socks and trainers",
+)
+ECOLE = (
+    "a cropped black blazer over a fitted white top, high-waisted straight "
+    "trousers, a laptop bag, dressed up but still young",
+    "a short fitted knitted top with tailored trousers and small heeled "
+    "boots, one delicate necklace",
+    "a pale blue shirt knotted at the waist over a fitted top, high-"
+    "waisted jeans, sleeves rolled up",
+)
+SORTIE = (
+    "a short black slip dress with thin straps, simple heeled boots, one "
+    "delicate necklace, hair down",
+    "a fitted corset-style top with black leather-look trousers and "
+    "heeled boots, small hoop earrings",
+    "a short fitted dress in a deep colour with bare shoulders, simple "
+    "heels, the one evening she made an effort",
+    "a satin cami top under a cropped leather-look jacket, tight black "
+    "jeans, hair loose",
+)
+DETENTE = (
+    "a cropped sports top and high-waisted gym leggings, a gym bag, "
+    "slightly flushed from training, hair up",
+    "an oversized faded t-shirt worn as a nightshirt over shorts, bare "
+    "legs, no makeup at all, at home",
+)
+ETE = (
+    "a short floaty summer dress with thin straps and flat sandals, tanned "
+    "shoulders",
+    "a fitted cropped top and denim shorts, sunglasses pushed up into her "
+    "hair, sandals",
+)
+#: Toutes les tenues, pour les scenes ou le contexte ne tranche pas.
+#: Le quotidien pese le plus lourd : c'est 90 % de la vie d'une
+#: etudiante, et un compte ou chaque photo est une sortie du samedi soir
+#: ne ressemble a la vie de personne.
+GARDE_ROBE = QUOTIDIEN + QUOTIDIEN + ECOLE + SORTIE + DETENTE + ETE
+
+#: Les coiffures, reunies pour pouvoir en tirer une. Elles existaient
+#: depuis le 21 septembre mais chacune dans son coin : rien ne permettait
+#: d'en choisir une au hasard, donc en pratique on reecrivait toujours la
+#: meme dans le prompt.
+COIFFURES = (CHIGNON, QUEUE, LACHES, MOUILLES, TRESSE, BONNET, SOIGNES)
+
 # LES QUATRE SEULES FACONS DONT LUNA PEUT PRENDRE UNE PHOTO.
 #
 # Elle n'a qu'un telephone et pas de photographe. Toute image qui ne
@@ -181,6 +284,40 @@ GROUPE = ("group selfie held at arm's length by Luna, two or three "
           "cropped and softly out of focus")
 AMIE = ("quick snapshot taken by a friend on a phone, slightly "
         "off-centre framing, she is caught mid-movement, not posing")
+
+# DEHORS ET DEDANS NE PERMETTENT PAS LES MEMES CADRAGES — 26 septembre.
+#
+# Le miroir demande un miroir : il n'existe pas sur un quai de Saone.
+# Tirer au hasard dans les cinq produirait une selfie-miroir en pleine
+# rue, c'est-a-dire precisement l'image impossible que ce bloc interdit.
+#
+# LES POIDS SUIVENT LA VIE REELLE, et l'ordre du commentaire ci-dessus :
+# le bras tendu domine largement, l'ami qui prend la photo est frequent,
+# le telephone pose et la photo de groupe restent l'exception. Un compte
+# ou chaque image est cadree par quelqu'un d'autre redevient un shooting.
+CADRAGES_DEHORS = (BRAS_TENDU, BRAS_TENDU, BRAS_TENDU,
+                   AMIE, AMIE, POSE, GROUPE)
+CADRAGES_DEDANS = (BRAS_TENDU, BRAS_TENDU, MIROIR, MIROIR, POSE, GROUPE)
+
+# CE QU'AUCUNE PHOTO DE LUNA NE DOIT ETRE.
+#
+# Ajoute le 26 septembre, sur une remarque de l'operateur devant les deux
+# premieres images produites par le pipeline : « la photo ne fait pas
+# reel, personne ne se prend en photo de cette position ». Il avait
+# raison, et le defaut ne venait pas du moteur : mon prompt demandait
+# « elle se retourne vers l'objectif par-dessus son epaule », qui EXIGE
+# quelqu'un derriere elle avec un appareil.
+#
+# La regle des quatre cadrages existait depuis le 21 septembre. Elle
+# etait ecrite, elle etait juste, et rien ne l'executait — le meme piege
+# que ce depot raconte sept fois. Ces interdictions sont la pour qu'un
+# prompt ecrit a la main ne puisse plus la contourner sans le vouloir.
+POSES_INTERDITES = (
+    "not looking back over her shoulder at the camera, "
+    "not a posed portrait, not a fashion shoot, "
+    "no professional photographer, no studio lighting, "
+    "not perfectly centred, not perfectly composed"
+)
 
 SCENES = (
     # REECRITES LE 21 SEPTEMBRE, sur trois remarques de l'operateur.
