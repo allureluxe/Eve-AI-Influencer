@@ -301,9 +301,16 @@ def _traiter_job_media(rest: _Rest, ligne: dict, spec) -> bool:
 
         from ops.instagram import url_temporaire
         chemin_photo = champs.get("chemin_photo") or ligne.get("chemin_photo")
+        reference = spec.reference_path
+        if not chemin_photo and reference:
+            # Une reference explicite peut etre un chemin du bucket luna
+            # (utile pour animer une photo deja existante sans en recreer une).
+            image_url = url_temporaire(reference)
+            chemin_photo = reference
+            champs["reference_path"] = reference
         if not chemin_photo:
             raise MediaErreur("video sans image de depart")
-        image_url = url_temporaire(chemin_photo)
+        image_url = image_url if reference and chemin_photo == reference else url_temporaire(chemin_photo)
         task_id = provider.creer(
             image_url,
             spec.prompt,
