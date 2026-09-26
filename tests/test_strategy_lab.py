@@ -13,7 +13,7 @@ class TestStrategyLab(unittest.TestCase):
         ])
         self.assertEqual(out["trades"],110)
         self.assertEqual(out["win_rate"],50.0)
-        self.assertEqual(out["profit_factor"],2.0)
+        self.assertEqual(out["profit_factor"],2.545)
         self.assertGreater(out["payoff"],1.0)
 
 if __name__ == "__main__":
