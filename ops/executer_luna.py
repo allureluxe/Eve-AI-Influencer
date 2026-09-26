@@ -42,6 +42,14 @@ from gold_bot.env import charger_env  # noqa: E402
 charger_env()
 
 from luna.alluxe_v2 import creer  # noqa: E402
+from luna.media import (  # noqa: E402
+    MediaErreur,
+    RunwayVideo,
+    DEFAULT_VIDEO_DURATION,
+    spec_depuis_demande,
+    generer_photo,
+    telecharger,
+)
 from luna.persona import LUNA  # noqa: E402
 
 
@@ -66,6 +74,10 @@ class _Rest:
                                     headers=h, method=methode)
         with urllib.request.urlopen(r, timeout=60) as resp:
             return resp.read()
+
+    def get(self, chemin: str) -> list | dict:
+        brut = self._requete("GET", chemin)
+        return json.loads(brut or b"[]")
 
     def upsert(self, table: str, ligne: dict) -> None:
         self._requete(
@@ -98,7 +110,7 @@ class _Rest:
             reprises = json.loads(self._requete(
                 "PATCH",
                 f"/rest/v1/luna_publications?statut=eq.en_cours"
-                f"&created_at=lt.{limite}",
+                f"&created_at=lt.{limite}&generation_status=neq.generating",
                 json.dumps({"statut": "en_attente"}).encode("utf-8"),
                 {"content-type": "application/json",
                  "prefer": "return=representation"}) or b"[]")
@@ -153,6 +165,190 @@ def _publier_persona(rest: _Rest) -> None:
     })
 
 
+
+
+def _chemin_temp(id_: str, nom: str) -> str:
+    import tempfile
+    dossier = os.path.join(tempfile.gettempdir(), "luna-media", id_)
+    os.makedirs(dossier, exist_ok=True)
+    return os.path.join(dossier, nom)
+
+
+def _erreur_existante(ligne: dict) -> dict:
+    brut = ligne.get("erreurs")
+    return dict(brut) if isinstance(brut, dict) else {}
+
+
+def _publier_si_demande(ligne: dict, spec, champs: dict) -> None:
+    """Publie une fois si Claude a explicitement demande publish=true."""
+    if not spec.publish or ligne.get("published_media_id"):
+        return
+    try:
+        from ops.instagram import publier_photo_luna, publier_reel_luna
+        if spec.media_type == "video":
+            chemin = champs.get("chemin_video") or ligne.get("chemin_video")
+            if not chemin:
+                return
+            ident = publier_reel_luna(chemin, spec.caption)
+        else:
+            chemin = champs.get("chemin_photo") or ligne.get("chemin_photo")
+            if not chemin:
+                return
+            ident = publier_photo_luna(chemin, spec.caption)
+        from datetime import datetime, timezone
+        champs.update({
+            "published_at": datetime.now(timezone.utc).isoformat(),
+            "published_platform": "instagram",
+            "published_media_id": ident,
+        })
+        print(f"publication Instagram terminee : {ident}")
+    except Exception as exc:  # noqa: BLE001
+        erreurs = _erreur_existante(ligne)
+        erreurs["publication"] = f"{type(exc).__name__} : {str(exc)[:400]}"
+        champs["erreurs"] = erreurs
+        print(f"publication demandee mais impossible : {str(exc)[:200]}")
+
+
+def _traiter_job_media(rest: _Rest, ligne: dict, spec) -> bool:
+    """Traite un job photo, ou lance/reprend une video image->video."""
+    id_ = ligne["id"]
+    erreurs = _erreur_existante(ligne)
+    from datetime import datetime, timezone
+    champs = {
+        "legende": spec.caption,
+        "scene_prompt": spec.prompt,
+        "aspect_ratio": spec.aspect_ratio,
+        "duration_seconds": spec.duration_seconds or DEFAULT_VIDEO_DURATION,
+        "quality": spec.quality,
+        "publish_requested": spec.publish,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if spec.media_type == "photo":
+        photo = _chemin_temp(id_, "photo.png")
+        try:
+            generer_photo(spec, photo)
+            chemin_stockage = f"{id_}/photo.png"
+            rest.deposer_fichier(chemin_stockage, photo)
+            champs.update({
+                "chemin_photo": chemin_stockage,
+                "provider": spec.provider or "image-fallback-chain",
+                "generation_status": "succeeded",
+                "statut": "terminee",
+                "erreurs": erreurs,
+            })
+            _publier_si_demande(ligne, spec, champs)
+            rest.completer(id_, champs)
+            return True
+        except Exception as exc:  # noqa: BLE001
+            erreurs["generation"] = f"{type(exc).__name__} : {str(exc)[:500]}"
+            champs.update({
+                "statut": "echec",
+                "generation_status": "failed",
+                "erreurs": erreurs,
+            })
+            rest.completer(id_, champs)
+            return True
+
+    provider = RunwayVideo()
+    task_id = str(ligne.get("provider_task_id") or "").strip()
+    if task_id:
+        try:
+            statut, url = provider.resultat(task_id)
+            if statut == "generating":
+                return True
+            video = _chemin_temp(id_, "video.mp4")
+            telecharger(url, video)
+            chemin_stockage = f"{id_}/video.mp4"
+            rest.deposer_fichier(chemin_stockage, video)
+            champs.update({
+                "chemin_video": chemin_stockage,
+                "provider": "runway",
+                "generation_status": "succeeded",
+                "statut": "terminee",
+                "provider_task_id": task_id,
+                "erreurs": erreurs,
+            })
+            _publier_si_demande(ligne, spec, champs)
+            rest.completer(id_, champs)
+            print(f"video terminee : {id_}")
+            return True
+        except MediaErreur as exc:
+            erreurs["generation"] = str(exc)[:500]
+            champs.update({
+                "statut": "echec",
+                "generation_status": "failed",
+                "provider": "runway",
+                "erreurs": erreurs,
+            })
+            rest.completer(id_, champs)
+            return True
+
+    try:
+        if not ligne.get("chemin_photo"):
+            from dataclasses import replace
+            frame_spec = replace(
+                spec,
+                media_type="photo",
+                aspect_ratio="9:16",
+                publish=False,
+            )
+            photo = _chemin_temp(id_, "photo-start.png")
+            generer_photo(frame_spec, photo)
+            chemin_photo = f"{id_}/photo.png"
+            rest.deposer_fichier(chemin_photo, photo)
+            champs["chemin_photo"] = chemin_photo
+
+        from ops.instagram import url_temporaire
+        chemin_photo = champs.get("chemin_photo") or ligne.get("chemin_photo")
+        if not chemin_photo:
+            raise MediaErreur("video sans image de depart")
+        image_url = url_temporaire(chemin_photo)
+        task_id = provider.creer(
+            image_url,
+            spec.prompt,
+            spec.aspect_ratio,
+            spec.duration_seconds or DEFAULT_VIDEO_DURATION,
+        )
+        champs.update({
+            "provider": "runway",
+            "provider_task_id": task_id,
+            "generation_status": "generating",
+            "statut": "en_cours",
+            "erreurs": erreurs,
+        })
+        rest.completer(id_, champs)
+        print(f"video soumise : {id_} / task {task_id}")
+        return True
+    except Exception as exc:  # noqa: BLE001
+        erreurs["generation"] = f"{type(exc).__name__} : {str(exc)[:500]}"
+        champs.update({
+            "statut": "echec",
+            "generation_status": "failed",
+            "erreurs": erreurs,
+        })
+        rest.completer(id_, champs)
+        return True
+
+
+def _reprendre_videos(rest: _Rest) -> int:
+    """Sonde les taches video asynchrones sans les relancer."""
+    lignes = rest.get(
+        "/rest/v1/luna_publications?statut=eq.en_cours"
+        "&media_type=eq.video&generation_status=eq.generating"
+        "&provider_task_id=not.is.null"
+        "&order=created_at.asc&limit=5"
+    )
+    compte = 0
+    for ligne in lignes:
+        spec = spec_depuis_demande(ligne.get("demande", ""))
+        if spec is None:
+            continue
+        if _traiter_job_media(rest, ligne, spec):
+            compte += 1
+    return compte
+
+
 def _traiter_une_demande(rest: _Rest) -> bool:
     """Rend True si une demande a ete traitee (peu importe le resultat)."""
     ligne = rest.reclamer_en_attente()
@@ -160,6 +356,17 @@ def _traiter_une_demande(rest: _Rest) -> bool:
         return False
 
     id_, demande = ligne["id"], ligne.get("demande", "")
+    try:
+        spec = spec_depuis_demande(demande)
+    except MediaErreur as exc:
+        rest.completer(id_, {
+            "statut": "echec",
+            "generation_status": "failed",
+            "erreurs": {"contrat_media": str(exc)[:500]},
+        })
+        return True
+    if spec is not None:
+        return _traiter_job_media(rest, ligne, spec)
 
     # UNE DEMANDE RECLAMEE NE DOIT JAMAIS RESTER « EN COURS ».
     #
@@ -217,6 +424,13 @@ def main() -> int:
     rest = _rest(url, cle)
 
     rest.liberer_les_bloquees()
+
+    try:
+        videos = _reprendre_videos(rest)
+        if videos:
+            print(f"{videos} video(s) sondee(s)")
+    except Exception as exc:  # noqa: BLE001
+        print(f"sondage video impossible : {str(exc)[:200]}")
 
     try:
         _publier_persona(rest)
