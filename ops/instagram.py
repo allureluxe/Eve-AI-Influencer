@@ -124,18 +124,41 @@ def publier_photo_luna(chemin: str, legende: str = "") -> str:
     return publier(url_temporaire(chemin), legende)
 
 
+def publier_story_luna(chemin: str) -> str:
+    """Poste une STORY depuis le seau `luna`. Elle vit 24 heures."""
+    return publier(url_temporaire(chemin), story=True)
+
+
 def publier(image_url: str, legende: str = "",
-            attente_max: float = 60.0) -> str:
+            attente_max: float = 60.0, story: bool = False) -> str:
     """Publie une photo. Rend l'identifiant de la publication.
 
     `image_url` doit etre PUBLIQUE : Instagram la telecharge lui-meme.
+
+    `story=True` poste une story au lieu d'une publication. Trois
+    differences, et la premiere est la seule qui se voie dans le code :
+
+      - le conteneur porte `media_type=STORIES` ;
+      - **la legende est ignoree par Instagram** sur une story. On ne
+        l'envoie donc pas du tout, plutot que de laisser croire qu'elle
+        servira a quelque chose ;
+      - le format attendu est 9:16 (1080 x 1920). Une image 4:5 passe,
+        mais Instagram la posera sur un fond genere, ce qui n'est
+        jamais joli. Preparer l'image au bon format en amont.
+
+    Une story disparait au bout de 24 heures : rien de ce qui compte ne
+    doit exister uniquement sous cette forme.
     """
     if not image_url.lower().startswith("https://"):
         raise InstagramErreur(
             f"l'image doit etre une URL publique en https, recu : {image_url[:60]}")
 
-    conteneur = _appel("POST", f"{_compte()}/media",
-                       image_url=image_url, caption=legende)
+    params = {"image_url": image_url}
+    if story:
+        params["media_type"] = "STORIES"
+    else:
+        params["caption"] = legende
+    conteneur = _appel("POST", f"{_compte()}/media", **params)
     cid = conteneur.get("id")
     if not cid:
         raise InstagramErreur(f"aucun conteneur rendu : {conteneur}")

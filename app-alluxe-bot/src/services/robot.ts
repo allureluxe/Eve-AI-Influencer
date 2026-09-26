@@ -318,6 +318,21 @@ export interface CompteDemo {
    *
    *  `null` tant qu'aucun releve n'est arrive. */
   encaisse_eur: number | null;
+  /** Les EUROS SEULS du compte reel, sans la valeur des cryptos detenues.
+   *
+   *  C'est ce qui manquait pour que l'ecran Direct vive comme Demo.
+   *  Demo recalcule son capital a chaque cotation ; Direct ne le pouvait
+   *  pas, parce qu'au comptant le capital vaut
+   *  `euros restants + valeur de ce qu'on detient` et que l'application
+   *  ignorait le premier terme. Elle attendait donc la republication du
+   *  serveur toutes les cinq minutes — d'ou le « le capital reste fige »
+   *  de l'operateur, repete trois fois entre le 25 et le 26 septembre.
+   *
+   *  Avec ce chiffre, l'application fait l'addition elle-meme avec les
+   *  cotations qu'elle a deja en direct.
+   *
+   *  `null` pour les simulations, qui tiennent leur solde autrement. */
+  cash_eur: number | null;
   vu_le: string;
 }
 
@@ -352,7 +367,7 @@ export async function courbeCapital(
 export async function comptesDemo(): Promise<CompteDemo[]> {
   const { data, error } = await supabase
     .from("alluxe_bot_comptes")
-    .select("compte, resume_methode, methode, capital_depart, capital_eur, encaisse_eur, vu_le")
+    .select("compte, resume_methode, methode, capital_depart, capital_eur, encaisse_eur, cash_eur, vu_le")
     .order("compte");
   if (error) {
     // Table pas encore migree : on ne casse pas l'ecran pour autant.

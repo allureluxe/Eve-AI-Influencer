@@ -181,6 +181,107 @@ def _fichier_etat(compte: str) -> Path:
         else Path(f"data/state-{compte}.json")
 
 
+def _signer_bitvavo(chemin: str) -> dict | None:
+    """Les en-tetes signes d'un GET Bitvavo. None si les cles manquent."""
+    cle = os.environ.get("BITVAVO_API_KEY", "")
+    secret = os.environ.get("BITVAVO_API_SECRET", "")
+    if not cle or not secret:
+        return None
+    import hashlib
+    import hmac
+    ts = str(int(time.time() * 1000))
+    sig = hmac.new(secret.encode(), (ts + "GET" + "/v2" + chemin).encode(),
+                   hashlib.sha256).hexdigest()
+    return {"Bitvavo-Access-Key": cle, "Bitvavo-Access-Signature": sig,
+            "Bitvavo-Access-Timestamp": ts, "Bitvavo-Access-Window": "10000"}
+
+
+def _depart_reel() -> float | None:
+    """Ce que l'operateur a REELLEMENT mis dans le compte, net des retraits.
+
+    POURQUOI CETTE FONCTION EXISTE. Le compte reel publiait
+    `capital_depart = cfg.engine.start_balance`, soit **1 000 EUR** —
+    un reglage de SIMULATEUR, qui ne veut rien dire sur un compte au
+    comptant. Le gain encaisse s'en deduisait : `118,25 − 1 000`, donc
+    **−881,75 EUR**. C'est pour ca que le bloc « encaisse » n'existait
+    pas sur l'ecran Direct : il ne manquait pas, il cachait un chiffre
+    absurde.
+
+    La definition juste vient de l'operateur, le 26 septembre :
+    « j'ai retire 2 EUR des 120, donc 118 de capital de depart ; si
+    j'ajoute du capital il augmente, si j'en sors il diminue. »
+
+    LA REGLE, ET POURQUOI ELLE NE STOCKE RIEN. On parcourt les
+    mouvements en euros dans l'ordre, et **chaque fois que le cumul
+    passe a zero ou en dessous, on repart de zero**. Un cumul negatif
+    signifie que tout ce qui avait ete depose est ressorti : le compte a
+    ete vide, et ce qui suit est une nouvelle serie.
+
+        23 aout    +1, +50, -51,07  ->  -0,07  ->  remise a zero
+        ...
+        16 sept.   -50              -> -10,97  ->  remise a zero
+        25 sept.   +120                 120,00
+        26 sept.   -2                   118,00   <- le chiffre attendu
+
+    Aucun fichier de reference, aucune date ecrite en dur : si le compte
+    est vide a nouveau puis realimente, la remise a zero se refait toute
+    seule. C'est ce qui evite la panne classique du depot — une
+    reference figee qui devient fausse au premier mouvement.
+
+    Les frais de depot sont deja deduits par Bitvavo dans `amount`.
+    """
+    mouvements: list[tuple[int, float]] = []
+    for quoi, signe in (("/depositHistory", 1.0), ("/withdrawalHistory", -1.0)):
+        entetes = _signer_bitvavo(quoi)
+        if entetes is None:
+            return None
+        try:
+            req = urllib.request.Request(
+                "https://api.bitvavo.com/v2" + quoi, headers=entetes)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                lignes = json.loads(r.read().decode())
+        except Exception as exc:                               # noqa: BLE001
+            log.warning("%s illisible : %s", quoi, str(exc)[:120])
+            return None
+        for x in lignes:
+            if x.get("symbol") != "EUR" or x.get("status") != "completed":
+                continue
+            mouvements.append((int(x["timestamp"]), signe * float(x["amount"])))
+
+    if not mouvements:
+        return None
+    mouvements.sort()
+    cumul = 0.0
+    for _, montant in mouvements:
+        cumul += montant
+        if cumul <= 0:
+            cumul = 0.0
+    return round(cumul, 2)
+
+
+def _cash_bitvavo() -> float | None:
+    """Les EUROS SEULS, sans la valeur des cryptos detenues.
+
+    C'est ce qui manquait pour que l'ecran Direct vive comme l'ecran
+    Demo. Demo recalcule son capital a chaque cotation ; Direct ne le
+    pouvait pas, parce qu'au comptant le capital vaut
+    `euros restants + valeur de ce qu'on detient` et que l'application
+    ne connaissait pas le premier terme. Elle devait donc attendre que
+    le serveur republie, toutes les cinq minutes — d'ou le « le capital
+    reste fige » de l'operateur, trois fois de suite.
+
+    Avec ce chiffre, l'application fait elle-meme l'addition avec les
+    cotations qu'elle a deja en direct pour les positions.
+    """
+    soldes = _avoirs_bitvavo()
+    if soldes is None:
+        return None
+    for b in soldes:
+        if b.get("symbol") == "EUR":
+            return float(b.get("available", 0)) + float(b.get("inOrder", 0))
+    return 0.0
+
+
 def _capital_bitvavo() -> float | None:
     """Euros + valeur de marche de tout ce qui est detenu.
 
@@ -291,6 +392,20 @@ def publier(compte: str, fichier: str) -> bool:
         "capital_depart": float(getattr(cfg.engine, "start_balance", 0.0) or 0.0),
         "vu_le": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
+    # LE COMPTE REEL N'A PAS DE `start_balance` : IL A DES VIREMENTS.
+    #
+    # `start_balance` est la dotation d'un simulateur. Sur le compte
+    # reel elle valait 1 000 EUR et ne correspondait a rien — voir
+    # `_depart_reel`. On la remplace par les depots nets, et on publie
+    # les euros disponibles pour que l'application calcule le capital
+    # en direct au lieu de l'attendre.
+    if compte == "reel":
+        depart_reel = _depart_reel()
+        if depart_reel is not None and depart_reel > 0:
+            corps["capital_depart"] = depart_reel
+        cash = _cash_bitvavo()
+        if cash is not None:
+            corps["cash_eur"] = round(cash, 2)
     # LE CAPITAL VA MAINTENANT EN BASE.
     #
     # Il n'y allait pas le 21 septembre : la colonne n'existait pas
