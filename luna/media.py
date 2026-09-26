@@ -93,6 +93,10 @@ def spec_depuis_demande(demande: str | dict) -> MediaSpec | None:
     if ratio not in ASPECTS:
         raise MediaErreur("aspect_ratio invalide : " + ratio)
 
+    qualite = str(objet.get("quality") or "finale").strip().lower()
+    if qualite not in {"brouillon", "finale"}:
+        raise MediaErreur("quality doit etre brouillon ou finale")
+
     return MediaSpec(
         media_type=typ,
         prompt=prompt,
