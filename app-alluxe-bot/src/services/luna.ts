@@ -39,6 +39,18 @@ export interface Publication {
   created_at: string;
   demande: string;
   statut: StatutPublication;
+  media_type: "auto" | "photo" | "video";
+  reference_path: string | null;
+  aspect_ratio: string;
+  duration_seconds: number;
+  quality: "brouillon" | "finale";
+  provider: string | null;
+  provider_task_id: string | null;
+  generation_status: "queued" | "generating" | "succeeded" | "failed";
+  publish_requested: boolean;
+  published_at: string | null;
+  published_platform: string | null;
+  published_media_id: string | null;
   legende: string;
   scene_prompt: string;
   chemin_photo: string | null;
@@ -48,7 +60,7 @@ export interface Publication {
 }
 
 const COLONNES_PUBLICATION =
-  "id, created_at, demande, statut, legende, scene_prompt, chemin_photo, chemin_voix, chemin_video, erreurs";
+  "id, created_at, demande, statut, media_type, reference_path, aspect_ratio, duration_seconds, quality, provider, provider_task_id, generation_status, publish_requested, published_at, published_platform, published_media_id, legende, scene_prompt, chemin_photo, chemin_voix, chemin_video, erreurs";
 
 export async function publications(limite = 30): Promise<Publication[]> {
   const { data, error } = await supabase
