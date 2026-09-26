@@ -55,7 +55,7 @@ import {
   ExpoSpeechRecognitionModule, useSpeechRecognitionEvent,
 } from "expo-speech-recognition";
 import { Ionicons } from "@expo/vector-icons";
-import { Message, conversation, ecouterConversation, envoyerMessage } from "../services/agent";
+import { AgentEvent, AgentStatus, Message, agentEvents, agentStatus, conversation, ecouterAgent, ecouterConversation, envoyerMessage } from "../services/agent";
 import {
   arreterReveilVocal, demarrerReveilVocal, reveilVocalActif, reveilVocalDisponible,
 } from "../services/reveilVocal";
@@ -309,6 +309,8 @@ export function EcranAgent() {
   const marges = useSafeAreaInsets();
   const route = useRoute<any>();
   const [liste, setListe] = React.useState<Message[] | null>(null);
+  const [etatAgent, setEtatAgent] = React.useState<AgentStatus | null>(null);
+  const [evenementsAgent, setEvenementsAgent] = React.useState<AgentEvent[]>([]);
   const [texte, setTexte] = React.useState("");
   const [envoi, setEnvoi] = React.useState(false);
   // Ce que le telephone a VRAIMENT transcrit, affiche a l'ecran.
@@ -364,6 +366,16 @@ export function EcranAgent() {
   }, []);
 
   React.useEffect(() => {
+    agentStatus().then(setEtatAgent).catch(() => {});
+    agentEvents(12).then(setEvenementsAgent).catch(() => {});
+    const arreterAgent = ecouterAgent(
+      (status) => setEtatAgent(status),
+      (event) => setEvenementsAgent((avant) => [event, ...avant].slice(0, 12)),
+    );
+    const timerAgent = setInterval(() => {
+      agentStatus().then(setEtatAgent).catch(() => {});
+      agentEvents(12).then(setEvenementsAgent).catch(() => {});
+    }, 15000);
     // Charge l'historique une fois, puis recoit les nouveaux messages
     // immediatement par Supabase Realtime. Le polling reste un filet de
     // securite pour les appareils/reseaux qui perdent la souscription.
@@ -387,6 +399,8 @@ export function EcranAgent() {
 
     const id = setInterval(charger, 5000);
     return () => {
+      arreterAgent();
+      clearInterval(timerAgent);
       arreterTempsReel();
       clearInterval(id);
       seTaire();
@@ -546,6 +560,32 @@ export function EcranAgent() {
                      paddingHorizontal: espace.l }}>
         <T v="titreGrand">Alluxe</T>
         <Logo hauteur={40} />
+      </View>
+
+      <View style={{
+        marginHorizontal: espace.l, marginBottom: espace.m,
+        padding: espace.m, backgroundColor: c.surface,
+        borderRadius: rayon.s, borderWidth: TRAIT, borderColor: c.filet,
+      }}>
+        <View style={{flexDirection:"row", alignItems:"center", justifyContent:"space-between"}}>
+          <T v="etiquette">AGENT MAÎTRE</T>
+          <T v="legende" couleur={etatAgent?.state === "ERROR" ? c.perte : etatAgent?.state === "WORKING" || etatAgent?.state === "TOOL" ? c.jaune : c.gain}>
+            {etatAgent?.state ?? "INCONNU"}
+          </T>
+        </View>
+        <T v="petit" style={{marginTop:6}} numberOfLines={2}>
+          {etatAgent?.detail || "Le VPS n'a pas encore publié son état."}
+        </T>
+        {etatAgent?.tool ? <T v="legende" style={{marginTop:4}}>Outil : {etatAgent.tool}</T> : null}
+        {etatAgent?.task ? <T v="legende" style={{marginTop:4}} numberOfLines={2}>Tâche : {etatAgent.task}</T> : null}
+        {etatAgent?.last_error ? <T v="legende" couleur={c.perte} style={{marginTop:4}} numberOfLines={2}>Erreur : {etatAgent.last_error}</T> : null}
+        {evenementsAgent.length ? <View style={{marginTop:espace.m}}>
+          <T v="legende">DERNIÈRES ACTIONS</T>
+          {evenementsAgent.slice(0,4).map((e) => <View key={String(e.id)} style={{paddingTop:7}}>
+            <T v="petit" numberOfLines={1}>{e.tool || e.event_type} · {e.status}</T>
+            <T v="legende" numberOfLines={1}>{e.summary}</T>
+          </View>)}
+        </View> : null}
       </View>
 
       <BandeauReveilVocal />
