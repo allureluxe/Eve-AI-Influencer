@@ -10,6 +10,19 @@ export interface LabStatus {
   updated_at: string;
 }
 
+export interface LabResearch {
+  id: number;
+  created_at: string;
+  sujet: string;
+  mode: string;
+  famille: string;
+  titre: string;
+  url: string;
+  hypothese: string;
+  conditions: string;
+  statut: string;
+}
+
 export interface LabStrategy {
   strategy_id: string;
   agent: string;
@@ -76,4 +89,16 @@ export function ecouterLab(
   return () => {
     void supabase.removeChannel(canal);
   };
+}
+
+
+export async function labResearch(limite = 20): Promise<LabResearch[]> {
+  const { data, error } = await supabase
+    .from("lab_research").select("*")
+    .order("created_at", { ascending: false }).limit(limite);
+  if (error) {
+    if (/relation .* does not exist/i.test(error.message)) return [];
+    throw error;
+  }
+  return (data ?? []) as LabResearch[];
 }
