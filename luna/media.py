@@ -144,8 +144,200 @@ def generer_photo(spec: MediaSpec, chemin_sortie: str) -> str:
     return str(cible)
 
 
+class SoraVideo:
+    """Sora, l'API video d'OpenAI — LA MEME CLE QUE LES PHOTOS.
+
+    POURQUOI ELLE REMPLACE RUNWAY
+
+    Le 26 septembre, l'operateur a pose la bonne question : « OpenAI
+    permet aussi de faire des videos ? ». Oui, et ca change trois choses
+    a la fois.
+
+    **`input_reference` resout le probleme que je disais insoluble.**
+    Je lui avais ecrit, la nuit meme, que « la video ne tient pas les
+    visages » et qu'il fallait ruser en filmant Luna de dos. C'est vrai
+    du texte-vers-video ; ca ne l'est pas ici. Sora accepte une IMAGE DE
+    DEPART : on lui donne la photo produite par `gpt-image-1`, et le
+    visage tient toute la sequence. Les deux bouts de la chaine se
+    tiennent enfin.
+
+    **Le format est deja le bon.** 720x1280, c'est du 9:16 — exactement
+    ce que demandent les Reels et TikTok. Aucun recadrage, donc aucune
+    perte.
+
+    **Une seule cle, une seule facture, un seul plafond.** Runway exigeait
+    un second compte, un second abonnement, une seconde surveillance.
+
+    Le prix : 4, 8 ou 12 secondes, pas plus. C'est court — et c'est la
+    longueur d'un Reel qui tourne.
+
+    L'interface est VOLONTAIREMENT celle de `RunwayVideo` (`creer`,
+    `etat`, `resultat`) pour que le worker n'ait qu'un seul chemin :
+    dupliquer la boucle video aurait refait l'erreur que ce depot
+    raconte sept fois.
+    """
+
+    BASE = "https://api.openai.com"
+    MODEL = "sora-2"
+    nom = "sora"
+
+    def __init__(self) -> None:
+        cle = os.getenv("OPENAI_API_KEY", "").strip()
+        # Convention de ce depot : un « your_... » non remplace vaut absent.
+        self.cle = "" if cle.lower().startswith("your_") else cle
+        self.base = (os.getenv("LUNA_VIDEO_SORA_BASE") or self.BASE).rstrip("/")
+        self.model = os.getenv("LUNA_VIDEO_MODELE_SORA", self.MODEL)
+
+    @property
+    def disponible(self) -> bool:
+        return bool(self.cle)
+
+    def _entetes(self) -> dict:
+        return {"Authorization": "Bearer " + self.cle,
+                "User-Agent": "alluxe-luna-media/1.0"}
+
+    def entetes_telechargement(self) -> dict:
+        """Sora sert la video DERRIERE L'AUTHENTIFICATION, pas Runway.
+
+        Runway rend un lien signe qu'on peut ouvrir tel quel ; Sora rend
+        un identifiant, et le fichier vit sur `/v1/videos/{id}/content`
+        qui exige la cle. Sans ces en-tetes, le telechargement rend un
+        401 que rien dans le message ne relie a la video.
+        """
+        return self._entetes()
+
+    @staticmethod
+    def _taille(ratio: str) -> str:
+        """Sora n'accepte QUE deux resolutions. Les autres donnent un 400."""
+        if ratio in ("16:9", "4:3", "paysage"):
+            return "1280x720"
+        return "720x1280"
+
+    @staticmethod
+    def _duree(secondes: int) -> str:
+        """4, 8 ou 12 — et rien d'autre. On arrondit au plus proche permis."""
+        permises = (4, 8, 12)
+        return str(min(permises, key=lambda p: abs(p - int(secondes or 8))))
+
+    def creer(self, image_url: str, prompt: str, ratio: str,
+              duree: int) -> str:
+        if not self.disponible:
+            raise MediaErreur("OPENAI_API_KEY absente")
+        taille = self._taille(ratio)
+        secondes = self._duree(duree)
+
+        # LE MEME PLAFOND QUE LES IMAGES ET QUE RUNWAY. La video se
+        # facture a la seconde et c'est, de loin, le poste le plus cher.
+        from luna.budget import BudgetEpuise, Depenses
+        cout_seconde = float(os.getenv("LUNA_COUT_VIDEO_SECONDE_EUR", "0.10"))
+        try:
+            Depenses().reserver(cout_seconde * int(secondes),
+                                f"video sora {secondes} s")
+        except BudgetEpuise as exc:
+            raise MediaErreur(str(exc)) from exc
+
+        champs = {"model": self.model, "prompt": prompt,
+                  "seconds": secondes, "size": taille}
+        fichiers = {}
+        if image_url:
+            # L'IMAGE DE DEPART EST TOUT L'INTERET. On la telecharge
+            # depuis son lien temporaire pour la reposter en formulaire :
+            # l'API veut le fichier, pas une adresse.
+            try:
+                with urllib.request.urlopen(image_url, timeout=120) as r:
+                    octets = r.read()
+                fichiers["input_reference"] = ("depart.png", octets, "image/png")
+            except (urllib.error.URLError, urllib.error.HTTPError,
+                    TimeoutError, OSError) as exc:
+                raise MediaErreur(
+                    f"image de depart illisible ({exc}) — sans elle le "
+                    "visage de Luna derivera, on refuse plutot que de "
+                    "produire une inconnue") from exc
+
+        rep = self._multipart("/v1/videos", champs, fichiers)
+        if not rep.get("id"):
+            raise MediaErreur("Sora n'a pas rendu d'id : " + str(rep)[:400])
+        return str(rep["id"])
+
+    def _multipart(self, chemin: str, champs: dict, fichiers: dict) -> dict:
+        import uuid
+        limite = uuid.uuid4().hex
+        corps = b""
+        for nom, valeur in champs.items():
+            corps += (f"--{limite}\r\n"
+                      f'Content-Disposition: form-data; name="{nom}"\r\n\r\n'
+                      f"{valeur}\r\n").encode("utf-8")
+        for nom, (nom_fichier, octets, mime) in fichiers.items():
+            corps += (f"--{limite}\r\n"
+                      f'Content-Disposition: form-data; name="{nom}"; '
+                      f'filename="{nom_fichier}"\r\n'
+                      f"Content-Type: {mime}\r\n\r\n").encode("utf-8")
+            corps += octets + b"\r\n"
+        corps += f"--{limite}--\r\n".encode("utf-8")
+        entetes = self._entetes()
+        entetes["Content-Type"] = f"multipart/form-data; boundary={limite}"
+        req = urllib.request.Request(self.base + chemin, data=corps,
+                                     headers=entetes, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=180) as r:
+                return json.loads(r.read().decode("utf-8") or "{}")
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")[:600]
+            raise MediaErreur(f"Sora HTTP {exc.code}: {detail}") from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise MediaErreur(f"Sora reseau: {exc}") from exc
+
+    def etat(self, task_id: str) -> dict:
+        req = urllib.request.Request(
+            f"{self.base}/v1/videos/{task_id}", headers=self._entetes())
+        try:
+            with urllib.request.urlopen(req, timeout=90) as r:
+                return json.loads(r.read().decode("utf-8") or "{}")
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")[:600]
+            raise MediaErreur(f"Sora HTTP {exc.code}: {detail}") from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise MediaErreur(f"Sora reseau: {exc}") from exc
+
+    def resultat(self, task_id: str) -> tuple[str, str]:
+        rep = self.etat(task_id)
+        statut = str(rep.get("status") or "").lower()
+        if statut in {"completed", "succeeded", "success"}:
+            # Pas d'URL signee : le contenu vit derriere l'authentification.
+            return "succeeded", f"{self.base}/v1/videos/{task_id}/content"
+        if statut in {"failed", "cancelled", "canceled", "error"}:
+            detail = rep.get("error") or rep.get("failure") or rep
+            raise MediaErreur("Sora tache echouee : " + str(detail)[:500])
+        return "generating", ""
+
+
+def fournisseur_video():
+    """Le generateur de video a utiliser, selon ce qui est configure.
+
+    SORA D'ABORD, parce qu'il part de notre photo et tient le visage —
+    le seul critere qui compte. Runway reste en repli : il marche, il
+    est juste redondant des qu'une cle OpenAI existe.
+
+    UN SEUL POINT DE SUBSTITUTION. Le worker appelle cette fonction et
+    ne connait que `creer` / `resultat` ; il n'a pas a savoir lequel
+    repond. Brancher Sora en dupliquant la boucle video aurait refait
+    l'erreur que ce depot raconte sept fois : deux chemins pour la meme
+    chose, dont un seul est corrige le jour venu.
+    """
+    sora = SoraVideo()
+    if sora.disponible:
+        return sora
+    return RunwayVideo()
+
+
 class RunwayVideo:
     """Adaptateur HTTP minimal pour Runway image vers video."""
+
+    nom = "runway"
+
+    def entetes_telechargement(self) -> dict:
+        """Runway rend un lien SIGNE : rien a ajouter pour le lire."""
+        return {}
 
     BASE = "https://api.dev.runwayml.com"
     VERSION = "2024-11-06"
@@ -274,9 +466,18 @@ class RunwayVideo:
         return "generating", ""
 
 
-def telecharger(url: str, chemin_sortie: str) -> str:
+def telecharger(url: str, chemin_sortie: str,
+                entetes: dict | None = None) -> str:
+    """`entetes` sert a Sora, dont le contenu vit derriere la cle.
+
+    Runway rend un lien signe qu'on ouvre tel quel ; Sora rend un
+    identifiant, et le fichier est sur `/v1/videos/{id}/content`, qui
+    exige l'autorisation. Sans ce parametre, la video d'OpenAI
+    echouerait en 401 avec un message qui ne parle pas d'elle.
+    """
+    requete = urllib.request.Request(url, headers=entetes or {})
     try:
-        with urllib.request.urlopen(url, timeout=180) as response:
+        with urllib.request.urlopen(requete, timeout=180) as response:
             contenu = response.read()
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:
         raise MediaErreur(f"telechargement media impossible : {exc}") from exc

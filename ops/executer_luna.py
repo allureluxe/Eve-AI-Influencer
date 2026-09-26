@@ -45,7 +45,7 @@ charger_env()
 from luna.alluxe_v2 import creer  # noqa: E402
 from luna.media import (  # noqa: E402
     MediaErreur,
-    RunwayVideo,
+    fournisseur_video,
     DEFAULT_VIDEO_DURATION,
     spec_depuis_demande,
     generer_photo,
@@ -316,7 +316,11 @@ def _source_video_image(rest: _Rest, ligne: dict, spec) -> tuple[str, str]:
 def _traiter_tiktok_rewards_long(rest: _Rest, ligne: dict, spec) -> bool:
     """Produit un TikTok de 60-180 s par assemblage de clips AI <= 15 s."""
     id_ = ligne["id"]
-    provider = RunwayVideo()
+    # SORA OU RUNWAY, LE WORKER NE SAIT PAS LEQUEL — et c'est voulu.
+    # La fabrique choisit selon les cles presentes ; ici on ne connait
+    # que `creer` / `resultat`. Dupliquer la boucle video pour ajouter
+    # Sora aurait refait l'erreur que le CLAUDE.md raconte sept fois.
+    provider = fournisseur_video()
     brut = str(ligne.get("provider_task_id") or "").strip()
     try:
         state = json.loads(brut) if brut.startswith("{") else {}
@@ -452,7 +456,12 @@ def _traiter_job_media(rest: _Rest, ligne: dict, spec) -> bool:
     if ligne.get("content_format") == "tiktok_rewards":
         return _traiter_tiktok_rewards_long(rest, ligne, spec)
 
-    provider = RunwayVideo()
+    # Meme fabrique que plus haut : Sora si une cle OpenAI existe, Runway
+    # sinon. Les deux emplacements DOIVENT choisir pareil — en laisser un
+    # sur `RunwayVideo()` en dur ferait soumettre une tache chez l'un et
+    # la relire chez l'autre, et la video resterait « en cours » pour
+    # toujours sans le moindre message.
+    provider = fournisseur_video()
     task_id = str(ligne.get("provider_task_id") or "").strip()
     if task_id:
         try:
@@ -460,12 +469,12 @@ def _traiter_job_media(rest: _Rest, ligne: dict, spec) -> bool:
             if statut == "generating":
                 return True
             video = _chemin_temp(id_, "video.mp4")
-            telecharger(url, video)
+            telecharger(url, video, provider.entetes_telechargement())
             chemin_stockage = f"{id_}/video.mp4"
             rest.deposer_fichier(chemin_stockage, video)
             champs.update({
                 "chemin_video": chemin_stockage,
-                "provider": "runway",
+                "provider": provider.nom,
                 "generation_status": "succeeded",
                 "statut": "terminee",
                 "provider_task_id": task_id,
@@ -478,7 +487,7 @@ def _traiter_job_media(rest: _Rest, ligne: dict, spec) -> bool:
         except MediaErreur as exc:
             erreurs["generation"] = str(exc)[:500]
             champs.update({"statut": "echec", "generation_status": "failed",
-                           "provider": "runway", "erreurs": erreurs})
+                           "provider": provider.nom, "erreurs": erreurs})
             rest.completer(id_, champs)
             return True
 
@@ -510,7 +519,7 @@ def _traiter_job_media(rest: _Rest, ligne: dict, spec) -> bool:
             spec.duration_seconds or DEFAULT_VIDEO_DURATION
         )
         champs.update({
-            "provider": "runway", "provider_task_id": task_id,
+            "provider": provider.nom, "provider_task_id": task_id,
             "generation_status": "generating", "statut": "en_cours",
             "erreurs": erreurs,
         })
