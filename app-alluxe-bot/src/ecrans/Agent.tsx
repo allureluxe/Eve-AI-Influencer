@@ -55,7 +55,7 @@ import {
   ExpoSpeechRecognitionModule, useSpeechRecognitionEvent,
 } from "expo-speech-recognition";
 import { Ionicons } from "@expo/vector-icons";
-import { Message, conversation, envoyerMessage } from "../services/agent";
+import { Message, conversation, ecouterConversation, envoyerMessage } from "../services/agent";
 import {
   arreterReveilVocal, demarrerReveilVocal, reveilVocalActif, reveilVocalDisponible,
 } from "../services/reveilVocal";
@@ -364,20 +364,32 @@ export function EcranAgent() {
   }, []);
 
   React.useEffect(() => {
-    // Au tout premier chargement, ne pas parler ce qui a deja ete dit
-    // avant l'ouverture de l'ecran -- seulement ce qui arrive apres.
+    // Charge l'historique une fois, puis recoit les nouveaux messages
+    // immediatement par Supabase Realtime. Le polling reste un filet de
+    // securite pour les appareils/reseaux qui perdent la souscription.
     conversation().then((msgs) => {
       const derniere = [...msgs].reverse().find((m) => m.role === "assistant");
       if (derniere) derniereLue.current = derniere.id;
       setListe(msgs);
     }).catch(() => {});
-    const id = setInterval(charger, RYTHME_MS);
+
+    const arreterTempsReel = ecouterConversation((message) => {
+      setListe((avant) => {
+        if (!avant) return [message];
+        if (avant.some((m) => m.id === message.id)) return avant;
+        return [...avant, message].slice(-50);
+      });
+      if (message.role === "assistant" && message.id > derniereLue.current) {
+        derniereLue.current = message.id;
+        parler(message.contenu);
+      }
+    });
+
+    const id = setInterval(charger, 5000);
     return () => {
+      arreterTempsReel();
       clearInterval(id);
       seTaire();
-      // Coupe le micro en quittant l'ecran -- sinon l'ecoute en continu
-      // (si active) continuerait en arriere-plan sans que rien ne le
-      // montre, ce qu'on ne veut jamais.
       ecouteContinueRef.current = false;
       ExpoSpeechRecognitionModule.stop();
     };
