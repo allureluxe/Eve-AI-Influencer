@@ -51,7 +51,15 @@ export async function labStrategies(limite = 30): Promise<LabStrategy[]> {
     .from("lab_strategies").select("*")
     .order("created_at", { ascending: false }).limit(limite);
   if (error) {
-    if (/relation .* does not exist/i.test(error.message)) return [];
+    // LES DEUX FORMULATIONS. PostgREST ne dit PAS « relation does not
+    // exist » quand une table manque : il repond « Could not find the
+    // table 'public.lab_research' in the schema cache ». Ce garde-fou,
+    // ecrit pour le message de PostgreSQL, ne rattrapait donc rien et
+    // l'ecran Laboratoire levait l'erreur — constate le 26 septembre,
+    // la table n'ayant jamais ete creee.
+    if (/relation .* does not exist/i.test(error.message)
+        || /could not find the table/i.test(error.message)
+        || error.code === "PGRST205") return [];
     throw error;
   }
   return (data ?? []) as LabStrategy[];
