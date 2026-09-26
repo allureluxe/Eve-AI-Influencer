@@ -10,6 +10,7 @@ import copy, hashlib, json, logging, os, time, urllib.request
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from .backtest import Backtester
+from .backtest_portefeuille import BacktestPortefeuille
 
 logger = logging.getLogger(__name__)
 BAR_BACKTEST = 1200
@@ -99,12 +100,10 @@ def _stats(trades):
     }
 
 def _aggregate(results):
+    """Agregation historique par symbole (conserve pour diagnostic)."""
     trades = sum(x["trades"] for x in results)
     wins = sum(x["wins"] for x in results)
     losses = sum(x["losses"] for x in results)
-    gw = sum(x["profit"] for x in results if x["profit"] > 0)
-    gl = abs(sum(x["profit"] for x in results if x["profit"] < 0))
-    # Recompute PF from per-symbol gross wins/losses when available.
     gw = sum(x.get("gross_w", 0.0) for x in results)
     gl = sum(x.get("gross_l", 0.0) for x in results)
     return {
@@ -114,6 +113,31 @@ def _aggregate(results):
         "profit_factor": round(gw / gl, 3) if gl else (999.0 if gw else 0.0),
         "payoff": round((gw / wins) / (gl / losses), 3) if wins and losses and gl else 0.0,
         "profit": round(sum(x["profit"] for x in results), 2),
+    }
+
+
+def _stats_portefeuille(resultat, start_balance: float) -> dict:
+    """Mesure une strategie sur un compte UNIQUE partage entre les actifs."""
+    trades = [t for t in resultat.trades if not getattr(t, "partial", False)]
+    wins = [t for t in trades if t.profit > 0]
+    losses = [t for t in trades if t.profit <= 0]
+    gross_w = sum(t.profit for t in wins)
+    gross_l = abs(sum(t.profit for t in losses))
+    end = float(resultat.end_balance or start_balance)
+    return {
+        "symbols_tested": len(resultat.par_instrument),
+        "trades": len(trades),
+        "wins": len(wins),
+        "losses": len(losses),
+        "win_rate": round(len(wins) / len(trades) * 100, 2) if trades else 0.0,
+        "profit_factor": round(gross_w / gross_l, 3) if gross_l else (999.0 if gross_w else 0.0),
+        "payoff": round((gross_w / len(wins)) / (gross_l / len(losses)), 3) if wins and losses and gross_l else 0.0,
+        "profit": round(end - start_balance, 2),
+        "start_balance": round(start_balance, 2),
+        "end_balance": round(end, 2),
+        "return_pct": round((end / start_balance - 1) * 100, 2) if start_balance else 0.0,
+        "max_drawdown_pct": resultat.stats().get("drawdown_max_pct", 0.0),
+        "portfolio_mode": True,
     }
 
 def _run_one(cfg, symbol, bars, decalage=0):
@@ -204,14 +228,23 @@ class StrategyLab:
 
         # Full history minus the latest forward window. This prevents the
         # forward period from influencing the candidate gate.
-        self._publish("BACKTEST", f"{cid}: historique")
-        results = []
-        for symbol in LAB_SYMBOLS:
-            try:
-                results.append(_run_one(cfg, symbol, BAR_BACKTEST, BAR_FORWARD))
-            except Exception as exc:
-                logger.warning("backtest %s/%s: %s", cid, symbol, str(exc)[:120])
-        bt = _aggregate(results)
+        # IMPORTANT : un seul compte virtuel pour tout l'univers. Le Lab ne
+        # doit plus donner le capital entier a chaque crypto puis additionner
+        # les profits : le portefeuille partage cash, risque et positions.
+        self._publish("BACKTEST", f"{cid}: portefeuille historique")
+        start_balance = float(cfg.engine.start_balance)
+        try:
+            porte = BacktestPortefeuille(cfg).run(
+                list(LAB_SYMBOLS), bars=BAR_BACKTEST,
+                start_balance=start_balance, decalage=BAR_FORWARD)
+            bt = _stats_portefeuille(porte, start_balance)
+        except Exception as exc:
+            logger.warning("backtest portefeuille %s: %s", cid, str(exc)[:200])
+            bt = {"symbols_tested": 0, "trades": 0, "wins": 0, "losses": 0,
+                  "win_rate": 0.0, "profit_factor": 0.0, "payoff": 0.0,
+                  "profit": 0.0, "start_balance": start_balance,
+                  "end_balance": start_balance, "portfolio_mode": True,
+                  "error": str(exc)[:300]}
         passed = (
             bt["trades"] >= MIN_TRADES and bt["profit_factor"] >= MIN_PF
             and bt["win_rate"] >= MIN_WIN and bt["payoff"] > MIN_PAYOFF
@@ -225,14 +258,19 @@ class StrategyLab:
 
         if passed:
             self.state["candidates"] += 1
-            self._publish("FORWARD_TEST", f"{cid}: fenetre recente")
-            fw = []
-            for symbol in LAB_SYMBOLS:
-                try:
-                    fw.append(_run_one(cfg, symbol, BAR_FORWARD, 0))
-                except Exception as exc:
-                    logger.warning("forward %s/%s: %s", cid, symbol, str(exc)[:120])
-            c.forward = _aggregate(fw)
+            self._publish("FORWARD_TEST", f"{cid}: portefeuille recent")
+            try:
+                porte_fw = BacktestPortefeuille(cfg).run(
+                    list(LAB_SYMBOLS), bars=BAR_FORWARD,
+                    start_balance=start_balance, decalage=0)
+                c.forward = _stats_portefeuille(porte_fw, start_balance)
+            except Exception as exc:
+                logger.warning("forward portefeuille %s: %s", cid, str(exc)[:200])
+                c.forward = {"symbols_tested": 0, "trades": 0, "wins": 0, "losses": 0,
+                             "win_rate": 0.0, "profit_factor": 0.0, "payoff": 0.0,
+                             "profit": 0.0, "start_balance": start_balance,
+                             "end_balance": start_balance, "portfolio_mode": True,
+                             "error": str(exc)[:300]}
             forward_pass = (
                 c.forward["trades"] >= MIN_TRADES
                 and c.forward["profit_factor"] >= MIN_PF
