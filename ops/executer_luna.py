@@ -207,8 +207,8 @@ def _publier_si_demande(ligne: dict, spec, champs: dict, chemin_local: str = "")
             )
             if chemin:
                 fmt = str(ligne.get("content_format") or "")
-                if fmt in {"story", "highlight_story"} and spec.media_type == "photo":
-                    ident = publier_story_luna(chemin)
+                if fmt in {"story", "highlight_story"}:
+                    ident = publier_story_luna(chemin, est_video=(spec.media_type == "video"))
                     if ligne.get("highlight_name"):
                         champs["highlight_status"] = "pending_manual"
                 elif spec.media_type == "video":
