@@ -285,7 +285,19 @@ def _traiter_job_media(rest: _Rest, ligne: dict, spec) -> bool:
             return True
 
     try:
-        if not ligne.get("chemin_photo"):
+        from ops.instagram import url_temporaire
+        reference = spec.reference_path
+        chemin_photo = champs.get("chemin_photo") or ligne.get("chemin_photo")
+
+        if reference:
+            # Une reference explicite est prioritaire : elle permet a Claude
+            # d'animer une photo deja produite sans en regenerer une.
+            chemin_photo = reference
+            champs["reference_path"] = reference
+            image_url = url_temporaire(reference)
+        elif not chemin_photo:
+            # Sans reference ni photo existante, on fabrique un start frame
+            # vertical a partir du prompt de scene.
             from dataclasses import replace
             frame_spec = replace(
                 spec,
@@ -298,19 +310,12 @@ def _traiter_job_media(rest: _Rest, ligne: dict, spec) -> bool:
             chemin_photo = f"{id_}/photo.png"
             rest.deposer_fichier(chemin_photo, photo)
             champs["chemin_photo"] = chemin_photo
+            image_url = url_temporaire(chemin_photo)
+        else:
+            image_url = url_temporaire(chemin_photo)
 
-        from ops.instagram import url_temporaire
-        chemin_photo = champs.get("chemin_photo") or ligne.get("chemin_photo")
-        reference = spec.reference_path
-        if not chemin_photo and reference:
-            # Une reference explicite peut etre un chemin du bucket luna
-            # (utile pour animer une photo deja existante sans en recreer une).
-            image_url = url_temporaire(reference)
-            chemin_photo = reference
-            champs["reference_path"] = reference
         if not chemin_photo:
             raise MediaErreur("video sans image de depart")
-        image_url = image_url if reference and chemin_photo == reference else url_temporaire(chemin_photo)
         task_id = provider.creer(
             image_url,
             spec.prompt,
