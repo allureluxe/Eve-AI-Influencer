@@ -17,16 +17,32 @@ export interface Message {
 const COLONNES = "id, created_at, role, contenu, outils";
 
 export async function conversation(limite = 50): Promise<Message[]> {
+  // LES DERNIERS MESSAGES, PAS LES PREMIERS.
+  //
+  // Cette fonction demandait « les 50 plus ANCIENS » : un tri croissant
+  // suivi d'un `limit`. Tant que la conversation tenait sous 50
+  // messages, personne ne pouvait s'en apercevoir — les 50 premiers
+  // ETAIENT toute la conversation.
+  //
+  // Au 81e message, le 26 septembre, l'ecran s'est fige sur des
+  // echanges de la mi-septembre. Les messages partaient, l'agent
+  // repondait en deux secondes, et RIEN ne s'affichait. L'operateur :
+  // « j'ai ecrit slt, ca s'ecrit meme pas ».
+  //
+  // On trie donc a l'ENVERS pour prendre la fin, puis on remet dans
+  // l'ordre de lecture. Une erreur d'un mot, invisible pendant deux
+  // semaines, et qui cassait entierement la conversation.
   const { data, error } = await supabase
     .from("alluxe_agent_messages")
     .select(COLONNES)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(limite);
   if (error) {
     if (tableAbsente(error)) return [];
     throw error;
   }
-  return (data ?? []) as unknown as Message[];
+  // Remis dans l'ordre chronologique pour l'affichage.
+  return ((data ?? []) as unknown as Message[]).reverse();
 }
 
 export async function envoyerMessage(contenu: string): Promise<void> {

@@ -354,15 +354,27 @@ export interface PointCapital { vu_le: string; capital_eur: number; }
 export async function courbeCapital(
   compte: string, depuis: string, limite = 500,
 ): Promise<PointCapital[]> {
+  // LES DERNIERS RELEVES DE LA FENETRE, PAS LES PREMIERS.
+  //
+  // Meme piege que la conversation de l'Agent, trouve le meme jour :
+  // un tri croissant suivi d'un `limit` rend le DEBUT de la periode.
+  // Les releves tombent toutes les 5 minutes, donc 288 par jour : la
+  // vue « 7 jours » en contient 2 016 pour une limite de 500. Elle
+  // montrait donc les 42 premieres heures de la semaine et s'arretait
+  // la — une courbe qui semble juste, et qui ne dit pas ce qu'on lui
+  // demande.
+  //
+  // Seule la vue « 1 jour » etait correcte, et c'est celle qu'on
+  // regarde le plus : le defaut pouvait durer longtemps.
   const { data, error } = await supabase
     .from("alluxe_bot_capital")
     .select("vu_le, capital_eur")
     .eq("compte", compte)
     .gte("vu_le", depuis)
-    .order("vu_le", { ascending: true })
+    .order("vu_le", { ascending: false })
     .limit(limite);
   if (error) throw error;
-  return (data ?? []) as PointCapital[];
+  return ((data ?? []) as PointCapital[]).reverse();
 }
 
 export async function comptesDemo(): Promise<CompteDemo[]> {
