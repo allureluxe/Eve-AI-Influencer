@@ -29,8 +29,8 @@ ASPECTS = {
     "2:3": "portrait",
     "3:2": "paysage",
     "4:3": "paysage",
-    "9:16": "portrait",
-    "16:9": "paysage",
+    "9:16": "portrait_9_16",
+    "16:9": "paysage_16_9",
 }
 
 DEFAULT_PHOTO_RATIO = "3:4"
