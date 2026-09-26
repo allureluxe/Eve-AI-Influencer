@@ -254,16 +254,39 @@ class StrategyLab:
         return c
 
     def cycle(self):
-        # Queue deterministe au debut. Les prochains cycles pourront harvest
-        # les candidats deja trouves et les transférer vers d'autres paires.
+        # Premiere passe: quelques familles de signaux, une configuration
+        # par job. Ensuite, l'agent affine UNE variable a la fois et repart
+        # sur le meme univers. Cela garde la discipline "one/two knobs" et
+        # evite de refaire exactement le meme backtest.
         completed = int(self.state.get("completed", 0))
         flat = [(agent, p) for agent, ps in AGENTS.items() for p in ps]
         if completed < len(flat):
             return self.run_candidate(*flat[completed])
-        # Une fois le premier book construit, on refait une boucle de harvest:
-        # memes signaux, autres actifs, sans ouvrir de nouveaux parametres.
-        idx = (completed - len(flat)) % len(flat)
-        return self.run_candidate(*flat[idx])
+
+        idx = completed - len(flat)
+        agent, base = flat[idx % len(flat)]
+        round_no = idx // len(flat) + 1
+        p = dict(base)
+        name = str(p.get("name", "strategy"))
+        if agent == "prospector-momentum":
+            p["momentum_formation"] = 10 + ((round_no * 7) % 41)
+        elif agent == "prospector-breakout":
+            n = 5 + ((round_no * 5) % 26)
+            p["donchian_entrees"] = [n]
+            p["donchian_sortie"] = max(5, n // 2)
+        elif agent == "prospector-filter":
+            p["min_adx"] = 10.0 + ((round_no * 2) % 21)
+        elif agent == "risk-refiner":
+            p["min_rr"] = round(1.2 + ((round_no * 0.1) % 1.9), 2)
+        elif agent == "volatility-refiner":
+            p["atr_stop_mult"] = round(1.2 + ((round_no * 0.2) % 1.8), 2)
+        elif agent == "timeframe-refiner":
+            tfs = [("M5","M15"), ("M15","H1"), ("H1","H4"), ("H4","D1")]
+            entry, context = tfs[(round_no - 1) % len(tfs)]
+            p["entry_tf"], p["trigger_tf"] = entry, entry
+            p["context_tf"], p["bias_tf"] = context, context
+        p["name"] = f"{name}_v{round_no}"
+        return self.run_candidate(agent, p)
 
     def loop(self, pause_seconds=60):
         while True:
