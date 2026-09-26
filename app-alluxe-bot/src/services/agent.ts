@@ -65,3 +65,57 @@ export function ecouterConversation(
     void supabase.removeChannel(canal);
   };
 }
+export interface AgentStatus {
+  id: string;
+  state: string;
+  task: string;
+  tool: string;
+  detail: string;
+  last_error: string;
+  updated_at: string;
+}
+
+export interface AgentEvent {
+  id: number;
+  created_at: string;
+  event_type: string;
+  tool: string;
+  status: string;
+  summary: string;
+  duration_ms: number;
+}
+
+export async function agentStatus(): Promise<AgentStatus | null> {
+  const { data, error } = await supabase.from("alluxe_agent_status")
+    .select("*").eq("id", "agent").maybeSingle();
+  if (error) {
+    if (/relation .* does not exist/i.test(error.message)) return null;
+    throw error;
+  }
+  return data as AgentStatus | null;
+}
+
+export async function agentEvents(limite = 20): Promise<AgentEvent[]> {
+  const { data, error } = await supabase.from("alluxe_agent_events")
+    .select("*").order("created_at", { ascending: false }).limit(limite);
+  if (error) {
+    if (/relation .* does not exist/i.test(error.message)) return [];
+    throw error;
+  }
+  return (data ?? []) as AgentEvent[];
+}
+
+export function ecouterAgent(
+  onStatus: (status: AgentStatus) => void,
+  onEvent: (event: AgentEvent) => void,
+): () => void {
+  const canal = supabase.channel("alluxe-agent-control")
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"alluxe_agent_status"},
+      p => onStatus(p.new as AgentStatus))
+    .on("postgres_changes", {event:"UPDATE", schema:"public", table:"alluxe_agent_status"},
+      p => onStatus(p.new as AgentStatus))
+    .on("postgres_changes", {event:"INSERT", schema:"public", table:"alluxe_agent_events"},
+      p => onEvent(p.new as AgentEvent))
+    .subscribe();
+  return () => { void supabase.removeChannel(canal); };
+}
