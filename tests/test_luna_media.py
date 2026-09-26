@@ -44,3 +44,21 @@ def test_ratio_invalide():
 def test_prompt_obligatoire():
     with pytest.raises(MediaErreur):
         spec_depuis_demande(json.dumps({"type": "photo"}))
+
+
+def test_quality_invalide():
+    with pytest.raises(MediaErreur):
+        spec_depuis_demande(json.dumps({
+            "type": "photo",
+            "prompt": "test",
+            "quality": "ultra",
+        }))
+
+
+def test_ratios_runway_gen45():
+    from luna.media import RunwayVideo
+    assert RunwayVideo._ratio_api("9:16") == "720:1280"
+    assert RunwayVideo._ratio_api("16:9") == "1280:720"
+    assert RunwayVideo._ratio_api("3:4") == "832:1104"
+    assert RunwayVideo._ratio_api("4:3") == "1104:832"
+    assert RunwayVideo._ratio_api("1:1") == "960:960"
