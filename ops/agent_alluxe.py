@@ -68,6 +68,24 @@ MAX_ALLERS_RETOURS_OUTILS = 8
 CLES_UTILES = {
     "SUPABASE_URL", "SUPABASE_SERVICE_KEY",
     "LUNA_API_URL", "LUNA_API_KEY", "LUNA_API_MODELE",
+    # LES DEUX CERVEAUX — ajoutes le 26 septembre avec `demander_avis`.
+    #
+    # Sans eux, l'outil marche quand je le lance a la main et ECHOUE
+    # dans le service : celui-ci efface au demarrage tout secret absent
+    # de cette liste. Exactement le genre de defaut qui passe les tests
+    # et tombe en production, et que ce depot recense sept fois.
+    #
+    # CE QUE CA ELARGIT, ET POURQUOI C'EST ACCEPTABLE. L'agent tient
+    # desormais en memoire deux cles de plus. Elles n'ouvrent qu'une
+    # chose : la generation de texte, facturee a l'appel. Elles ne
+    # donnent acces ni a l'argent, ni au depot, ni aux comptes. C'est
+    # une exposition reelle mais bornee, et c'est le prix de la
+    # deuxieme opinion.
+    #
+    # Les ~28 autres secrets — Bitvavo, GitHub, Instagram, TikTok —
+    # restent effaces. La regle ne change pas : l'agent ne garde que ce
+    # dont il se sert.
+    "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
 }
 
 
@@ -120,6 +138,46 @@ INTERNET : navigation normale par defaut. `via_tor` seulement s'il le demande ; 
 REFUSE ET C'EST NORMAL : les fichiers de cles (.env), l'arret du robot reel (robot-dual-live), les configurations robot*.json en ecriture (un reglage ne change qu'apres mesure et decision de Monsieur), et tout ce qui efface sans retour. Si un outil refuse, explique-le simplement au lieu de contourner."""
 
 OUTILS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "demander_avis",
+            "description": (
+                "Consulte un ou deux cerveaux IA externes (ChatGPT, Claude) "
+                "pour obtenir une analyse independante. A utiliser pour une "
+                "question technique difficile, une revue de code, un "
+                "diagnostic, ou AVANT toute decision qui engage de l'argent. "
+                "Ils n'ont aucun acces au systeme : ils rendent une analyse, "
+                "c'est toi qui decides et qui agis. Quand les deux sont "
+                "consultes et qu'ils se contredisent, dis-le a Monsieur "
+                "plutot que de choisir en silence."),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "La question, formulee precisement.",
+                    },
+                    "contexte": {
+                        "type": "string",
+                        "description": ("Les faits utiles : chiffres, "
+                                         "extraits de code, etat du "
+                                         "systeme. Ils ne voient rien "
+                                         "d'autre que ce que tu ecris ici."),
+                    },
+                    "cerveaux": {
+                        "type": "array",
+                        "items": {"type": "string",
+                                   "enum": ["chatgpt", "claude"]},
+                        "description": ("Par defaut les deux. Un seul "
+                                         "suffit pour une question simple ; "
+                                         "les deux pour ce qui compte."),
+                    },
+                },
+                "required": ["question"],
+            },
+        },
+    },
     {
         "type": "function",
         "function": {
@@ -421,6 +479,49 @@ def _outil_etat_media_luna(rest: _Rest, args: dict) -> dict:
         )
     return {"jobs": lignes}
 
+def _outil_demander_avis(_rest: "_Rest", args: dict) -> dict:
+    """Consulte ChatGPT et/ou Claude, et rend leurs avis TELS QUELS.
+
+    C'est la mise en oeuvre de l'architecture demandee par l'operateur
+    le 26 septembre : l'Agent est le chef d'orchestre, ChatGPT et Claude
+    sont deux cerveaux qu'il consulte.
+
+    LA SECURITE EST STRUCTURELLE, PAS DECLARATIVE. Les deux cerveaux
+    n'ont AUCUN outil : ils recoivent du texte et rendent du texte. Ils
+    ne voient ni le VPS, ni les cles Bitvavo, ni Supabase. Un modele qui
+    n'a pas de mains ne peut pas desarmer un garde-fou, quoi qu'on lui
+    ecrive et quoi qu'il reponde. C'est l'Agent, et lui seul, qui agit.
+
+    LES AVIS NE SONT PAS FUSIONNES. Deux modeles independants se
+    trompent rarement de la meme facon ; leur DESACCORD est le signal le
+    plus utile disponible avant d'engager de l'argent. Une synthese
+    automatique le masquerait — c'est a l'Agent de peser, parce que lui
+    seul connait l'etat reel du systeme.
+    """
+    from luna.cerveaux import consulter, resume_consultation
+
+    question = str(args.get("question") or "").strip()
+    if not question:
+        return {"erreur": "question vide"}
+    demandes = args.get("cerveaux") or ["chatgpt", "claude"]
+    if isinstance(demandes, str):
+        demandes = [demandes]
+    resultats = consulter(question, str(args.get("contexte") or ""),
+                          tuple(demandes))
+    return {
+        "avis": resume_consultation(resultats),
+        "consultes": [n for n, r in resultats.items() if r.get("ok")],
+        "injoignables": [n for n, r in resultats.items() if not r.get("ok")],
+        # RAPPEL EXPLICITE A L'AGENT. Un modele a qui l'on remet un avis
+        # a tendance a l'appliquer tel quel ; ces deux-la ne connaissent
+        # ni l'etat du robot ni les garde-fous en vigueur.
+        "rappel": ("Ce sont des AVIS, pas des ordres. Ils n'ont vu ni "
+                   "l'etat reel du systeme ni les garde-fous. Verifie "
+                   "avant d'agir, et n'agis jamais sur le trading reel "
+                   "sur la seule foi d'un avis."),
+    }
+
+
 OUTILS_PAR_NOM = {
     "etat_robot": _outil_etat_robot,
     "positions_ouvertes": _outil_positions_ouvertes,
@@ -428,6 +529,7 @@ OUTILS_PAR_NOM = {
     "etat_luna": _outil_etat_luna,
     "creer_media_luna": _outil_creer_media_luna,
     "etat_media_luna": _outil_etat_media_luna,
+    "demander_avis": _outil_demander_avis,
 }
 
 # Les outils d'ACTION (fichiers, terminal, web) vivent a part -- c'est la
