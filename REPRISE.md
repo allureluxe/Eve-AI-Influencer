@@ -614,3 +614,22 @@ Le détail de l'architecture, du contrat JSON, des colonnes envisagées, de la g
 État constaté dans le dépôt : `luna_publications` et `ops/executer_luna.py` existent déjà ; `luna/alluxe_v2.py` fabrique actuellement la vidéo par FFmpeg à partir de la photo + voix, donc ce n'est pas encore une vraie génération image→vidéo ; `ops/instagram.py` contient déjà la publication officielle Instagram.
 
 Prochaine session : ne pas tout réécrire. Relire les modules existants, fixer le contrat exact de la file, ajouter l'adaptateur image, ajouter l'adaptateur vidéo asynchrone, tester en brouillon/non-publication, puis seulement activer la publication automatique.
+
+
+## LUNA — pipeline média Claude livré
+
+Le chantier média automatique a été réellement branché dans le dépôt le 26 septembre 2026.
+
+Le modèle est maintenant :
+`Claude → luna_publications → ops/executer_luna.py → génération photo / vidéo asynchrone → Supabase Storage → publication Instagram si publish=true`.
+
+Nouveaux éléments :
+- `luna/media.py` : contrat média + adaptateur Runway ;
+- `ops/claude_media.py` : CLI pour déposer les mêmes jobs depuis Claude Code ;
+- `creer_media_luna` / `etat_media_luna` dans `ops/agent_alluxe.py` ;
+- migration `20260926033000_luna_media_jobs.sql` ;
+- Instagram Reel dans `ops/instagram.py` ;
+- format photo 3:4 et format vidéo 9:16 ;
+- polling persistant des tâches vidéo et verrou anti-chevauchement du cron.
+
+**IMPORTANT :** le code est livré dans GitHub, mais la migration Supabase et la clé Runway doivent encore être installées sur le VPS avant le premier job vidéo réel.
