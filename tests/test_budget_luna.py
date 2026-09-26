@@ -102,3 +102,45 @@ class TestLesMoteursPayantsPassentParLa:
         with pytest.raises(ErreurMoteur, match="plafond"):
             g._generer_openai("sk-test", "https://api.openai.com/v1/images/generations",
                               "une photo", "", 0, "portrait")
+
+
+class TestLeVerrouSurLeNOMBREDeVideos:
+    """Les unites Kling EXPIRENT : un plafond en euros ne suffit pas.
+
+    Demande de l'operateur le 26 septembre, avant d'acheter son paquet :
+    « ne me perds pas tout le quota avec des erreurs ». Les unites
+    s'achetent par paquets valables 30 jours, sans report — ce n'est pas
+    de l'argent qui dort, c'est un stock qui pourrit. Une boucle de
+    reessais peut vider le paquet en une demi-heure sans jamais depasser
+    le plafond journalier en euros.
+    """
+
+    def test_il_refuse_au_dela_du_nombre_autorise(self, fichier, monkeypatch):
+        monkeypatch.setenv("LUNA_MAX_VIDEOS_JOUR", "2")
+        d = Depenses(plafond_eur=100.0, fichier=fichier)
+        for i in range(2):
+            d.autoriser_video()
+            d.reserver(0.60, f"video kling 5 s ({i})")
+        with pytest.raises(BudgetEpuise, match="plafond a 2"):
+            d.autoriser_video()
+
+    def test_une_tentative_REMBOURSEE_ne_compte_pas(self, fichier, monkeypatch):
+        # LE POINT QUI COMPTE. Chercher le bon nom de modele a demande
+        # six appels le 26 septembre, tous refuses et tous rembourses.
+        # Si ces refus consommaient le compteur, une simple recherche de
+        # configuration aurait bloque les vraies videos de la journee.
+        monkeypatch.setenv("LUNA_MAX_VIDEOS_JOUR", "2")
+        d = Depenses(plafond_eur=100.0, fichier=fichier)
+        for i in range(5):
+            d.reserver(0.60, f"video kling 5 s (essai {i})")
+            d.rembourser(0.60, f"video kling 5 s (essai {i})")
+        assert d.videos_du_jour() == 0
+        d.autoriser_video()          # doit passer
+
+    def test_il_ne_compte_que_les_videos(self, fichier, monkeypatch):
+        monkeypatch.setenv("LUNA_MAX_VIDEOS_JOUR", "1")
+        d = Depenses(plafond_eur=100.0, fichier=fichier)
+        for i in range(10):
+            d.reserver(0.07, f"image openai ({i})")
+        assert d.videos_du_jour() == 0
+        d.autoriser_video()          # les images ne bloquent pas la video

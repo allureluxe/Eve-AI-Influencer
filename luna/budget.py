@@ -133,6 +133,47 @@ class Depenses:
     def reste(self) -> float:
         return round(max(0.0, self.plafond - self.total_du_jour()), 4)
 
+    def videos_du_jour(self) -> int:
+        """Combien de videos ont deja ete LANCEES aujourd'hui.
+
+        Les remboursements comptent en negatif, donc une tentative
+        refusee ne compte pas — c'est bien le nombre de generations
+        reellement parties.
+        """
+        total = 0
+        for ligne in self._lire().get("lignes", []):
+            if "video" in str(ligne.get("motif", "")).lower():
+                total += 1 if float(ligne.get("cout_eur", 0)) > 0 else -1
+        return max(0, total)
+
+    def autoriser_video(self) -> None:
+        """Un SECOND verrou, en NOMBRE de videos et pas en euros.
+
+        POURQUOI LE PLAFOND EN EUROS NE SUFFIT PAS ICI. Les unites Kling
+        s'achetent par paquets qui EXPIRENT AU BOUT DE 30 JOURS, sans
+        report. Ce n'est pas de l'argent qui dort : c'est un stock qui
+        pourrit. Un plafond journalier en euros laisse passer treize
+        videos dans l'apres-midi si le prix unitaire est bas — et le
+        paquet entier part en une boucle de reessais.
+
+        C'est arrive le 22 septembre avec Cloudflare : vingt-et-une
+        tentatives ont brule le quota du jour, et l'operateur a attendu
+        sa photo quatre jours. Gratuit cette fois-la. Ici, le paquet
+        coute 9,80 $ et il ne se recharge pas avant le mois suivant.
+
+        Sa demande, le 26 septembre : « ne me perds pas tout le quota
+        avec des erreurs. » Ce verrou est la reponse.
+        """
+        plafond = int(os.getenv("LUNA_MAX_VIDEOS_JOUR", "3"))
+        deja = self.videos_du_jour()
+        if deja >= plafond:
+            raise BudgetEpuise(
+                f"{deja} video(s) deja lancee(s) aujourd'hui, plafond a "
+                f"{plafond}. Les unites Kling expirent au bout de 30 jours : "
+                "mieux vaut en garder pour demain que les perdre dans une "
+                "serie d'essais. Relever LUNA_MAX_VIDEOS_JOUR pour passer "
+                "outre, en connaissance de cause.")
+
     def reserver(self, cout_eur: float, motif: str = "") -> float:
         """Compte `cout_eur` AVANT la depense. Leve `BudgetEpuise` si trop.
 

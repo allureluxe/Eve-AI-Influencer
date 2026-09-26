@@ -317,6 +317,12 @@ class KlingVideo:
         cout = cout_seconde * int(secondes)
         motif = f"video kling {secondes} s ({self.mode})"
         try:
+            # DEUX VERROUS, ET ILS NE GARDENT PAS LA MEME CHOSE. Le
+            # plafond en euros protege la facture ; celui-ci protege le
+            # STOCK d'unites, qui expire au bout de 30 jours et ne se
+            # recharge pas. Une boucle de reessais peut vider le paquet
+            # entier en une demi-heure sans depasser le plafond du jour.
+            Depenses().autoriser_video()
             Depenses().reserver(cout, motif)
         except BudgetEpuise as exc:
             raise MediaErreur(str(exc)) from exc
