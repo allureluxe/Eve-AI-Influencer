@@ -416,6 +416,17 @@ def _traiter_une_demande(rest: _Rest) -> bool:
 
 
 def main() -> int:
+    # Cron toutes les 2 minutes : empeche deux workers de publier le meme
+    # media si une execution precedente depasse son intervalle.
+    import fcntl
+    verrou = open("/tmp/luna-media-worker.lock", "w")
+    try:
+        fcntl.flock(verrou, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("worker Luna deja en cours, ce passage saute")
+        verrou.close()
+        return 0
+
     url = os.environ.get("SUPABASE_URL", "")
     cle = os.environ.get("SUPABASE_SERVICE_KEY", "")
     if not url or not cle:
