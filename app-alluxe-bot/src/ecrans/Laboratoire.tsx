@@ -104,6 +104,7 @@ function Ligne({ item }: { item: LabStrategy }) {
     <T v="petit" style={{marginTop:espace.s}}>
       {item.reason || "Résultat enregistré dans le carnet."}
     </T>
+    {b.portfolio_mode ? <T v="legende" style={{marginTop:4}}>Portefeuille partagé · départ {num(b.start_balance).toFixed(2)} € · fin {num(b.end_balance).toFixed(2)} €</T> : null}
   </Carte>;
 }
 
@@ -117,8 +118,8 @@ export function EcranLaboratoire() {
 
   const charger=React.useCallback(async()=>{
     try {
-      const [s,x]=await Promise.all([labStatus(),labStrategies(50)]);
-      setStatus(s); setItems(x);
+      const [s,x,recherches]=await Promise.all([labStatus(),labStrategies(50),labResearch(20)]);
+      setStatus(s); setItems(x); setResearch(recherches);
     } catch {}
   },[]);
 
@@ -237,8 +238,8 @@ export function EcranLaboratoire() {
     <Carte style={{marginTop:espace.s}}>
       <T v="etiquette">RÈGLES DU LABO</T>
       <T v="petit" style={{marginTop:espace.s}}>
-        Minimum 100 trades · PF ≥ 1,20 · win rate ≥ 40 % · payoff &gt; 1 · backtest séparé du forward test.
-        Une stratégie validée reste en incubation/paper et n'est jamais branchée automatiquement au compte réel.
+        Un compte virtuel partagé entre toutes les cryptos · Minimum 100 trades · PF ≥ 1,20 · win rate ≥ 40 % · payoff &gt; 1.
+        Backtest séparé du forward test. Une stratégie validée reste en incubation/paper et n'est jamais branchée automatiquement au compte réel.
       </T>
     </Carte>
   </ScrollView>;
