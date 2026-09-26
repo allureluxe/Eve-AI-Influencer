@@ -33,7 +33,26 @@ export async function envoyerMessage(contenu: string): Promise<void> {
   const { error } = await supabase
     .from("alluxe_agent_messages")
     .insert({ role: "user", contenu: contenu.trim() });
-  if (error) throw error;
+  if (!error) return;
+
+  // UN REFUS DE DROITS NE DOIT PAS RESSEMBLER A UNE PANNE RESEAU.
+  //
+  // La regle d'ecriture exige `profiles.is_admin`. Le 26 septembre,
+  // l'operateur avait SIX comptes sur la meme adresse, dont trois sans
+  // ce droit : selon celui avec lequel il ouvrait l'application, l'envoi
+  // partait ou etait refuse — et le message brut de PostgREST (« new row
+  // violates row-level security policy ») ne dit rien a personne.
+  //
+  // Il decrivait le symptome ainsi : « les messages ne s'envoient pas,
+  // tout le systeme de chat ne va pas ». La conversation paraissait
+  // vide en plus, la lecture exigeant le meme droit.
+  if (error.code === "42501" || /row-level security/i.test(error.message)) {
+    throw new Error(
+      "Ce compte n'a pas les droits d'administration : l'envoi est "
+      + "refusé et la conversation reste vide. Connectez-vous avec le "
+      + "compte administrateur, ou faites passer celui-ci en admin.");
+  }
+  throw error;
 }
 
 /**
