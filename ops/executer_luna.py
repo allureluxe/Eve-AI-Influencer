@@ -127,15 +127,25 @@ class _Rest:
         `en_cours` de facon atomique -- si un autre passage l'a deja
         prise (cron precedent encore en cours), le PATCH renvoie 0 ligne
         et on ne fait rien."""
-        now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
         brut = self._requete(
             "GET",
             "/rest/v1/luna_publications"
             "?statut=eq.en_attente&order=created_at.asc&limit=20")
-        lignes = [
-            l for l in json.loads(brut)
-            if not l.get("scheduled_at") or str(l["scheduled_at"]) <= now
-        ]
+        lignes = []
+        for l in json.loads(brut):
+            valeur = l.get("scheduled_at")
+            if not valeur:
+                lignes.append(l)
+                continue
+            try:
+                cible = datetime.fromisoformat(str(valeur).replace("Z", "+00:00"))
+                if cible <= now:
+                    lignes.append(l)
+            except ValueError:
+                # Une date invalide ne doit jamais partir plus tot que prevu.
+                continue
         for ligne in lignes:
             brut = self._requete(
                 "PATCH",
