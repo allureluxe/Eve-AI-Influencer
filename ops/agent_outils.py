@@ -746,6 +746,50 @@ def _recherche_sites(question: str, domaines: list[str], limite=6) -> list[dict]
             break
     return trouves[:limite]
 
+def _enregistrer_recherches_trading(sujet: str, mode: str, resultats: list[dict]) -> None:
+    """Garde une trace légère des sources vues par l'agent/Lab."""
+    url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    key = os.getenv("SUPABASE_SERVICE_KEY", "")
+    if not url or not key or not resultats:
+        return
+    lignes = []
+    for x in resultats[:30]:
+        lien = str(x.get("lien") or "").strip()
+        titre = str(x.get("titre") or "").strip()
+        if not lien and not titre:
+            continue
+        famille = str(x.get("famille") or "recherche").strip()
+        lignes.append({
+            "sujet": sujet,
+            "mode": mode,
+            "famille": famille,
+            "titre": titre[:500],
+            "url": lien[:2000],
+            "hypothese": "",
+            "conditions": "",
+            "statut": "IDEATED",
+        })
+    if not lignes:
+        return
+    try:
+        req = urllib.request.Request(
+            f"{url}/rest/v1/lab_research",
+            data=json.dumps(lignes, ensure_ascii=False).encode("utf-8"),
+            headers={
+                "apikey": key,
+                "authorization": f"Bearer {key}",
+                "content-type": "application/json",
+                "prefer": "return=minimal",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=15).read()
+    except Exception:
+        # La recherche doit rester utilisable même si la table n'est pas
+        # encore migree ou si Supabase est momentanement indisponible.
+        pass
+
+
 def recherche_idee_trading(args: dict) -> dict:
     """Recherche multi-sources pour générer des hypothèses de trading."""
     sujet = str(args.get("sujet") or "").strip()
@@ -772,6 +816,7 @@ def recherche_idee_trading(args: dict) -> dict:
         if lien and lien not in vus:
             vus.add(lien)
             uniques.append(x)
+    _enregistrer_recherches_trading(sujet, mode, uniques)
     return {
         "sujet": sujet,
         "mode": mode,
