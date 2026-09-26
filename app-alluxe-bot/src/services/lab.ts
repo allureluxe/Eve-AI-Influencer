@@ -43,3 +43,37 @@ export async function labStrategies(limite = 30): Promise<LabStrategy[]> {
   }
   return (data ?? []) as LabStrategy[];
 }
+
+
+export function ecouterLab(
+  onStatus: (status: LabStatus) => void,
+  onStrategy: (strategy: LabStrategy) => void,
+): () => void {
+  const canal = supabase
+    .channel("strategy-lab-live")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "lab_status" },
+      (payload) => onStatus(payload.new as LabStatus),
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "lab_status" },
+      (payload) => onStatus(payload.new as LabStatus),
+    )
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "lab_strategies" },
+      (payload) => onStrategy(payload.new as LabStrategy),
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "lab_strategies" },
+      (payload) => onStrategy(payload.new as LabStrategy),
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(canal);
+  };
+}
