@@ -83,6 +83,7 @@ def spec_depuis_demande(demande: str | dict) -> MediaSpec | None:
     typ = str(objet.get("type") or objet.get("media_type") or "").strip().lower()
     if typ not in {"photo", "video"}:
         return None
+    content_format = str(objet.get("content_format") or "").strip().lower()
 
     prompt = str(objet.get("prompt") or objet.get("scene_prompt") or "").strip()
     if not prompt:
