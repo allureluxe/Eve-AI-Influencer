@@ -179,7 +179,26 @@ class KlingVideo:
     """
 
     BASE = "https://api.klingai.com"
-    MODEL = "kling-v2-master"
+    #: LES NOMS DE MODELES SE PERIMENT VITE — verifie le 26 septembre
+    #: 2026 en les essayant un par un contre l'API :
+    #:
+    #:     kling-v2-master        discontinued
+    #:     kling-v2-1             discontinued
+    #:     kling-v2-1-master      discontinued
+    #:     kling-v1-6             discontinued
+    #:     kling-v2-5-turbo-pro   not supported for this API
+    #:     kling-v2-6             VALIDE
+    #:     kling-v3               VALIDE
+    #:
+    #: Un modele perime repond 404 code 1203 — donc sans frais, et la
+    #: reservation est rendue. C'est ce qui permet de chercher le bon
+    #: nom sans rien depenser.
+    #:
+    #: `kling-v3` est plus recent et tient mieux l'identite du visage,
+    #: seul critere qui compte ici ; il coute aussi plus cher. On
+    #: demarre sur `kling-v2-6` et on comparera les deux une fois qu'il
+    #: y aura du credit, au lieu de choisir sur une intuition.
+    MODEL = "kling-v2-6"
     nom = "kling"
 
     def __init__(self) -> None:
