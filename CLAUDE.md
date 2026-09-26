@@ -1560,3 +1560,39 @@ espère avoir retenue.
 - Expiration de la fenêtre : `gold_bot/promotion.py`
 - La configuration en service est `robot.bitvavo.json`, armée en réel
   (clé `_arme_en_reel`).
+
+## Luna — génération média depuis Claude
+
+Pour toute nouvelle photo ou vidéo de Luna, utiliser le pipeline média du dépôt
+plutôt que de fabriquer un fichier à la main.
+
+Le chemin normal est :
+
+    Claude → creer_media_luna → Supabase luna_publications
+           → ops/executer_luna.py → média → Supabase Storage
+           → Instagram si publish=true
+
+Depuis Claude Code, le même contrat peut être déposé directement avec :
+
+    python3 ops/claude_media.py photo "PROMPT" --caption "LEGENDE"
+    python3 ops/claude_media.py video "PROMPT" --caption "LEGENDE"
+
+Defaults :
+- photo : 3:4
+- vidéo : 9:16, 10 secondes
+
+Pour publier automatiquement, passer l’intention explicite publish=true
+(via l’outil creer_media_luna, ou --publish avec le CLI).
+
+Pour une vidéo qui anime une photo existante, utiliser reference_path avec
+le chemin de la photo dans le bucket privé luna.
+
+Ne jamais dire qu’une vidéo est prête pendant que generation_status vaut
+generating. Utiliser etat_media_luna pour vérifier le résultat.
+
+Secrets nécessaires au serveur : RUNWAYML_API_SECRET, plus les clés des
+fournisseurs image déjà utilisés par luna/moteurs.py. Aucun secret ne doit
+être commité.
+
+La migration à appliquer est :
+supabase/migrations/20260926033000_luna_media_jobs.sql
