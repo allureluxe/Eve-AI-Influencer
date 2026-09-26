@@ -432,7 +432,7 @@ class RiskManager:
             acc.day_start_equity = equity
             acc.realized_today = 0.0
             acc.trades_today = 0
-            logger.info("nouvelle journee %s : capital de depart %.2f %s", day, equity, currency)
+            logger.info("nouvelle journee %s : equity au debut de journee %.2f %s", day, equity, currency)
         if acc.week_key != wk:
             acc.week_key = wk
             acc.week_start_equity = equity
