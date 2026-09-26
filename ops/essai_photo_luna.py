@@ -42,8 +42,8 @@ from luna.budget import Depenses  # noqa: E402
 from luna.moteurs import ErreurMoteur, GenerateurImages  # noqa: E402
 from luna.persona import LUNA  # noqa: E402
 from luna.photos import (  # noqa: E402
-    CADRAGES_DEDANS, CADRAGES_DEHORS, COIFFURES, GARDE_ROBE,
-    POSES_INTERDITES,
+    CADRAGES_DEDANS, CADRAGES_DEHORS, COIFFURES, DEFAUTS, GARDE_ROBE,
+    LIEUX_BANALS, LUMIERES, PEAU_REELLE, POSES_INTERDITES,
 )
 
 #: La scene par defaut : Lyon, ses racines. Decor reel, lumiere de fin de
@@ -52,12 +52,17 @@ from luna.photos import (  # noqa: E402
 #: Remarque de l'operateur le 26 septembre, et il avait raison : la
 #: premiere image produite par ce script portait exactement la tenue de
 #: la photo de Metz de la veille.
-SCENE_DEFAUT = (
-    "on the Saone riverbank in Vieux Lyon at golden hour, the Renaissance "
-    "facades and Fourviere hill behind her, a few blurred passers-by, "
-    "visible skin texture, slightly imperfect, no plastic or airbrushed "
-    "look"
-)
+#: VIDE PAR DEFAUT — et c'est le changement du 26 septembre.
+#:
+#: La scene etait « quai de Saone a l'heure doree, Fourviere derriere ».
+#: Une belle image, et l'operateur a tranche : « c'est pas reel du
+#: tout ». Le decor de carte postale trahissait la generation plus
+#: surement qu'un defaut de rendu.
+#:
+#: Sans `--scene`, le script tire maintenant un lieu BANAL, une lumiere
+#: INGRATE et des defauts de photo. On peut toujours imposer une belle
+#: scene avec `--scene`, mais il faut le vouloir.
+SCENE_DEFAUT = ""
 
 
 def main() -> int:
@@ -124,12 +129,24 @@ def main() -> int:
     cadrages = CADRAGES_DEDANS if args.dedans else CADRAGES_DEHORS
     cadrage = args.cadrage or random.choice(cadrages)
 
+    # LE CONTEXTE INGRAT EST LE DEFAUT, PAS L'EXCEPTION. Une photo prise
+    # au flash dans un couloir blanc passe pour vraie ; la meme femme
+    # devant un monument a l'heure doree passe pour une publicite.
+    if args.scene:
+        scene = args.scene
+    else:
+        scene = (f"an ordinary unremarkable phone snapshot in "
+                 f"{random.choice(LIEUX_BANALS)}, "
+                 f"{random.choice(LUMIERES)}, {PEAU_REELLE}, "
+                 f"{random.choice(DEFAUTS)}")
+
     print(f"tenue      : {tenue[:66]}...")
     print(f"coiffure   : {coiffure[:66]}...")
     print(f"cadrage    : {cadrage[:66]}...")
+    print(f"scene      : {scene[:66]}...")
 
     prompt = (f"{LUNA.apparence.ancre}, {coiffure}, wearing {tenue}, "
-              f"{args.scene}, {cadrage}, {POSES_INTERDITES}")
+              f"{scene}, {cadrage}, {POSES_INTERDITES}")
     print(f"prompt     : {len(prompt)} caracteres")
 
     try:

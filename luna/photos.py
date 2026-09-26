@@ -51,6 +51,85 @@ RENDU = ("shot on iPhone, candid realistic photography, natural everyday "
          "realistic proportions, slight natural film grain, photorealistic, "
          "high detail")
 
+# ------------------------------------------------------------------
+# CE QUI FAIT QU'UNE PHOTO A L'AIR VRAIE — 26 septembre.
+#
+# Verdict de l'operateur devant les quatre premieres images du
+# pipeline, toutes reussies techniquement : « c'est pas reel du tout ».
+# Il avait raison, et le defaut n'etait pas dans le moteur.
+#
+# TOUTES NOS PHOTOS ETAIENT DES PHOTOS DE MAGAZINE. Lumiere doree de
+# fin de journee, Fourviere cadree derriere, peau parfaite, corps de
+# sportive, sourire impeccable, cadrage centre. Chacune est une belle
+# image — et c'est exactement ce qui trahit une generation : personne
+# n'a quarante photos parfaitement eclairees sur son telephone.
+#
+# `RENDU` ci-dessus disait deja « pas de studio, pas de retouche ». Ca
+# ne suffisait pas, parce que la SCENE continuait de demander un
+# coucher de soleil devant un monument. On ne rattrape pas un decor de
+# carte postale avec une mention de grain de peau.
+#
+# Mesure, une image contre une : meme moteur, meme ancre, meme visage —
+# le registre « flash direct dans un couloir blanc, front qui brille,
+# cheveux pas brosses » passe pour vrai la ou « quai de Saone a l'heure
+# doree » passe pour une publicite.
+#
+# Ces trois listes servent a tirer un contexte INGRAT, et c'est
+# volontaire. Les belles lumieres restent disponibles — une vraie
+# personne en a quelques-unes — mais elles doivent etre l'exception.
+
+#: La lumiere, et elle est rarement flatteuse dans la vraie vie.
+LUMIERES = (
+    "harsh direct camera flash at night, slightly overexposed face, hard "
+    "shadow on the wall behind her, shiny forehead",
+    "dull flat grey daylight from an overcast sky, no shadows, slightly "
+    "underexposed",
+    "yellow indoor ceiling light in the evening, warm and unflattering, "
+    "slightly grainy",
+    "backlit against a bright window so her face is too dark",
+    "cold white supermarket or corridor lighting",
+    "late afternoon light through a car window, half her face in shadow",
+    # LES DEUX SEULES BELLES LUMIERES, en minorite assumee.
+    "soft late afternoon sunlight, pleasant but ordinary",
+    "bright midday sun, squinting slightly",
+)
+
+#: Les endroits sans interet, ou se prend la majorite des vraies photos.
+LIEUX_BANALS = (
+    "a plain apartment hallway with white walls and a door behind her",
+    "her small student bedroom, an unmade bed and clothes on a chair "
+    "behind her",
+    "the passenger seat of a parked car",
+    "a supermarket aisle",
+    "a bus shelter on an ordinary street",
+    "a cramped bathroom with a mirror and toiletries on the sink",
+    "a tiny kitchen with dishes in the sink behind her",
+    "a train seat, the window grey and blurred behind her",
+    "a bland office-like classroom with rows of empty chairs",
+    "a stairwell with painted concrete walls",
+)
+
+#: Les defauts d'une vraie photo de telephone. Sans eux, l'image reste
+#: trop propre meme dans un decor banal.
+DEFAUTS = (
+    "framing is crooked and off-centre, she is not posing, caught "
+    "mid-sentence with an awkward half expression, slight motion blur, "
+    "low-quality phone camera, visible digital noise and JPEG "
+    "compression artefacts, this is a boring photo nobody would post",
+    "slightly out of focus, she moved when the photo was taken, thumb "
+    "partly over the corner of the lens, nothing is centred",
+    "taken too quickly, her eyes half closed, unflattering angle from "
+    "slightly below, ordinary body, not athletic, not a model",
+)
+
+#: La peau, en detail. C'est le premier endroit ou l'oeil detecte une
+#: generation : trop lisse, trop egale, trop symetrique.
+PEAU_REELLE = (
+    "visible skin texture with enlarged pores, slight redness around the "
+    "nose and chin, a small blemish, uneven skin tone, no makeup at all, "
+    "hair flat and unbrushed"
+)
+
 
 @dataclass(frozen=True)
 class Scene:
