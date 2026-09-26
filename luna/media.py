@@ -97,14 +97,21 @@ def spec_depuis_demande(demande: str | dict) -> MediaSpec | None:
     if qualite not in {"brouillon", "finale"}:
         raise MediaErreur("quality doit etre brouillon ou finale")
 
+    duree = _entier(objet.get("duration_seconds"), DEFAULT_VIDEO_DURATION, 1, 180)
+    content_format = str(objet.get("content_format") or "").strip().lower()
+    if typ == "video" and duree > 30 and content_format != "tiktok_rewards":
+        raise MediaErreur("une video standard ne peut pas depasser 30 secondes")
+    if content_format == "tiktok_rewards" and duree < 60:
+        raise MediaErreur("tiktok_rewards doit viser au moins 60 secondes")
+
     return MediaSpec(
         media_type=typ,
         prompt=prompt,
         caption=str(objet.get("caption") or objet.get("legende") or "").strip(),
         reference_path=str(objet.get("reference") or objet.get("reference_path") or "").strip(),
         aspect_ratio=ratio,
-        duration_seconds=_entier(objet.get("duration_seconds"), DEFAULT_VIDEO_DURATION, 1, 30),
-        quality=str(objet.get("quality") or "finale").strip().lower(),
+        duration_seconds=duree,
+        quality=qualite,
         provider=str(objet.get("provider") or "").strip().lower(),
         model=str(objet.get("model") or "").strip(),
         publish=bool(objet.get("publish", False)),
