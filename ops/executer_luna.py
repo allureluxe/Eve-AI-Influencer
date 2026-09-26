@@ -21,6 +21,7 @@ import json
 import mimetypes
 import os
 import sys
+import subprocess
 import urllib.error
 import urllib.request
 
@@ -253,6 +254,149 @@ def _publier_si_demande(ligne: dict, spec, champs: dict, chemin_local: str = "")
     champs["erreurs"] = erreurs
 
 
+
+
+def _assembler_clips(clips: list[str], sortie: str, duree_finale: int) -> None:
+    """Assemble des clips video et coupe proprement a la duree demandee."""
+    liste = sortie + ".concat.txt"
+    with open(liste, "w", encoding="utf-8") as fh:
+        for chemin in clips:
+            fh.write("file '" + chemin.replace("'", "'\\\\''") + "'\n")
+    try:
+        subprocess.run(
+            [
+                "ffmpeg", "-hide_banner", "-loglevel", "error",
+                "-f", "concat", "-safe", "0", "-i", liste,
+                "-t", str(int(duree_finale)),
+                "-vf", "scale=720:1280:force_original_aspect_ratio=decrease,"
+                       "pad=720:1280:(ow-iw)/2:(oh-ih)/2",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-c:a", "aac", "-movflags", "+faststart", "-y", sortie,
+            ],
+            check=True, timeout=300,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        raise MediaErreur(f"assemblage ffmpeg impossible : {exc}") from exc
+    finally:
+        try:
+            os.remove(liste)
+        except OSError:
+            pass
+
+
+def _source_video_image(rest: _Rest, ligne: dict, spec) -> tuple[str, str]:
+    """Rend (chemin_bucket, url) pour l'image de depart d'une video."""
+    from ops.instagram import url_temporaire
+    reference = spec.reference_path
+    chemin_photo = ligne.get("chemin_photo")
+    if reference:
+        return reference, url_temporaire(reference)
+    if chemin_photo:
+        return chemin_photo, url_temporaire(chemin_photo)
+
+    from dataclasses import replace
+    frame_spec = replace(spec, media_type="photo", aspect_ratio="9:16", publish=False)
+    photo = _chemin_temp(ligne["id"], "photo-start.jpg")
+    generer_photo(frame_spec, photo)
+    stockage = f"{ligne['id']}/photo.png"
+    rest.deposer_fichier(stockage, photo)
+    return stockage, url_temporaire(stockage)
+
+
+def _traiter_tiktok_rewards_long(rest: _Rest, ligne: dict, spec) -> bool:
+    """Produit un TikTok de 60-180 s par assemblage de clips AI <= 15 s."""
+    id_ = ligne["id"]
+    provider = RunwayVideo()
+    brut = str(ligne.get("provider_task_id") or "").strip()
+    try:
+        state = json.loads(brut) if brut.startswith("{") else {}
+    except json.JSONDecodeError:
+        state = {}
+    tasks = list(state.get("tasks") or [])
+    duree = max(60, min(180, int(spec.duration_seconds)))
+    segment_duree = 15
+    segments = (duree + segment_duree - 1) // segment_duree
+
+    stockage, image_url = _source_video_image(rest, ligne, spec)
+
+    # Soumission progressive : une seule nouvelle tache par passage du cron.
+    if len(tasks) < segments:
+        numero = len(tasks) + 1
+        prompt = (
+            f"{spec.prompt} This is segment {numero} of {segments}. "
+            "Keep Luna's face, outfit and location consistent with the supplied "
+            "start image. Make this segment visually complete and suitable for "
+            "a cut in a longer original vertical social video."
+        )
+        task_id = provider.creer(
+            image_url, prompt, "9:16", segment_duree
+        )
+        tasks.append(task_id)
+        state = {
+            "tasks": tasks,
+            "segment_count": segments,
+            "segment_duration_seconds": segment_duree,
+            "start_image": stockage,
+        }
+        rest.completer(id_, {
+            "provider": "runway-sequence",
+            "provider_task_id": json.dumps(state, ensure_ascii=False),
+            "generation_status": "generating",
+            "assembly_status": "collecting",
+            "statut": "en_cours",
+        })
+        print(f"segment {numero}/{segments} soumis : {id_}")
+        return True
+
+    # Toutes les taches sont creees : on attend qu'elles soient toutes terminees.
+    urls: list[str] = []
+    for task_id in tasks:
+        statut, url = provider.resultat(str(task_id))
+        if statut == "generating":
+            return True
+        urls.append(url)
+
+    try:
+        clips = []
+        for idx, url in enumerate(urls, start=1):
+            chemin = _chemin_temp(id_, f"segment-{idx}.mp4")
+            telecharger(url, chemin)
+            clips.append(chemin)
+
+        final = _chemin_temp(id_, "video.mp4")
+        _assembler_clips(clips, final, duree)
+
+        chemin_stockage = f"{id_}/video.mp4"
+        rest.deposer_fichier(chemin_stockage, final)
+
+        erreurs = _erreur_existante(ligne)
+        champs = {
+            "chemin_photo": ligne.get("chemin_photo") or stockage,
+            "chemin_video": chemin_stockage,
+            "provider": "runway-sequence",
+            "provider_task_id": json.dumps(state, ensure_ascii=False),
+            "generation_status": "succeeded",
+            "assembly_status": "assembled",
+            "statut": "terminee",
+            "erreurs": erreurs,
+        }
+        _publier_si_demande(ligne, spec, champs, final)
+        rest.completer(id_, champs)
+        print(f"TikTok long format assemble : {id_} ({duree}s)")
+        return True
+    except MediaErreur as exc:
+        erreurs = _erreur_existante(ligne)
+        erreurs["generation"] = str(exc)[:500]
+        rest.completer(id_, {
+            "statut": "echec",
+            "generation_status": "failed",
+            "assembly_status": "failed",
+            "provider": "runway-sequence",
+            "erreurs": erreurs,
+        })
+        return True
+
+
 def _traiter_job_media(rest: _Rest, ligne: dict, spec) -> bool:
     """Traite un job photo, ou lance/reprend une video image->video."""
     id_ = ligne["id"]
@@ -294,6 +438,9 @@ def _traiter_job_media(rest: _Rest, ligne: dict, spec) -> bool:
             champs.update({"statut": "echec", "generation_status": "failed", "erreurs": erreurs})
             rest.completer(id_, champs)
             return True
+
+    if ligne.get("content_format") == "tiktok_rewards":
+        return _traiter_tiktok_rewards_long(rest, ligne, spec)
 
     provider = RunwayVideo()
     task_id = str(ligne.get("provider_task_id") or "").strip()
