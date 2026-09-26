@@ -147,6 +147,45 @@ OUTILS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "creer_media_luna",
+            "description": "Depose un job photo ou video Luna pour le worker VPS. "
+                            "Photo 3:4 par defaut. Video 9:16, 10 secondes. "
+                            "publier=true demande la publication Instagram apres generation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string", "enum": ["photo", "video"]},
+                    "prompt": {"type": "string"},
+                    "caption": {"type": "string"},
+                    "aspect_ratio": {"type": "string"},
+                    "duration_seconds": {"type": "integer"},
+                    "quality": {"type": "string", "enum": ["brouillon", "finale"]},
+                    "reference_path": {"type": "string"},
+                    "provider": {"type": "string"},
+                    "model": {"type": "string"},
+                    "publier": {"type": "boolean"}
+                },
+                "required": ["type", "prompt"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "etat_media_luna",
+            "description": "Lit un job media Luna par id ou les derniers jobs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "limite": {"type": "integer", "default": 5}
+                }
+            }
+        }
+    },
 ]
 
 
