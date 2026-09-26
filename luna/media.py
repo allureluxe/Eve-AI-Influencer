@@ -99,7 +99,6 @@ def spec_depuis_demande(demande: str | dict) -> MediaSpec | None:
         raise MediaErreur("quality doit etre brouillon ou finale")
 
     duree = _entier(objet.get("duration_seconds"), DEFAULT_VIDEO_DURATION, 1, 180)
-    content_format = str(objet.get("content_format") or "").strip().lower()
     if typ == "video" and duree > 30 and content_format != "tiktok_rewards":
         raise MediaErreur("une video standard ne peut pas depasser 30 secondes")
     if content_format == "tiktok_rewards" and duree < 60:
