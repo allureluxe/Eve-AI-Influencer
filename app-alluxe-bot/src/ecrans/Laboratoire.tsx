@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, View } from "react-native";
 import Svg, { Polyline, Line, Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Carte, EnTete, T, Vide, useCouleurs } from "../composants/base";
-import { espace, rayon, TRAIT } from "../theme";
+import { espace, rayon } from "../theme";
 import { labStatus, labStrategies, LabStatus, LabStrategy } from "../services/lab";
 
 const LABELS: Record<string,string> = {
@@ -99,7 +99,7 @@ function Ligne({ item }: { item: LabStrategy }) {
         <T v="legende">PROFIT SIMULÉ</T>
         <T v="legende">{num(b.profit).toFixed(2)} €</T>
       </View>
-      <MiniCurve values={[0, num(b.profit)*.12, num(b.profit)*.35, num(b.profit)*.63, num(b.profit)*.82, num(b.profit)]}/>
+      <MiniCurve values={[num(b.profit)]}/>
     </View>
     <T v="petit" style={{marginTop:espace.s}}>
       {item.reason || "Résultat enregistré dans le carnet."}
@@ -131,8 +131,10 @@ export function EcranLaboratoire() {
   const stage=status?.stage ?? "IDLE";
   const last=items[0];
   const running=!["IDLE","VALIDATED","ARCHIVED-WEAK","RETIRED-WEAK","ERROR"].includes(stage);
-  const avgPf=items.length ? items.reduce((s,x)=>s+num(x.backtest?.profit_factor),0)/items.filter(x=>num(x.backtest?.profit_factor)>0).length : 0;
-  const avgWin=items.length ? items.reduce((s,x)=>s+num(x.backtest?.win_rate),0)/items.filter(x=>num(x.backtest?.win_rate)>0).length : 0;
+  const pfItems=items.filter(x=>num(x.backtest?.profit_factor)>0);
+  const winItems=items.filter(x=>num(x.backtest?.win_rate)>0);
+  const avgPf=pfItems.length ? pfItems.reduce((s,x)=>s+num(x.backtest?.profit_factor),0)/pfItems.length : 0;
+  const avgWin=winItems.length ? winItems.reduce((s,x)=>s+num(x.backtest?.win_rate),0)/winItems.length : 0;
   const validated=items.filter(x=>x.stage==="VALIDATED").length;
   const candidates=items.filter(x=>["CANDIDATE","FORWARD_TEST","INCUBATION"].includes(x.stage)).length;
 
@@ -184,6 +186,8 @@ export function EcranLaboratoire() {
         <T v="etiquette">{items.length} EXP.</T>
       </View>
       <View style={{marginTop:espace.l}}>
+        <T v="legende" style={{marginBottom:espace.s}}>RÉSULTAT DES 8 DERNIÈRES EXPÉRIENCES</T>
+        <MiniCurve values={items.slice(0,8).reverse().map(x=>num(x.backtest?.profit))}/>
         {items.slice(0,8).map((x,i)=><View key={x.strategy_id} style={{flexDirection:"row",alignItems:"center",paddingVertical:8,borderTopWidth:i?0:0,borderColor:c.filetDoux}}>
           <View style={{width:24,alignItems:"center"}}><T v="legende">{String(i+1).padStart(2,"0")}</T></View>
           <View style={{width:8,height:8,borderRadius:4,backgroundColor:x.stage==="VALIDATED"?c.gain:x.stage==="RETIRED-WEAK"?c.encrePale:c.jaune,marginHorizontal:8}}/>
