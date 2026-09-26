@@ -44,6 +44,13 @@ class TestInitialLevels(unittest.TestCase):
         self.assertGreater(sl, 2600.0)
         self.assertLess(tp, 2600.0)
 
+    def test_tp_desactive_ne_cree_pas_de_faux_niveau(self):
+        tm = TradeManager(TradeManagerConfig(tp_actif=False, tp_r_multiple=2.0,
+                                             atr_stop_mult=1.6, spread_buffer_mult=0.0))
+        sl, tp = tm.initial_levels(Side.BUY, 2600.0, atr=2.0)
+        self.assertLess(sl, 2600.0)
+        self.assertEqual(tp, 0.0)
+
     def test_le_spread_elargit_le_stop(self):
         tm = TradeManager(TradeManagerConfig(spread_buffer_mult=2.0))
         sl_sans, _ = tm.initial_levels(Side.BUY, 2600.0, atr=2.0, spread=0.0)
