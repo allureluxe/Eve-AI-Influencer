@@ -248,8 +248,10 @@ def choisir_moteur() -> Moteur:
 FORMATS = {
     "portrait": (832, 1216),
     "portrait_3_4": (960, 1280),
+    "portrait_9_16": (720, 1280),
     "carre": (1024, 1024),
     "paysage": (1216, 832),
+    "paysage_16_9": (1280, 720),
 }
 
 
@@ -595,6 +597,10 @@ class GenerateurImages:
             corps["width"], corps["height"] = 1024, 768
         elif format == "portrait_3_4":
             corps["width"], corps["height"] = 960, 1280
+        elif format == "portrait_9_16":
+            corps["width"], corps["height"] = 720, 1280
+        elif format == "paysage_16_9":
+            corps["width"], corps["height"] = 1280, 720
         else:
             corps["width"], corps["height"] = 768, 1024
         if graine:
