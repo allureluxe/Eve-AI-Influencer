@@ -181,6 +181,23 @@ class RunwayVideo:
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             raise MediaErreur(f"Runway reseau: {exc}") from exc
 
+    @staticmethod
+    def _ratio_api(ratio: str) -> str:
+        """Convertit notre ratio social en dimension acceptee par Gen-4.5."""
+        valeurs = {
+            "9:16": "720:1280",
+            "16:9": "1280:720",
+            "3:4": "832:1104",
+            "4:3": "1104:832",
+            "1:1": "960:960",
+        }
+        try:
+            return valeurs[ratio]
+        except KeyError as exc:
+            raise MediaErreur(
+                f"ratio {ratio} non supporte par Runway gen4.5"
+            ) from exc
+
     def creer(self, image_url: str, prompt: str, ratio: str,
               duree: int) -> str:
         if not self.disponible:
@@ -189,9 +206,8 @@ class RunwayVideo:
             "model": self.model,
             "promptImage": image_url,
             "promptText": prompt,
-            "ratio": ratio,
+            "ratio": self._ratio_api(ratio),
             "duration": int(duree),
-            "resolution": self.resolution,
         }
         rep = self._requete("POST", "/v1/image_to_video", payload)
         if not rep.get("id"):
