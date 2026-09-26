@@ -173,6 +173,26 @@ class Scene:
 # Grand Est. Si c'est une autre ville, TOUT se change ici : les scenes
 # ci-dessous composent leurs decors a partir de ces trois valeurs, elles
 # ne recopient jamais un nom de lieu.
+# TROIS VILLES, ET ELLES NE SE MELANGENT PAS — 26 septembre.
+#
+# L'operateur a relu deux publications mises en ligne le meme jour :
+# « comment elle peut faire la montee de la Croix-Rousse a Lyon et etre
+# dans le train sorti du taf Luxembourg ? Sois coherent un peu. »
+#
+# Il avait raison, et c'est le genre de faute qui tue un personnage plus
+# surement qu'une image ratee : une image ratee se refait, une biographie
+# qui se contredit ne se rattrape pas.
+#
+#     SEMAINE   Metz (elle y dort) <-> Luxembourg (elle y etudie)
+#     WEEK-END  Metz, ou Lyon quand elle rentre chez ses parents
+#     LYON      ses racines, PAS son quotidien
+#
+# LA REGLE OPERATIONNELLE : toute scene lyonnaise doit DIRE qu'elle est
+# rentree — « retour a Lyon pour le week-end », « chez mes parents ».
+# Sans cette mention, la photo contredit tout le reste du compte.
+#
+# Et l'inverse est vrai : une scene de cours ou de train un samedi
+# sonne faux aussi. La coherence se verifie dans les deux sens.
 VILLE = "Metz, France"
 LIEUX = {
     "cafe": "a busy cafe terrace on Place Saint-Louis in Metz, the "

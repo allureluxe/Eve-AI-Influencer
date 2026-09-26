@@ -124,6 +124,25 @@ def publier_photo_luna(chemin: str, legende: str = "") -> str:
     return publier(url_temporaire(chemin), legende)
 
 
+def publier_reel_luna(chemin: str, legende: str = "") -> str:
+    """Poste un REEL depuis le seau `luna`.
+
+    C'EST LE SEUL FORMAT QUI VA CHERCHER DES INCONNUS. Une photo n'est
+    montree qu'aux abonnes existants ; a zero abonne, elle n'est montree
+    a personne. Le Reel, lui, passe par la surface de recommandation.
+
+    LIMITE ASSUMEE DE CETTE VOIE : publie par l'API, le Reel part avec
+    l'audio du fichier — donc sans musique. Or un son en vogue est lui
+    meme un canal de diffusion, et une piste sous droits collee dans le
+    fichier se fait couper par Instagram. Pour beneficier d'un son
+    tendance, il faut publier depuis le telephone et le choisir dans la
+    bibliotheque. Cette fonction sert quand on veut que ce soit fait,
+    tout de suite, sans arbitrage.
+    """
+    return publier(url_temporaire(chemin), legende, reel=True,
+                   attente_max=180.0)
+
+
 def publier_story_luna(chemin: str, est_video: bool = False) -> str:
     """Poste une Story photo ou video depuis le bucket prive luna."""
     media_url = url_temporaire(chemin)
@@ -136,7 +155,7 @@ def publier_story_luna(chemin: str, est_video: bool = False) -> str:
 
 def publier(image_url: str, legende: str = "",
             attente_max: float = 60.0, story: bool = False,
-            video_url: str = "") -> str:
+            video_url: str = "", reel: bool = False) -> str:
     """Publie une photo. Rend l'identifiant de la publication.
 
     `image_url` doit etre PUBLIQUE : Instagram la telecharge lui-meme.
@@ -166,6 +185,19 @@ def publier(image_url: str, legende: str = "",
             params["video_url"] = video_url
         else:
             params["image_url"] = image_url
+    elif reel:
+        # LE REEL EST UN TYPE A PART, ni photo ni story. Publie en
+        # `VIDEO` ordinaire il atterrirait dans le fil sans passer par
+        # la surface qui, elle, va chercher des inconnus — or c'est
+        # tout l'interet du format.
+        #
+        # ET IL GARDE SA LEGENDE, contrairement a la story.
+        params["media_type"] = "REELS"
+        params["video_url"] = video_url or image_url
+        params["caption"] = legende
+        # Sans ca, le Reel n'apparait pas dans la grille du profil :
+        # quelqu'un qui arrive sur le compte ne le verrait jamais.
+        params["share_to_feed"] = "true"
     else:
         params["image_url"] = image_url
         params["caption"] = legende
