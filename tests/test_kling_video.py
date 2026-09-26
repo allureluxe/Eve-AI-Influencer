@@ -94,11 +94,46 @@ class TestIlRefusePlutotQueDeProduireUneInconnue:
         with pytest.raises(MediaErreur, match="image de depart"):
             kling.creer("", "elle marche", "9:16", 5)
 
-    def test_sans_les_deux_cles_il_le_dit(self, monkeypatch):
-        monkeypatch.delenv("KLING_ACCESS_KEY", raising=False)
-        monkeypatch.delenv("KLING_SECRET_KEY", raising=False)
-        with pytest.raises(MediaErreur, match="KLING_ACCESS_KEY"):
+    def test_sans_aucun_identifiant_il_le_dit(self, monkeypatch):
+        for n in ("KLING_API_KEY", "KLING_ACCESS_KEY", "KLING_SECRET_KEY"):
+            monkeypatch.delenv(n, raising=False)
+        with pytest.raises(MediaErreur, match="KLING_API_KEY"):
             KlingVideo()._appel("GET", "/v1/videos/image2video/x")
+
+
+class TestLesDeuxGenerationsDIdentifiants:
+    """Kling a change de systeme : la nouvelle console donne UNE cle.
+
+    L'ancienne donnait une paire et exigeait un JWT signe ; la nouvelle
+    « API Platform » rend une seule cle `api-key-kling-...` en bearer
+    ordinaire. L'operateur a cree la sienne sur la nouvelle le
+    26 septembre et n'en a recu qu'une, alors que le code en reclamait
+    deux. On accepte les deux formes : un fournisseur qui change
+    d'authentification est une panne certaine, et elle tombe toujours un
+    jour ou l'on n'a pas le temps.
+    """
+
+    def test_une_seule_cle_suffit(self, monkeypatch):
+        for n in ("KLING_ACCESS_KEY", "KLING_SECRET_KEY"):
+            monkeypatch.delenv(n, raising=False)
+        monkeypatch.setenv("KLING_API_KEY", "api-key-kling-GGXdlasw")
+        k = KlingVideo()
+        assert k.disponible
+        # Presentee telle quelle, sans passer par le JWT.
+        assert k._entetes()["Authorization"] == "Bearer api-key-kling-GGXdlasw"
+
+    def test_la_paire_ancienne_passe_toujours_par_le_jwt(self, monkeypatch):
+        monkeypatch.delenv("KLING_API_KEY", raising=False)
+        monkeypatch.setenv("KLING_ACCESS_KEY", "ak-essai")
+        monkeypatch.setenv("KLING_SECRET_KEY", "sk-essai")
+        porteur = KlingVideo()._entetes()["Authorization"]
+        assert porteur.count(".") == 2, "un JWT a trois morceaux"
+
+    def test_la_cle_unique_l_emporte_si_les_deux_sont_posees(self, monkeypatch):
+        monkeypatch.setenv("KLING_API_KEY", "api-key-kling-neuve")
+        monkeypatch.setenv("KLING_ACCESS_KEY", "ak-vieille")
+        monkeypatch.setenv("KLING_SECRET_KEY", "sk-vieille")
+        assert "api-key-kling-neuve" in KlingVideo()._entetes()["Authorization"]
 
 
 class TestUn200QuiRefuseResteUnRefus:

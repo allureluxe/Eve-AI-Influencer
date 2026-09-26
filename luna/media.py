@@ -183,8 +183,24 @@ class KlingVideo:
     nom = "kling"
 
     def __init__(self) -> None:
+        # DEUX GENERATIONS D'IDENTIFIANTS COHABITENT — 26 septembre.
+        #
+        # L'ancienne console Kling donnait une PAIRE (cle publique + cle
+        # secrete) et attendait un JWT HS256 signe. La nouvelle « API
+        # Platform » donne UNE SEULE cle, de la forme
+        # `api-key-kling-XXXX`, presentee en bearer ordinaire.
+        #
+        # L'operateur a cree la sienne sur la nouvelle console et n'a
+        # recu qu'une cle : mon code, cale sur l'ancienne methode, lui
+        # en reclamait deux. On accepte les deux formes plutot que de
+        # parier sur celle qu'un compte donne — un fournisseur qui
+        # change de systeme d'authentification est une panne certaine,
+        # et elle arrive toujours un jour ou l'on n'a pas le temps.
+        self.cle_unique = os.getenv("KLING_API_KEY", "").strip()
         self.ak = os.getenv("KLING_ACCESS_KEY", "").strip()
         self.sk = os.getenv("KLING_SECRET_KEY", "").strip()
+        if self.cle_unique.lower().startswith("your_"):
+            self.cle_unique = ""
         for valeur in (self.ak, self.sk):
             if valeur.lower().startswith("your_"):
                 self.ak = self.sk = ""
@@ -196,7 +212,7 @@ class KlingVideo:
 
     @property
     def disponible(self) -> bool:
-        return bool(self.ak and self.sk)
+        return bool(self.cle_unique or (self.ak and self.sk))
 
     def _jeton(self) -> str:
         """Un JWT HS256 fabrique a la main, valable trente minutes.
@@ -223,7 +239,10 @@ class KlingVideo:
         return (entete + b"." + charge + b"." + signe).decode()
 
     def _entetes(self) -> dict:
-        return {"Authorization": "Bearer " + self._jeton(),
+        # La cle unique se presente telle quelle ; la paire ancienne
+        # passe par le JWT. Le reste du code ignore laquelle est en jeu.
+        porteur = self.cle_unique or self._jeton()
+        return {"Authorization": "Bearer " + porteur,
                 "Content-Type": "application/json",
                 "User-Agent": "alluxe-luna-media/1.0"}
 
@@ -243,7 +262,10 @@ class KlingVideo:
 
     def _appel(self, methode: str, chemin: str, corps: dict | None = None) -> dict:
         if not self.disponible:
-            raise MediaErreur("KLING_ACCESS_KEY / KLING_SECRET_KEY absentes")
+            raise MediaErreur(
+                "identifiants Kling absents : poser KLING_API_KEY (nouvelle "
+                "console, une seule cle « api-key-kling-... ») ou la paire "
+                "KLING_ACCESS_KEY + KLING_SECRET_KEY (ancienne console)")
         data = json.dumps(corps).encode("utf-8") if corps is not None else None
         req = urllib.request.Request(self.base + chemin, data=data,
                                      headers=self._entetes(), method=methode)
