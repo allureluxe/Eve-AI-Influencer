@@ -49,7 +49,12 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   const [rafraichit, setRafraichit] = React.useState(false);
   const [tri, setTri] = React.useState<Tri>("gain");
   const [descendant, setDescendant] = React.useState(true);
-  const { positions, capital, prixLive, erreur, rafraichir } = useSuiviPositions(false, 0);
+  // `capital` n'est plus pris ici : c'etait le releve du serveur charge
+  // une fois au montage, et il servait de base aux pourcentages des
+  // positions pendant que la demo utilisait, elle, le capital de
+  // depart. Tout l'ecran travaille desormais sur `depart` et
+  // `capitalVivant`, comme la demo.
+  const { positions, prixLive, erreur, rafraichir } = useSuiviPositions(false, 0);
 
   // LE CAPITAL SE RELIT, IL NE SE CHARGE PAS UNE FOIS.
   //
@@ -166,8 +171,14 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
     [positions, capitalVivant, prixLive]);
 
   const ordonnees = React.useMemo(
-    () => (positions ? trier(positions, tri, descendant, capital, prixLive) : null),
-    [positions, tri, descendant, capital, prixLive],
+    // LE CAPITAL DE DEPART, COMME EN DEMO -- et pas le capital courant.
+    // Demo passe `capitalDepart` ; Direct passait le releve du serveur,
+    // charge une fois au montage. Les deux ecrans calculaient donc les
+    // pourcentages de position sur des bases differentes, ce qui est
+    // exactement le piege recense sept fois dans CLAUDE.md : la meme
+    // formule, juste dans un cadre, fausse dans l'autre.
+    () => (positions ? trier(positions, tri, descendant, depart, prixLive) : null),
+    [positions, tri, descendant, depart, prixLive],
   );
 
   return (
@@ -239,7 +250,7 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
           l'autre. */}
       <Carte style={{ marginBottom: espace.l }}>
         <CourbeCapital compte="reel"
-                       capitalDepart={capitalVivant ?? 0} />
+                       capitalDepart={depart} />
       </Carte>
 
       <T v="sousTitre" style={{ marginBottom: espace.s }}>
@@ -256,11 +267,11 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
           <BarreDeTri tri={tri} descendant={descendant}
                       surChangement={(t, d) => { setTri(t); setDescendant(d); }} />
           {ordonnees.map((p) => (
-            <LignePosition key={p.id} p={p} capital={capital}
+            <LignePosition key={p.id} p={p} capital={depart}
                            prixActuel={prixLive[p.pair]}
                            etage={etages[p.id]}
                            surAppui={navigation ? () => navigation.navigate("Position", {
-                             position: p, capital, mode: "Réel",
+                             position: p, capital: depart, mode: "Réel",
                            }) : undefined} />
           ))}
         </>
@@ -281,8 +292,7 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
             {fermees.filter((t) => (t.result_pct ?? 0) <= 0).length} perdant(s)
           </T>
           {fermees.map((t) => (
-            <LigneFermee key={t.id} p={t}
-                         capital={capitalEtat?.capital_eur ?? capital} />
+            <LigneFermee key={t.id} p={t} capital={depart} />
           ))}
         </>
       )}
