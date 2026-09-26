@@ -57,6 +57,7 @@ def main() -> int:
     parser.add_argument("--reference", default="")
     parser.add_argument("--provider", default="")
     parser.add_argument("--model", default="")
+    parser.add_argument("--format", default="")
     parser.add_argument("--publish", action="store_true")
     parser.add_argument("--wait", action="store_true", help="attendre la fin")
     parser.add_argument("--timeout", type=int, default=900, help="timeout en secondes")
@@ -78,6 +79,7 @@ def main() -> int:
         "quality": args.quality,
         "provider": args.provider,
         "model": args.model,
+        "content_format": args.format,
         "publish": bool(args.publish),
     }
 
