@@ -725,7 +725,7 @@ SOURCES_RECHERCHE_TRADING = {
                           "investopedia.com", "tradingview.com/education"],
 }
 
-def _recherche_sites(question: str, domaines: list[str], limite=6) -> list[dict]:
+def _recherche_sites(question: str, domaines: list[str], limite=6, famille: str = "") -> list[dict]:
     import urllib.parse
     trouves, vus = [], set()
     for debut in range(0, len(domaines), 3):
@@ -738,7 +738,7 @@ def _recherche_sites(question: str, domaines: list[str], limite=6) -> list[dict]
                 if lien and lien not in vus:
                     vus.add(lien)
                     y = dict(x)
-                    y["famille"] = groupe
+                    y["famille"] = famille or "inconnu"
                     trouves.append(y)
         except Exception:
             continue
@@ -809,7 +809,7 @@ def recherche_idee_trading(args: dict) -> dict:
     resultats = []
     for famille in familles:
         resultats.extend(_recherche_sites(
-            sujet, SOURCES_RECHERCHE_TRADING[famille], limite=5))
+            sujet, SOURCES_RECHERCHE_TRADING[famille], limite=5, famille=famille))
     uniques, vus = [], set()
     for x in resultats:
         lien = x.get("lien", "")
