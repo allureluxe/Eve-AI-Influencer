@@ -1,10 +1,7 @@
 /**
- * Luna -- lecture du personnage et de la file de generation, ecriture
- * d'une nouvelle demande. Toute la generation reelle (script/photo/
- * voix/video) tourne sur le VPS via `ops/executer_luna.py` (cron) ;
- * l'application ne fait jamais qu'ajouter une ligne `en_attente` et
- * regarder son statut changer -- meme principe que le reste
- * d'Alluxe Bot, aucun acces direct au VPS depuis le telephone.
+ * Luna -- donnees du personnage, creation des jobs medias/edito et
+ * indicateurs de croissance. La generation reelle reste sur le VPS :
+ * l'app depose un job puis observe son traitement via Supabase.
  */
 import { supabase } from "./supabase";
 
@@ -17,8 +14,6 @@ export interface Persona {
   passions: string[];
 }
 
-/** `null` tant que la table n'existe pas encore (migration pas encore
- * appliquee) ou que le cron ne l'a pas encore remplie une premiere fois. */
 export async function persona(): Promise<Persona | null> {
   const { data, error } = await supabase
     .from("luna_persona")
@@ -33,6 +28,16 @@ export async function persona(): Promise<Persona | null> {
 }
 
 export type StatutPublication = "en_attente" | "en_cours" | "terminee" | "echec";
+export type FormatLuna =
+  | "legacy" | "feed_photo" | "story" | "highlight_story" | "reel"
+  | "tiktok_short" | "tiktok_rewards" | "tiktok_photo";
+export type PlateformeLuna = "instagram" | "tiktok" | "both";
+export type TypeLieu =
+  | "restaurant" | "bar" | "cafe" | "hotel" | "landmark"
+  | "street" | "travel" | "other";
+export type TrackMonetisation =
+  | "growth" | "instagram_gifts" | "instagram_subscriptions"
+  | "tiktok_creator_rewards" | "tiktok_series" | "brand_deals";
 
 export interface Publication {
   id: string;
@@ -51,6 +56,21 @@ export interface Publication {
   published_at: string | null;
   published_platform: string | null;
   published_media_id: string | null;
+  content_format: FormatLuna;
+  platform: PlateformeLuna;
+  scheduled_at: string | null;
+  timezone: string;
+  location_name: string | null;
+  location_city: string | null;
+  location_type: TypeLieu | null;
+  highlight_name: string | null;
+  hook: string | null;
+  call_to_action: string | null;
+  hashtags: string[];
+  ai_disclosure: boolean;
+  monetization_track: TrackMonetisation;
+  strategy_version: string;
+  source_job: string | null;
   legende: string;
   scene_prompt: string;
   chemin_photo: string | null;
@@ -60,9 +80,9 @@ export interface Publication {
 }
 
 const COLONNES_PUBLICATION =
-  "id, created_at, demande, statut, media_type, reference_path, aspect_ratio, duration_seconds, quality, provider, provider_task_id, generation_status, publish_requested, published_at, published_platform, published_media_id, legende, scene_prompt, chemin_photo, chemin_voix, chemin_video, erreurs";
+  "id, created_at, demande, statut, media_type, reference_path, aspect_ratio, duration_seconds, quality, provider, provider_task_id, generation_status, publish_requested, published_at, published_platform, published_media_id, content_format, platform, scheduled_at, timezone, location_name, location_city, location_type, highlight_name, hook, call_to_action, hashtags, ai_disclosure, monetization_track, strategy_version, source_job, legende, scene_prompt, chemin_photo, chemin_voix, chemin_video, erreurs";
 
-export async function publications(limite = 30): Promise<Publication[]> {
+export async function publications(limite = 60): Promise<Publication[]> {
   const { data, error } = await supabase
     .from("luna_publications")
     .select(COLONNES_PUBLICATION)
@@ -75,19 +95,84 @@ export async function publications(limite = 30): Promise<Publication[]> {
   return (data ?? []) as unknown as Publication[];
 }
 
-/** Depose une demande de generation. `demande` vide : Luna improvise
- * seule (meme comportement que `python3 alluxe.py` sans argument). */
-export async function demanderGeneration(demande: string): Promise<void> {
-  const { error } = await supabase
-    .from("luna_publications")
-    .insert({ demande: demande.trim() });
+export interface DemandeMediaLuna {
+  demande?: string;
+  content_format?: FormatLuna;
+  platform?: PlateformeLuna;
+  scheduled_at?: string | null;
+  media_type?: "auto" | "photo" | "video";
+  reference_path?: string | null;
+  aspect_ratio?: string;
+  duration_seconds?: number;
+  quality?: "brouillon" | "finale";
+  publish_requested?: boolean;
+  location_name?: string | null;
+  location_city?: string | null;
+  location_type?: TypeLieu | null;
+  highlight_name?: string | null;
+  hook?: string | null;
+  call_to_action?: string | null;
+  hashtags?: string[];
+  monetization_track?: TrackMonetisation;
+  ai_disclosure?: boolean;
+  source_job?: string | null;
+}
+
+function defaultsMedia(format: FormatLuna): {
+  media_type: "auto" | "photo" | "video";
+  aspect_ratio: string;
+  duration_seconds: number;
+} {
+  if (format === "feed_photo") return { media_type: "photo", aspect_ratio: "3:4", duration_seconds: 1 };
+  if (format === "story" || format === "highlight_story") {
+    return { media_type: "video", aspect_ratio: "9:16", duration_seconds: 10 };
+  }
+  if (format === "reel" || format === "tiktok_short") {
+    return { media_type: "video", aspect_ratio: "9:16", duration_seconds: 10 };
+  }
+  if (format === "tiktok_rewards") {
+    return { media_type: "video", aspect_ratio: "9:16", duration_seconds: 60 };
+  }
+  if (format === "tiktok_photo") return { media_type: "photo", aspect_ratio: "3:4", duration_seconds: 1 };
+  return { media_type: "auto", aspect_ratio: "3:4", duration_seconds: 10 };
+}
+
+export async function demanderGeneration(
+  demande: string,
+  options: DemandeMediaLuna = {},
+): Promise<void> {
+  const content_format = options.content_format ?? "legacy";
+  const d = defaultsMedia(content_format);
+  const row: Record<string, unknown> = {
+    demande: demande.trim(),
+    media_type: options.media_type ?? d.media_type,
+    aspect_ratio: options.aspect_ratio ?? d.aspect_ratio,
+    duration_seconds: options.duration_seconds ?? d.duration_seconds,
+    quality: options.quality ?? "finale",
+    publish_requested: options.publish_requested ?? true,
+    content_format,
+    platform: options.platform ?? "instagram",
+    scheduled_at: options.scheduled_at ?? null,
+    timezone: "Europe/Paris",
+    location_name: options.location_name ?? null,
+    location_city: options.location_city ?? null,
+    location_type: options.location_type ?? null,
+    highlight_name: options.highlight_name ?? null,
+    hook: options.hook ?? null,
+    call_to_action: options.call_to_action ?? null,
+    hashtags: options.hashtags ?? [],
+    ai_disclosure: options.ai_disclosure ?? true,
+    monetization_track: options.monetization_track ?? "growth",
+  };
+  if (options.reference_path) row.reference_path = options.reference_path;
+  if (options.source_job) row.source_job = options.source_job;
+
+  const { error } = await supabase.from("luna_publications").insert(row);
   if (error) throw error;
 }
 
 const CACHE_URLS = new Map<string, { url: string; expire: number }>();
 
-/** URL signee (1h) vers un fichier du bucket prive `luna`. Mise en
- * cache en memoire pour ne pas re-signer a chaque re-rendu de liste. */
 export async function urlSignee(cheminStockage: string): Promise<string | null> {
   const dejaConnue = CACHE_URLS.get(cheminStockage);
   if (dejaConnue && dejaConnue.expire > Date.now()) return dejaConnue.url;
@@ -97,4 +182,37 @@ export async function urlSignee(cheminStockage: string): Promise<string | null> 
   if (error || !data) return null;
   CACHE_URLS.set(cheminStockage, { url: data.signedUrl, expire: Date.now() + 55 * 60 * 1000 });
   return data.signedUrl;
+}
+
+export interface PerformanceLuna {
+  publication_id: string;
+  platform: string;
+  measured_at: string;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  watch_time_seconds: number;
+  completion_rate: number | null;
+  followers_delta: number;
+  revenue_eur: number;
+  qualified_views: number;
+  sponsored: boolean;
+}
+
+const COLONNES_PERFORMANCE =
+  "publication_id, platform, measured_at, views, likes, comments, shares, saves, watch_time_seconds, completion_rate, followers_delta, revenue_eur, qualified_views, sponsored";
+
+export async function performances(limite = 250): Promise<PerformanceLuna[]> {
+  const { data, error } = await supabase
+    .from("luna_performance")
+    .select(COLONNES_PERFORMANCE)
+    .order("measured_at", { ascending: false })
+    .limit(limite);
+  if (error) {
+    if (/relation .* does not exist/i.test(error.message)) return [];
+    throw error;
+  }
+  return (data ?? []) as unknown as PerformanceLuna[];
 }
