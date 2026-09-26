@@ -195,6 +195,54 @@ def _erreur_existante(ligne: dict) -> dict:
     return dict(brut) if isinstance(brut, dict) else {}
 
 
+
+def _spec_depuis_colonnes(ligne: dict):
+    """La demande de l'APPLICATION, qui n'ecrit pas de JSON.
+
+    LE RACCORDEMENT QUI MANQUAIT. `spec_depuis_demande` ne lit que le
+    champ texte `demande` et attend du JSON. L'application, elle,
+    depose la demande en langage ordinaire ET remplit des COLONNES :
+    `media_type`, `aspect_ratio`, `duration_seconds`, `quality`,
+    `reference_path`, `publish_requested`.
+
+    Resultat : tout job venu du bouton « Generer » retombait sur
+    l'ancien chemin — celui qui ne pose jamais `generation_status`, et
+    qui ignore le format et la duree demandes. L'application ecrivait
+    des reglages que personne ne lisait.
+
+    On reconstruit donc la specification a partir des colonnes quand
+    `media_type` designe explicitement une photo ou une video.
+
+    `media_type = "auto"` reste sur l'ancien chemin, et c'est voulu :
+    c'est lui qui enchaine script + photo + voix + video, ce que le
+    nouveau ne fait pas.
+    """
+    typ = str(ligne.get("media_type") or "").strip().lower()
+    if typ not in {"photo", "video"}:
+        return None
+    prompt = str(ligne.get("scene_prompt") or ligne.get("demande") or "").strip()
+    if not prompt:
+        return None
+    objet = {
+        "type": typ,
+        "prompt": prompt,
+        "aspect_ratio": ligne.get("aspect_ratio"),
+        "quality": ligne.get("quality"),
+        "reference": ligne.get("reference_path"),
+        "caption": ligne.get("legende") or "",
+        # `publish_requested` est un booleen de colonne ; la
+        # specification attend `publish`.
+        "publish": bool(ligne.get("publish_requested")),
+        "content_format": ligne.get("content_format"),
+    }
+    duree = ligne.get("duration_seconds")
+    if duree:
+        objet["duration"] = duree
+    # Les valeurs nulles feraient echouer la validation de ratio.
+    objet = {k: v for k, v in objet.items() if v is not None}
+    return spec_depuis_demande(objet)
+
+
 def _publier_si_demande(ligne: dict, spec, champs: dict, chemin_local: str = "") -> None:
     """Publie sur les plateformes demandees, avec declaration AIGC."""
     if not spec.publish:
@@ -543,7 +591,8 @@ def _reprendre_videos(rest: _Rest) -> int:
     )
     compte = 0
     for ligne in lignes:
-        spec = spec_depuis_demande(ligne.get("demande", ""))
+        spec = (spec_depuis_demande(ligne.get("demande", ""))
+                or _spec_depuis_colonnes(ligne))
         if spec is None:
             continue
         if _traiter_job_media(rest, ligne, spec):
@@ -600,7 +649,7 @@ def _traiter_une_demande(rest: _Rest) -> bool:
 
     id_, demande = ligne["id"], ligne.get("demande", "")
     try:
-        spec = spec_depuis_demande(demande)
+        spec = spec_depuis_demande(demande) or _spec_depuis_colonnes(ligne)
     except MediaErreur as exc:
         rest.completer(id_, {
             "statut": "echec",
