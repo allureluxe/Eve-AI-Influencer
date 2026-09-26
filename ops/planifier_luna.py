@@ -13,6 +13,7 @@ Il ne lit jamais .env dans le prompt et ne copie aucune cle dans Supabase.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import json
 import os
 import urllib.parse
@@ -178,7 +179,7 @@ def _location_type(slot: Slot) -> str | None:
 
 
 def main() -> int:
-    base = datetime.now(timezone.utc)
+    base = datetime.now(ZoneInfo("Europe/Paris"))
     fin = base + timedelta(hours=36)
 
     villes = [x.strip() for x in os.getenv(
