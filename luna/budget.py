@@ -157,3 +157,38 @@ class Depenses:
         })
         self._ecrire(donnees)
         return round(self.plafond - donnees["total_eur"], 4)
+
+    def rembourser(self, cout_eur: float, motif: str = "") -> None:
+        """Rend une reservation dont on SAIT qu'elle n'a rien coute.
+
+        POURQUOI CE CONTRAIRE EXISTE. On reserve avant l'appel, parce
+        qu'un processus qui meurt en route a quand meme depense. Mais
+        certains echecs prouvent l'inverse : un 404 sur un endpoint
+        ferme, un 401, un 400 refuse a l'entree — le fournisseur n'a
+        rien produit, donc il ne facturera rien.
+
+        Sans ce remboursement, ces echecs-la rongent le plafond du jour
+        pour rien. Le 26 septembre, un seul appel a l'API Sora — fermee
+        deux jours plus tot, donc 404 — a consomme 0,40 EUR sur 2,00.
+        Quelques tentatives de ce genre suffisent a bloquer une journee
+        entiere sans qu'un centime ait ete engage.
+
+        ON NE REMBOURSE QUE CE QU'ON EST SUR DE NE PAS AVOIR DEPENSE.
+        Un delai depasse, une coupure reseau, une erreur 500 : le
+        fournisseur a peut-etre commence, et on ne rembourse pas. Dans
+        le doute, l'argent reste compte — se tromper dans ce sens coute
+        une generation de moins, se tromper dans l'autre coute une
+        facture.
+        """
+        cout_eur = max(0.0, float(cout_eur))
+        if cout_eur <= 0:
+            return
+        donnees = self._lire()
+        donnees["total_eur"] = round(
+            max(0.0, float(donnees.get("total_eur", 0.0)) - cout_eur), 4)
+        donnees.setdefault("lignes", []).append({
+            "horodatage": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "cout_eur": -round(cout_eur, 4),
+            "motif": f"rembourse : {motif}",
+        })
+        self._ecrire(donnees)

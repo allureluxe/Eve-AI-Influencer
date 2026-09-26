@@ -14,8 +14,14 @@ from luna.media import MediaErreur, RunwayVideo, SoraVideo, fournisseur_video
 
 
 class TestLaFabriqueChoisitUnSeulFournisseur:
-    def test_sora_des_qu_une_cle_openai_existe(self, monkeypatch):
+    def test_sora_quand_il_est_explicitement_rearme(self, monkeypatch):
+        # AVANT LE 26 SEPTEMBRE, ce test disait « sora des qu'une cle
+        # OpenAI existe ». C'etait vrai, et ca ne l'est plus : l'API
+        # video de Sora a ferme le 24. L'assertion decrivait un monde
+        # revolu, pas un defaut de code — on la corrige, on ne la
+        # supprime pas.
         monkeypatch.setenv("OPENAI_API_KEY", "sk-vraie")
+        monkeypatch.setenv("LUNA_SORA_ACTIF", "1")
         assert fournisseur_video().nom == "sora"
 
     def test_runway_en_repli_sans_cle_openai(self, monkeypatch):
@@ -69,6 +75,7 @@ class TestLeTelechargementPorteLaCle:
 class TestIlRefusePlutotQueDeProduireUneInconnue:
     def test_sans_image_de_depart_lisible_il_echoue(self, monkeypatch, tmp_path):
         monkeypatch.setenv("OPENAI_API_KEY", "sk-vraie")
+        monkeypatch.setenv("LUNA_SORA_ACTIF", "1")
         monkeypatch.setenv("LUNA_BUDGET_JOUR_EUR", "100")
         # LE COMPTEUR DE TEST N'EST PAS CELUI DE PRODUCTION. Sans cette
         # ligne, ce test ecrivait dans `data/depenses_luna.json` — 2,40
@@ -104,6 +111,7 @@ class TestUnEchecNeCONSOMMEPasLeBudget:
 
         compteur = tmp_path / "d.json"
         monkeypatch.setenv("OPENAI_API_KEY", "sk-vraie")
+        monkeypatch.setenv("LUNA_SORA_ACTIF", "1")
         monkeypatch.setenv("LUNA_BUDGET_JOUR_EUR", "100")
         monkeypatch.setenv("LUNA_DEPENSES_FICHIER", str(compteur))
 
@@ -113,3 +121,66 @@ class TestUnEchecNeCONSOMMEPasLeBudget:
 
         assert Depenses().total_du_jour() == 0.0, \
             "un echec avant l'appel a l'API ne doit rien consommer"
+
+
+class TestSoraEstFermeDepuisLe24Septembre:
+    """OpenAI l'annonce lui-meme : `shutdown_date: 2026-09-24`.
+
+    Le piege etait que `sora-2` et `sora-2-pro` restent listes dans
+    `/v1/models` alors que `/v1/videos` rend 404. Un catalogue qui liste
+    un modele ne prouve pas que le service existe.
+    """
+
+    def test_la_fabrique_ne_choisit_PAS_sora_par_defaut(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-vraie")
+        monkeypatch.setenv("RUNWAYML_API_SECRET", "rw-vraie")
+        monkeypatch.delenv("LUNA_SORA_ACTIF", raising=False)
+        assert fournisseur_video().nom == "runway", (
+            "sans ce verrou, chaque video echouerait en 404 alors que "
+            "Runway attend a cote, configure et fonctionnel")
+
+    def test_on_peut_le_rearmer_le_jour_du_successeur(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-vraie")
+        monkeypatch.setenv("LUNA_SORA_ACTIF", "1")
+        assert fournisseur_video().nom == "sora"
+
+    def test_la_date_de_fermeture_est_ecrite_dans_le_code(self):
+        # Pour que personne ne le rebranche en croyant l'avoir invente.
+        assert SoraVideo.FERME_LE == "2026-09-24"
+
+
+class TestUn404NeCoutePasLePlafondDuJour:
+    def test_un_refus_http_rend_la_reservation(self, monkeypatch, tmp_path):
+        from luna.budget import Depenses
+
+        compteur = tmp_path / "d.json"
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-vraie")
+        monkeypatch.setenv("LUNA_SORA_ACTIF", "1")
+        monkeypatch.setenv("LUNA_BUDGET_JOUR_EUR", "10")
+        monkeypatch.setenv("LUNA_DEPENSES_FICHIER", str(compteur))
+        monkeypatch.setenv("LUNA_COUT_VIDEO_SECONDE_EUR", "0.10")
+
+        sora = SoraVideo()
+        monkeypatch.setattr(sora, "_multipart", lambda *a, **k: (_ for _ in ()).throw(
+            MediaErreur("Sora HTTP 404: ")))
+        # L'image de depart doit passer : on la court-circuite.
+        monkeypatch.setattr("urllib.request.urlopen",
+                            lambda *a, **k: _FauxFlux())
+
+        with pytest.raises(MediaErreur, match="404"):
+            sora.creer("https://exemple/x.png", "elle marche", "9:16", 4)
+
+        assert Depenses().total_du_jour() == 0.0, (
+            "un endpoint ferme n'a rien produit, donc rien ne doit etre "
+            "compte — sinon quelques 404 vident le plafond du jour")
+
+
+class _FauxFlux:
+    def read(self):
+        return b"\x89PNG fausse image"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False

@@ -181,6 +181,28 @@ class SoraVideo:
     MODEL = "sora-2"
     nom = "sora"
 
+    #: SORA 2 EST FERME DEPUIS LE 24 SEPTEMBRE 2026, et ce n'est pas une
+    #: supposition : c'est OpenAI qui le dit.
+    #:
+    #:     GET /v1/models/sora-2
+    #:     {"id": "sora-2", ..., "shutdown_date": "2026-09-24"}
+    #:
+    #: LE PIEGE QUI M'A EU. Les identifiants `sora-2` et `sora-2-pro`
+    #: figurent TOUJOURS dans `/v1/models`. J'ai verifie la cle de
+    #: l'operateur, vu les quatre modeles repondre, et annonce que la
+    #: video etait reglee. L'endpoint `/v1/videos`, lui, rend 404 : un
+    #: catalogue qui liste un modele ne prouve pas que le service
+    #: existe. Verifier le modele ne suffit pas, il faut appeler la
+    #: route.
+    #:
+    #: Consequence directe : « Runway devient inutile », ecrit le meme
+    #: jour, est FAUX. Runway redevient le seul chemin pour la video.
+    #:
+    #: Le code reste entier. Le jour ou OpenAI sort un successeur,
+    #: poser LUNA_SORA_ACTIF=1 et LUNA_VIDEO_MODELE_SORA=<nouveau nom>
+    #: suffit — l'interface, la fabrique et le plafond sont deja la.
+    FERME_LE = "2026-09-24"
+
     def __init__(self) -> None:
         cle = os.getenv("OPENAI_API_KEY", "").strip()
         # Convention de ce depot : un « your_... » non remplace vaut absent.
@@ -190,6 +212,12 @@ class SoraVideo:
 
     @property
     def disponible(self) -> bool:
+        # Une cle valide ne suffit plus : le service n'existe plus. Sans
+        # ce verrou, la fabrique choisirait Sora des qu'une cle OpenAI
+        # existe — c'est-a-dire toujours — et chaque video echouerait en
+        # 404 alors que Runway attend a cote, configure et fonctionnel.
+        if os.getenv("LUNA_SORA_ACTIF", "").strip() not in ("1", "true", "oui"):
+            return False
         return bool(self.cle)
 
     def _entetes(self) -> dict:
@@ -221,8 +249,18 @@ class SoraVideo:
 
     def creer(self, image_url: str, prompt: str, ratio: str,
               duree: int) -> str:
-        if not self.disponible:
+        if not self.cle:
             raise MediaErreur("OPENAI_API_KEY absente")
+        if not self.disponible:
+            # DIRE LAQUELLE DES DEUX RAISONS. « Cle absente » alors que
+            # la cle est parfaitement valide enverrait chercher pendant
+            # une heure du cote de la configuration, pour un service
+            # qui n'existe plus.
+            raise MediaErreur(
+                f"l'API video de Sora est fermee depuis le {self.FERME_LE} "
+                "(OpenAI le declare lui-meme dans /v1/models/sora-2). Les "
+                "identifiants restent listes mais /v1/videos rend 404. "
+                "Poser LUNA_SORA_ACTIF=1 le jour d'un successeur.")
         taille = self._taille(ratio)
         secondes = self._duree(duree)
 
@@ -258,13 +296,23 @@ class SoraVideo:
         # meurt en route.
         from luna.budget import BudgetEpuise, Depenses
         cout_seconde = float(os.getenv("LUNA_COUT_VIDEO_SECONDE_EUR", "0.10"))
+        cout = cout_seconde * int(secondes)
+        motif = f"video sora {secondes} s"
         try:
-            Depenses().reserver(cout_seconde * int(secondes),
-                                f"video sora {secondes} s")
+            Depenses().reserver(cout, motif)
         except BudgetEpuise as exc:
             raise MediaErreur(str(exc)) from exc
 
-        rep = self._multipart("/v1/videos", champs, fichiers)
+        try:
+            rep = self._multipart("/v1/videos", champs, fichiers)
+        except MediaErreur as exc:
+            # UN REFUS N'EST PAS UNE DEPENSE. Un 4xx — endpoint ferme,
+            # cle refusee, parametre invalide — prouve qu'aucune video
+            # n'a ete produite. On rend la reservation, sinon ces
+            # echecs-la vident le plafond du jour pour rien.
+            if " HTTP 4" in str(exc):
+                Depenses().rembourser(cout, motif)
+            raise
         if not rep.get("id"):
             raise MediaErreur("Sora n'a pas rendu d'id : " + str(rep)[:400])
         return str(rep["id"])
