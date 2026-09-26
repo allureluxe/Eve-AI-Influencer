@@ -34,3 +34,34 @@ export async function envoyerMessage(contenu: string): Promise<void> {
     .insert({ role: "user", contenu: contenu.trim() });
   if (error) throw error;
 }
+
+/**
+ * Ecoute temps reel de la conversation.
+ *
+ * Le polling reste le filet de securite, mais l'interface n'attend plus
+ * son prochain passage pour afficher une reponse. Le service VPS continue
+ * de deposer les reponses dans la meme table.
+ */
+export function ecouterConversation(
+  onMessage: (message: Message) => void,
+): () => void {
+  const canal = supabase
+    .channel("alluxe-agent-conversation")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "alluxe_agent_messages",
+      },
+      (payload) => {
+        const message = payload.new as unknown as Message;
+        if (message?.id) onMessage(message);
+      },
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(canal);
+  };
+}
