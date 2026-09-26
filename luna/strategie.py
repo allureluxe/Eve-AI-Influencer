@@ -126,7 +126,15 @@ BASE_PROMPTS = {
 
 
 def slots_du_jour(jour: datetime) -> list[Slot]:
-    return list(SEMAINE[jour.weekday()])
+    # Stories en plusieurs touches : matin, milieu de journee, soir + un
+    # element destine a etre conserve dans un Highlight.
+    slots = list(SEMAINE[jour.weekday()])
+    slots.extend((
+        Slot("16:00", "story", "photo", "instagram", "growth", "coulisses_sortie"),
+        Slot("22:30", "story", "photo", "instagram", "growth", "reaction_soir"),
+        Slot("23:00", "highlight_story", "photo", "instagram", "growth", "lieu_a_conserver"),
+    ))
+    return slots
 
 
 def prochaine_date(moment: datetime, slot: Slot) -> datetime:
