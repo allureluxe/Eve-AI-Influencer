@@ -6,6 +6,8 @@ on:
       - 'gold_bot/**'
       - 'run_bot.py'
       - 'run_pionex.py'
+      - 'run_lab.py'
+      - 'run_lab.py'
       - 'tests/**'
       - 'robot*.json'
       - '.github/workflows/trading-tests.yml'
