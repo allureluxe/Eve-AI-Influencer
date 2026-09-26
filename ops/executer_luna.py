@@ -428,10 +428,10 @@ def _traiter_job_media(rest: _Rest, ligne: dict, spec) -> bool:
     }
 
     if spec.media_type == "photo":
-        photo = _chemin_temp(id_, "photo.jpg")
+        photo = _chemin_temp(id_, "photo.png")
         try:
             generer_photo(spec, photo)
-            chemin_stockage = f"{id_}/photo.jpg"
+            chemin_stockage = f"{id_}/photo.png"
             rest.deposer_fichier(chemin_stockage, photo)
             champs.update({
                 "chemin_photo": chemin_stockage,
