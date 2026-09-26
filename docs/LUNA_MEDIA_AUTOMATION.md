@@ -262,3 +262,24 @@ LUNA_VIDEO_RESOLUTION=720p
 ```
 
 Puis appliquer la migration Supabase. Tant que la migration et la clé vidéo ne sont pas installées, les nouveaux jobs ne doivent pas être considérés comme opérationnels.
+
+
+## Extension croissance / TikTok livree
+
+Le systeme couvre maintenant Feed, Stories, Reels, TikTok courts et TikTok
+long-form. Les jobs portent la plateforme cible, le creneau programme, le lieu,
+le Highlight, le hook, le CTA et l'objectif de monetisation.
+
+Le planificateur `ops/planifier_luna.py` cherche des lieux publics pertinents,
+demande au moteur texte de Luna de construire le contenu, puis alimente
+`luna_publications`. Le timer `systemd/luna-planner.timer` est fourni pour
+maintenir une fenetre de 36 h.
+
+Les formats `tiktok_rewards` de 60 a 180 secondes sont assembles a partir de
+plusieurs clips generes, car les modeles video unitaires sont limites en duree.
+Cela prepare le format necessaire aux criteres Creator Rewards sans garantir
+l'eligibilite du contenu : TikTok decide selon ses politiques et la region.
+
+Les Stories marquees avec `highlight_name` sont publiees et signalees
+`highlight_status=pending_manual` ; le depot n'utilise pas d'API privee pour
+automatiser l'ajout a un Highlight.
