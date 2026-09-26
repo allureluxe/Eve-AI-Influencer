@@ -361,15 +361,22 @@ function CarteHighlight({ nom, publications: pubs }: { nom: string; publications
   const c = useCouleurs();
   const stories = pubs.filter((p) => p.highlight_name === nom);
   const aSauver = stories.filter((p) => p.statut === "terminee").length;
+  const enregistrees = stories.filter((p) => p.highlight_status === "saved").length;
+  const aEnregistrer = stories.filter((p) => p.highlight_status === "pending_manual").length;
   return (
     <Carte style={{ marginBottom: espace.m }}>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         <Ionicons name="bookmark-outline" size={20} color={c.encre} />
         <View style={{ flex: 1, marginLeft: espace.s }}>
           <T v="sousTitre">{nom}</T>
-          <T v="legende">{stories.length} story planifiee(s) • {aSauver} terminee(s) a conserver</T>
+          <T v="legende">
+            {stories.length} story • {aSauver} prête(s) • {enregistrees} enregistrée(s)
+            {aEnregistrer ? ` • ${aEnregistrer} à enregistrer` : ""}
+          </T>
         </View>
-        <T v="petit" couleur={stories.length ? c.gain : c.encrePale}>{stories.length ? "actif" : "vide"}</T>
+        <T v="petit" couleur={enregistrees ? c.gain : stories.length ? c.vigilance : c.encrePale}>
+          {enregistrees ? "enregistre" : stories.length ? "a traiter" : "vide"}
+        </T>
       </View>
     </Carte>
   );
@@ -692,7 +699,7 @@ export function EcranLuna() {
           {HIGHLIGHTS.map((nom) => <CarteHighlight key={nom} nom={nom} publications={liste ?? []} />)}
 
           <T v="legende" couleur={c.encrePale} style={{ marginTop: espace.s, textAlign: "center" }}>
-            L’ajout technique d’une Story à un Highlight est suivi par Luna ; l’API officielle utilisée ici ne force pas d’automatisation privée.
+            Les Stories publiées sont suivies ici. Le passage dans le Highlight reste marqué « à enregistrer » lorsqu’il doit être fait depuis Instagram.
           </T>
         </>
       )}
