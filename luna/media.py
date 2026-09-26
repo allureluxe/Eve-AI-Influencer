@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -142,6 +143,183 @@ def generer_photo(spec: MediaSpec, chemin_sortie: str) -> str:
     cible.parent.mkdir(parents=True, exist_ok=True)
     cible.write_bytes(image)
     return str(cible)
+
+
+class KlingVideo:
+    """Kling — LE SEUL DONT LA POLITIQUE ACCEPTE UN PERSONNAGE GENERE.
+
+    POURQUOI IL EXISTE. Le 26 septembre, Runway a refuse DEUX fois
+    d'animer une photo de Luna : « blocked by this model provider's
+    content moderation system ». Pas a cause de la tenue — la seconde
+    image etait un sweat noir, entierement couverte. Leur classificateur
+    voit un visage humain photorealiste et le bloque, parce qu'il ne
+    peut pas savoir que cette femme n'existe pas.
+
+    Leur documentation previent en plus que les comptes qui declenchent
+    la moderation de facon repetee sont SUSPENDUS : insister aurait
+    coute le compte, en plus d'etre du contournement de filtre.
+
+    L'operateur a eu la bonne objection : « il doit forcement y avoir
+    une solution, avec toutes les videos IA qui tournent sur Insta ou
+    TikTok ». Elle existe, et ce n'etait pas une impossibilite technique
+    mais une politique. Instagram et TikTok autorisent explicitement les
+    personnages FICTIFS ; ce qui est interdit, c'est le visage d'une
+    personne REELLE sans son accord. Kling est l'outil de reference de
+    cette categorie, et celui qui tient le mieux un visage d'un plan a
+    l'autre.
+
+    L'AUTHENTIFICATION N'EST PAS UN BEARER ORDINAIRE. Kling donne DEUX
+    cles — une publique (ak) et une secrete (sk) — et attend un jeton
+    JWT signe en HS256, valable une demi-heure, qu'on refabrique a
+    chaque appel. Le depot n'ayant pas PyJWT et n'en voulant pas pour
+    trois lignes, il est construit a la main.
+
+    L'interface est celle de `RunwayVideo` et `SoraVideo` : le worker
+    n'a toujours qu'un seul chemin video.
+    """
+
+    BASE = "https://api.klingai.com"
+    MODEL = "kling-v2-master"
+    nom = "kling"
+
+    def __init__(self) -> None:
+        self.ak = os.getenv("KLING_ACCESS_KEY", "").strip()
+        self.sk = os.getenv("KLING_SECRET_KEY", "").strip()
+        for valeur in (self.ak, self.sk):
+            if valeur.lower().startswith("your_"):
+                self.ak = self.sk = ""
+        self.base = (os.getenv("LUNA_VIDEO_KLING_BASE") or self.BASE).rstrip("/")
+        self.model = os.getenv("LUNA_VIDEO_MODELE_KLING", self.MODEL)
+        #: « std » ou « pro ». Le pro coute environ le double ; on
+        #: commence au standard, et on montera si le rendu le justifie.
+        self.mode = os.getenv("LUNA_VIDEO_KLING_MODE", "std")
+
+    @property
+    def disponible(self) -> bool:
+        return bool(self.ak and self.sk)
+
+    def _jeton(self) -> str:
+        """Un JWT HS256 fabrique a la main, valable trente minutes.
+
+        Trois champs, imposes par Kling : `iss` porte la cle publique,
+        `exp` expire dans 1 800 s, `nbf` demarre cinq secondes AVANT
+        maintenant — ce recul absorbe le decalage d'horloge entre le VPS
+        et leurs serveurs, qui ferait sinon rejeter un jeton tout neuf.
+        """
+        import base64
+        import hashlib
+        import hmac
+
+        def b64(donnees: bytes) -> bytes:
+            return base64.urlsafe_b64encode(donnees).rstrip(b"=")
+
+        maintenant = int(time.time())
+        entete = b64(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+        charge = b64(json.dumps({"iss": self.ak,
+                                 "exp": maintenant + 1800,
+                                 "nbf": maintenant - 5}).encode())
+        signe = b64(hmac.new(self.sk.encode(), entete + b"." + charge,
+                             hashlib.sha256).digest())
+        return (entete + b"." + charge + b"." + signe).decode()
+
+    def _entetes(self) -> dict:
+        return {"Authorization": "Bearer " + self._jeton(),
+                "Content-Type": "application/json",
+                "User-Agent": "alluxe-luna-media/1.0"}
+
+    def entetes_telechargement(self) -> dict:
+        """Kling rend une URL publique : rien a ajouter pour la lire."""
+        return {}
+
+    @staticmethod
+    def _ratio(ratio: str) -> str:
+        """Kling n'accepte que trois proportions."""
+        return {"9:16": "9:16", "16:9": "16:9", "1:1": "1:1"}.get(ratio, "9:16")
+
+    @staticmethod
+    def _duree(secondes: int) -> str:
+        """5 ou 10 secondes, rien d'autre. On arrondit au plus proche."""
+        return "5" if int(secondes or 5) <= 7 else "10"
+
+    def _appel(self, methode: str, chemin: str, corps: dict | None = None) -> dict:
+        if not self.disponible:
+            raise MediaErreur("KLING_ACCESS_KEY / KLING_SECRET_KEY absentes")
+        data = json.dumps(corps).encode("utf-8") if corps is not None else None
+        req = urllib.request.Request(self.base + chemin, data=data,
+                                     headers=self._entetes(), method=methode)
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                rep = json.loads(r.read().decode("utf-8") or "{}")
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")[:600]
+            raise MediaErreur(f"Kling HTTP {exc.code}: {detail}") from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise MediaErreur(f"Kling reseau: {exc}") from exc
+        # KLING REND 200 MEME QUAND IL REFUSE. Le vrai verdict est dans
+        # `code` : le lire est la difference entre « la video arrive » et
+        # une tache qu'on attendrait indefiniment.
+        if rep.get("code") not in (0, None):
+            raise MediaErreur(
+                f"Kling code {rep.get('code')} : {str(rep.get('message'))[:300]}")
+        return rep.get("data") or rep
+
+    def creer(self, image_url: str, prompt: str, ratio: str,
+              duree: int) -> str:
+        if not image_url:
+            raise MediaErreur(
+                "image de depart absente — sans elle le visage de Luna "
+                "derivera, on refuse plutot que de produire une inconnue")
+        secondes = self._duree(duree)
+
+        from luna.budget import BudgetEpuise, Depenses
+        cout_seconde = float(os.getenv("LUNA_COUT_VIDEO_SECONDE_EUR", "0.12"))
+        cout = cout_seconde * int(secondes)
+        motif = f"video kling {secondes} s ({self.mode})"
+        try:
+            Depenses().reserver(cout, motif)
+        except BudgetEpuise as exc:
+            raise MediaErreur(str(exc)) from exc
+
+        try:
+            rep = self._appel("POST", "/v1/videos/image2video", {
+                "model_name": self.model,
+                "image": image_url,
+                "prompt": prompt,
+                "duration": secondes,
+                "aspect_ratio": self._ratio(ratio),
+                "mode": self.mode,
+            })
+        except MediaErreur as exc:
+            # Un refus a l'entree n'a rien produit : on rend la mise.
+            if " HTTP 4" in str(exc) or "code " in str(exc):
+                Depenses().rembourser(cout, motif)
+            raise
+
+        tache = rep.get("task_id") or rep.get("taskId")
+        if not tache:
+            raise MediaErreur("Kling n'a pas rendu d'id de tache : "
+                              + str(rep)[:400])
+        return str(tache)
+
+    def resultat(self, task_id: str) -> tuple[str, str]:
+        rep = self._appel("GET", f"/v1/videos/image2video/{task_id}")
+        statut = str(rep.get("task_status") or rep.get("status") or "").lower()
+        # LES DEUX VOCABULAIRES. La documentation officielle parle de
+        # « succeed », plusieurs integrations rapportent « completed ».
+        # On accepte les deux plutot que de laisser une tache reussie
+        # passer pour en cours a cause d'un mot.
+        if statut in {"succeed", "succeeded", "completed", "success"}:
+            videos = ((rep.get("task_result") or {}).get("videos")
+                      or rep.get("videos") or [])
+            for v in videos:
+                lien = v.get("url") if isinstance(v, dict) else v
+                if isinstance(lien, str) and lien.startswith("http"):
+                    return "succeeded", lien
+            raise MediaErreur("Kling termine sans URL de sortie")
+        if statut in {"failed", "fail", "error", "cancelled", "canceled"}:
+            detail = rep.get("task_status_msg") or rep.get("message") or rep
+            raise MediaErreur("Kling tache echouee : " + str(detail)[:400])
+        return "generating", ""
 
 
 class SoraVideo:
@@ -372,19 +550,25 @@ class SoraVideo:
 def fournisseur_video():
     """Le generateur de video a utiliser, selon ce qui est configure.
 
-    SORA D'ABORD, parce qu'il part de notre photo et tient le visage —
-    le seul critere qui compte. Runway reste en repli : il marche, il
-    est juste redondant des qu'une cle OpenAI existe.
+    L'ORDRE EST CELUI DE CE QUI MARCHE, pas de ce qui est le plus beau.
+
+      1. KLING — le seul dont la politique accepte un personnage genere.
+         Runway a refuse deux fois d'animer Luna le 26 septembre, et sa
+         documentation suspend les comptes qui insistent. Un moteur
+         techniquement superieur qui refuse le sujet ne sert a rien.
+      2. SORA — desarme : l'API a ferme le 24 septembre. Reste en place
+         pour le jour d'un successeur (`LUNA_SORA_ACTIF=1`).
+      3. RUNWAY — le repli historique. Il fonctionne, sa moderation non.
 
     UN SEUL POINT DE SUBSTITUTION. Le worker appelle cette fonction et
     ne connait que `creer` / `resultat` ; il n'a pas a savoir lequel
-    repond. Brancher Sora en dupliquant la boucle video aurait refait
-    l'erreur que ce depot raconte sept fois : deux chemins pour la meme
-    chose, dont un seul est corrige le jour venu.
+    repond. Ajouter un moteur en dupliquant la boucle video aurait
+    refait l'erreur que ce depot raconte sept fois : deux chemins pour
+    la meme chose, dont un seul est corrige le jour venu.
     """
-    sora = SoraVideo()
-    if sora.disponible:
-        return sora
+    for fournisseur in (KlingVideo(), SoraVideo()):
+        if fournisseur.disponible:
+            return fournisseur
     return RunwayVideo()
 
 
