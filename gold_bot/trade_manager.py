@@ -315,11 +315,13 @@ class TradeManager:
             if plancher > distance:
                 distance = min(plancher, cfg.max_stop_atr_for_cost * atr)
         stop = entry_price - sign * distance
-        # Sans objectif, on pose une cible hors d'atteinte : le trade ne
-        # peut alors sortir que par le stop suiveur, comme voulu. Le
-        # multiplicateur reste declare pour le controle de ratio R/R.
-        cible_r = cfg.tp_r_multiple if cfg.tp_actif else 1000.0
-        target = entry_price + sign * distance * cible_r
+        # Sans objectif, la cible est 0 : les moteurs de sortie savent ainsi
+        # qu'il n'existe PAS de TP et utilisent uniquement le stop/trailing.
+        # On ne fabrique plus une fausse cible a 1000x qui pollue les logs et
+        # peut etre prise pour un vrai niveau de prix.
+        if not cfg.tp_actif:
+            return round(stop, digits), 0.0
+        target = entry_price + sign * distance * cfg.tp_r_multiple
         return round(stop, digits), round(target, digits)
 
     def cost_ratio(self, atr: float, spread: float, structure_stop_distance: float = 0.0) -> float:
