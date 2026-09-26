@@ -16,7 +16,7 @@ import { espace, rayon } from "../theme";
 import { Logo, T, useCouleurs, useReglageTheme, Preference } from "../composants/base";
 
 interface Section {
-  cle: "Alluxbot" | "Allure" | "Luna" | "Agent";
+  cle: "Alluxbot" | "Allure" | "Luna" | "Laboratoire" | "Agent";
   titre: string;
   detail: string;
   icone: keyof typeof Ionicons.glyphMap;
@@ -25,12 +25,12 @@ interface Section {
 
 const SECTIONS: Section[] = [
   {
-    cle: "Alluxbot", titre: "Alluxbot",
+    cle: "Alluxbot", titre: "Bot",
     detail: "Le pilotage prive du robot : positions, historique, objectifs, alertes.",
     icone: "flash-outline", disponible: true,
   },
   {
-    cle: "Allure", titre: "Allure",
+    cle: "Allure", titre: "Signaux",
     detail: "L'application publique des signaux, en mode administrateur.",
     icone: "list-outline", disponible: true,
   },
@@ -38,6 +38,11 @@ const SECTIONS: Section[] = [
     cle: "Luna", titre: "Luna",
     detail: "L'influenceuse IA : son personnage, ses posts generes.",
     icone: "sparkles-outline", disponible: true,
+  },
+  {
+    cle: "Laboratoire", titre: "Laboratoire",
+    detail: "Le moteur qui apprend, teste et valide de nouvelles stratégies en parallèle.",
+    icone: "flask-outline", disponible: true,
   },
   {
     cle: "Agent", titre: "Agent",
