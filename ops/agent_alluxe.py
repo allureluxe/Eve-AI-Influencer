@@ -286,11 +286,97 @@ def _outil_etat_luna(rest: _Rest, args: dict) -> dict:
     return {"personnage": (persona[0] if persona else None), "dernieres_publications": pubs}
 
 
+
+
+def _outil_creer_media_luna(rest: _Rest, args: dict) -> dict:
+    """Depose un job structure pour le Media Worker."""
+    typ = str(args.get("type") or "").strip().lower()
+    prompt = str(args.get("prompt") or "").strip()
+    if typ not in {"photo", "video"}:
+        raise ValueError("type doit etre photo ou video")
+    if not prompt:
+        raise ValueError("prompt obligatoire")
+    if len(prompt) > 12000:
+        raise ValueError("prompt trop long")
+
+    ratio = str(args.get("aspect_ratio") or (
+        "9:16" if typ == "video" else "3:4"
+    )).strip()
+    ratios = {"1:1", "3:4", "4:5", "2:3", "3:2", "4:3", "9:16", "16:9"}
+    if ratio not in ratios:
+        raise ValueError("aspect_ratio invalide")
+
+    duree = int(args.get("duration_seconds") or 10)
+    if not 1 <= duree <= 30:
+        raise ValueError("duration_seconds doit etre entre 1 et 30")
+
+    qualite = str(args.get("quality") or "finale").strip().lower()
+    if qualite not in {"brouillon", "finale"}:
+        raise ValueError("quality invalide")
+
+    payload = {
+        "type": typ,
+        "prompt": prompt,
+        "caption": str(args.get("caption") or "").strip(),
+        "reference": str(args.get("reference_path") or "").strip(),
+        "aspect_ratio": ratio,
+        "duration_seconds": duree,
+        "quality": qualite,
+        "provider": str(args.get("provider") or "").strip().lower(),
+        "model": str(args.get("model") or "").strip(),
+        "publish": bool(args.get("publier", False)),
+    }
+    lignes = json.loads(rest.post(
+        "/rest/v1/luna_publications",
+        {
+            "demande": json.dumps(payload, ensure_ascii=False),
+            "media_type": typ,
+            "reference_path": payload["reference"] or None,
+            "aspect_ratio": ratio,
+            "duration_seconds": duree,
+            "quality": qualite,
+            "publish_requested": payload["publish"],
+        },
+        {"prefer": "return=representation"},
+    ))
+    ligne = lignes[0] if lignes else {}
+    return {
+        "id": ligne.get("id"),
+        "statut": ligne.get("statut", "en_attente"),
+        "generation_status": ligne.get("generation_status", "queued"),
+        "media_type": typ,
+        "aspect_ratio": ratio,
+        "publish_requested": payload["publish"],
+    }
+
+
+def _outil_etat_media_luna(rest: _Rest, args: dict) -> dict:
+    ident = str(args.get("id") or "").strip()
+    limite = max(1, min(20, int(args.get("limite") or 5)))
+    champs = (
+        "id,created_at,media_type,statut,generation_status,legende,"
+        "chemin_photo,chemin_video,provider,provider_task_id,"
+        "publish_requested,published_at,published_platform,"
+        "published_media_id,erreurs"
+    )
+    if ident:
+        lignes = rest.get(
+            f"/rest/v1/luna_publications?id=eq.{ident}&select={champs}"
+        )
+    else:
+        lignes = rest.get(
+            f"/rest/v1/luna_publications?select={champs}"
+            f"&order=created_at.desc&limit={limite}"
+        )
+    return {"jobs": lignes}
+
 OUTILS_PAR_NOM = {
     "etat_robot": _outil_etat_robot,
     "positions_ouvertes": _outil_positions_ouvertes,
     "dernieres_alertes": _outil_dernieres_alertes,
     "etat_luna": _outil_etat_luna,
+    "creer_media_luna": _outil_creer_media_luna,
+    "etat_media_luna": _outil_etat_media_luna,
 }
 
 # Les outils d'ACTION (fichiers, terminal, web) vivent a part -- c'est la
