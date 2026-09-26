@@ -122,6 +122,7 @@ Regles :
     objet = _json_llm(instruction)
     obj = {
         "type": slot.media_type,
+        "content_format": slot.content_format,
         "prompt": str(objet.get("prompt") or "").strip()
                   or construire_prompt(slot, ville=ville),
         "caption": str(objet.get("caption") or "").strip(),
