@@ -166,6 +166,7 @@ OUTILS = [
                     "reference_path": {"type": "string"},
                     "provider": {"type": "string"},
                     "model": {"type": "string"},
+                    "content_format": {"type": "string"},
                     "publier": {"type": "boolean"}
                 },
                 "required": ["type", "prompt"]
@@ -324,6 +325,7 @@ def _outil_creer_media_luna(rest: _Rest, args: dict) -> dict:
         "quality": qualite,
         "provider": str(args.get("provider") or "").strip().lower(),
         "model": str(args.get("model") or "").strip(),
+        "content_format": str(args.get("content_format") or "").strip().lower(),
         "publish": bool(args.get("publier", False)),
     }
     lignes = json.loads(rest.post(
