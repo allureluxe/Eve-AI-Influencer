@@ -1,0 +1,12 @@
+[Unit]
+Description=Luna editorial growth planner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ubuntu/Eve-AI-Influencer/.venv/bin/python /home/ubuntu/Eve-AI-Influencer/ops/planifier_luna.py
