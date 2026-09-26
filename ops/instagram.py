@@ -205,3 +205,50 @@ def rafraichir() -> int:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     print(json.dumps(qui_suis_je(), ensure_ascii=False, indent=2))
+
+
+def publier_reel_luna(chemin: str, legende: str = "",
+                      attente_max: float = 180.0) -> str:
+    """Publie une video Luna comme Reel via l'API officielle.
+
+    Comme pour une photo, Instagram telecharge d'abord le media depuis
+    l'URL signee Supabase, puis seulement la publication est declenchee.
+    La fonction est idempotente au niveau du job : l'appelant doit eviter
+    de la rappeler si published_media_id est deja renseigne.
+    """
+    video_url = url_temporaire(chemin)
+    if not video_url.lower().startswith("https://"):
+        raise InstagramErreur(
+            f"la video doit etre une URL publique en https, recu : {video_url[:60]}")
+
+    conteneur = _appel(
+        "POST",
+        f"{_compte()}/media",
+        media_type="REELS",
+        video_url=video_url,
+        caption=legende,
+    )
+    cid = conteneur.get("id")
+    if not cid:
+        raise InstagramErreur(f"aucun conteneur Reel rendu : {conteneur}")
+
+    fin = time.time() + attente_max
+    while time.time() < fin:
+        etat = _appel("GET", cid, fields="status_code,status")
+        code = etat.get("status_code")
+        if code == "FINISHED":
+            break
+        if code == "ERROR":
+            raise InstagramErreur(
+                f"conteneur Reel en erreur : {etat.get('status')}")
+        time.sleep(5)
+    else:
+        raise InstagramErreur(
+            f"conteneur Reel toujours pas pret apres {attente_max:.0f} s")
+
+    publiee = _appel("POST", f"{_compte()}/media_publish", creation_id=cid)
+    ident = publiee.get("id")
+    if not ident:
+        raise InstagramErreur(f"publication Reel refusee : {publiee}")
+    log.info("Reel publie sur Instagram : %s", ident)
+    return ident
