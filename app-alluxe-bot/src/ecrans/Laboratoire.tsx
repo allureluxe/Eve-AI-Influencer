@@ -4,7 +4,7 @@ import Svg, { Polyline, Line, Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Carte, EnTete, T, Vide, useCouleurs } from "../composants/base";
 import { espace, rayon } from "../theme";
-import { labStatus, labStrategies, ecouterLab, LabStatus, LabStrategy } from "../services/lab";
+import { labStatus, labStrategies, labResearch, ecouterLab, LabStatus, LabStrategy, LabResearch } from "../services/lab";
 
 const LABELS: Record<string,string> = {
   IDLE:"EN ATTENTE", IDEATED:"IDÉE", BACKTEST:"BACKTEST",
@@ -112,6 +112,7 @@ export function EcranLaboratoire() {
   const marges=useSafeAreaInsets();
   const [status,setStatus]=React.useState<LabStatus|null>(null);
   const [items,setItems]=React.useState<LabStrategy[]>([]);
+  const [research,setResearch]=React.useState<LabResearch[]>([]);
   const [refreshing,setRefreshing]=React.useState(false);
 
   const charger=React.useCallback(async()=>{
@@ -208,6 +209,25 @@ export function EcranLaboratoire() {
         </View>)}
         {!items.length?<T v="legende">Le carnet se remplit au fil des cycles.</T>:null}
       </View>
+    </Carte>
+
+    <T v="etiquette" style={{marginBottom:espace.m}}>RECHERCHE &amp; HYPOTHÈSES</T>
+    <Carte style={{marginBottom:espace.m}}>
+      <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center"}}>
+        <View>
+          <T v="sousTitre">Sources consultées</T>
+          <T v="petit" style={{marginTop:2}}>Académique, quant, marchés, crypto et communautés.</T>
+        </View>
+        <T v="etiquette">{research.length} SOURCES</T>
+      </View>
+      {research.slice(0,6).map((r) => (
+        <View key={String(r.id)} style={{paddingVertical:10,borderTopWidth:1,borderColor:c.filetDoux}}>
+          <T v="petit" numberOfLines={2}>{r.titre || r.sujet}</T>
+          <T v="legende" style={{marginTop:3}}>{r.mode} · {r.famille}</T>
+        </View>
+      ))}
+      {!research.length ? <T v="legende" style={{marginTop:espace.m}}>Aucune recherche enregistrée pour le moment.</T> : null}
+      <T v="legende" style={{marginTop:espace.s}}>Une source produit une hypothèse à tester ; elle ne devient jamais une stratégie validée sans backtest et forward test.</T>
     </Carte>
 
     <T v="etiquette" style={{marginBottom:espace.m}}>CARNET DES STRATÉGIES</T>
