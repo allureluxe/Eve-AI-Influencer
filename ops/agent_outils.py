@@ -699,6 +699,88 @@ def chercher_articles_scientifiques(args: dict) -> dict:
 
     return {"sujet": sujet, "articles": articles[:combien] or "(rien trouve)"}
 
+# ------------------------------------------------ recherche trading multi-sources
+
+SOURCES_RECHERCHE_TRADING = {
+    "academique": ["arxiv.org", "ssrn.com", "nber.org", "ideas.repec.org",
+                   "econpapers.repec.org", "sciencedirect.com",
+                   "springer.com", "academic.oup.com", "jstor.org",
+                   "bis.org", "federalreserve.gov", "ecb.europa.eu"],
+    "quant": ["quantconnect.com", "quantpedia.com", "quantstart.com",
+              "alpharchitect.com", "robotwealth.com", "hudsonthames.org"],
+    "marches_finance": ["reuters.com", "bloomberg.com", "cnbc.com",
+                        "ft.com", "wsj.com", "marketwatch.com",
+                        "investing.com", "finance.yahoo.com", "nasdaq.com",
+                        "cmegroup.com", "ice.com", "sec.gov", "cftc.gov"],
+    "trading_communities": ["tradingview.com", "reddit.com/r/algotrading",
+                            "reddit.com/r/quant", "reddit.com/r/quantfinance",
+                            "reddit.com/r/Daytrading", "reddit.com/r/stocks",
+                            "elitetrader.com", "forexfactory.com",
+                            "forums.babypips.com"],
+    "crypto": ["coinbase.com", "coindesk.com", "theblock.co",
+               "cryptoslate.com", "research.binance.com", "messari.io",
+               "glassnode.com", "paradigm.xyz", "a16zcrypto.com"],
+    "trading_education": ["cmegroup.com/education", "ig.com",
+                          "cmcmarkets.com", "babypips.com",
+                          "investopedia.com", "tradingview.com/education"],
+}
+
+def _recherche_sites(question: str, domaines: list[str], limite=6) -> list[dict]:
+    import urllib.parse
+    trouves, vus = [], set()
+    for debut in range(0, len(domaines), 3):
+        groupe = domaines[debut:debut + 3]
+        filtres = " OR ".join(f"site:{d}" for d in groupe)
+        try:
+            rep = chercher_sur_le_web({"question": f"{question} ({filtres})"})
+            for x in rep.get("resultats") or []:
+                lien = x.get("lien", "")
+                if lien and lien not in vus:
+                    vus.add(lien)
+                    y = dict(x)
+                    y["famille"] = groupe
+                    trouves.append(y)
+        except Exception:
+            continue
+        if len(trouves) >= limite:
+            break
+    return trouves[:limite]
+
+def recherche_idee_trading(args: dict) -> dict:
+    """Recherche multi-sources pour générer des hypothèses de trading."""
+    sujet = str(args.get("sujet") or "").strip()
+    mode = str(args.get("mode") or "complet").strip().lower()
+    if not sujet:
+        return {"erreur": "sujet manquant"}
+    modes = {
+        "academique": ["academique"],
+        "quant": ["quant", "academique"],
+        "marches": ["marches_finance", "crypto"],
+        "forums": ["trading_communities", "trading_education"],
+        "crypto": ["crypto", "quant", "trading_communities"],
+        "complet": ["academique", "quant", "marches_finance",
+                    "trading_communities", "crypto", "trading_education"],
+    }
+    familles = modes.get(mode, modes["complet"])
+    resultats = []
+    for famille in familles:
+        resultats.extend(_recherche_sites(
+            sujet, SOURCES_RECHERCHE_TRADING[famille], limite=5))
+    uniques, vus = [], set()
+    for x in resultats:
+        lien = x.get("lien", "")
+        if lien and lien not in vus:
+            vus.add(lien)
+            uniques.append(x)
+    return {
+        "sujet": sujet,
+        "mode": mode,
+        "sources_couvertes": familles,
+        "resultats": uniques[:30] or "(rien trouve)",
+        "regle": "Académique = preuves/hypothèses sourcées; forums = idées et contre-exemples; toute hypothèse doit ensuite être backtestée et validée hors échantillon avec frais et contraintes réalistes."
+    }
+
+
 
 #: Les seuls services que l'agent peut demarrer ou arreter.
 #:
@@ -806,6 +888,7 @@ OUTILS_ACTION = {
     "chercher_sur_le_web": chercher_sur_le_web,
     "lire_page_web": lire_page_web,
     "chercher_articles_scientifiques": chercher_articles_scientifiques,
+    "recherche_idee_trading": recherche_idee_trading,
     "noter_en_memoire": noter_en_memoire,
     "relire_memoire": relire_memoire,
     "oublier": oublier,
@@ -903,9 +986,16 @@ DESCRIPTION_OUTILS_ACTION = [
     }},
     {"type": "function", "function": {
         "name": "chercher_articles_scientifiques",
-        "description": "Publications universitaires (arXiv, Semantic Scholar).",
+        "description": "Mode académique : publications universitaires, finance quantitative et recherche économique. Utiliser pour trouver des hypothèses sourcées.",
         "parameters": _p(sujet={"type": "string"},
                           combien={"type": "integer"}),
+    }},
+    {"type": "function", "function": {
+        "name": "recherche_idee_trading",
+        "description": "Recherche des idées en académique/universitaire, quant, marchés/finance, forums, crypto et éducation trading. Les forums donnent des hypothèses, jamais une preuve.",
+        "parameters": _p(
+            sujet={"type": "string"},
+            mode={"type": "string", "enum": ["complet", "academique", "quant", "marches", "forums", "crypto"]}),
     }},
     {"type": "function", "function": {
         "name": "noter_en_memoire",
