@@ -7,6 +7,7 @@
  * pour tout utilisateur connecte -- voir supabase/migrations).
  */
 import { supabase } from "./supabase";
+import { tableAbsente } from "./postgrest";
 import { regrouperLesEtages } from "./format";
 
 export interface EtatCapital {
@@ -242,7 +243,7 @@ export async function objectifs(): Promise<Objectifs | null> {
   if (error) {
     // Table pas encore creee : on le traite comme "pas de donnees",
     // pas comme une panne a afficher a l'ecran.
-    if (/relation .* does not exist/i.test(error.message)) return null;
+    if (tableAbsente(error)) return null;
     throw error;
   }
   return data;

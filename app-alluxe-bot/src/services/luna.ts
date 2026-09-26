@@ -4,6 +4,7 @@
  * l'app depose un job puis observe son traitement via Supabase.
  */
 import { supabase } from "./supabase";
+import { tableAbsente } from "./postgrest";
 
 export interface Persona {
   prenom: string;
@@ -21,7 +22,7 @@ export async function persona(): Promise<Persona | null> {
     .eq("id", "luna")
     .maybeSingle();
   if (error) {
-    if (/relation .* does not exist/i.test(error.message)) return null;
+    if (tableAbsente(error)) return null;
     throw error;
   }
   return data as unknown as Persona | null;
@@ -92,7 +93,7 @@ export async function publications(limite = 60): Promise<Publication[]> {
     .order("created_at", { ascending: false })
     .limit(limite);
   if (error) {
-    if (/relation .* does not exist/i.test(error.message)) return [];
+    if (tableAbsente(error)) return [];
     throw error;
   }
   return (data ?? []) as unknown as Publication[];
@@ -214,7 +215,7 @@ export async function performances(limite = 250): Promise<PerformanceLuna[]> {
     .order("measured_at", { ascending: false })
     .limit(limite);
   if (error) {
-    if (/relation .* does not exist/i.test(error.message)) return [];
+    if (tableAbsente(error)) return [];
     throw error;
   }
   return (data ?? []) as unknown as PerformanceLuna[];

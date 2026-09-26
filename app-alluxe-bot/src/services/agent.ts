@@ -4,6 +4,7 @@
  * permanent sur le VPS, PAS un cron) le lit et depose la reponse.
  */
 import { supabase } from "./supabase";
+import { tableAbsente } from "./postgrest";
 
 export interface Message {
   id: number;
@@ -22,7 +23,7 @@ export async function conversation(limite = 50): Promise<Message[]> {
     .order("created_at", { ascending: true })
     .limit(limite);
   if (error) {
-    if (/relation .* does not exist/i.test(error.message)) return [];
+    if (tableAbsente(error)) return [];
     throw error;
   }
   return (data ?? []) as unknown as Message[];
@@ -89,7 +90,7 @@ export async function agentStatus(): Promise<AgentStatus | null> {
   const { data, error } = await supabase.from("alluxe_agent_status")
     .select("*").eq("id", "agent").maybeSingle();
   if (error) {
-    if (/relation .* does not exist/i.test(error.message)) return null;
+    if (tableAbsente(error)) return null;
     throw error;
   }
   return data as AgentStatus | null;
@@ -99,7 +100,7 @@ export async function agentEvents(limite = 20): Promise<AgentEvent[]> {
   const { data, error } = await supabase.from("alluxe_agent_events")
     .select("*").order("created_at", { ascending: false }).limit(limite);
   if (error) {
-    if (/relation .* does not exist/i.test(error.message)) return [];
+    if (tableAbsente(error)) return [];
     throw error;
   }
   return (data ?? []) as AgentEvent[];

@@ -92,8 +92,13 @@ def claude_disponible() -> bool:
     return bool(_cle("ANTHROPIC_API_KEY"))
 
 
-def demander_chatgpt(question: str, contexte: str = "") -> str:
-    """Une analyse de ChatGPT. Rend du texte, rien d'autre."""
+def demander_chatgpt(question: str, contexte: str = "",
+                     max_jetons: int = 1200) -> str:
+    """Une analyse de ChatGPT. Rend du texte, rien d'autre.
+
+    `max_jetons` — voir `demander_claude` : une question longue qui
+    demande une reponse structuree a besoin de place.
+    """
     cle = _cle("OPENAI_API_KEY")
     if not cle:
         raise CerveauErreur("OPENAI_API_KEY absente")
@@ -104,7 +109,7 @@ def demander_chatgpt(question: str, contexte: str = "") -> str:
         {"model": modele,
          "messages": [{"role": "system", "content": CADRE},
                       {"role": "user", "content": contenu}],
-         "max_completion_tokens": 1200},
+         "max_completion_tokens": max_jetons},
         {"content-type": "application/json",
          "authorization": f"Bearer {cle}"})
     try:
@@ -116,8 +121,20 @@ def demander_chatgpt(question: str, contexte: str = "") -> str:
     return texte
 
 
-def demander_claude(question: str, contexte: str = "") -> str:
-    """Une analyse de Claude. Rend du texte, rien d'autre."""
+def demander_claude(question: str, contexte: str = "",
+                    max_jetons: int = 1200) -> str:
+    """Une analyse de Claude. Rend du texte, rien d'autre.
+
+    `max_jetons` COMPTE LA REFLEXION, ET C'EST LE PIEGE. Le modele
+    produit un bloc « thinking » avant son texte ; sur une question
+    longue qui demande du JSON structure, ce bloc consomme le budget
+    et le bloc texte ressort VIDE — avec un `stop_reason: end_turn`
+    parfaitement normal, donc sans rien qui signale le probleme.
+
+    Constate le 26 septembre sur la recherche du labo : les deux
+    cerveaux rendaient « reponse vide » alors qu'ils avaient
+    parfaitement compris la question.
+    """
     cle = _cle("ANTHROPIC_API_KEY")
     if not cle:
         raise CerveauErreur("ANTHROPIC_API_KEY absente")
@@ -125,7 +142,7 @@ def demander_claude(question: str, contexte: str = "") -> str:
     contenu = f"{contexte}\n\n{question}".strip() if contexte else question
     rep = _poster(
         "https://api.anthropic.com/v1/messages",
-        {"model": modele, "max_tokens": 1200, "system": CADRE,
+        {"model": modele, "max_tokens": max_jetons, "system": CADRE,
          "messages": [{"role": "user", "content": contenu}]},
         {"content-type": "application/json", "x-api-key": cle,
          "anthropic-version": "2023-06-01"})
@@ -140,7 +157,8 @@ CERVEAUX = {"chatgpt": demander_chatgpt, "claude": demander_claude}
 
 
 def consulter(question: str, contexte: str = "",
-              lesquels: tuple[str, ...] = ("chatgpt", "claude")) -> dict:
+              lesquels: tuple[str, ...] = ("chatgpt", "claude"),
+              max_jetons: int = 1200) -> dict:
     """Interroge plusieurs cerveaux et rend leurs reponses COTE A COTE.
 
     IL NE FAIT PAS LA SYNTHESE, et c'est deliberе. Fusionner les deux
@@ -162,7 +180,9 @@ def consulter(question: str, contexte: str = "",
             resultats[nom] = {"ok": False, "erreur": f"cerveau inconnu : {nom}"}
             continue
         try:
-            resultats[nom] = {"ok": True, "reponse": fonction(question, contexte)}
+            resultats[nom] = {"ok": True,
+                              "reponse": fonction(question, contexte,
+                                                  max_jetons)}
         except (CerveauErreur, ErreurMoteur) as e:
             resultats[nom] = {"ok": False, "erreur": str(e)[:300]}
     return resultats

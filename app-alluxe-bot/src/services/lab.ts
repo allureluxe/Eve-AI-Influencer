@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { tableAbsente } from "./postgrest";
 
 export interface LabStatus {
   id: string;
@@ -40,7 +41,7 @@ export async function labStatus(): Promise<LabStatus | null> {
   const { data, error } = await supabase
     .from("lab_status").select("*").eq("id", "robot").maybeSingle();
   if (error) {
-    if (/relation .* does not exist/i.test(error.message)) return null;
+    if (tableAbsente(error)) return null;
     throw error;
   }
   return data as LabStatus | null;
@@ -57,9 +58,7 @@ export async function labStrategies(limite = 30): Promise<LabStrategy[]> {
     // ecrit pour le message de PostgreSQL, ne rattrapait donc rien et
     // l'ecran Laboratoire levait l'erreur — constate le 26 septembre,
     // la table n'ayant jamais ete creee.
-    if (/relation .* does not exist/i.test(error.message)
-        || /could not find the table/i.test(error.message)
-        || error.code === "PGRST205") return [];
+    if (tableAbsente(error)) return [];
     throw error;
   }
   return (data ?? []) as LabStrategy[];
@@ -105,7 +104,7 @@ export async function labResearch(limite = 20): Promise<LabResearch[]> {
     .from("lab_research").select("*")
     .order("created_at", { ascending: false }).limit(limite);
   if (error) {
-    if (/relation .* does not exist/i.test(error.message)) return [];
+    if (tableAbsente(error)) return [];
     throw error;
   }
   return (data ?? []) as LabResearch[];
