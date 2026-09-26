@@ -385,6 +385,47 @@ def _reprendre_videos(rest: _Rest) -> int:
     return compte
 
 
+def _reprendre_publications_tiktok(rest: _Rest) -> int:
+    """Sonde les publications TikTok sans re-uploader la video."""
+    lignes = rest.get(
+        "/rest/v1/luna_publications?publish_requested=eq.true"
+        "&publication_status=eq.pending&platform=in.(tiktok,both)"
+        "&publication_task_id=not.is.null&order=created_at.asc&limit=5"
+    )
+    compte = 0
+    for ligne in lignes:
+        try:
+            from ops.tiktok import statut
+            data = statut(str(ligne["publication_task_id"]))
+            info = data.get("data") or {}
+            etat = str(info.get("status") or "").upper()
+            if etat == "PUBLISH_COMPLETE":
+                ids = info.get("publicaly_available_post_id") or []
+                changes = {
+                    "publication_status": "published",
+                    "published_at": __import__("datetime").datetime.now(
+                        __import__("datetime").timezone.utc
+                    ).isoformat(),
+                    "published_platform": "tiktok",
+                }
+                if ids:
+                    changes["published_media_id"] = str(ids[0])
+                rest.completer(str(ligne["id"]), changes)
+                print(f"TikTok publie : {ligne['id']}")
+            elif etat == "FAILED":
+                erreurs = _erreur_existante(ligne)
+                erreurs["tiktok"] = str(info.get("fail_reason") or "publication echouee")[:400]
+                rest.completer(str(ligne["id"]), {
+                    "publication_status": "failed",
+                    "erreurs": erreurs,
+                })
+                print(f"TikTok echec : {ligne['id']}")
+            compte += 1
+        except Exception as exc:
+            print(f"sondage TikTok impossible pour {ligne.get('id')}: {str(exc)[:180]}")
+    return compte
+
+
 def _traiter_une_demande(rest: _Rest) -> bool:
     """Rend True si une demande a ete traitee (peu importe le resultat)."""
     ligne = rest.reclamer_en_attente()
@@ -478,6 +519,13 @@ def main() -> int:
             print(f"{videos} video(s) sondee(s)")
     except Exception as exc:  # noqa: BLE001
         print(f"sondage video impossible : {str(exc)[:200]}")
+
+    try:
+        tiktok = _reprendre_publications_tiktok(rest)
+        if tiktok:
+            print(f"{tiktok} publication(s) TikTok sondee(s)")
+    except Exception as exc:  # noqa: BLE001
+        print(f"sondage TikTok impossible : {str(exc)[:200]}")
 
     try:
         _publier_persona(rest)
