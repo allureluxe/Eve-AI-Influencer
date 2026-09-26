@@ -21,7 +21,7 @@ import urllib.request
 
 from gold_bot.env import charger_env
 from luna.moments import moment_pour
-from luna.strategie import SEMAINE, Slot, construire_prompt
+from luna.strategie import Slot, construire_prompt, slots_du_jour
 
 charger_env()
 
@@ -190,7 +190,7 @@ def main() -> int:
 
     for delta in range(3):
         jour = base + timedelta(days=delta)
-        for slot in SEMAINE[jour.weekday()]:
+        for slot in slots_du_jour(jour):
             hh, mm = (int(x) for x in slot.heure.split(":"))
             cible = jour.replace(hour=hh, minute=mm, second=0, microsecond=0)
             if cible < base or cible > fin:
