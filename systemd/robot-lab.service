@@ -1,0 +1,27 @@
+[Unit]
+Description=AI Strategy Lab -- backtests et forward tests uniquement
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=GB_LAB_STATE_FILE=data/lab-state.json
+Environment=GB_LAB_BOOK_FILE=data/lab-book.jsonl
+Environment=LAB_SYMBOLS=BTCUSD,ETHUSD,SOLUSD,ADAUSD,AVAXUSD,LINKUSD,DOGEUSD,XRPUSD
+ExecStart=/home/ubuntu/Eve-AI-Influencer/.venv/bin/python /home/ubuntu/Eve-AI-Influencer/run_lab.py --config robot.demo2.json --pause 60
+Restart=always
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=robot-lab
+
+[Install]
+WantedBy=multi-user.target
