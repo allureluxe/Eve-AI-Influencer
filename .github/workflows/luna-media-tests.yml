@@ -4,9 +4,19 @@ on:
   push:
     paths:
       - 'luna/**'
+      - 'ops/*.py'
+      - 'ops/*.py'
       - 'ops/claude_media.py'
       - 'ops/executer_luna.py'
       - 'ops/instagram.py'
+      - 'ops/tiktok.py'
+      - 'ops/planifier_luna.py'
+      - 'luna/strategie.py'
+      - 'luna/optimiseur.py'
+      - 'ops/tiktok.py'
+      - 'ops/planifier_luna.py'
+      - 'luna/strategie.py'
+      - 'luna/optimiseur.py'
       - 'tests/test_luna_media.py'
       - 'supabase/migrations/20260926033000_luna_media_jobs.sql'
       - '.github/workflows/luna-media-tests.yml'
@@ -31,6 +41,6 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install --upgrade pip pytest
       - name: Syntax check
-        run: python -m compileall -q luna ops/claude_media.py ops/executer_luna.py ops/instagram.py
+        run: python -m compileall -q luna ops/*.py
       - name: Luna media unit tests
         run: python -m pytest -q tests/test_luna_media.py
