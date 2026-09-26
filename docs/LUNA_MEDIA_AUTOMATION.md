@@ -219,3 +219,46 @@ Avant toute modification fonctionnelle :
 4. implémenter l'adaptateur vidéo asynchrone;
 5. tester en mode brouillon/non-publication;
 6. seulement ensuite activer la publication automatique.
+
+
+## Implémentation livrée le 26 septembre 2026
+
+Le contrat décrit ci-dessus est maintenant branché dans le dépôt :
+
+- migration Supabase : `supabase/migrations/20260926033000_luna_media_jobs.sql` ;
+- adaptateurs : `luna/media.py` ;
+- worker : `ops/executer_luna.py` accepte désormais les jobs structurés photo/video et sonde les vidéos asynchrones ;
+- vidéo : adaptateur Runway image→video avec task id persistant ;
+- publication : `ops/instagram.py` sait publier une vidéo comme Reel ;
+- agent Alluxe : outils `creer_media_luna` et `etat_media_luna` ;
+- CLI Claude Code : `ops/claude_media.py` ;
+- photos Claude : nouveau format natif 3:4 ; vidéos : 9:16 par défaut ;
+- les workers cron sont verrouillés pour ne pas se chevaucher.
+
+### Contrat à utiliser
+
+Claude appelle `creer_media_luna` avec un prompt complet et une légende. Pour une photo :
+
+```json
+{"type":"photo","prompt":"...","caption":"...","aspect_ratio":"3:4","publish":true}
+```
+
+Pour une vidéo :
+
+```json
+{"type":"video","prompt":"...","caption":"...","aspect_ratio":"9:16","duration_seconds":10,"publish":true}
+```
+
+`publish=true` est l'autorisation explicite ; le worker ne publie pas un job qui ne la porte pas.
+
+### À faire sur le VPS
+
+Ajouter la vraie clé du fournisseur vidéo dans `.env` :
+
+```
+RUNWAYML_API_SECRET=...
+LUNA_VIDEO_MODEL=gen4.5
+LUNA_VIDEO_RESOLUTION=720p
+```
+
+Puis appliquer la migration Supabase. Tant que la migration et la clé vidéo ne sont pas installées, les nouveaux jobs ne doivent pas être considérés comme opérationnels.
