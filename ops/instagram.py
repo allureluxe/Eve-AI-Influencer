@@ -124,13 +124,19 @@ def publier_photo_luna(chemin: str, legende: str = "") -> str:
     return publier(url_temporaire(chemin), legende)
 
 
-def publier_story_luna(chemin: str) -> str:
-    """Poste une STORY depuis le seau `luna`. Elle vit 24 heures."""
-    return publier(url_temporaire(chemin), story=True)
+def publier_story_luna(chemin: str, est_video: bool = False) -> str:
+    """Poste une Story photo ou video depuis le bucket prive luna."""
+    media_url = url_temporaire(chemin)
+    return publier(
+        media_url,
+        story=True,
+        video_url=media_url if est_video else "",
+    )
 
 
 def publier(image_url: str, legende: str = "",
-            attente_max: float = 60.0, story: bool = False) -> str:
+            attente_max: float = 60.0, story: bool = False,
+            video_url: str = "") -> str:
     """Publie une photo. Rend l'identifiant de la publication.
 
     `image_url` doit etre PUBLIQUE : Instagram la telecharge lui-meme.
@@ -153,10 +159,15 @@ def publier(image_url: str, legende: str = "",
         raise InstagramErreur(
             f"l'image doit etre une URL publique en https, recu : {image_url[:60]}")
 
-    params = {"image_url": image_url}
+    params = {}
     if story:
         params["media_type"] = "STORIES"
+        if video_url:
+            params["video_url"] = video_url
+        else:
+            params["image_url"] = image_url
     else:
+        params["image_url"] = image_url
         params["caption"] = legende
     conteneur = _appel("POST", f"{_compte()}/media", **params)
     cid = conteneur.get("id")
