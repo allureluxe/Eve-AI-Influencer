@@ -1,0 +1,22 @@
+[Unit]
+Description=Alluxe MCP Secure Tunnel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alluxe
+Group=alluxe
+EnvironmentFile=/etc/alluxe/mcp-tunnel.env
+ExecStart=/usr/local/bin/tunnel-client run --profile alluxe
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

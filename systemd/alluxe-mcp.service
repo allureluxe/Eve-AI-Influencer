@@ -1,0 +1,1 @@
+This service was superseded by systemd/alluxe-mcp-tunnel.service. The stdio MCP server is intentionally spawned by tunnel-client.
