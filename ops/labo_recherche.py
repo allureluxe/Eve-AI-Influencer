@@ -306,7 +306,7 @@ def main() -> int:
         contexte = "SOURCES WEB TROUVEES AVANT L'ANALYSE :\n" + json.dumps(
             sources[:30], ensure_ascii=False)[:14000]
         reponses = consulter(question, contexte=contexte,
-                             lesquels=lesquels, max_jetons=8000)
+                             lesquels=lesquels, max_jetons=12000)
     except CerveauErreur as e:
         print(f"echec : {e}")
         return 1
