@@ -33,4 +33,4 @@ def test_famille_executable_conserve_les_reglages_connus():
 
 
 def test_liste_des_familles_est_explicitement_bornee():
-    assert FAMILLES_EXECUTABLES == {"tendance", "momentum", "donchian", "reversion", "volatilite", "risque"}
+    assert FAMILLES_EXECUTABLES == {"tendance", "momentum", "donchian", "reversion", "volatilite", "risque", "filtre", "sortie"}

@@ -192,7 +192,7 @@ def _extraire_json(texte: str) -> list:
     return objets
 
 
-FAMILLES_EXECUTABLES = {"tendance", "momentum", "donchian", "reversion", "volatilite", "risque"}
+FAMILLES_EXECUTABLES = {"tendance", "momentum", "donchian", "reversion", "volatilite", "risque", "filtre", "sortie"}
 
 
 def valider(idee: dict, connus: set[str]) -> tuple[dict | None, str]:

@@ -7,3 +7,7 @@ def test_familles_risque_volatilite_executees():
     assert 'min_atr_percentile' in REGLAGES_PAR_FAMILLE['volatilite']
     assert not reglages_sans_effet({'min_rr': 1.8}, 'risque')
     assert not reglages_sans_effet({'min_atr_percentile': 0.3}, 'volatilite')
+
+def test_familles_filtre_sortie_executees():
+    assert not reglages_sans_effet({'min_adx': 20}, 'filtre')
+    assert not reglages_sans_effet({'tp_r_multiple': 2.5}, 'sortie')

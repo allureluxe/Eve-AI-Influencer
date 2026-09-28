@@ -104,13 +104,16 @@ def fingerprint(params: dict) -> str:
 # base_risk_pct...) sont lues par toutes les familles : elles ne figurent
 # pas ici, elles mordent toujours.
 REGLAGES_PAR_FAMILLE = {
+    "tendance": {"min_adx", "min_headroom_atr", "min_rr", "require_trigger", "require_mtf_alignment", "allow_counter_trend", "macro_veto_threshold", "w_trend", "w_momentum", "w_candles", "w_chart", "w_divergence", "w_zones", "w_volume", "w_macro", "w_news"},
     "momentum": {"momentum_formation", "momentum_seuil_pct",
                  "momentum_detention"},
     "donchian": {"donchian_entrees", "donchian_sortie",
                  "donchian_filtre_precedent", "donchian_momentum_max_pct"},
     "reversion": {"reversion_ma_periode", "reversion_entree_atr", "reversion_sortie_atr"},
-    "volatilite": {"min_atr_percentile", "max_atr_percentile", "min_atr_price_ratio", "max_spread_atr_ratio"},
     "risque": {"min_rr"},
+    "volatilite": {"min_atr_percentile", "max_atr_percentile", "min_atr_price_ratio", "max_spread_atr_ratio"},
+    "filtre": {"min_adx", "min_headroom_atr", "min_score", "require_mtf_alignment", "allow_counter_trend"},
+    "sortie": {"tp_r_multiple", "trail_atr_mult", "trail_start_r", "time_stop_minutes", "detention_max_jours", "reversal_exit_r"},
 }
 
 #: Reglages de `cfg.strategy` lus par toutes les familles.
