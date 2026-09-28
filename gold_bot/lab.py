@@ -6,7 +6,7 @@ forward-test. Les strategies validees restent en incubation/paper: elles ne
 sont jamais branchees automatiquement sur le compte reel.
 """
 from __future__ import annotations
-import copy, hashlib, json, logging, os, time, urllib.request
+import copy, dataclasses, hashlib, json, logging, os, time, urllib.request
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from .backtest import Backtester
@@ -33,17 +33,33 @@ AGENTS = {
         {"name": "momentum_28", "famille": "momentum", "momentum_formation": 28, "momentum_detention": 5},
         {"name": "momentum_14", "famille": "momentum", "momentum_formation": 14, "momentum_detention": 3},
     ],
+    # LA FAMILLE DOIT CORRESPONDRE AUX REGLAGES PROPOSES.
+    #
+    # Ces trois agents portaient « famille: momentum » (ou aucune famille,
+    # donc celle de la configuration de base, momentum elle aussi). Or
+    # `_finish_momentum` ne lit QUE momentum_formation, momentum_seuil_pct
+    # et momentum_detention : ni le canal Donchian, ni l'ADX, ni le ratio
+    # rendement/risque. Leurs variantes mesuraient donc le temoin, a
+    # l'identique, indefiniment — 166 essais sur 354 rendaient exactement
+    # -291,04 EUR. Mesure du 27 septembre, quatre symboles :
+    #
+    #     min_adx 5 / min_adx 40 / donchian 5 / donchian 60 / min_score 0
+    #     -> 218 trades, -427,26 EUR, a la decimale, pour TOUTES.
     "prospector-breakout": [
-        {"name": "donchian_10", "famille": "momentum", "donchian_entrees": [10], "donchian_sortie": 10},
-        {"name": "donchian_20", "famille": "momentum", "donchian_entrees": [20], "donchian_sortie": 10},
+        {"name": "donchian_10", "famille": "donchian", "donchian_entrees": [10], "donchian_sortie": 10},
+        {"name": "donchian_20", "famille": "donchian", "donchian_entrees": [20], "donchian_sortie": 10},
     ],
     "prospector-filter": [
-        {"name": "adx_16", "min_adx": 16.0},
-        {"name": "adx_20", "min_adx": 20.0},
+        {"name": "adx_16", "famille": "tendance", "min_adx": 16.0},
+        {"name": "adx_20", "famille": "tendance", "min_adx": 20.0},
+    ],
+    "prospector-reversion": [
+        {"name": "reversion_50_2_05", "famille": "reversion", "reversion_ma_periode": 50, "reversion_entree_atr": 2.0, "reversion_sortie_atr": 0.5},
+        {"name": "reversion_80_25_07", "famille": "reversion", "reversion_ma_periode": 80, "reversion_entree_atr": 2.5, "reversion_sortie_atr": 0.7},
     ],
     "risk-refiner": [
-        {"name": "rr_18", "min_rr": 1.8},
-        {"name": "rr_22", "min_rr": 2.2},
+        {"name": "rr_18", "famille": "tendance", "min_rr": 1.8},
+        {"name": "rr_22", "famille": "tendance", "min_rr": 2.2},
     ],
     "volatility-refiner": [
         {"name": "atr_stop_18", "atr_stop_mult": 1.8},
@@ -71,6 +87,68 @@ class Candidate:
 def fingerprint(params: dict) -> str:
     raw = json.dumps(params, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(raw).hexdigest()[:16]
+
+#: CE QUE CHAQUE FAMILLE LIT REELLEMENT DANS `cfg.strategy`.
+#
+# `Strategy._finish` aiguille vers une branche par famille, et chaque
+# branche n'ouvre que ses propres reglages. Un reglage propose hors de sa
+# famille est pose sur la configuration — `_apply` le fait bien — puis
+# n'est JAMAIS LU. Rien ne le signale : le backtest tourne, rend un
+# resultat parfaitement plausible, et c'est celui du temoin.
+#
+# Les sections `trade` et `risk` (atr_stop_mult, trail_atr_mult,
+# base_risk_pct...) sont lues par toutes les familles : elles ne figurent
+# pas ici, elles mordent toujours.
+REGLAGES_PAR_FAMILLE = {
+    "momentum": {"momentum_formation", "momentum_seuil_pct",
+                 "momentum_detention"},
+    "donchian": {"donchian_entrees", "donchian_sortie",
+                 "donchian_filtre_precedent", "donchian_momentum_max_pct"},
+    "reversion": {"reversion_ma_periode", "reversion_entree_atr", "reversion_sortie_atr"},
+}
+
+#: Reglages de `cfg.strategy` lus par toutes les familles.
+#: Les quatre unites de temps alimentent directement le scanner/backtest :
+#: elles ne doivent donc jamais etre declarees « inertes » simplement parce
+#: que la strategie utilise une branche specialisee.
+REGLAGES_GLOBAUX = {
+    "entry_tf", "trigger_tf", "context_tf", "bias_tf",
+    "adaptive_timeframe", "timeframe_ladder", "max_cost_ratio_pct",
+    "mode", "min_confirmations", "require_candle_confirmation",
+    "confirmation_margin", "rsi_achat_min", "rsi_achat_max",
+    "rsi_vente_min", "rsi_vente_max",
+}
+
+#: Les reglages de `cfg.strategy` qu'AUCUNE branche specialisee ne lit :
+#: ils n'ont d'effet que sur le chemin generique (famille « tendance »).
+_SPECIALISES = set().union(*REGLAGES_PAR_FAMILLE.values())
+
+
+def reglages_sans_effet(params: dict, famille: str) -> list[str]:
+    """Les reglages proposes que cette famille-la ne lira jamais.
+
+    Sert de garde-fou au labo : une hypothese dont AUCUN reglage ne mord
+    est refusee avant le backtest, au lieu d'etre archivee comme
+    « barre non franchie » — ce qu'elle n'a jamais eu l'occasion de
+    franchir.
+    """
+    inertes: list[str] = []
+    lus = REGLAGES_PAR_FAMILLE.get(famille, set())
+    for cle in params:
+        if cle in ("name", "famille"):
+            continue
+        if cle in _SPECIALISES and cle not in lus:
+            inertes.append(cle)
+        elif famille in REGLAGES_PAR_FAMILLE and cle not in lus:
+            # Une branche specialisee ignore les reglages du chemin generique
+            # (min_adx, min_score, min_rr...) mais PAS les reglages globaux
+            # du moteur de lecture, notamment les unites de temps.
+            if cle not in REGLAGES_GLOBAUX:
+                from .settings import StrategyConfig
+                if cle in {f.name for f in dataclasses.fields(StrategyConfig)}:
+                    inertes.append(cle)
+    return sorted(set(inertes))
+
 
 def _apply(cfg, params):
     for key, value in params.items():
@@ -220,10 +298,38 @@ class StrategyLab:
     def run_candidate(self, agent, params, parent_id=None):
         fp = fingerprint(params)
         if self._seen(fp):
+            # Une variante deja mesuree ne doit jamais bloquer la boucle sur
+            # le meme candidat : on avance le curseur et on laisse le cycle
+            # suivant chercher la prochaine hypothese.
+            self.state["completed"] = int(self.state.get("completed", 0)) + 1
+            self._save()
+            logger.info("candidat deja mesure %s : passage au suivant", fp)
             return None
         cid = f"{agent}-{fp}"
         self.state["current"] = cid
         self._publish("IDEATED", f"{agent}: {params.get('name', 'strategy')}")
+
+        # UN CANDIDAT DONT AUCUN REGLAGE NE MORD N'EST PAS UN CANDIDAT.
+        #
+        # Sans ce refus, le labo lancait le backtest, obtenait le resultat
+        # du temoin, et l'archivait en « barre non franchie » — verdict
+        # sur une idee qui n'a jamais ete mesuree. 166 essais sur 354 ont
+        # ete depenses ainsi. Mieux vaut le dire que de le remesurer.
+        famille = str(params.get("famille")
+                      or getattr(self.base.strategy, "famille", ""))
+        inertes = reglages_sans_effet(params, famille)
+        proposes = [k for k in params if k not in ("name", "famille")]
+        if proposes and len(inertes) == len(proposes):
+            motif = (f"aucun reglage lu par la famille « {famille} » : "
+                     f"{', '.join(inertes)}")
+            logger.warning("candidat %s refuse — %s", cid, motif)
+            self._publish("INEFFECTIF", f"{cid}: {motif}")
+            self._record(Candidate(
+                id=cid, agent=agent, parent_id=parent_id, stage="INEFFECTIF",
+                fingerprint=fp, params=params, created_at=time.time(),
+                backtest={}, forward=None, reason=motif))
+            return None
+
         cfg = _apply(copy.deepcopy(self.base), params)
 
         # Full history minus the latest forward window. This prevents the
@@ -291,7 +397,65 @@ class StrategyLab:
         self._publish(c.stage, c.reason)
         return c
 
+    def _next_research_candidate(self):
+        """Prend une hypothese IDEATED issue de la veille/cerveaux et la soumet
+        au meme pipeline strict que les candidats internes."""
+        url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        key = os.getenv("SUPABASE_SERVICE_KEY", "")
+        if not url or not key:
+            return None
+        try:
+            req = urllib.request.Request(
+                f"{url}/rest/v1/lab_research?statut=eq.IDEATED&hypothese=not.eq.&select=id,titre,famille,hypothese&order=created_at.asc&limit=1",
+                headers={"apikey": key, "authorization": f"Bearer {key}"},
+            )
+            with urllib.request.urlopen(req, timeout=15) as r:
+                rows = json.loads(r.read().decode())
+            if not rows:
+                return None
+            row = rows[0]
+            raw = row.get("hypothese") or "{}"
+            try:
+                meta = json.loads(raw)
+            except Exception:
+                meta = {}
+            params = meta.get("params") if isinstance(meta, dict) else None
+            if not isinstance(params, dict) or not params:
+                # Source sans hypothese executable : archive explicitement la
+                # reference pour qu'elle ne reboucle jamais indéfiniment.
+                patch = urllib.request.Request(
+                    f"{url}/rest/v1/lab_research?id=eq.{int(row['id'])}&statut=eq.IDEATED",
+                    data=json.dumps({"statut":"REFERENCE"}).encode(),
+                    headers={"apikey":key,"authorization":f"Bearer {key}",
+                             "content-type":"application/json","prefer":"return=minimal"},
+                    method="PATCH")
+                urllib.request.urlopen(patch, timeout=15).read()
+                logger.info("recherche %s archivee comme reference non executable", row.get("id"))
+                return None
+            params = dict(params)
+            famille = str(row.get("famille") or params.get("famille") or "tendance")
+            params["name"] = str(row.get("titre") or "research_candidate")[:120]
+            params["famille"] = famille
+            patch = urllib.request.Request(
+                f"{url}/rest/v1/lab_research?id=eq.{int(row['id'])}&statut=eq.IDEATED",
+                data=json.dumps({"statut":"TESTING"}).encode(),
+                headers={"apikey":key,"authorization":f"Bearer {key}",
+                         "content-type":"application/json","prefer":"return=minimal"},
+                method="PATCH")
+            urllib.request.urlopen(patch, timeout=15).read()
+            return "research", params
+        except Exception as exc:
+            logger.warning("lecture lab_research: %s", str(exc)[:160])
+            return None
+
     def cycle(self):
+        # Les hypotheses issues de la veille et des deux cerveaux passent
+        # AVANT la grille interne. Elles subissent exactement les memes
+        # garde-fous, backtest portefeuille et forward-test.
+        external = self._next_research_candidate()
+        if external:
+            return self.run_candidate(*external)
+
         # Premiere passe: quelques familles de signaux, une configuration
         # par job. Ensuite, l'agent affine UNE variable a la fois et repart
         # sur le meme univers. Cela garde la discipline "one/two knobs" et
@@ -327,8 +491,25 @@ class StrategyLab:
         return self.run_candidate(agent, p)
 
     def loop(self, pause_seconds=60):
+        # Veille autonome : les deux cerveaux + recherche web sont relances
+        # periodiquement par le meme service que le Lab. Ainsi la boucle
+        # survit aux deconnexions et ne depend pas d'une session utilisateur.
+        last_research = float(self.state.get("last_research", 0))
+        research_every = int(os.getenv("LAB_RESEARCH_INTERVAL", "21600"))
         while True:
             try:
+                now = time.time()
+                if now - last_research >= research_every:
+                    self._publish("RESEARCH", "veille GPT + Claude + finance web")
+                    import subprocess
+                    subprocess.run(
+                        [str(Path(".venv/bin/python")), "ops/labo_recherche.py",
+                         "--combien", "6",
+                         "--sujet", "strategies finance banques centrales bourse actions futures FX crypto macro intermarket"],
+                        cwd=Path.cwd(), timeout=900, check=False)
+                    last_research = time.time()
+                    self.state["last_research"] = last_research
+                    self._save()
                 self.cycle()
             except Exception as exc:
                 self.state["last_error"] = str(exc)[:300]

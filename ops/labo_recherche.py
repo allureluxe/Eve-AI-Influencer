@@ -54,6 +54,7 @@ charger_env()
 
 from gold_bot.settings import BotConfig  # noqa: E402
 from luna.cerveaux import CerveauErreur, consulter  # noqa: E402
+from ops.agent_outils import recherche_idee_trading  # noqa: E402
 
 
 def reglages_connus() -> set[str]:
@@ -70,35 +71,46 @@ def reglages_connus() -> set[str]:
     return noms
 
 
-QUESTION = """Le robot teste des strategies de trading crypto au comptant
-(achat seul, pas de vente a decouvert), sur des bougies journalieres ou
-intrajournalieres, avec des frais de 0,25 % par cote.
+QUESTION = """Tu es le responsable R&D d'un laboratoire quantitatif multi-marches.
+Le but est de fabriquer le plus grand portefeuille possible d'hypotheses testables,
+puis de laisser le Strategy Lab les falsifier avec frais, spread, glissement,
+liquidite et tests hors echantillon.
 
-Son laboratoire n'explore que six familles depuis des semaines : momentum,
-cassure de canal Donchian, filtre ADX, ratio rendement/risque, multiple
-d'ATR pour le stop, et unite de temps. 108 configurations testees, 108
-rejetees. Il tourne en rond.
+COUVERTURE : crypto spot et microstructure; actions/bourse et facteurs;
+futures, commodities, indices et FX; taux/obligations; banques centrales
+(BCE, Fed, BoE, BoJ); credit et conditions de financement; volatilite;
+intermarket; macro; resultats et revisions; ETF; regulation; news/event-driven;
+regimes; cross-sectional; pairs; saisonnalite; gestion du risque.
+Toute information publique doit etre horodatee : jamais de look-ahead.
+
+RECHERCHE : priorite aux publications universitaires, working papers, arXiv,
+SSRN, NBER, BIS et institutions. Quant/market data ensuite. Forums et marketing
+servent seulement a generer des idees, jamais de preuve.
+
+MODE TRADING INFO : transforme une information de marche en regle reproductible
+et datee. Signale toute feature necessaire avant de la tester. Ne donne jamais
+une instruction de trading reel.
+
+Le labo explore deja momentum, Donchian, ADX, rendement/risque, ATR-stop et
+timeframes. Priorise donc les familles nouvelles et les combinaisons distinctes.
 
 SUJET DEMANDE : {sujet}
 
-Propose {combien} hypotheses TESTABLES et VRAIMENT DIFFERENTES de ces six
-familles. Chacune doit :
-  - reposer sur un mecanisme de marche que tu peux nommer, pas sur un
-    reglage au hasard ;
-  - s'exprimer avec les reglages disponibles ci-dessous, et UNIQUEMENT
-    ceux-la ;
-  - dire a quelle condition elle serait FAUSSE.
+Propose {combien} hypotheses. Cherche volontairement la diversite : entrees,
+sorties, regimes, volatilite, facteurs, cross-sectional, macro, intermarket,
+event-driven, risque. Chaque hypothese doit nommer son mecanisme, etre falsifiable,
+indiquer ce qui la rendrait fausse, donner les sources exactes et les biais
+possibles (look-ahead, survivorship, publication, data-snooping).
 
-Reglages disponibles (tout autre nom sera rejete) :
+Reglages disponibles :
 {reglages}
 
-Reponds UNIQUEMENT par un tableau JSON, sans texte autour :
+Reponds UNIQUEMENT par tableau JSON :
 [
-  {{"titre": "...",
-    "famille": "momentum|reversion|volatilite|sortie|risque|filtre",
-    "hypothese": "le mecanisme, en une ou deux phrases",
-    "conditions": "ce qui la rendrait fausse",
-    "params": {{"nom_du_reglage": valeur, ...}}}}
+  {{"titre":"...","famille":"momentum|reversion|volatilite|sortie|risque|filtre|macro|intermarket|event|feature_requise",
+    "hypothese":"mecanisme testable","conditions":"ce qui la rendrait fausse",
+    "params":{{"nom_du_reglage": valeur}},
+    "feature_requise":"","sources":[{{"titre":"...","url":"...","annee":2025}}]}}
 ]"""
 
 VEILLE = """Quelles approches, outils ou agents d'IA appliques au trading
@@ -180,8 +192,22 @@ def _extraire_json(texte: str) -> list:
     return objets
 
 
+FAMILLES_EXECUTABLES = {"tendance", "momentum", "donchian", "reversion"}
+
+
 def valider(idee: dict, connus: set[str]) -> tuple[dict | None, str]:
-    """Rend l'idee nettoyee, ou None et la raison du refus."""
+    """Rend l'idee nettoyee, ou None et la raison du refus.
+
+    Le moteur actuel n'execute que quatre familles. Une idee macro/event/
+    intermarket peut rester precieuse pour la R&D, mais elle ne doit jamais
+    etre silencieusement testee comme une tendance simplement parce qu'elle
+    contient un reglage connu. Elle sera deposee en FEATURE_REQUIRED.
+    """
+    famille = str(idee.get("famille") or "").strip().lower()
+    if famille not in FAMILLES_EXECUTABLES:
+        idee = dict(idee)
+        idee["famille"] = famille or "inconnu"
+        return idee, "FEATURE_REQUIRED"
     params = idee.get("params")
     if not isinstance(params, dict) or not params:
         return None, "aucun reglage propose"
@@ -208,13 +234,15 @@ def deposer(idees: list[dict], mode: str) -> int:
         "mode": mode,
         "famille": str(i.get("famille", "inconnu"))[:60],
         "titre": str(i.get("titre", ""))[:300],
-        "url": str(i.get("source", ""))[:500],
+        "url": str((i.get("sources") or [{}])[0].get("url", ""))[:500],
         "hypothese": json.dumps({"texte": i.get("hypothese", ""),
                                  "params": i.get("params", {}),
-                                 "cerveau": i.get("cerveau", "")},
+                                 "cerveau": i.get("cerveau", ""),
+                                 "feature_requise": i.get("feature_requise", ""),
+                                 "sources": i.get("sources", [])},
                                 ensure_ascii=False)[:4000],
         "conditions": str(i.get("conditions", ""))[:2000],
-        "statut": "IDEATED",
+        "statut": ("IDEATED" if str(i.get("famille", "")).strip().lower() in FAMILLES_EXECUTABLES else "FEATURE_REQUIRED"),
     } for i in idees]
     if not lignes:
         return 0
@@ -260,16 +288,19 @@ def main() -> int:
         reglages=", ".join(sorted(connus)))
 
     try:
-        # DE LA PLACE POUR REFLECHIR ET POUR ECRIRE.
-        #
-        # Les deux modeles produisent un bloc de raisonnement
-        # AVANT leur texte, et le budget le compte. Sur une
-        # question difficile, 1 200 jetons partent entierement
-        # dans la reflexion et le contenu ressort VIDE — avec
-        # un `finish_reason: stop` parfaitement normal, donc
-        # sans rien qui signale le probleme.
-        reponses = consulter(question, lesquels=lesquels,
-                             max_jetons=8000)
+        # AVANT les cerveaux : recherche web multi-sources. Cela couvre
+        # academique, quant, marches, banques centrales, actions, futures,
+        # FX, crypto et communautes. Les URLs servent de provenance; seules
+        # les hypotheses executables entrent ensuite dans le Lab.
+        web = recherche_idee_trading({
+            "sujet": args.sujet,
+            "mode": "complet",
+        })
+        sources = web.get("resultats") or []
+        contexte = "SOURCES WEB TROUVEES AVANT L'ANALYSE :\n" + json.dumps(
+            sources[:30], ensure_ascii=False)[:14000]
+        reponses = consulter(question, contexte=contexte,
+                             lesquels=lesquels, max_jetons=8000)
     except CerveauErreur as e:
         print(f"echec : {e}")
         return 1
