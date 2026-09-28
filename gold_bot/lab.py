@@ -134,6 +134,13 @@ REGLAGES_GLOBAUX = {
 _SPECIALISES = set().union(*REGLAGES_PAR_FAMILLE.values())
 
 
+STRATEGIE_FAMILLES = {"tendance", "momentum", "donchian", "reversion"}
+
+def famille_execution(params: dict, fallback: str = "tendance") -> str:
+    f = str(params.get("strategie_famille") or params.get("famille") or fallback).strip().lower()
+    return f if f in STRATEGIE_FAMILLES else fallback
+
+
 def reglages_sans_effet(params: dict, famille: str) -> list[str]:
     """Les reglages proposes que cette famille-la ne lira jamais.
 
@@ -162,7 +169,7 @@ def reglages_sans_effet(params: dict, famille: str) -> list[str]:
 
 def _apply(cfg, params):
     for key, value in params.items():
-        if key == "name":
+        if key in ("name", "strategie_famille"):
             continue
         for section in (cfg.strategy, cfg.trade, cfg.risk):
             if hasattr(section, key):
@@ -325,8 +332,7 @@ class StrategyLab:
         # du temoin, et l'archivait en « barre non franchie » — verdict
         # sur une idee qui n'a jamais ete mesuree. 166 essais sur 354 ont
         # ete depenses ainsi. Mieux vaut le dire que de le remesurer.
-        famille = str(params.get("famille")
-                      or getattr(self.base.strategy, "famille", ""))
+        famille = famille_execution(params, getattr(self.base.strategy, "famille", "tendance"))
         inertes = reglages_sans_effet(params, famille)
         proposes = [k for k in params if k not in ("name", "famille")]
         if proposes and len(inertes) == len(proposes):
@@ -340,7 +346,9 @@ class StrategyLab:
                 backtest={}, forward=None, reason=motif))
             return None
 
-        cfg = _apply(copy.deepcopy(self.base), params)
+        params_exec = dict(params)
+        params_exec["famille"] = famille
+        cfg = _apply(copy.deepcopy(self.base), params_exec)
 
         # Full history minus the latest forward window. This prevents the
         # forward period from influencing the candidate gate.
@@ -443,7 +451,9 @@ class StrategyLab:
                 logger.info("recherche %s archivee comme reference non executable", row.get("id"))
                 return None
             params = dict(params)
-            famille = str(row.get("famille") or params.get("famille") or "tendance")
+            famille_recherche = str(row.get("famille") or params.get("famille") or "tendance").strip().lower()
+            params["strategie_famille"] = (famille_recherche if famille_recherche in STRATEGIE_FAMILLES else "tendance")
+            params["famille"] = famille_recherche
             params["name"] = str(row.get("titre") or "research_candidate")[:120]
             params["famille"] = famille
             patch = urllib.request.Request(
@@ -490,9 +500,11 @@ class StrategyLab:
             p["min_adx"] = 10.0 + ((round_no * 2) % 21)
         elif agent == "risk-refiner":
             p["famille"] = "risque"
+            p["strategie_famille"] = "tendance"
             p["min_rr"] = round(1.2 + ((round_no * 0.1) % 1.9), 2)
         elif agent == "volatility-refiner":
             p["famille"] = "risque"
+            p["strategie_famille"] = "tendance"
             p["atr_stop_mult"] = round(1.2 + ((round_no * 0.2) % 1.8), 2)
         elif agent == "timeframe-refiner":
             tfs = [("M5","M15"), ("M15","H1"), ("H1","H4"), ("H4","D1")]

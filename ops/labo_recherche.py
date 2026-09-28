@@ -192,7 +192,11 @@ def _extraire_json(texte: str) -> list:
     return objets
 
 
-FAMILLES_EXECUTABLES = {"tendance", "momentum", "donchian", "reversion", "volatilite", "risque", "filtre", "sortie"}
+FAMILLES_STRATEGIE = {"tendance", "momentum", "donchian", "reversion"}
+FAMILLES_RECHERCHE_EXECUTABLES = FAMILLES_STRATEGIE | {"volatilite", "risque", "filtre", "sortie"}
+# Compatibilite des tests/consommateurs : ce nom signifie désormais
+# « catégorie de recherche exécutable », pas « valeur de strategy.famille ».
+FAMILLES_EXECUTABLES = FAMILLES_RECHERCHE_EXECUTABLES
 
 
 def valider(idee: dict, connus: set[str]) -> tuple[dict | None, str]:
@@ -204,7 +208,7 @@ def valider(idee: dict, connus: set[str]) -> tuple[dict | None, str]:
     contient un reglage connu. Elle sera deposee en FEATURE_REQUIRED.
     """
     famille = str(idee.get("famille") or "").strip().lower()
-    if famille not in FAMILLES_EXECUTABLES:
+    if famille not in FAMILLES_RECHERCHE_EXECUTABLES:
         idee = dict(idee)
         idee["famille"] = famille or "inconnu"
         return idee, "FEATURE_REQUIRED"
@@ -217,6 +221,8 @@ def valider(idee: dict, connus: set[str]) -> tuple[dict | None, str]:
         return None, f"aucun reglage reconnu (proposes : {', '.join(rejetes)})"
     idee = dict(idee)
     idee["params"] = gardes
+    if famille not in FAMILLES_STRATEGIE:
+        idee["params"]["strategie_famille"] = "tendance"
     if rejetes:
         idee["conditions"] = (str(idee.get("conditions", "")) +
                               f" [reglages ignores : {', '.join(rejetes)}]").strip()
@@ -242,7 +248,7 @@ def deposer(idees: list[dict], mode: str) -> int:
                                  "sources": i.get("sources", [])},
                                 ensure_ascii=False)[:4000],
         "conditions": str(i.get("conditions", ""))[:2000],
-        "statut": ("IDEATED" if str(i.get("famille", "")).strip().lower() in FAMILLES_EXECUTABLES else "FEATURE_REQUIRED"),
+        "statut": ("IDEATED" if str(i.get("famille", "")).strip().lower() in FAMILLES_RECHERCHE_EXECUTABLES else "FEATURE_REQUIRED"),
     } for i in idees]
     if not lignes:
         return 0
