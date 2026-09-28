@@ -705,13 +705,16 @@ SOURCES_RECHERCHE_TRADING = {
     "academique": ["arxiv.org", "ssrn.com", "nber.org", "ideas.repec.org",
                    "econpapers.repec.org", "sciencedirect.com",
                    "springer.com", "academic.oup.com", "jstor.org",
-                   "bis.org", "federalreserve.gov", "ecb.europa.eu"],
+                   "bis.org", "federalreserve.gov", "ecb.europa.eu",
+                   "bankofengland.co.uk", "boj.or.jp", "bankofcanada.ca",
+                   "snb.ch", "rba.gov.au"],
     "quant": ["quantconnect.com", "quantpedia.com", "quantstart.com",
               "alpharchitect.com", "robotwealth.com", "hudsonthames.org"],
     "marches_finance": ["reuters.com", "bloomberg.com", "cnbc.com",
                         "ft.com", "wsj.com", "marketwatch.com",
                         "investing.com", "finance.yahoo.com", "nasdaq.com",
-                        "cmegroup.com", "ice.com", "sec.gov", "cftc.gov"],
+                        "cmegroup.com", "ice.com", "sec.gov", "cftc.gov",
+                        "fred.stlouisfed.org", "worldbank.org", "imf.org"],
     "trading_communities": ["tradingview.com", "reddit.com/r/algotrading",
                             "reddit.com/r/quant", "reddit.com/r/quantfinance",
                             "reddit.com/r/Daytrading", "reddit.com/r/stocks",
@@ -791,7 +794,13 @@ def _enregistrer_recherches_trading(sujet: str, mode: str, resultats: list[dict]
 
 
 def recherche_idee_trading(args: dict) -> dict:
-    """Recherche multi-sources pour générer des hypothèses de trading."""
+    """Recherche multi-sources pour générer des hypothèses de trading.
+
+    Les familles sont indépendantes : les lancer en parallèle évite qu'un
+    domaine lent bloque toute la recherche. Chaque requête web reste bornée
+    par le timeout de _telecharger et les erreurs sont déjà isolées par
+    _recherche_sites.
+    """
     sujet = str(args.get("sujet") or "").strip()
     mode = str(args.get("mode") or "complet").strip().lower()
     if not sujet:
@@ -806,10 +815,21 @@ def recherche_idee_trading(args: dict) -> dict:
                     "trading_communities", "crypto", "trading_education"],
     }
     familles = modes.get(mode, modes["complet"])
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     resultats = []
-    for famille in familles:
-        resultats.extend(_recherche_sites(
-            sujet, SOURCES_RECHERCHE_TRADING[famille], limite=5, famille=famille))
+    # Une panne réseau sur une famille ne doit plus sérialiser les autres.
+    with ThreadPoolExecutor(max_workers=min(6, len(familles))) as pool:
+        futurs = {
+            pool.submit(_recherche_sites, sujet,
+                        SOURCES_RECHERCHE_TRADING[famille],
+                        5, famille): famille
+            for famille in familles
+        }
+        for futur in as_completed(futurs):
+            try:
+                resultats.extend(futur.result())
+            except Exception:
+                continue
     uniques, vus = [], set()
     for x in resultats:
         lien = x.get("lien", "")
