@@ -467,7 +467,6 @@ class StrategyLab:
             params["strategie_famille"] = (famille_recherche if famille_recherche in STRATEGIE_FAMILLES else "tendance")
             params["famille"] = famille_recherche
             params["name"] = str(row.get("titre") or "research_candidate")[:120]
-            params["famille"] = famille
             patch = urllib.request.Request(
                 f"{url}/rest/v1/lab_research?id=eq.{int(row['id'])}&statut=eq.IDEATED",
                 data=json.dumps({"statut":"TESTING"}).encode(),
