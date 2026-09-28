@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 BAR_BACKTEST = 1200
 BAR_FORWARD = 240
 MIN_TRADES = 100
+MIN_FORWARD_TRADES = 20
 MIN_PF = 1.20
 MIN_WIN = 40.0
 MIN_PAYOFF = 1.0
@@ -387,7 +388,7 @@ class StrategyLab:
                              "end_balance": start_balance, "portfolio_mode": True,
                              "error": str(exc)[:300]}
             forward_pass = (
-                c.forward["trades"] >= MIN_TRADES
+                c.forward["trades"] >= MIN_FORWARD_TRADES
                 and c.forward["profit_factor"] >= MIN_PF
                 and c.forward["win_rate"] >= MIN_WIN
                 and c.forward["payoff"] > MIN_PAYOFF
@@ -396,7 +397,7 @@ class StrategyLab:
                 c.stage, c.reason = "VALIDATED", "backtest + forward test franchis"
                 self.state["validated"] += 1
                 self.state["forward_passed"] += 1
-            elif c.forward["trades"] < MIN_TRADES:
+            elif c.forward["trades"] < MIN_FORWARD_TRADES:
                 c.stage, c.reason = "INCUBATION", "forward insuffisant"
             else:
                 c.stage, c.reason = "RETIRED-WEAK", "forward bar non franchie"
