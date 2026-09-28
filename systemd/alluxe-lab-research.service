@@ -1,0 +1,16 @@
+[Unit]
+Description=Alluxe Strategy Lab external research
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+ExecStart=/usr/bin/flock -n /run/alluxe-lab-research.lock /usr/bin/timeout 9m /home/ubuntu/Eve-AI-Influencer/.venv/bin/python /home/ubuntu/Eve-AI-Influencer/ops/labo_recherche.py --sujet 'crypto, volatilite, risque, sorties et nouvelles donnees testables' --combien 2 --cerveaux chatgpt,claude
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

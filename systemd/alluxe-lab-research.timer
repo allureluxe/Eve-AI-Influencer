@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic Alluxe Strategy Lab research
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=12h
+RandomizedDelaySec=20min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
