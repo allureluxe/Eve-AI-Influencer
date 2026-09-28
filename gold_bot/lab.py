@@ -449,6 +449,20 @@ class StrategyLab:
                 meta = json.loads(raw)
             except Exception:
                 meta = {}
+            # Une hypothese externe qui depend d'une serie/feature non
+            # presente dans le moteur ne doit jamais etre backtestee avec un
+            # proxy implicite : ce serait un faux test.
+            feature = str(meta.get("feature_requise") or "").strip() if isinstance(meta, dict) else ""
+            if feature:
+                patch = urllib.request.Request(
+                    f"{url}/rest/v1/lab_research?id=eq.{int(row['id'])}&statut=eq.IDEATED",
+                    data=json.dumps({"statut":"FEATURE_REQUIRED"}).encode(),
+                    headers={"apikey":key,"authorization":f"Bearer {key}",
+                             "content-type":"application/json","prefer":"return=minimal"},
+                    method="PATCH")
+                urllib.request.urlopen(patch, timeout=15).read()
+                logger.info("recherche %s exige une feature externe: %s", row.get("id"), feature[:120])
+                return None
             params = meta.get("params") if isinstance(meta, dict) else None
             if not isinstance(params, dict) or not params:
                 # Source sans hypothese executable : archive explicitement la
