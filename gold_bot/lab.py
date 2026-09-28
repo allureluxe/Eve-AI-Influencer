@@ -310,6 +310,26 @@ class StrategyLab:
         except Exception as exc:
             logger.warning("publication labo: %s", str(exc)[:120])
 
+    def _set_research_status(self, research_id, status):
+        """Synchronise le cycle d'une hypothese avec son journal lab_research."""
+        if not research_id:
+            return
+        url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        key = os.getenv("SUPABASE_SERVICE_KEY", "")
+        if not url or not key:
+            return
+        try:
+            req = urllib.request.Request(
+                f"{url}/rest/v1/lab_research?id=eq.{int(research_id)}&statut=eq.TESTING",
+                data=json.dumps({"statut": "TESTED"}).encode(),
+                headers={"apikey": key, "authorization": f"Bearer {key}",
+                         "content-type": "application/json", "prefer": "return=minimal"},
+                method="PATCH",
+            )
+            urllib.request.urlopen(req, timeout=15).read()
+        except Exception as exc:
+            logger.warning("sync lab_research %s: %s", research_id, str(exc)[:120])
+
     def _record(self, c):
         with LAB_BOOK.open("a", encoding="utf-8") as f:
             f.write(json.dumps(asdict(c), ensure_ascii=False) + "\n")
@@ -324,13 +344,14 @@ class StrategyLab:
             return False
         return any(f'"fingerprint": "{fp}"' in line for line in LAB_BOOK.read_text(encoding="utf-8").splitlines())
 
-    def run_candidate(self, agent, params, parent_id=None):
+    def run_candidate(self, agent, params, parent_id=None, research_id=None):
         fp = fingerprint(params)
         if self._seen(fp):
             # Une variante deja mesuree ne doit jamais bloquer la boucle sur
             # le meme candidat : on avance le curseur et on laisse le cycle
             # suivant chercher la prochaine hypothese.
             self.state["completed"] = int(self.state.get("completed", 0)) + 1
+            self._set_research_status(research_id, "TESTED")
             self._save()
             logger.info("candidat deja mesure %s : passage au suivant", fp)
             return None
@@ -424,6 +445,7 @@ class StrategyLab:
             self._record(c)
 
         self.state["current"] = None
+        self._set_research_status(research_id, "TESTED")
         self._publish(c.stage, c.reason)
         return c
 
@@ -488,7 +510,7 @@ class StrategyLab:
                          "content-type":"application/json","prefer":"return=minimal"},
                 method="PATCH")
             urllib.request.urlopen(patch, timeout=15).read()
-            return "research", params
+            return "research", params, None, int(row["id"])
         except Exception as exc:
             logger.warning("lecture lab_research: %s", str(exc)[:160])
             return None
