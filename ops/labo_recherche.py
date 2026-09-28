@@ -98,7 +98,9 @@ SUJET DEMANDE : {sujet}
 
 Propose {combien} hypotheses. Cherche volontairement la diversite : entrees,
 sorties, regimes, volatilite, facteurs, cross-sectional, macro, intermarket,
-event-driven, risque. Chaque hypothese doit nommer son mecanisme, etre falsifiable,
+event-driven, risque. Chaque hypothese doit utiliser au maximum 8 reglages, dont au moins un reglage directement lie au mecanisme de la strategie. Ne pas empiler des reglages de risque/execution sans necessite.
+
+Chaque hypothese doit nommer son mecanisme, etre falsifiable,
 indiquer ce qui la rendrait fausse, donner les sources exactes et les biais
 possibles (look-ahead, survivorship, publication, data-snooping).
 
@@ -215,6 +217,8 @@ def valider(idee: dict, connus: set[str]) -> tuple[dict | None, str]:
     params = idee.get("params")
     if not isinstance(params, dict) or not params:
         return None, "aucun reglage propose"
+    if len(params) > 8:
+        return None, f"trop de reglages ({len(params)}), maximum 8 pour eviter le sur-ajustement"
     gardes = {k: v for k, v in params.items() if k in connus}
     rejetes = sorted(set(params) - set(gardes))
     if not gardes:
@@ -273,6 +277,7 @@ def main() -> int:
     a.add_argument("--veille", action="store_true",
                    help="demander ce qui existe ailleurs, sans deposer")
     a.add_argument("--cerveaux", default="chatgpt,claude")
+    a.add_argument("--local-only", action="store_true", help="n'utiliser que des variables calculables depuis les bougies OHLC et les reglages du moteur")
     args = a.parse_args()
 
     lesquels = tuple(x.strip() for x in args.cerveaux.split(",") if x.strip())
@@ -289,8 +294,11 @@ def main() -> int:
 
     connus = reglages_connus()
     print(f"  {len(connus)} reglages applicables par le labo")
+    sujet = args.sujet
+    if args.local_only:
+        sujet += "\nCONTRAINTE FORTE: produire uniquement des hypotheses executables avec les bougies OHLC et les indicateurs/reglages deja presents dans le moteur. feature_requise doit etre vide. Aucune donnee VIX, funding, order book, macro, news, earnings, credit ou API externe. Prioriser momentum, donchian, reversion, filtres de tendance, sorties et gestion du risque."
     question = QUESTION.format(
-        sujet=args.sujet, combien=args.combien,
+        sujet=sujet, combien=args.combien,
         reglages=", ".join(sorted(connus)))
 
     try:

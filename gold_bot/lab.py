@@ -554,7 +554,8 @@ class StrategyLab:
                     subprocess.run(
                         [str(Path(".venv/bin/python")), "ops/labo_recherche.py",
                          "--combien", "6",
-                         "--sujet", "strategies finance banques centrales bourse actions futures FX crypto macro intermarket"],
+                         "--local-only",
+                         "--sujet", "strategies OHLC crypto: entrees sorties regimes momentum donchian reversion volatilite risque"],
                         cwd=Path.cwd(), timeout=900, check=False)
                     last_research = time.time()
                     self.state["last_research"] = last_research
