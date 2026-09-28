@@ -58,12 +58,16 @@ AGENTS = {
         {"name": "reversion_80_25_07", "famille": "reversion", "reversion_ma_periode": 80, "reversion_entree_atr": 2.5, "reversion_sortie_atr": 0.7},
     ],
     "risk-refiner": [
-        {"name": "rr_18", "famille": "tendance", "min_rr": 1.8},
-        {"name": "rr_22", "famille": "tendance", "min_rr": 2.2},
+        {"name": "rr_18", "famille": "risque", "min_rr": 1.8},
+        {"name": "rr_22", "famille": "risque", "min_rr": 2.2},
+    ],
+    "prospector-volatility": [
+        {"name": "volatility_mid", "famille": "volatilite", "min_atr_percentile": 0.20, "max_atr_percentile": 0.90},
+        {"name": "volatility_wide", "famille": "volatilite", "min_atr_percentile": 0.10, "max_atr_percentile": 0.95},
     ],
     "volatility-refiner": [
-        {"name": "atr_stop_18", "atr_stop_mult": 1.8},
-        {"name": "atr_stop_22", "atr_stop_mult": 2.2},
+        {"name": "atr_stop_18", "famille": "risque", "atr_stop_mult": 1.8},
+        {"name": "atr_stop_22", "famille": "risque", "atr_stop_mult": 2.2},
     ],
     "timeframe-refiner": [
         {"name": "m15", "trigger_tf": "M15", "entry_tf": "M15", "context_tf": "H1", "bias_tf": "H1"},
@@ -105,6 +109,8 @@ REGLAGES_PAR_FAMILLE = {
     "donchian": {"donchian_entrees", "donchian_sortie",
                  "donchian_filtre_precedent", "donchian_momentum_max_pct"},
     "reversion": {"reversion_ma_periode", "reversion_entree_atr", "reversion_sortie_atr"},
+    "volatilite": {"min_atr_percentile", "max_atr_percentile", "min_atr_price_ratio", "max_spread_atr_ratio"},
+    "risque": {"min_rr"},
 }
 
 #: Reglages de `cfg.strategy` lus par toutes les familles.
@@ -479,8 +485,10 @@ class StrategyLab:
         elif agent == "prospector-filter":
             p["min_adx"] = 10.0 + ((round_no * 2) % 21)
         elif agent == "risk-refiner":
+            p["famille"] = "risque"
             p["min_rr"] = round(1.2 + ((round_no * 0.1) % 1.9), 2)
         elif agent == "volatility-refiner":
+            p["famille"] = "risque"
             p["atr_stop_mult"] = round(1.2 + ((round_no * 0.2) % 1.8), 2)
         elif agent == "timeframe-refiner":
             tfs = [("M5","M15"), ("M15","H1"), ("H1","H4"), ("H4","D1")]
