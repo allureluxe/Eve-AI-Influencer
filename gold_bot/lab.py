@@ -129,6 +129,16 @@ REGLAGES_GLOBAUX = {
     "rsi_vente_min", "rsi_vente_max",
 }
 
+#: Reglages de `cfg.trade` / `cfg.risk` lus par le moteur quel que soit
+#: le chemin de strategie. Ils doivent rester testables comme hypotheses
+#: transversales et ne peuvent donc pas etre declares « inertes ».
+REGLAGES_EXECUTION_GLOBAUX = {
+    "atr_stop_mult", "min_stop_atr", "max_stop_atr",
+    "tp_r_multiple", "trail_atr_mult", "trail_start_r",
+    "time_stop_minutes", "detention_max_jours", "reversal_exit_r",
+    "base_risk_pct", "max_risk_pct", "risk_per_trade_pct",
+}
+
 #: Les reglages de `cfg.strategy` qu'AUCUNE branche specialisee ne lit :
 #: ils n'ont d'effet que sur le chemin generique (famille « tendance »).
 _SPECIALISES = set().union(*REGLAGES_PAR_FAMILLE.values())
@@ -152,7 +162,9 @@ def reglages_sans_effet(params: dict, famille: str) -> list[str]:
     inertes: list[str] = []
     lus = REGLAGES_PAR_FAMILLE.get(famille, set())
     for cle in params:
-        if cle in ("name", "famille"):
+        if cle in ("name", "famille", "strategie_famille"):
+            continue
+        if cle in REGLAGES_EXECUTION_GLOBAUX:
             continue
         if cle in _SPECIALISES and cle not in lus:
             inertes.append(cle)
@@ -503,7 +515,7 @@ class StrategyLab:
             p["strategie_famille"] = "tendance"
             p["min_rr"] = round(1.2 + ((round_no * 0.1) % 1.9), 2)
         elif agent == "volatility-refiner":
-            p["famille"] = "risque"
+            p["famille"] = "volatilite"
             p["strategie_famille"] = "tendance"
             p["atr_stop_mult"] = round(1.2 + ((round_no * 0.2) % 1.8), 2)
         elif agent == "timeframe-refiner":
