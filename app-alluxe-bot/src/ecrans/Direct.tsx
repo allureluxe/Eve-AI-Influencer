@@ -257,7 +257,8 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
           l'autre. */}
       <Carte style={{ marginBottom: espace.l }}>
         <CourbeCapital compte="reel"
-                       capitalDepart={depart} />
+                       capitalDepart={depart}
+                       realiseSeulement />
       </Carte>
 
       <T v="sousTitre" style={{ marginBottom: espace.s }}>
