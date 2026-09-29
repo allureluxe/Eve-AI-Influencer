@@ -1596,3 +1596,9 @@ fournisseurs image déjà utilisés par luna/moteurs.py. Aucun secret ne doit
 
 La migration à appliquer est :
 supabase/migrations/20260926033000_luna_media_jobs.sql
+
+---
+
+# Reprise session 29 septembre 2026
+
+La synthèse détaillée des travaux récents et des règles de reprise est dans `docs/SESSION_2026-09-29.md`. La lire avant toute nouvelle intervention. Points impératifs : l'application ne doit pas nécessiter un APK pour chaque modification ; utiliser OTA pour les changements JS/TS et contenu/configuration compatibles, et réserver les builds Android aux changements natifs. Aucun build APK avant la fin complète du projet. Le Lab reste en simulation uniquement et les services `robot-dual-live.service` et `robot-trading.service` restent arrêtés sauf demande explicite.
