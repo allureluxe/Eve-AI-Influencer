@@ -373,6 +373,40 @@ def capital_du_compte(compte: str) -> float | None:
     return float(solde) + latent
 
 
+def _realise_publie(url: str, cle: str, compte: str) -> float | None:
+    """Reel realise visible par l'application pour la session courante.
+
+    Le solde du PaperBroker contient aussi les frais d'entree des positions
+    ouvertes. Il ne peut donc pas servir directement de « encaisse ». La
+    source de verite de l'ecran est ici `signals`: seules les clotures
+    effectivement publiees dans l'application comptent comme realisees.
+    """
+    try:
+        if compte == "reel":
+            # Le reel n'a pas de started_at de simulateur : les trades
+            # reels clotures sont la source de verite du realise.
+            requete = urllib.request.Request(
+                f"{url}/rest/v1/signals?select=profit_eur,status&is_demo=eq.false&status=in.(closed_tp,closed_sl)",
+                headers={"apikey": cle, "authorization": f"Bearer {cle}"},
+            )
+        else:
+            etat = json.loads(_fichier_etat(compte).read_text())
+            debut = float(etat.get("started_at") or 0.0)
+            if debut <= 0:
+                return None
+            debut_iso = dt.datetime.fromtimestamp(debut, dt.timezone.utc).isoformat()
+            requete = urllib.request.Request(
+                f"{url}/rest/v1/signals?select=profit_eur,status&compte=eq.{urllib.parse.quote(compte, safe='')}&is_demo=eq.true&status=in.(closed_tp,closed_sl)&created_at=gte.{urllib.parse.quote(debut_iso, safe='')}",
+                headers={"apikey": cle, "authorization": f"Bearer {cle}"},
+            )
+        with urllib.request.urlopen(requete, timeout=10) as reponse:
+            lignes = json.loads(reponse.read().decode("utf-8"))
+        return round(sum(float(x.get("profit_eur") or 0.0) for x in lignes), 2)
+    except Exception as exc:                                  # noqa: BLE001
+        log.warning("realise publie %s indisponible : %s", compte, str(exc)[:160])
+        return None
+
+
 def publier(compte: str, fichier: str) -> bool:
     url = os.environ.get("SUPABASE_URL", "").rstrip("/")
     cle = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -441,7 +475,25 @@ def publier(compte: str, fichier: str) -> bool:
     solde = _solde_du_compte(compte) if compte != "reel" else _capital_bitvavo()
     depart = corps["capital_depart"]
     if solde is not None and depart > 0:
-        corps["encaisse_eur"] = round(solde - depart, 2)
+        realise_publie = _realise_publie(url, cle, compte)
+        if realise_publie is not None:
+            # « Encaisses » = P&L realise des trades clotures, jamais le
+            # solde en euros et jamais le capital de depart.
+            corps["encaisse_eur"] = realise_publie
+        elif compte != "reel":
+            # Repli uniquement si Supabase ne peut pas fournir les signaux.
+            # On neutralise les frais d'entree des positions encore ouvertes.
+            try:
+                commission_pct = float(getattr(cfg.risk, "commission_pct", 0.0) or 0.0)
+            except Exception:
+                commission_pct = 0.0
+            frais_ouverture_ouverts = sum(
+                float(p.get("volume", 0.0) or 0.0)
+                * float(p.get("entry_price", 0.0) or 0.0)
+                * commission_pct
+                for p in (json.loads(_fichier_etat(compte).read_text()).get("position_meta") or {}).values()
+            )
+            corps["encaisse_eur"] = round(solde - depart + frais_ouverture_ouverts, 2)
 
     try:
         requete = urllib.request.Request(
@@ -501,9 +553,12 @@ def main() -> int:
         actif = subprocess.run(
             ["systemctl", "is-active", service],
             capture_output=True, text=True).stdout.strip() == "active"
-        if not actif:
+        if not actif and compte != "reel":
             log.info("robot-%s n'est pas actif : fiche non rafraichie", compte)
             continue
+        # Le compte réel doit rester affiché même si le moteur de trading
+        # est arrêté : l'application doit montrer le vrai portefeuille
+        # Bitvavo, pas le dernier snapshot du robot.
         ok += 1 if publier(compte, fichier) else 0
     return 0 if ok else 1
 

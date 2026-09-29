@@ -153,8 +153,17 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   // il vaut `capital total - depart`, et le capital total inclut deja
   // le latent. L'afficher a cote de « en cours » compterait deux fois
   // la meme chose. On retranche donc le latent explicitement.
+  // « Encaisses » vient de la source serveur des trades clotures.
+  // Il ne faut jamais le deduire du cash disponible : un achat de crypto
+  // ferait sinon passer le P&L realise pour du capital encaisse.
+  // Sur le compte réel, ne jamais afficher encaisse_eur ici : cette
+  // valeur peut être un ancien snapshot serveur. La vérité d'affichage
+  // est l'equity actuelle : capital = départ + réalisé + latent.
+  // Donc réalisé = capital actuel - départ - latent.
+  // Exemple : 1 000 € de départ, 1 000 € de capital, 0 € latent =>
+  // 0 € encaissés (et surtout pas 1 000 €).
   const gainEncaisse = capitalVivant == null || depart <= 0
-    ? null : capitalVivant - gainLatent - depart;
+    ? null : capitalVivant - depart - gainLatent;
 
   // Les etages se deduisent de la LISTE ENTIERE, pas d'une ligne isolee :
   // deux achats de la meme crypto sont deux etages, meme quand chaque
