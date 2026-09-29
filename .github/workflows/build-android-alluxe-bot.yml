@@ -78,3 +78,5 @@ jobs:
             --title "Alluxe Bot -- derniere construction" \
             --notes "Construit automatiquement depuis le commit ${{ github.sha }}." \
             --prerelease
+
+# Declenchement de secours: rebuild APK apres correction affichage capital live.
