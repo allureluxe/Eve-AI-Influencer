@@ -160,8 +160,9 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   // Donc réalisé = capital actuel - départ - latent.
   // Exemple : 1 000 € de départ, 1 000 € de capital, 0 € latent =>
   // 0 € encaissés (et surtout pas 1 000 €).
-  const gainEncaisse = capitalVivant == null || depart <= 0
-    ? null : capitalVivant - depart - gainLatent;
+  const gainEncaisse = fiche?.encaisse_eur ?? (
+    capitalVivant == null || depart <= 0 ? null : capitalVivant - depart - gainLatent
+  );
 
   // Les etages se deduisent de la LISTE ENTIERE, pas d'une ligne isolee :
   // deux achats de la meme crypto sont deux etages, meme quand chaque
@@ -308,3 +309,4 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
 }
 
 // Source de verite du capital reel: alluxe_bot_comptes.capital_eur.
+\n// Rebuild marker: capital reel = fiche alluxe_bot_comptes.capital_eur; encaisse = encaisse_eur.\n
