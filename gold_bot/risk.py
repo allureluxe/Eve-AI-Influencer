@@ -985,25 +985,22 @@ class RiskManager:
                 # depasser le risque total, il rend seulement au capital le
                 # droit de travailler quand les occasions sont rares.
                 reste = min(available_cash, max(0.0, plafond_engage - deja_engage))
-                # Le diviseur ne peut pas venir du SEUL compteur de places :
-                # `max_positions` porte a 99 le ferait diviser le cash en 99
-                # parts de 0,88 EUR, toutes sous le ticket minimum — le
-                # robot refuserait alors chaque trade en croyant partager.
+                # IMPORTANT : le plafond de RISQUE ne sert PAS a repartir
+                # artificiellement le cash entre des places hypothétiques.
+                # Le passage a max_total_risk_pct=100 % faisait calculer
+                # jusqu'a 166 places et divisait le cash par ce nombre,
+                # d'ou les positions d'environ 10 EUR.
                 #
-                # La vraie borne est le budget de risque : a 0,60 % par
-                # trade et 3,5 % au total, le compte ne peut de toute facon
-                # pas tenir plus de 5 lignes. C'est LUI qui limite, mesure
-                # a l'appui (5 lignes 35 % du temps, 6 seulement 2 %), donc
-                # c'est lui qui doit decider du partage.
+                # Une occasion obtient d'abord sa taille normale issue du
+                # risque et du stop. Le cash disponible n'est qu'un plafond
+                # reel : on ne reserve pas de l'argent pour des signaux qui
+                # n'existent pas encore.
                 par_le_budget = (int(cfg.max_total_risk_pct // cfg.base_risk_pct)
                                  if cfg.base_risk_pct > 0 else cfg.max_positions)
                 plafond_places = min(cfg.max_positions, max(1, par_le_budget))
                 libres = max(1, plafond_places - len(positions))
                 places = libres if places_visees is None else max(
                     1, min(libres, int(places_visees)))
-                # Deux planchers, et on prend le plus haut : celui de la
-                # plateforme (un ordre plus petit est rejete) et celui de
-                # l'operateur (une position plus petite ne rapporte rien).
                 ticket_minimum = max(instrument.min_lot * valeur_unitaire,
                                      cfg.ticket_min_eur)
                 part = min(reste, max(reste / places, ticket_minimum))
