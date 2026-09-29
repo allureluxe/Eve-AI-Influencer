@@ -307,3 +307,4 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   );
 }
 
+// Source de verite du capital reel: alluxe_bot_comptes.capital_eur.
