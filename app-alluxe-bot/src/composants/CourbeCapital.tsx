@@ -31,7 +31,7 @@
 import React from "react";
 import { Pressable, View } from "react-native";
 import Svg, { Defs, LinearGradient, Path, Stop, Circle, Line } from "react-native-svg";
-import { PointCapital, courbeCapital, historique } from "../services/robot";
+import { PointCapital, courbeCapital } from "../services/robot";
 import { euros, pourcent } from "../services/format";
 import { espace, rayon, TRAIT } from "../theme";
 import { T, useCouleurs } from "./base";
@@ -68,8 +68,8 @@ function chemins(points: PointCapital[], L: number, H: number) {
   return { trace, aire, dernierX: x(v.length - 1), dernierY: y(v[v.length - 1]) };
 }
 
-export function CourbeCapital({ compte, capitalDepart, realiseSeulement = false }: {
-  compte: string; capitalDepart: number; realiseSeulement?: boolean;
+export function CourbeCapital({ compte, capitalDepart }: {
+  compte: string; capitalDepart: number;
 }) {
   const c = useCouleurs();
   const [fenetre, setFenetre] = React.useState<Fenetre>("1j");
@@ -81,23 +81,11 @@ export function CourbeCapital({ compte, capitalDepart, realiseSeulement = false 
     setPoints(null);
     const jours = FENETRES.find((f) => f.cle === fenetre)!.jours;
     const depuis = new Date(Date.now() - jours * 86400_000).toISOString();
-    const charger = async () => {
-      const p = await courbeCapital(compte, depuis);
-      if (!realiseSeulement) return p;
-      const fermees = await historique(500);
-      return p.map((point) => ({
-        ...point,
-        capital_eur: capitalDepart + fermees.reduce((total, trade) => (
-          trade.closed_at && trade.closed_at <= point.vu_le
-            ? total + Number(trade.profit_eur ?? 0)
-            : total
-        ), 0),
-      }));
-    };
-    charger().then((p) => { if (vivant) setPoints(p); })
+    courbeCapital(compte, depuis)
+      .then((p) => { if (vivant) setPoints(p); })
       .catch(() => { if (vivant) setPoints([]); });
     return () => { vivant = false; };
-  }, [compte, fenetre, capitalDepart, realiseSeulement]);
+  }, [compte, fenetre]);
 
   const assez = points !== null && points.length >= 2;
 

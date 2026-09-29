@@ -135,16 +135,19 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   // « en cours » et ne doit jamais faire bouger le gros chiffre.
   const gainEncaisse = fiche?.encaisse_eur ?? 0;
 
-  const capitalVivant = React.useMemo(() => {
-    if (fiche) return depart + gainEncaisse;
-    return capitalEtat?.capital_eur ?? null;
-  }, [fiche, depart, gainEncaisse]);
+  // CAPITAL REEL = valeur totale actuelle du compte Bitvavo.
+  // Le latent est affiche séparément, mais fait partie de la valeur actuelle.
+  const capitalVivant = React.useMemo(
+    () => fiche?.capital_eur ?? capitalEtat?.capital_eur ?? null,
+    [fiche, capitalEtat],
+  );
 
-  // « EN COURS » : le gain latent des positions ouvertes, au cours du
-  // moment. Le meme calcul qu'en demo, le meme composant partage.
+  // EN COURS = variation non réalisée depuis le capital de départ,
+  // après déduction du P&L déjà encaissé.
   const gainLatent = React.useMemo(
-    () => (positions ? gainTotalEnDirect(positions, depart, prixLive) : 0),
-    [positions, prixLive, depart]);
+    () => capitalVivant == null ? 0 : capitalVivant - depart - gainEncaisse,
+    [capitalVivant, depart, gainEncaisse],
+  );
 
   // « ENCAISSE » : ce qui est DEJA dans la caisse, latent exclu.
   //
@@ -257,8 +260,7 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
           l'autre. */}
       <Carte style={{ marginBottom: espace.l }}>
         <CourbeCapital compte="reel"
-                       capitalDepart={depart}
-                       realiseSeulement />
+                       capitalDepart={depart} />
       </Carte>
 
       <T v="sousTitre" style={{ marginBottom: espace.s }}>
