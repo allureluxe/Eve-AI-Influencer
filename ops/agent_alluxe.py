@@ -54,6 +54,11 @@ charger_env()
 # repond en 0,3 s -- c'etait le SONDAGE qui coutait jusqu'a 2 s avant
 # meme de voir le message, plus 2 s cote application pour l'afficher.
 RYTHME_SECONDES = 0.4
+# L'agent ne se contente plus d'attendre un message : il effectue aussi
+# un cycle de travail autonome regulier. Le rythme est volontairement
+# lent pour laisser le serveur et les quotas IA disponibles au produit.
+AUTONOMIE_INTERVALLE_SECONDES = 15 * 60
+HEARTBEAT_INTERVALLE_SECONDES = 30
 HISTORIQUE_MESSAGES = 12  # tours de conversation gardes comme contexte
 # Un agent qui AGIT enchaine : lire un fichier, le modifier, lancer les
 # tests, lire l'erreur, recommencer. Trois allers-retours suffisaient a un
@@ -648,13 +653,28 @@ def _attendre_son_tour(cout: int) -> None:
         time.sleep(min(attente, 30.0))
 
 
-def _appeler_moteur(messages: list[dict]) -> dict:
+#: LES MODELES DE REPLI, DU PLUS CAPABLE AU PLUS MODESTE.
+#
+# Le palier gratuit de Groq limite le debit **par modele**. Quand le gros
+# est sature, le suivant ne l'est pas : basculer rend une reponse au lieu
+# d'un « agent indisponible ». C'est exactement ce que Monsieur a vu le
+# 27 septembre — quatre fois le meme message d'erreur, et sept minutes
+# d'attente sur une question.
+#
+# Un modele plus petit repond moins bien ; il repond quand meme, et il le
+# dit. Le silence est la pire des reponses.
+MODELES_DE_REPLI = [x.strip() for x in os.environ.get(
+    "LUNA_API_MODELES_REPLI",
+    "openai/gpt-oss-20b,llama-3.3-70b-versatile").split(",") if x.strip()]
+
+
+def _appeler_moteur(messages: list[dict], modele: str = "") -> dict:
     """Un appel brut a l'endpoint compatible OpenAI (LUNA_API_URL), AVEC
     outils -- MoteurCompatibleOpenAI (luna/moteurs.py) ne les expose pas,
     l'agent a besoin de son propre client pour ca."""
     url = os.environ.get("LUNA_API_URL", "").rstrip("/")
     cle = os.environ.get("LUNA_API_KEY", "")
-    modele = os.environ.get("LUNA_API_MODELE", "")
+    modele = modele or os.environ.get("LUNA_API_MODELE", "")
     if not url or not modele:
         raise ErreurAgent("LUNA_API_URL ou LUNA_API_MODELE absent")
     endpoint = url if url.endswith("/chat/completions") else url + "/chat/completions"
@@ -713,6 +733,36 @@ def _appeler_moteur(messages: list[dict]) -> dict:
     raise ErreurAgent("moteur injoignable apres plusieurs tentatives")
 
 
+def _appeler_moteur_avec_repli(messages: list[dict]) -> dict:
+    """Le modele principal, puis les replis s'il est rationne.
+
+    Le debit du palier gratuit se compte PAR MODELE : un 429 sur le gros
+    ne dit rien du petit. Essayer le suivant coute une seconde et rend
+    une reponse la ou l'agent en etait a publier « indisponible ».
+
+    On ne bascule que sur le rationnement (429) et l'indisponibilite du
+    service (503) : une erreur de cle ou de requete se reproduirait a
+    l'identique sur tous les modeles, et la masquer serait pire.
+    """
+    principal = os.environ.get("LUNA_API_MODELE", "")
+    derniere: Exception | None = None
+    for i, modele in enumerate([principal, *MODELES_DE_REPLI]):
+        if not modele:
+            continue
+        try:
+            reponse = _appeler_moteur(messages, modele=modele)
+            if i:
+                print(f"repli sur {modele} (le modele principal est rationne)")
+            return reponse
+        except ErreurAgent as e:
+            derniere = e
+            texte = str(e)
+            if "HTTP 429" in texte or "HTTP 503" in texte:
+                continue
+            raise
+    raise derniere or ErreurAgent("aucun modele disponible")
+
+
 def _repondre(rest_lecture: _Rest, tours: list[dict],
               systeme_sup: str = "") -> tuple[str, list[str]]:
     """Boucle outils -> reponse finale. Rend (texte, noms_des_outils_utilises)."""
@@ -735,7 +785,7 @@ def _repondre(rest_lecture: _Rest, tours: list[dict],
 
     for _ in range(MAX_ALLERS_RETOURS_OUTILS):
         messages = _comprimer(messages)
-        reponse = _appeler_moteur(messages)
+        reponse = _appeler_moteur_avec_repli(messages)
         choix = reponse["choices"][0]["message"]
         appels = choix.get("tool_calls") or []
         if not appels:
@@ -836,6 +886,44 @@ def _historique_recent(rest: _Rest) -> list[dict]:
 
 DISCUSSION = "alluxe_bot_discussion"
 
+#: Ce qui, dans une reponse, est une panne et non un propos.
+_MARQUEURS_DE_PANNE = ("(agent indisponible", "(panne de mon cote",
+                       "Desole, je n'arrive pas a repondre proprement")
+
+
+def _est_une_panne(texte: str) -> bool:
+    return str(texte).lstrip().startswith(_MARQUEURS_DE_PANNE)
+
+
+def _panne_lisible(e: Exception) -> str:
+    """Dire la panne en francais, pas en code HTTP.
+
+    « agent indisponible : HTTP 429 : {"error":{"message":"Rate limit
+    reached for model `openai/gpt-oss-120b`..." » ne dit rien a Monsieur.
+    Il lui faut savoir si ca va revenir tout seul, et quand.
+    """
+    texte = str(e)
+    if "HTTP 429" in texte:
+        return ("Mon moteur est momentanement sature (limite du palier "
+                "gratuit). Je reessaie de moi-meme ; repose ta question "
+                "dans une minute si je ne reponds pas.")
+    if "HTTP 401" in texte or "HTTP 403" in texte:
+        return ("Ma cle d'acces au moteur est refusee — ca ne se reglera "
+                "pas tout seul, il faut la renouveler.")
+    if "reseau" in texte:
+        return "Je n'arrive pas a joindre mon moteur (reseau). Je reessaie."
+    return f"(agent indisponible : {texte[:200]})"
+
+
+def _derniere_reponse(rest: _Rest) -> str:
+    """Le dernier message du robot dans le fil, ou une chaine vide."""
+    try:
+        lignes = rest.get(f"/rest/v1/{DISCUSSION}?auteur=neq.operateur"
+                          f"&select=texte&order=created_at.desc&limit=1")
+    except Exception:                                         # noqa: BLE001
+        return ""
+    return str(lignes[0].get("texte") or "") if lignes else ""
+
 SYSTEME_DISCUSSION = """
 
 TU ES ICI DANS L'ONGLET DISCUSSION, en face du robot de trading. Monsieur
@@ -903,9 +991,21 @@ def _traiter_message_discussion(rest: _Rest) -> bool:
             texte_reponse = ("Je n'ai rien a repondre a ca -- reformulez "
                              "et je reessaie.")
     except ErreurAgent as e:
-        texte_reponse = f"(agent indisponible : {e})"
+        texte_reponse = _panne_lisible(e)
     except Exception as e:                                    # noqa: BLE001
         texte_reponse = f"(panne de mon cote : {type(e).__name__} : {e})"
+
+    # NE PAS REPUBLIER LA MEME PANNE.
+    #
+    # Le 27 septembre, Monsieur a vu QUATRE FOIS le meme « agent
+    # indisponible : HTTP 429 » a la suite : chaque tentative publiait
+    # son propre message d'erreur. Repeter une panne ne l'explique pas
+    # mieux, ca remplit le fil et ca donne l'impression que l'agent
+    # radote. Une fois suffit ; la reponse utile viendra a la prochaine
+    # question.
+    if _est_une_panne(texte_reponse) and _derniere_reponse(rest) == texte_reponse:
+        print("meme panne qu'a l'instant : on ne la republie pas")
+        return True
 
     try:
         rest.post(f"/rest/v1/{DISCUSSION}", {
@@ -945,6 +1045,46 @@ def _historique_discussion(rest: _Rest) -> list[dict]:
     return tours
 
 
+AUTONOMIE_CONSIGNE = """
+Tu travailles EN ARRIERE-PLAN pour Monsieur. Ne lui demande pas de confirmation et ne te contente pas d'un rapport : fais une vraie avance verifiable.
+
+Choisis UNE seule tache sure et utile, en priorite :
+1. reparer ou tester le Strategy Lab (isolation des parametres, recherche d'hypotheses, validation hors echantillon) ;
+2. fiabiliser Alluxe Agent et ses observabilite/recuperation ;
+3. fiabiliser la chaine media Luna sans publier ni depenser sans autorisation explicite ;
+4. ameliorer l'analytics Luna et le suivi des performances ;
+5. corriger/tester l'application Android ;
+6. auditer Supabase, tests, documentation ou hygiene du depot ;
+7. faire une maintenance VPS non destructive et documenter ce qui bloque.
+
+REGLES ABSOLUES DU TRAVAIL AUTONOME :
+- Ne modifie jamais robot*.json, les reglages de risque, le dry-run, les comptes reels ou les ordres de trading.
+- Ne publie aucun contenu externe et ne depense aucun budget sans demande explicite de Monsieur.
+- Ne lis, n'affiche, ne copie et ne commit aucun secret (.env, cles API, tokens).
+- Ne supprime rien d'important et ne lance aucune commande destructive.
+- Lis le code et les tests avant de modifier. Apres une modification, lance les tests pertinents et corrige les regressions.
+- Si une tache est trop grosse pour ce cycle, fais une etape concrete et verifiee plutot que de pretendre avoir fini.
+- Tu peux utiliser le web et les publications scientifiques pour transformer une idee en hypothese testable, mais une source externe n'est jamais une preuve.
+- Termine en laissant le depot dans un etat coherent. Un commit n'est necessaire que si la modification est propre et verifiee.
+"""
+
+
+def _cycle_autonome(rest: _Rest) -> bool:
+    """Fait avancer le projet en continu, sans attendre une demande utilisateur."""
+    _publier_statut_agent(rest, "WORKING", task="Travail autonome H24", detail="Choix et execution d'une tache de fond")
+    debut = time.time()
+    try:
+        texte, outils = _repondre(rest, [{"role": "user", "content": AUTONOMIE_CONSIGNE}])
+        resume = texte.strip() or "Cycle termine sans message final"
+        _journal_agent(rest, "autonomous", ",".join(outils)[:120], "ok", resume[:500], debut)
+        _publier_statut_agent(rest, "IDLE", detail="Cycle autonome termine")
+        return True
+    except Exception as e:  # noqa: BLE001
+        _journal_agent(rest, "autonomous", "", "error", str(e)[:500], debut)
+        _publier_statut_agent(rest, "ERROR", task="Travail autonome H24", detail="Cycle interrompu, reprise automatique", last_error=str(e))
+        return False
+
+
 def _traiter_un_message(rest: _Rest) -> bool:
     ligne = _reclamer_message_en_attente(rest)
     if ligne is None:
@@ -976,19 +1116,34 @@ def main() -> int:
         return 1
     oubliees = _oublier_les_cles_inutiles()
     rest = _Rest(url, cle)
-    _publier_statut_agent(rest, "IDLE", detail="Agent maître démarré")
+    _publier_statut_agent(rest, "IDLE", detail="Agent maître démarré -- mode H24 actif")
     print(f"agent Alluxe demarre -- outils d'action actifs, {oubliees} cle(s) "
           f"inutile(s) effacee(s) de la memoire, poll toutes les "
-          f"{RYTHME_SECONDES}s")
+          f"{RYTHME_SECONDES}s, travail autonome toutes les "
+          f"{AUTONOMIE_INTERVALLE_SECONDES}s")
+    dernier_autonome = 0.0
+    dernier_heartbeat = 0.0
     while True:
+        maintenant = time.monotonic()
         try:
-            # Les deux fils : l'onglet Agent et l'onglet Discussion.
-            # `or` court-circuite, donc une seule reponse par tour --
-            # deux appels au modele dans le meme tour doubleraient la
-            # consommation de jetons sur un palier gratuit deja etroit.
-            _traiter_un_message(rest) or _traiter_message_discussion(rest)
+            traite = _traiter_un_message(rest)
+            if not traite:
+                traite = _traiter_message_discussion(rest)
+            maintenant = time.monotonic()
+            if maintenant - dernier_autonome >= AUTONOMIE_INTERVALLE_SECONDES:
+                _cycle_autonome(rest)
+                dernier_autonome = maintenant
+            elif maintenant - dernier_heartbeat >= HEARTBEAT_INTERVALLE_SECONDES:
+                _publier_statut_agent(rest, "IDLE", detail="Agent vivant -- prochain cycle autonome en preparation")
+                dernier_heartbeat = maintenant
         except (urllib.error.HTTPError, urllib.error.URLError) as e:
             print(f"erreur de poll : {e}")
+            _publier_statut_agent(rest, "ERROR", detail="Erreur reseau de poll -- reprise automatique", last_error=str(e))
+        except Exception as e:  # noqa: BLE001
+            # Une erreur inattendue ne doit plus tuer le daemon : le cycle
+            # suivant doit pouvoir reprendre sans intervention humaine.
+            print(f"erreur de boucle agent : {type(e).__name__}: {e}")
+            _publier_statut_agent(rest, "ERROR", detail="Erreur de boucle -- reprise automatique", last_error=str(e))
         time.sleep(RYTHME_SECONDES)
 
 
