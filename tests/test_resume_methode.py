@@ -32,10 +32,11 @@ class TestChaqueCompteALeSienEtIlEstDIFFERENT:
 
     @pytest.mark.parametrize("nom", COMPTES)
     def test_les_trois_partent_du_meme_capital(self, nom):
-        """Decision de l'operateur : « les 3 comptes doivent avoir une
-        mise de depart de 3300 € ». Des capitaux differents rendraient
-        les resultats incomparables."""
-        assert _cfg(nom).engine.start_balance == 3300.0
+        """DEMO 1 et DEMO 3 restent a 3 300 EUR ; DEMO 2 est le banc
+        d'essai du meilleur candidat du Lab et repart a 1 000 EUR a chaque
+        promotion. Les valeurs sont donc volontairement differentes."""
+        attendu = 1000.0 if nom == "robot.demo2.json" else 3300.0
+        assert _cfg(nom).engine.start_balance == attendu
 
 
 class TestLeResumeSuitLesREGLAGES:
