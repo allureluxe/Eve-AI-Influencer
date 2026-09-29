@@ -50,6 +50,7 @@ export async function labStatus(): Promise<LabStatus | null> {
 export async function labStrategies(limite = 30): Promise<LabStrategy[]> {
   const { data, error } = await supabase
     .from("lab_strategies").select("*")
+    .eq("stage", "VALIDATED")
     .order("created_at", { ascending: false }).limit(limite);
   if (error) {
     // LES DEUX FORMULATIONS. PostgREST ne dit PAS « relation does not
@@ -58,6 +59,19 @@ export async function labStrategies(limite = 30): Promise<LabStrategy[]> {
     // ecrit pour le message de PostgreSQL, ne rattrapait donc rien et
     // l'ecran Laboratoire levait l'erreur — constate le 26 septembre,
     // la table n'ayant jamais ete creee.
+    if (tableAbsente(error)) return [];
+    throw error;
+  }
+  return (data ?? []) as LabStrategy[];
+}
+
+/** Toutes les stratégies validées, sans couper l'historique à 30/50 lignes. */
+export async function labStrategiesValidees(): Promise<LabStrategy[]> {
+  const { data, error } = await supabase
+    .from("lab_strategies").select("*")
+    .eq("stage", "VALIDATED")
+    .order("created_at", { ascending: false });
+  if (error) {
     if (tableAbsente(error)) return [];
     throw error;
   }

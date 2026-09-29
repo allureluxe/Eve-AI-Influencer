@@ -461,6 +461,20 @@ export function EcranAgent() {
     parler("Je vous ecoute, Monsieur.");
   }, [demarrerReconnaissance]);
 
+  const interrompreAlluxe = React.useCallback(() => {
+    seTaire();
+    setErreur("");
+    parler("Oui, Monsieur.");
+  }, []);
+
+  const estCommandeArret = React.useCallback((texte: string): boolean => {
+    const mots = texte.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase()
+      .replace(/[^a-zà-ÿ\\s]/g, " ").split(/\\s+/).filter(Boolean);
+    if (!mots.length) return false;
+    const arrets = new Set(["stop", "arrete", "arretez", "silence", "tais", "taisez"]);
+    return mots.every((mot) => arrets.has(mot));
+  }, []);
+
   const basculerEcouteContinue = React.useCallback(() => {
     if (ecouteContinue) {
       setEcouteContinue(false);
@@ -486,6 +500,13 @@ export function EcranAgent() {
       propositions.find((t) => _apresAlluxe(t) !== null) ?? propositions[0];
     if (!transcription) return;
     setDernierEntendu(transcription);
+    // INTERRUPTION VOCALE : "stop", "stop stop", "arrête", "silence"...
+    // n'est jamais envoyé à l'agent. On coupe immédiatement le TTS puis
+    // on confirme brièvement, comme dans une vraie conversation.
+    if (estCommandeArret(transcription)) {
+      interrompreAlluxe();
+      return;
+    }
     if (modeEcouteRef.current === "continu") {
       const apres = _apresAlluxe(transcription);
       const encoreOuverte = Date.now() < ouverteJusqua.current;
@@ -615,7 +636,7 @@ export function EcranAgent() {
         gap: espace.xs,
         backgroundColor: conversationOuverte ? c.jauneAplat : c.creux,
         borderRadius: rayon.s, paddingVertical: espace.m,
-        marginHorizontal: espace.l, marginBottom: espace.m,
+        marginHorizontal: espace.l, marginBottom: espace.s,
       }}>
         <Ionicons name="mic" size={18}
                   color={conversationOuverte ? c.surJaune : c.encre} />
@@ -624,6 +645,15 @@ export function EcranAgent() {
                                : "Parler a Alluxe (sans dire son nom)"}
         </T>
       </Pressable>
+
+      {conversationOuverte && <Pressable onPress={interrompreAlluxe} style={{
+        flexDirection: "row", alignItems: "center", justifyContent: "center",
+        gap: espace.xs, backgroundColor: c.perte, borderRadius: rayon.s,
+        paddingVertical: espace.s, marginHorizontal: espace.l, marginBottom: espace.m,
+      }}>
+        <Ionicons name="stop-circle-outline" size={18} color="#fff" />
+        <T v="petit" couleur="#fff">STOP — interrompre Alluxe</T>
+      </Pressable>}
 
       {/* CE QUE LE TELEPHONE A VRAIMENT ENTENDU.
           Tant que ca n'etait pas affiche, une phrase ignoree parce que le

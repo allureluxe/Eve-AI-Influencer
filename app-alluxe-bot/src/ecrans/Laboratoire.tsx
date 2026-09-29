@@ -1,10 +1,10 @@
 import React from "react";
-import { RefreshControl, ScrollView, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import Svg, { Polyline, Line, Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Carte, EnTete, T, Vide, useCouleurs } from "../composants/base";
 import { espace, rayon } from "../theme";
-import { labStatus, labStrategies, labResearch, ecouterLab, LabStatus, LabStrategy, LabResearch } from "../services/lab";
+import { labStatus, labStrategiesValidees, labResearch, ecouterLab, LabStatus, LabStrategy, LabResearch } from "../services/lab";
 
 const LABELS: Record<string,string> = {
   IDLE:"EN ATTENTE", IDEATED:"IDÉE", BACKTEST:"BACKTEST",
@@ -113,13 +113,15 @@ export function EcranLaboratoire() {
   const marges=useSafeAreaInsets();
   const [status,setStatus]=React.useState<LabStatus|null>(null);
   const [items,setItems]=React.useState<LabStrategy[]>([]);
+  const [validatedItems,setValidatedItems]=React.useState<LabStrategy[]>([]);
   const [research,setResearch]=React.useState<LabResearch[]>([]);
   const [refreshing,setRefreshing]=React.useState(false);
+  const [vue,setVue]=React.useState<"flux"|"validees">("flux");
 
   const charger=React.useCallback(async()=>{
     try {
-      const [s,x,recherches]=await Promise.all([labStatus(),labStrategies(50),labResearch(20)]);
-      setStatus(s); setItems(x); setResearch(recherches);
+      const [s,valides,recherches]=await Promise.all([labStatus(),labStrategiesValidees(),labResearch(20)]);
+      setStatus(s); setItems(valides); setValidatedItems(valides); setResearch(recherches);
     } catch {}
   },[]);
 
@@ -128,9 +130,18 @@ export function EcranLaboratoire() {
     const arreterTempsReel = ecouterLab(
       (nouveau) => setStatus(nouveau),
       (nouvelle) => {
+        if (nouvelle.stage !== "VALIDATED") {
+          setItems((avant) => avant.filter((x) => x.strategy_id !== nouvelle.strategy_id));
+          setValidatedItems((avant) => avant.filter((x) => x.strategy_id !== nouvelle.strategy_id));
+          return;
+        }
         setItems((avant) => {
           const sans = avant.filter((x) => x.strategy_id !== nouvelle.strategy_id);
-          return [nouvelle, ...sans].slice(0, 50);
+          return [nouvelle, ...sans];
+        });
+        setValidatedItems((avant) => {
+          const sans = avant.filter((x) => x.strategy_id !== nouvelle.strategy_id);
+          return [nouvelle, ...sans];
         });
       },
     );
@@ -151,6 +162,15 @@ export function EcranLaboratoire() {
   const avgWin=winItems.length ? winItems.reduce((s,x)=>s+num(x.backtest?.win_rate),0)/winItems.length : 0;
   const validated=items.filter(x=>x.stage==="VALIDATED").length;
   const candidates=items.filter(x=>["CANDIDATE","FORWARD_TEST","INCUBATION"].includes(x.stage)).length;
+  const classementValidees=React.useMemo(() => [...validatedItems].sort((a,b)=>{
+    const af=a.forward_test ?? {}; const bf=b.forward_test ?? {};
+    const score=(x:Record<string,any>) =>
+      num(x.return_pct)*0.35 + num(x.profit_factor)*8*0.30 + num(x.win_rate)*0.15
+      + num(x.payoff)*2*0.10 - num(x.max_drawdown_pct)*0.10;
+    return score(bf)-score(af)
+      || (num(bf.return_pct,-1e9)-num(af.return_pct,-1e9))
+      || (num(bf.profit_factor,-1e9)-num(af.profit_factor,-1e9));
+  }), [validatedItems]);
 
   return <ScrollView style={{backgroundColor:c.fond}}
     contentContainerStyle={{padding:espace.l,paddingTop:marges.top+espace.m,paddingBottom:marges.bottom+espace.xxl}}
@@ -176,6 +196,19 @@ export function EcranLaboratoire() {
       <Stat titre="VALIDÉES" valeur={status?.validated ?? validated}/>
     </View>
 
+    <Carte style={{marginBottom:espace.m}}>
+      <View style={{flexDirection:"row",gap:8}}>
+        {([["flux","Laboratoire"],["validees","Stratégies validées"]] as const).map(([cle,libelle]) => {
+          const actif = vue === cle;
+          return <Pressable key={cle} onPress={() => setVue(cle)} style={{flex:1,paddingVertical:espace.s,paddingHorizontal:espace.m,borderRadius:rayon.l,alignItems:"center",backgroundColor:actif?c.jauneAplat:c.surface,borderWidth:actif?0:1,borderColor:c.filetDoux}}>
+            <T v="petit" couleur={actif?c.surJaune:c.encreDouce}>{libelle}</T>
+          </Pressable>;
+        })}
+      </View>
+      <T v="petit" style={{marginTop:espace.s}}>Le carnet ne contient ici que les stratégies VALIDATED. Les anciennes stratégies restent conservées côté historique mais ne sont pas affichées.</T>
+    </Carte>
+
+    {vue === "flux" ? <View>
     <Carte style={{marginBottom:espace.m}}>
       <T v="etiquette">CONSOLE EN DIRECT</T>
       <View style={{flexDirection:"row",alignItems:"center",marginTop:espace.m}}>
@@ -234,6 +267,38 @@ export function EcranLaboratoire() {
     <T v="etiquette" style={{marginBottom:espace.m}}>CARNET DES STRATÉGIES</T>
     {items.length ? items.map(x=><Ligne key={x.strategy_id} item={x}/>) :
       <Vide titre="Aucune stratégie enregistrée" detail="Le laboratoire commencera à remplir le carnet dès que son service sera lancé."/>}
+
+    </View> : <View>
+      <T v="etiquette" style={{marginBottom:espace.m}}>STRATÉGIES VALIDÉES · CLASSEMENT GLOBAL</T>
+      <Carte accent style={{marginBottom:espace.m}}>
+        <T v="sousTitre">Promotion automatique DEMO 2</T>
+        <T v="petit" style={{marginTop:4}}>Le numéro 1 est automatiquement testé sur DEMO 2 avec 1 000 € virtuels. Une nouvelle stratégie ne remplace la précédente que si son résultat forward est supérieur.</T>
+      </Carte>
+      {classementValidees.length ? classementValidees.map((x,i)=>{
+        const f=x.forward_test ?? {}; const b=x.backtest ?? {};
+        return <Carte key={x.strategy_id} style={{marginBottom:espace.m}}>
+          <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}>
+            <View style={{flexDirection:"row",alignItems:"center",flex:1}}>
+              <View style={{width:34,height:34,borderRadius:17,backgroundColor:i===0?c.jaune:c.creux,alignItems:"center",justifyContent:"center",marginRight:10}}>
+                <T v="sousTitre" couleur={i===0?c.surJaune:c.encre}>{i+1}</T>
+              </View>
+              <View style={{flex:1}}>
+                <T v="sousTitre" numberOfLines={1}>{String(x.params?.name ?? x.strategy_id)}</T>
+                <T v="petit" numberOfLines={1}>{x.strategy_id}</T>
+              </View>
+            </View>
+            {i===0 ? <T v="etiquette" couleur={c.gain}>DEMO 2 · 1 000 €</T> : null}
+          </View>
+          <View style={{flexDirection:"row",gap:8,marginTop:espace.m}}>
+            <Stat titre="FWD %" valeur={`${num(f.return_pct).toFixed(2)} %`} compact/>
+            <Stat titre="FWD PF" valeur={num(f.profit_factor).toFixed(2)} compact/>
+            <Stat titre="FWD DD" valeur={`${num(f.max_drawdown_pct).toFixed(2)} %`} compact/>
+            <Stat titre="BT %" valeur={`${num(b.return_pct).toFixed(2)} %`} compact/>
+          </View>
+          <T v="legende" style={{marginTop:espace.s}}>Famille {String(x.params?.famille ?? "—")} · {num(f.trades)} trades forward · validée {new Date(x.created_at).toLocaleDateString()}</T>
+        </Carte>;
+      }) : <Vide titre="Aucune stratégie validée" detail="Le labo alimentera automatiquement ce classement."/>}
+    </View>}
 
     <Carte style={{marginTop:espace.s}}>
       <T v="etiquette">RÈGLES DU LABO</T>

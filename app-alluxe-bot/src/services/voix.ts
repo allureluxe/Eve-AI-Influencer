@@ -32,6 +32,22 @@ const MASCULINES = ["frd", "frb", "frc", "-male", "male"];
 
 let voixChoisie: string | undefined;
 let rechercheFaite = false;
+let generationParole = 0;
+
+/** Le TTS ne lit pas la mise en forme destinée à l'écran. */
+function nettoyerPourLaVoix(texte: string): string {
+  return texte
+    .replace(/\\*\\*(.*?)\\*\\*/g, "$1")
+    .replace(/\\*(.*?)\\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/_([^_]+)_/g, "$1")
+    .replace(/\x60([^\x60]+)\x60/g, "$1")
+    .replace(/^\\s*[-*+]\\s+/gm, "")
+    .replace(/^\\s*#{1,6}\\s+/gm, "")
+    .replace(/\\[([^\\]]+)\\]\\([^)]*\\)/g, "$1")
+    .replace(/\\s+/g, " ")
+    .trim();
+}
 
 async function choisirLaVoix(): Promise<string | undefined> {
   if (rechercheFaite) return voixChoisie;
@@ -64,9 +80,13 @@ async function choisirLaVoix(): Promise<string | undefined> {
 
 /** Fait parler Alluxe. Remplace tout appel direct a Speech.speak. */
 export async function parler(texte: string): Promise<void> {
-  if (!texte || !texte.trim()) return;
+  const propre = nettoyerPourLaVoix(texte);
+  if (!propre) return;
+  const generation = ++generationParole;
+  Speech.stop();
   const voice = await choisirLaVoix();
-  Speech.speak(texte, {
+  if (generation !== generationParole) return;
+  Speech.speak(propre, {
     language: "fr-FR",
     pitch: GRAVITE,
     rate: DEBIT,
@@ -75,6 +95,7 @@ export async function parler(texte: string): Promise<void> {
 }
 
 export function seTaire(): void {
+  generationParole += 1;
   Speech.stop();
 }
 

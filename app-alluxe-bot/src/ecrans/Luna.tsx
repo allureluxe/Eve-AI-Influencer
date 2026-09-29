@@ -98,7 +98,9 @@ function BarreSections({ actif, surChoix }: {
     <View style={{ flexDirection: "row", gap: espace.s, marginBottom: espace.l }}>
       {([
         ["dashboard", "Pilotage"],
+        ["projet", "Projet"],
         ["creer", "Créer"],
+        ["creations", "Créations"],
         ["planning", "Planning"],
         ["personnage", "Luna"],
       ] as [Section, string][]).map(([cle, libelle]) => {
@@ -123,7 +125,7 @@ function BarreSections({ actif, surChoix }: {
   );
 }
 
-type Section = "dashboard" | "creer" | "planning" | "personnage";
+type Section = "dashboard" | "projet" | "creer" | "creations" | "planning" | "personnage";
 
 function Chiffre({ valeur, libelle }: { valeur: string; libelle: string }) {
   const c = useCouleurs();
@@ -402,13 +404,18 @@ function Pill({ texte, actif, onPress, icon }: {
   );
 }
 
-function CarteCreation({ surCreer, envoi, enCours }: {
+function CarteCreation({ surCreer, envoi, enCours, formatInitial }: {
   surCreer: (spec: Creation) => Promise<void>;
   envoi: boolean;
   enCours: boolean;
+  formatInitial?: FormatLuna;
 }) {
   const c = useCouleurs();
-  const [format, setFormat] = React.useState<FormatLuna>("feed_photo");
+  const [format, setFormat] = React.useState<FormatLuna>(formatInitial ?? "feed_photo");
+
+  React.useEffect(() => {
+    if (formatInitial) setFormat(formatInitial);
+  }, [formatInitial]);
   const [plateforme, setPlateforme] = React.useState<PlateformeLuna>("instagram");
   const [lieu, setLieu] = React.useState<TypeLieu | null>(null);
   const [highlight, setHighlight] = React.useState("Metz");
@@ -559,6 +566,7 @@ export function EcranLuna() {
   const [envoi, setEnvoi] = React.useState(false);
   const [rafraichit, setRafraichit] = React.useState(false);
   const [section, setSection] = React.useState<Section>("dashboard");
+  const [projetFormat, setProjetFormat] = React.useState<FormatLuna>("feed_photo");
 
   const charger = React.useCallback(async () => {
     try {
@@ -586,7 +594,7 @@ export function EcranLuna() {
     try {
       await demanderGeneration(spec.demande, spec);
       await charger();
-      setSection("planning");
+      setSection("creations");
     } catch (err: any) {
       setErreur(err?.message ?? "Impossible de creer le job");
     } finally {
@@ -660,6 +668,24 @@ export function EcranLuna() {
         </>
       )}
 
+      {section === "projet" && (
+        <>
+          <Carte accent style={{marginBottom:espace.m}}>
+            <T v="titre">Projet Luna</T>
+            <T v="petit" couleur={c.encreDouce} style={{marginTop:3}}>Créer et piloter les contenus du projet par format.</T>
+            <View style={{flexDirection:"row",gap:8,marginTop:espace.m}}>
+              {([["feed_photo","Post"],["story","Story"],["reel","Reel"]] as [FormatLuna,string][]).map(([format,label]) => {
+                const actif = projetFormat === format;
+                return <Pressable key={format} onPress={() => setProjetFormat(format)} style={{flex:1,paddingVertical:espace.m,borderRadius:rayon.l,alignItems:"center",backgroundColor:actif?c.jauneAplat:c.surface,borderWidth:actif?0:1,borderColor:c.filetDoux}}>
+                  <T v="petit" couleur={actif?c.surJaune:c.encreDouce}>{label}</T>
+                </Pressable>;
+              })}
+            </View>
+          </Carte>
+          <CarteCreation surCreer={surCreer} envoi={envoi} enCours={enCours} formatInitial={projetFormat} />
+        </>
+      )}
+
       {section === "creer" && (
         <>
           <CarteCreation surCreer={surCreer} envoi={envoi} enCours={enCours} />
@@ -672,6 +698,27 @@ export function EcranLuna() {
               Le contenu photoréaliste reste identifié comme IA dans les métadonnées prévues.
             </T>
           </Carte>
+        </>
+      )}
+
+      {section === "creations" && (
+        <>
+          <Carte accent style={{ marginBottom: espace.l }}>
+            <T v="sousTitre">Mes créations</T>
+            <T v="petit" couleur={c.encreDouce} style={{ marginTop: 3 }}>
+              Tous les contenus créés apparaissent ici, qu’ils soient en attente, en génération, terminés ou en échec. L’écran se rafraîchit automatiquement.
+            </T>
+            <View style={{ flexDirection: "row", marginTop: espace.m }}>
+              <Chiffre valeur={String((liste ?? []).length)} libelle="créations" />
+              <Chiffre valeur={String((liste ?? []).filter((p) => p.statut === "terminee").length)} libelle="terminées" />
+              <Chiffre valeur={String((liste ?? []).filter((p) => p.statut === "en_attente" || p.statut === "en_cours").length)} libelle="en cours" />
+            </View>
+          </Carte>
+
+          {(liste ?? []).length === 0
+            ? <Vide titre="Aucune création pour le moment" detail="Utilise « Créer » pour lancer une Story, une publication Instagram ou un autre contenu." />
+            : (liste ?? []).map((pub) => <CartePublication key={pub.id} pub={pub} />)
+          }
         </>
       )}
 

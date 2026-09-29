@@ -1,5 +1,5 @@
 /**
- * Onglet Demo -- TROIS simulations a 3 300 EUR, en parallele.
+ * Onglet Demo -- trois simulations isolees, avec DEMO 2 a 1 000 EUR.
  *
  * Demande de l'operateur le 20 septembre : « 3 onglets dans le mode
  * demo — demo 1, demo 2, demo 3 — et le nom de la methode utilisee avec
@@ -34,12 +34,12 @@ import { etagesAffiches, gainTotalEnDirect, resteAInvestir } from "../composants
 import { CourbeCapital } from "../composants/CourbeCapital";
 import { CleCompte, ChoixCompte, COMPTES } from "../composants/ChoixCompte";
 
-// Repli quand la fiche du compte n'est pas encore lue. Les trois
-// simulations partent de 3 300 EUR (decision de l'operateur, 20 sept. :
-// « les 3 comptes doivent avoir une mise de depart de 3 300 € »). La
-// valeur reelle vient de `alluxe_bot_comptes`, publiee par le robot
-// lui-meme -- l'application ne la devine pas.
+// Repli quand la fiche du compte n'est pas encore lue. DEMO 2 est le
+// banc d'essai du Lab et doit toujours repartir a 1 000 EUR ; DEMO 1 et
+// DEMO 3 restent a 3 300 EUR. La valeur vivante vient ensuite de
+// `alluxe_bot_comptes`, publiee par chaque simulateur.
 const CAPITAL_DEMO_EUR = 3300;
+const CAPITAL_DEPART_PAR_COMPTE: Record<string, number> = { demo: 3300, demo2: 1000, demo3: 3300 };
 
 // Les chiffres historiques sont reconstruits depuis les trades fermes corriges
 // (profit_eur net), pas depuis une ancienne valeur de cache serveur.
@@ -63,10 +63,10 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   const [descendant, setDescendant] = React.useState(true);
 
   const { positions, prixLive, erreur, rafraichir } =
-    useSuiviPositions(true, CAPITAL_DEMO_EUR, compte);
+    useSuiviPositions(true, CAPITAL_DEPART_PAR_COMPTE[compte] ?? CAPITAL_DEMO_EUR, compte);
 
   const fiche = fiches[compte];
-  const capitalDepart = fiche?.capital_depart ?? CAPITAL_DEMO_EUR;
+  const capitalDepart = fiche?.capital_depart ?? (CAPITAL_DEPART_PAR_COMPTE[compte] ?? CAPITAL_DEMO_EUR);
 
   const chargerFiches = React.useCallback(async () => {
     try {
@@ -160,7 +160,7 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
           continue;
         }
         try { resultats[cle] = capitalReconstruit(cle); }
-        catch { resultats[cle] = f.capital_depart ?? CAPITAL_DEMO_EUR; }
+        catch { resultats[cle] = f.capital_depart ?? (CAPITAL_DEPART_PAR_COMPTE[cle] ?? CAPITAL_DEMO_EUR); }
       }
       if (vivant) setCapitaux(resultats);
     })();
@@ -261,7 +261,15 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
         depart,
         prixDemoLive,
       );
-      resultat[cle] = depart + encaisse + latent;
+      // Le P/L latent est calcule sur le prix, tandis que le simulateur
+      // a deja preleve la commission d'entree dans son solde. Cette
+      // commission reste a la charge du capital tant que la position est
+      // ouverte ; elle ne doit donc pas disparaitre du calcul d'equity.
+      const fraisEntree = ouverts.reduce((somme, p) => {
+        if (p.volume == null || p.volume <= 0 || p.entry_price <= 0) return somme;
+        return somme + p.volume * p.entry_price * COMMISSION_DEMO_PCT;
+      }, 0);
+      resultat[cle] = depart + encaisse + latent - fraisEntree;
     }
     return resultat;
   }, [fiches, positionsParCompte, prixDemoLive]);
