@@ -204,12 +204,21 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
   // restent utiles pour le detail, mais ne doivent plus reconstruire le
   // capital : les anciennes lignes sans profit_eur peuvent etre
   // incompletes (frais/arrondis/pyramides).
+  // Le capital publie est la source de verite de l'equity. Le montant
+  // « encaisse » doit rester coherent avec ce gros chiffre : capital courant
+  // = capital de depart + gain realise + P/L latent.
+  // Avant, l'ecran lisait encaisse_eur pour une ligne et capital_eur
+  // pour l'autre ; une fiche serveur incoherente pouvait donc afficher
+  // 1 000 EUR de capital ET 1 000 EUR encaisses sur un compte parti de 1 000 EUR.
   const gainRealise = React.useMemo(() => {
+    if (fiche?.capital_eur != null) {
+      return fiche.capital_eur - capitalDepart - gainTotal;
+    }
     if (fiche?.encaisse_eur != null) return fiche.encaisse_eur;
     if (!fermees) return 0;
     return fermees.reduce(
       (somme, t) => somme + (gainRealiseDe(t, capitalDepart) ?? 0), 0);
-  }, [fiche?.encaisse_eur, fermees, capitalDepart]);
+  }, [fiche?.capital_eur, fiche?.encaisse_eur, fermees, capitalDepart, gainTotal]);
 
   const fraisEntreeOuverts = React.useMemo(() =>
     (positions ?? []).reduce((somme, p) => {
@@ -274,8 +283,10 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
     return resultat;
   }, [fiches, positionsParCompte, prixDemoLive]);
 
+  // Le gros chiffre reprend toujours la valeur publiee du serveur
+  // quand elle existe. La reconstruction locale ne sert qu'au repli.
   const capitalAfficheDynamique =
-    capitauxDynamique[compte] ?? capitalAffiche;
+    fiche?.capital_eur ?? capitauxDynamique[compte] ?? capitalAffiche;
 
 
   const reste = React.useMemo(
