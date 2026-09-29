@@ -308,3 +308,4 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
     </ScrollView>
   );
 }
+
