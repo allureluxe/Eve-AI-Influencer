@@ -131,15 +131,21 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   // Repli sur le dernier releve du serveur tant que `cash_eur` n'est
   // pas arrive : mieux vaut un chiffre en retard que pas de chiffre.
   const capitalVivant = React.useMemo(() => {
-    if (fiche?.cash_eur == null || !positions) {
-      return capitalEtat?.capital_eur ?? null;
+    // Sans positions reelles publiees, ne pas afficher le seul cash_eur :
+    // les cryptos detenues sur Bitvavo peuvent ne pas etre des lignes signals.
+    // Le releve d'equity serveur est alors la source de verite du capital total.
+    if (!positions || positions.length === 0) {
+      return capitalEtat?.capital_eur ?? fiche?.capital_eur ?? null;
+    }
+    if (fiche?.cash_eur == null) {
+      return capitalEtat?.capital_eur ?? fiche?.capital_eur ?? null;
     }
     const detenu = positions.reduce((somme, p) => {
       const prix = prixLive[p.pair] ?? p.entry_price;
       return somme + (p.volume ?? 0) * prix;
     }, 0);
     return fiche.cash_eur + detenu;
-  }, [fiche?.cash_eur, positions, prixLive, capitalEtat]);
+  }, [fiche?.cash_eur, fiche?.capital_eur, positions, prixLive, capitalEtat]);
 
   // « EN COURS » : le gain latent des positions ouvertes, au cours du
   // moment. Le meme calcul qu'en demo, le meme composant partage.
