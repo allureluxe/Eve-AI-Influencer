@@ -130,14 +130,15 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   //
   // Repli sur le dernier releve du serveur tant que `cash_eur` n'est
   // pas arrive : mieux vaut un chiffre en retard que pas de chiffre.
+  // CAPITAL REEL : capital de départ + résultat REALISE.
+  // Le latent des positions ouvertes est affiché séparément dans
+  // « en cours » et ne doit jamais faire bouger le gros chiffre.
+  const gainEncaisse = fiche?.encaisse_eur ?? 0;
+
   const capitalVivant = React.useMemo(() => {
-    // Pour le compte réel, la fiche alluxe_bot_comptes est la source de
-    // vérité de l'equity totale Bitvavo. Ne jamais privilégier etat_public
-    // (qui peut être un ancien snapshot) ni cash_eur (qui exclut les actifs
-    // crypto détenus hors des lignes signals).
-    // La fiche publiée par le battement contient déjà cash + actifs valorisés.
-    return fiche?.capital_eur ?? capitalEtat?.capital_eur ?? null;
-  }, [fiche?.capital_eur, capitalEtat]);
+    if (fiche) return depart + gainEncaisse;
+    return capitalEtat?.capital_eur ?? null;
+  }, [fiche, depart, gainEncaisse]);
 
   // « EN COURS » : le gain latent des positions ouvertes, au cours du
   // moment. Le meme calcul qu'en demo, le meme composant partage.
@@ -160,9 +161,7 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   // Donc réalisé = capital actuel - départ - latent.
   // Exemple : 1 000 € de départ, 1 000 € de capital, 0 € latent =>
   // 0 € encaissés (et surtout pas 1 000 €).
-  const gainEncaisse = fiche?.encaisse_eur ?? (
-    capitalVivant == null || depart <= 0 ? null : capitalVivant - depart - gainLatent
-  );
+
 
   // Les etages se deduisent de la LISTE ENTIERE, pas d'une ligne isolee :
   // deux achats de la meme crypto sont deux etages, meme quand chaque
@@ -309,4 +308,4 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
 }
 
 // Source de verite du capital reel: alluxe_bot_comptes.capital_eur.
-\n// Rebuild marker: capital reel = fiche alluxe_bot_comptes.capital_eur; encaisse = encaisse_eur.\n
+// Rebuild marker: capital reel = depart + encaisse_eur; encaisse = encaisse_eur.
