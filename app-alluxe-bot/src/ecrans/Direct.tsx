@@ -69,8 +69,10 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   // l'application ne connait pas le solde en euros. C'est le serveur qui
   // le sait, et il le republie toutes les cinq minutes.
   //
-  // On le relit donc au meme rythme. Trente secondes : assez pour que le
-  // chiffre vive, assez peu pour ne pas interroger la base en boucle.
+  // Le serveur reste la source de verite du CASH, mais le capital total
+  // est recalcule localement a chaque cotation : cash + valeur des cryptos.
+  // Ainsi le gros chiffre suit les prix Bitvavo sans attendre le releve
+  // serveur toutes les cinq minutes.
   React.useEffect(() => {
     let vivant = true;
     const lire = () => {
@@ -85,6 +87,8 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
     lireFiche();
     historique(100).then((h) => { if (vivant) setFermees(h); })
                    .catch(() => { if (vivant) setFermees([]); });
+    // Le cash peut changer (depot/retrait/ordre) : on le relit periodiquement.
+    // La valeur des positions, elle, vient de prixLive et bouge toutes les 3 s.
     const minuteur = setInterval(() => { lire(); lireFiche(); }, 30_000);
     return () => { vivant = false; clearInterval(minuteur); };
   }, []);
@@ -135,12 +139,25 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   // « en cours » et ne doit jamais faire bouger le gros chiffre.
   const gainEncaisse = fiche?.encaisse_eur ?? 0;
 
-  // CAPITAL REEL = valeur totale actuelle du compte Bitvavo.
-  // Le latent est affiche séparément, mais fait partie de la valeur actuelle.
-  const capitalVivant = React.useMemo(
-    () => fiche?.capital_eur ?? capitalEtat?.capital_eur ?? null,
-    [fiche, capitalEtat],
-  );
+  // CAPITAL REEL EN DIRECT = CASH Bitvavo + valeur des quantites réellement
+  // détenues, évaluées avec les prix Bitvavo déjà rafraîchis toutes les 3 s.
+  // On retombe sur le dernier capital serveur si une quantité ou un prix
+  // manque, pour ne jamais afficher un total partiel.
+  const capitalVivant = React.useMemo(() => {
+    const cash = fiche?.cash_eur;
+    if (cash == null) return fiche?.capital_eur ?? capitalEtat?.capital_eur ?? null;
+    if (!positions || positions.length === 0) return cash;
+    const valeurs = positions.map((p) => {
+      if (p.volume == null) return null;
+      const prix = prixLive[p.pair];
+      if (prix == null || !Number.isFinite(prix)) return null;
+      return p.volume * prix;
+    });
+    if (valeurs.some((v) => v == null)) {
+      return fiche?.capital_eur ?? capitalEtat?.capital_eur ?? null;
+    }
+    return cash + (valeurs as number[]).reduce((total, valeur) => total + valeur, 0);
+  }, [fiche, capitalEtat, positions, prixLive]);
 
   // EN COURS = variation non réalisée depuis le capital de départ,
   // après déduction du P&L déjà encaissé.
@@ -310,5 +327,5 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   );
 }
 
-// Source de verite du capital reel: alluxe_bot_comptes.capital_eur.
-// Rebuild marker: capital reel = depart + encaisse_eur; encaisse = encaisse_eur.
+// Source de verite : cash_eur Bitvavo + quantites ouvertes x prix Bitvavo live.
+// Repli : alluxe_bot_comptes.capital_eur si une donnee live manque.
