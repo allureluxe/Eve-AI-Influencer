@@ -3,7 +3,7 @@
   "_note": "Cree le 18 sept. a la demande de l'operateur : simuler la strategie D1 Turtle avec 500 EUR virtuels, sur les VRAIES cotations Bitvavo en direct, avant de deposer les 500 EUR reels. Memes reglages strategie/risque/trade que robot.bitvavo.json -- seul le lieu d'execution change (paper au lieu de bitvavo). univers_dynamique_bitvavo=true pour scanner le meme univers ~215 cryptos que le robot reel (voir gold_bot/engine.py, ce reglage est desactive par defaut partout ailleurs pour ne jamais faire d'appel reseau dans les tests).",
   "engine": {
     "broker": "paper",
-    "start_balance": 3300.0,
+    "start_balance": 1000.0,
     "currency": "EUR",
     "univers_dynamique_bitvavo": true,
     "dry_run": true,
@@ -14,8 +14,8 @@
     "heartbeat_minutes": 30.0,
     "daily_report_hour": 21,
     "symbols": [],
-    "verbose_scan": true,
-    "scan_workers": 16
+    "verbose_scan": false,
+    "scan_workers": 6
   },
   "strategy": {
     "mode": "quorum",
@@ -54,16 +54,17 @@
     "w_macro": 0.06,
     "w_news": 0.07,
     "history": 300,
-    "famille": "momentum",
+    "famille": "donchian",
     "donchian_entrees": [
-      10
+      6
     ],
-    "donchian_sortie": 10,
+    "donchian_sortie": 5,
     "donchian_filtre_precedent": false,
     "donchian_momentum_max_pct": 0.0,
     "momentum_formation": 28,
     "momentum_seuil_pct": 0.0,
-    "momentum_detention": 5
+    "momentum_detention": 5,
+    "strategie_famille": "donchian"
   },
   "risk": {
     "base_risk_pct": 0.6,
@@ -149,5 +150,13 @@
     "volume_plafond": 0.0
   },
   "_temoin": "Compte 2, 20 sept. : identique au compte 1 SAUF la limite par famille de cryptos (1 ici, aucune la-bas). Mesure sur 30 paires / 600 jours : +168 EUR contre +1, et recul divise par deux. Une seule periode -- ce compte EST la verification.",
-  "_methode": "momentum de series temporelles : achat si hausse sur 28 jours, sortie a date fixe au 5e jour. Source ACFR, dec. 2013 - aout 2023. Mesure chez nous le 20 sept. : +7,2 % et +9,0 % sur deux periodes, reculs 65,7 % et 39,1 %."
+  "_methode": "momentum de series temporelles : achat si hausse sur 28 jours, sortie a date fixe au 5e jour. Source ACFR, dec. 2013 - aout 2023. Mesure chez nous le 20 sept. : +7,2 % et +9,0 % sur deux periodes, reculs 65,7 % et 39,1 %.",
+  "_demo2_promotion": {
+    "strategy_id": "prospector-breakout-feb5761f90a8a862",
+    "fingerprint": "feb5761f90a8a862",
+    "name": "donchian_10_v125",
+    "promoted_at": "2026-09-28T17:13:43Z",
+    "capital_initial_eur": 1000.0,
+    "source": "strategy_lab_validated"
+  }
 }
