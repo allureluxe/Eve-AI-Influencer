@@ -308,6 +308,66 @@ def _capital_bitvavo() -> float | None:
     return total
 
 
+
+def _portefeuille_reel() -> tuple[list[dict], float]:
+    """Portefeuille REEL: avoirs Bitvavo + prix de revient du robot.
+
+    Les signaux Supabase ne sont pas la source de verite d'une position
+    reelle: un ordre peut etre execute, partiellement vendu, ou rester en
+    reliquat alors que son signal est deja ferme. Bitvavo donne la quantite
+    detenue; `state.json` porte le prix d'entree du robot pour cette quantite.
+    """
+    soldes = _avoirs_bitvavo()
+    if soldes is None:
+        return [], 0.0
+    try:
+        etat = json.loads(Path("data/state.json").read_text())
+    except Exception:
+        return [], 0.0
+    meta = etat.get("position_meta") or {}
+    positions: list[dict] = []
+    latent = 0.0
+    for solde in soldes:
+        actif = str(solde.get("symbol") or "")
+        if actif == "EUR":
+            continue
+        quantite = float(solde.get("available", 0) or 0) + float(solde.get("inOrder", 0) or 0)
+        if quantite <= 0:
+            continue
+        prix = _cours(actif)
+        m = meta.get(actif + "USD") or meta.get(actif + "EUR")
+        if not m or prix is None:
+            # Les poussières sans prix de revient ne sont pas des positions
+            # du robot. Elles restent incluses dans l'equity Bitvavo.
+            continue
+        entree = float(m.get("entry_price") or 0)
+        if entree <= 0:
+            continue
+        stop = float(m.get("stop_loss") or entree)
+        p = {
+            "id": f"portefeuille:{actif}",
+            "reference": f"REEL:{actif}",
+            "pair": f"{actif}/EUR",
+            "side": "buy",
+            "entry_price": entree,
+            "stop_loss": stop,
+            "take_profit_1": None,
+            "take_profit_2": None,
+            "position_size_pct": None,
+            "capital_eur": None,
+            "volume": quantite,
+            "stop_loss_actuel": stop,
+            "published_at": dt.datetime.fromtimestamp(float(m.get("opened_at") or time.time()), dt.timezone.utc).isoformat(),
+            "status": "active",
+            "closed_at": None,
+            "result_pct": None,
+            "profit_eur": None,
+        }
+        positions.append(p)
+        latent += quantite * (prix - entree)
+    positions.sort(key=lambda x: x["pair"])
+    return positions, latent
+
 def _solde_du_compte(compte: str) -> float | None:
     """Le liquide seul, sans le gain latent. Frais d'achat deduits."""
     chemin = _fichier_etat(compte)
@@ -440,6 +500,8 @@ def publier(compte: str, fichier: str) -> bool:
         cash = _cash_bitvavo()
         if cash is not None:
             corps["cash_eur"] = round(cash, 2)
+    depart = float(corps["capital_depart"] or 0.0)
+
     # LE CAPITAL VA MAINTENANT EN BASE.
     #
     # Il n'y allait pas le 21 septembre : la colonne n'existait pas
@@ -455,45 +517,26 @@ def publier(compte: str, fichier: str) -> bool:
     if capital is not None:
         corps["capital_eur"] = round(capital, 2)
 
-    # CE QUI EST VRAIMENT DANS LA CAISSE.
-    #
-    # L'application additionnait les benefices des trades fermes pour
-    # afficher « X EUR encaisses ». Deux choses manquaient a ce total, et
-    # l'operateur les a vues le 22 septembre en comparant ses ecrans au
-    # serveur (128,28 affiches pour 117,08 reels) :
-    #
-    #   - les arrondis des pourcentages publies, ~3 EUR sur 7 trades ;
-    #   - surtout, LES FRAIS D'ACHAT DES POSITIONS ENCORE OUVERTES.
-    #     `ClosedTrade.profit` ne deduit que les frais de VENTE ; ceux
-    #     d'achat sont preleves a l'ouverture et n'apparaissent donc
-    #     dans aucun trade ferme. Sur la demo 2, 25 positions ouvertes
-    #     depuis le debut : 7,93 EUR deja payes, invisibles.
-    #
-    # Le solde du simulateur, lui, les porte tous. C'est le seul chiffre
-    # qui ne se reconstitue pas — et c'est celui sur lequel le robot
-    # dimensionne ses positions.
-    solde = _solde_du_compte(compte) if compte != "reel" else _capital_bitvavo()
-    depart = corps["capital_depart"]
-    if solde is not None and depart > 0:
-        realise_publie = _realise_publie(url, cle, compte)
-        if realise_publie is not None:
-            # « Encaisses » = P&L realise des trades clotures, jamais le
-            # solde en euros et jamais le capital de depart.
-            corps["encaisse_eur"] = realise_publie
-        elif compte != "reel":
-            # Repli uniquement si Supabase ne peut pas fournir les signaux.
-            # On neutralise les frais d'entree des positions encore ouvertes.
-            try:
-                commission_pct = float(getattr(cfg.risk, "commission_pct", 0.0) or 0.0)
-            except Exception:
-                commission_pct = 0.0
-            frais_ouverture_ouverts = sum(
-                float(p.get("volume", 0.0) or 0.0)
-                * float(p.get("entry_price", 0.0) or 0.0)
-                * commission_pct
-                for p in (json.loads(_fichier_etat(compte).read_text()).get("position_meta") or {}).values()
-            )
-            corps["encaisse_eur"] = round(solde - depart + frais_ouverture_ouverts, 2)
+    # PORTEFEUILLE REEL: Bitvavo est la source de verite.
+    # `signals` reste l'historique du robot, mais ne peut pas representer
+    # les reliquats apres une vente partielle (ex. MOVR/GRASS) ni detecter
+    # un signal devenu orphelin (ex. BNT).
+    if compte == "reel":
+        portefeuille, latent = _portefeuille_reel()
+        corps["positions_reel"] = portefeuille
+        if capital is not None and depart > 0:
+            # Identite comptable: equity = depots nets + realise + latent.
+            # Ainsi "encaissé" inclut aussi les frais et ecarts que le journal
+            # de signaux peut ignorer; il ne double jamais le latent.
+            corps["encaisse_eur"] = round(capital - depart - latent, 2)
+    else:
+        # Pour les simulations, conserver la source historique des trades.
+        solde = _solde_du_compte(compte)
+        depart = corps["capital_depart"]
+        if solde is not None and depart > 0:
+            realise_publie = _realise_publie(url, cle, compte)
+            if realise_publie is not None:
+                corps["encaisse_eur"] = realise_publie
 
     try:
         requete = urllib.request.Request(

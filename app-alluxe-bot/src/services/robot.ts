@@ -159,6 +159,19 @@ export async function etagesPosition(p: Position, mode: "demo" | "reel", compte?
 }
 
 export async function positionsOuvertes(): Promise<Position[]> {
+  // En Reel, les signaux ne sont plus la source de vérité : ils peuvent
+  // être fermés alors qu'un reliquat reste chez Bitvavo, ou rester actifs
+  // après une vente exécutée. Le serveur publie donc le portefeuille réel.
+  const { data, error } = await supabase
+    .from("alluxe_bot_comptes")
+    .select("positions_reel")
+    .eq("compte", "reel")
+    .maybeSingle();
+  if (!error && Array.isArray(data?.positions_reel)) {
+    return data.positions_reel as Position[];
+  }
+  // Repli temporaire pour les anciennes bases / migrations non encore
+  // visibles : on conserve l'ancien affichage plutôt que de masquer tout.
   return lirePositions((colonnes) => supabase
     .from("signals")
     .select(colonnes)
@@ -336,6 +349,8 @@ export interface CompteDemo {
    *
    *  `null` pour les simulations, qui tiennent leur solde autrement. */
   cash_eur: number | null;
+  /** Portefeuille réel réconcilié par le serveur avec Bitvavo. */
+  positions_reel?: Position[] | null;
   vu_le: string;
 }
 
@@ -382,7 +397,7 @@ export async function courbeCapital(
 export async function comptesDemo(): Promise<CompteDemo[]> {
   const { data, error } = await supabase
     .from("alluxe_bot_comptes")
-    .select("compte, resume_methode, methode, capital_depart, capital_eur, encaisse_eur, cash_eur, vu_le")
+    .select("compte, resume_methode, methode, capital_depart, capital_eur, encaisse_eur, cash_eur, positions_reel, vu_le")
     .order("compte");
   if (error) {
     // Table pas encore migree : on ne casse pas l'ecran pour autant.
