@@ -241,3 +241,14 @@ class TestModificationDeFichier(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_alias_ouvrir_fichier_est_expose_au_moteur():
+    from ops.agent_outils import DESCRIPTION_OUTILS_ACTION, OUTILS_ACTION
+    assert OUTILS_ACTION["ouvrir_fichier"] is OUTILS_ACTION["lire_fichier"]
+    noms = {
+        x["function"]["name"]
+        for x in DESCRIPTION_OUTILS_ACTION
+        if x.get("type") == "function"
+    }
+    assert "ouvrir_fichier" in noms

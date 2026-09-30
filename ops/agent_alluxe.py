@@ -1108,6 +1108,28 @@ def _traiter_un_message(rest: _Rest) -> bool:
     return True
 
 
+def _sources_modifiees(marqueurs: dict[str, float]) -> bool:
+    """Recharge le daemon quand son code ou celui de ses outils change.
+
+    Le service systemd reste l'autorite de redemarrage, mais un deploiement
+    sans sudo ne doit pas laisser l'agent H24 executer une ancienne version
+    indefiniment. Le processus se remplace lui-meme proprement au prochain
+    tour de boucle.
+    """
+    chemins = (
+        os.path.join(RACINE, "ops", "agent_alluxe.py"),
+        os.path.join(RACINE, "ops", "agent_outils.py"),
+    )
+    for chemin in chemins:
+        try:
+            mtime = os.path.getmtime(chemin)
+        except OSError:
+            continue
+        if mtime > marqueurs.get(chemin, mtime):
+            return True
+    return False
+
+
 def main() -> int:
     url = os.environ.get("SUPABASE_URL", "")
     cle = os.environ.get("SUPABASE_SERVICE_KEY", "")
@@ -1123,6 +1145,12 @@ def main() -> int:
           f"{AUTONOMIE_INTERVALLE_SECONDES}s")
     dernier_autonome = 0.0
     dernier_heartbeat = 0.0
+    sources = {
+        os.path.join(RACINE, "ops", "agent_alluxe.py"): os.path.getmtime(__file__),
+        os.path.join(RACINE, "ops", "agent_outils.py"): os.path.getmtime(
+            os.path.join(RACINE, "ops", "agent_outils.py")
+        ),
+    }
     while True:
         maintenant = time.monotonic()
         try:
@@ -1144,6 +1172,9 @@ def main() -> int:
             # suivant doit pouvoir reprendre sans intervention humaine.
             print(f"erreur de boucle agent : {type(e).__name__}: {e}")
             _publier_statut_agent(rest, "ERROR", detail="Erreur de boucle -- reprise automatique", last_error=str(e))
+        if _sources_modifiees(sources):
+            _publier_statut_agent(rest, "RELOADING", detail="Code agent modifie -- rechargement automatique")
+            os.execv(sys.executable, [sys.executable, __file__])
         time.sleep(RYTHME_SECONDES)
 
 

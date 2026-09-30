@@ -942,6 +942,9 @@ def etat_services(_args: dict) -> dict:
 
 
 OUTILS_ACTION = {
+    # Alias de compatibilite : certains appels LLM historiques utilisent
+    # « ouvrir_fichier ». Le nom canonique reste « lire_fichier ».
+    "ouvrir_fichier": lire_fichier,
     "lire_fichier": lire_fichier,
     "ecrire_fichier": ecrire_fichier,
     "modifier_fichier": modifier_fichier,
@@ -1081,3 +1084,14 @@ DESCRIPTION_OUTILS_ACTION = [
         "parameters": _p(titre={"type": "string"}),
     }},
 ]
+
+
+# Alias de schema pour les appels LLM historiques utilisant « ouvrir_fichier ».
+DESCRIPTION_OUTILS_ACTION.append({"type": "function", "function": {
+    "name": "ouvrir_fichier",
+    "description": "Alias de lire_fichier : lit un fichier, avec numeros de ligne.",
+    "parameters": _p(
+        chemin={"type": "string", "description": "chemin relatif au depot"},
+        depuis_la_ligne={"type": "integer"},
+        nombre_de_lignes={"type": "integer"}),
+}})
