@@ -118,6 +118,19 @@ export function chiffresDe(
  * des tests. On passe donc par `chiffresDe`, exactement comme les
  * lignes : un seul chemin, un seul resultat possible.
  */
+/**
+ * Résultat réalisé du compte réel à partir de la même equity que le capital.
+ * Identité : equity = capital de départ + réalisé + latent.
+ */
+export function resultatRealiseCompteReel(
+  capitalVivant: number | null,
+  capitalDepart: number,
+  gainLatent: number,
+): number {
+  if (capitalVivant == null) return 0;
+  return capitalVivant - capitalDepart - gainLatent;
+}
+
 export function gainTotalEnDirect(
   positions: Position[], capital: number,
   prixLive: Record<string, number>,
