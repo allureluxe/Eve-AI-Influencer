@@ -433,6 +433,69 @@ def capital_du_compte(compte: str) -> float | None:
     return float(solde) + latent
 
 
+def _synchroniser_historique_reel(url: str, cle: str) -> None:
+    """Publie le journal d'execution reel dans la table d'historique complete."""
+    chemin = Path("data/trades.jsonl")
+    if not chemin.exists():
+        return
+    try:
+        lignes = [json.loads(x) for x in chemin.read_text().splitlines() if x.strip()]
+    except Exception as exc:
+        log.warning("journal reel illisible: %s", str(exc)[:120])
+        return
+
+    import hashlib
+    corps = []
+    for trade in lignes:
+        try:
+            opened = float(trade["opened_at"])
+            closed = float(trade["closed_at"])
+            entry = float(trade["entry_price"])
+            exit_price = float(trade["exit_price"])
+            volume = float(trade["volume"])
+            side = str(trade.get("side", "BUY")).upper()
+            sens = -1.0 if side == "SELL" else 1.0
+            pct = ((exit_price - entry) / entry * 100.0 * sens) if entry > 0 else 0.0
+            stable = json.dumps(trade, sort_keys=True, separators=(",", ":"))
+            trade_id = hashlib.sha256(stable.encode()).hexdigest()
+            corps.append({
+                "trade_id": trade_id,
+                "reference": str(trade.get("position_id") or trade.get("symbol") or trade_id[:12]),
+                "pair": str(trade.get("symbol") or "").replace("USD", "/EUR").replace("EUR/EUR", "/EUR"),
+                "side": side,
+                "entry_price": entry,
+                "exit_price": exit_price,
+                "volume": volume,
+                "opened_at": dt.datetime.fromtimestamp(opened, dt.timezone.utc).isoformat(),
+                "closed_at": dt.datetime.fromtimestamp(closed, dt.timezone.utc).isoformat(),
+                "profit_eur": float(trade.get("profit") or 0.0),
+                "result_pct": round(pct, 6),
+                "reason": str(trade.get("reason") or ""),
+                "partial": bool(trade.get("partial", False)),
+            })
+        except (KeyError, TypeError, ValueError, OverflowError):
+            continue
+
+    if not corps:
+        return
+    try:
+        requete = urllib.request.Request(
+            f"{url}/rest/v1/alluxe_bot_historique_reel?on_conflict=trade_id",
+            data=json.dumps(corps).encode(),
+            headers={
+                "apikey": cle,
+                "authorization": f"Bearer {cle}",
+                "content-type": "application/json",
+                "prefer": "resolution=merge-duplicates,return=minimal",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(requete, timeout=30).close()
+        log.info("historique reel synchronise: %s executions", len(corps))
+    except Exception as exc:
+        log.warning("historique reel non synchronise: %s", str(exc)[:160])
+
+
 def _realise_publie(url: str, cle: str, compte: str) -> float | None:
     """Reel realise visible par l'application pour la session courante.
 
@@ -473,6 +536,8 @@ def publier(compte: str, fichier: str) -> bool:
     if not url or not cle:
         log.warning("identifiants Supabase absents")
         return False
+    if compte == "reel":
+        _synchroniser_historique_reel(url, cle)
     try:
         cfg = BotConfig.load(fichier)
     except Exception as exc:                                   # noqa: BLE001

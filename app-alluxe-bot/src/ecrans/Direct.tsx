@@ -85,7 +85,7 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
     };
     lire();
     lireFiche();
-    historique(100).then((h) => { if (vivant) setFermees(h); })
+    historique(1000).then((h) => { if (vivant) setFermees(h); })
                    .catch(() => { if (vivant) setFermees([]); });
     // Le cash peut changer (depot/retrait/ordre) : on le relit periodiquement.
     // La valeur des positions, elle, vient de prixLive et bouge toutes les 3 s.
@@ -100,7 +100,7 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
       etatCapital().then(setCapitalEtat).catch(() => {}),
       comptesDemo().then((f) => setFiche(f.find((x) => x.compte === "reel") ?? null))
                    .catch(() => {}),
-      historique(100).then(setFermees).catch(() => {}),
+      historique(1000).then(setFermees).catch(() => {}),
     ]);
     setRafraichit(false);
   };

@@ -182,16 +182,62 @@ export async function positionsOuvertes(): Promise<Position[]> {
     .order("published_at", { ascending: false })).then(regrouperLesEtages);
 }
 
-export async function historique(limite = 100): Promise<Position[]> {
-  return lirePositions((colonnes) => supabase
-    .from("signals")
-    .select(colonnes)
-    .in("status", ["closed_tp", "closed_sl", "cancelled"])
-    .eq("is_demo", false)
-    .eq("compte", "reel")
-    .not("published_at", "is", null)
-    .order("closed_at", { ascending: false })
-    .limit(limite)).then(regrouperLesEtages);
+export async function historique(limite = 1000): Promise<Position[]> {
+  // L'historique complet ne peut pas dependre uniquement de signals :
+  // des executions reelles anciennes peuvent exister dans le journal du
+  // moteur sans avoir ete republiees dans cette table. On fusionne donc
+  // les signaux riches et le journal d'execution synchronise sur le VPS.
+  const [signaux, journal] = await Promise.all([
+    lirePositions((colonnes) => supabase
+      .from("signals")
+      .select(colonnes)
+      .in("status", ["closed_tp", "closed_sl", "cancelled"])
+      .eq("is_demo", false)
+      .eq("compte", "reel")
+      .not("published_at", "is", null)
+      .order("closed_at", { ascending: false })
+      .limit(limite)),
+    supabase
+      .from("alluxe_bot_historique_reel")
+      .select("trade_id, reference, pair, side, entry_price, exit_price, volume, opened_at, closed_at, profit_eur, result_pct, reason")
+      .order("closed_at", { ascending: false })
+      .limit(limite),
+  ]);
+
+  if (journal.error && !tableAbsente(journal.error)) throw journal.error;
+
+  const historiques = ((journal.data ?? []) as any[]).map((t) => ({
+    id: String(t.trade_id),
+    reference: t.reference,
+    pair: t.pair,
+    side: t.side === "SELL" ? "sell" : "buy",
+    entry_price: Number(t.entry_price),
+    stop_loss: Number(t.entry_price),
+    take_profit_1: null,
+    take_profit_2: null,
+    position_size_pct: null,
+    capital_eur: null,
+    volume: Number(t.volume),
+    stop_loss_actuel: Number(t.exit_price),
+    published_at: t.opened_at,
+    status: /stop|perte|loss/i.test(String(t.reason ?? "")) ? "closed_sl" : "closed_tp",
+    closed_at: t.closed_at,
+    result_pct: t.result_pct == null ? null : Number(t.result_pct),
+    profit_eur: t.profit_eur == null ? null : Number(t.profit_eur),
+  })) as Position[];
+
+  // Un trade present dans signals est prefere au journal car il contient
+  // les stops, objectifs et metadonnees d'origine. Le journal complete
+  // uniquement les clotures absentes.
+  const cle = (p: Position) =>
+    (p.reference ?? p.id).split(":")[0] + "|" + p.pair + "|" + (p.closed_at ?? "");
+  const fusion = new Map<string, Position>();
+  for (const p of historiques) fusion.set(cle(p), p);
+  for (const p of (signaux as Position[])) fusion.set(cle(p), p);
+
+  return [...fusion.values()]
+    .sort((a, b) => new Date(b.closed_at ?? 0).getTime() - new Date(a.closed_at ?? 0).getTime())
+    .slice(0, limite);
 }
 
 /**
