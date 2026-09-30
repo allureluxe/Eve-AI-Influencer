@@ -161,9 +161,14 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
 
   // EN COURS = variation non réalisée depuis le capital de départ,
   // après déduction du P&L déjà encaissé.
+  // EN COURS = P/L LATENT DES POSITIONS OUVERTES, et rien d'autre.
+  // Ne pas le reconstruire par `capital - depart - encaisse` : cette
+  // soustraction mélange les dépôts/retraits et les snapshots serveur.
+  // Les lignes de positions disposent déjà de la quantité réelle et du
+  // prix Bitvavo courant : c'est la source la plus directe du latent.
   const gainLatent = React.useMemo(
-    () => capitalVivant == null ? 0 : capitalVivant - depart - gainEncaisse,
-    [capitalVivant, depart, gainEncaisse],
+    () => positions ? gainTotalEnDirect(positions, depart, prixLive) : 0,
+    [positions, depart, prixLive],
   );
 
   // « ENCAISSE » : ce qui est DEJA dans la caisse, latent exclu.
