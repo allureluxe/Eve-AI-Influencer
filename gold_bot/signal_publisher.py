@@ -332,7 +332,21 @@ class SignalPublie:
             corps["position_size_pct"] = round(self.position_size_pct, 3)
         if self.capital_eur is not None:
             corps["capital_eur"] = round(self.capital_eur, 2)
-        if self.compte and self.compte != "demo":
+        # LE NOM DU COMPTE PART TOUJOURS, MEME QUAND C'EST « demo ».
+        #
+        # Il ne partait que s'il differait du defaut, « pour ne pas
+        # repeter la valeur par defaut ». Consequence : le robot REEL,
+        # qui ne pose jamais `GB_COMPTE_DEMO`, publiait ses positions
+        # avec `compte = demo` — la valeur par defaut de la colonne —
+        # alors que `is_demo` valait bien `false`.
+        #
+        # L'application, elle, demande `is_demo=false ET compte=reel`.
+        # Elle ne trouvait donc AUCUNE position reelle : le 29 septembre,
+        # l'onglet Direct affichait « 0,00 EUR en cours » et « 2 400,00
+        # EUR restants a investir » pendant que six positions valaient
+        # 1 382 EUR chez Bitvavo. Omettre une colonne pour economiser
+        # trois octets a coute un affichage faux pendant des jours.
+        if self.compte:
             corps["compte"] = self.compte
         if self.volume is not None:
             # Pas d'arrondi serre : le PEPE se compte en millions
@@ -420,10 +434,40 @@ class SupabaseREST:
     def modifier(self, table: str, filtre: str, champs: Dict[str, Any]) -> Any:
         return self._appel("PATCH", f"{table}?{filtre}", champs)
 
+    def existe(self, table: str, filtre: str) -> bool:
+        """Verifie qu'une ligne existe avant une cloture.
+
+        Une cloture ne doit jamais creer une position imaginaire, mais une
+        ouverture perdue pendant une panne ne doit pas rendre le trade
+        invisible pour toujours. Le moteur fournit alors les donnees
+        originales et le publieur peut reconstituer UNE ligne fermee.
+        """
+        lignes = self._appel("GET", f"{table}?{filtre}&select=id&limit=1")
+        return bool(lignes)
+
 
 # ---------------------------------------------------------------------
 # Le publieur
 # ---------------------------------------------------------------------
+
+#: LE NOM DU COMPTE SUIT `is_demo`, ET IL N'Y A QU'UN SEUL ENDROIT QUI LE DIT.
+#
+# L'application distingue les comptes par DEUX colonnes a la fois :
+# `is_demo` (vrai/faux) et `compte` (« reel », « demo », « demo2 »). Elle
+# demande toujours les deux ensemble — c'est volontaire, ca evite qu'une
+# simulation apparaisse dans l'onglet reel. Mais rien ne garantissait que
+# les deux soient posees par la meme verite : `is_demo` venait du lieu
+# d'execution, `compte` d'une variable d'environnement jamais definie en
+# reel. Elles ont diverge, et l'onglet Direct a affiche zero position
+# pendant que six tournaient.
+#
+# Desormais une seule fonction repond, et un test verrouille l'accord.
+def nom_de_compte(est_demo: bool) -> str:
+    """« reel » pour l'argent reel, sinon le nom de la simulation."""
+    if not est_demo:
+        return "reel"
+    return (os.environ.get("GB_COMPTE_DEMO", "demo") or "demo").strip() or "demo"
+
 
 @dataclass
 class SignalPublisher:
@@ -516,7 +560,9 @@ class SignalPublisher:
 
     def publier_cloture(self, reference: str, status: str,
                         closed_at: float, result_pct: float,
-                        profit_eur: float | None = None) -> bool:
+                        profit_eur: float | None = None,
+                        signal: SignalPublie | None = None,
+                        published_at: float | None = None) -> bool:
         """Ferme un signal deja publie. Seule modification autorisee.
 
         `profit_eur` EST LE BENEFICE REEL, FRAIS DEDUITS, et il existe
@@ -551,10 +597,33 @@ class SignalPublisher:
         }
         if profit_eur is not None:
             corps["profit_eur"] = round(float(profit_eur), 2)
+        filtre = f"reference=eq.{reference}"
+        # Une ouverture peut avoir ete perdue pendant une panne/restart.
+        # Dans ce cas, PATCH touche zero ligne et l'historique resterait
+        # vide alors que le trade a bel et bien ete ferme. Si l'appelant
+        # fournit les donnees d'origine, on reconstruit la ligne fermee
+        # directement, avec sa vraie date d'ouverture et son resultat.
+        if signal is not None and hasattr(self.client, "existe"):
+            try:
+                if not self.client.existe("signals", filtre):
+                    ligne = signal.vers_supabase(publier=True)
+                    if published_at is not None:
+                        ligne["published_at"] = _iso(published_at)
+                    ligne.update(corps)
+                    ligne["is_demo"] = self.est_demo
+                    ligne["compte"] = nom_de_compte(self.est_demo)
+                    return bool(self._envoyer({
+                        "type": "ouverture",
+                        "table": "signals",
+                        "corps": ligne,
+                    }))
+            except SupabaseIndisponible:
+                # Le PATCH ci-dessous sera mis en file comme auparavant.
+                pass
         return self._envoyer({
             "type": "cloture",
             "table": "signals",
-            "filtre": f"reference=eq.{reference}",
+            "filtre": filtre,
             "corps": corps,
         })
 

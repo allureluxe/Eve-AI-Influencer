@@ -30,12 +30,18 @@ class ClientFactice:
         self.en_panne = en_panne
         self.inserts: list = []
         self.patchs: list = []
+        self.references: set[str] = set()
 
     def inserer(self, table, ligne):
         if self.en_panne:
             raise SupabaseIndisponible("panne simulee")
         self.inserts.append((table, ligne))
+        self.references.add(ligne.get("reference", ""))
         return [ligne]
+
+    def existe(self, table, filtre):
+        reference = filtre.removeprefix("reference=eq.")
+        return reference in self.references
 
     def modifier(self, table, filtre, champs):
         if self.en_panne:
@@ -413,6 +419,20 @@ class TestLeBeneficeReelEstPublie(unittest.TestCase):
                             profit_eur=36.55)
         _, _, champs = client.patchs[0]
         self.assertEqual(champs["profit_eur"], 36.55)
+
+    def test_une_cloture_recree_ligne_si_ouverture_absente(self):
+        client = ClientFactice()
+        pub = SignalPublisher(client=client, fichier_file=self.chemin)
+        s = _signal("perdue-42")
+        ok = pub.publier_cloture("perdue-42:1", "closed_sl", 1_700_000_010.0, -3.5,
+                                 profit_eur=-12.34, signal=s, published_at=1_700_000_000.0)
+        self.assertTrue(ok)
+        self.assertEqual(len(client.inserts), 1)
+        ligne = client.inserts[0][1]
+        self.assertEqual(ligne["reference"], "perdue-42")
+        self.assertEqual(ligne["status"], "closed_sl")
+        self.assertEqual(ligne["profit_eur"], -12.34)
+        self.assertEqual(ligne["published_at"], "2023-11-14T22:13:20Z")
 
     def test_sans_profit_la_colonne_n_est_pas_envoyee(self):
         """Une cloture sans montant ne doit pas ecrire NULL par-dessus.

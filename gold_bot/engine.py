@@ -1434,11 +1434,35 @@ class TradingEngine:
             # la position ENTIERE : le mettre sur chaque etage ferait
             # compter une pyramide a quatre etages quatre fois par
             # l'application, qui additionne les lignes.
+            from .signal_publisher import SignalPublie, paire_lisible
+            # Si l'ouverture n'est plus en base (panne/restart), fournir au
+            # publieur les donnees originales afin qu'il puisse reconstruire
+            # la ligne fermee au lieu de laisser l'historique a zero.
+            risque = float(getattr(trade, "risque_eur", 0.0) or 0.0)
+            if risque > 0 and trade.volume > 0:
+                distance_stop = risque / trade.volume
+                stop_reconstitue = (trade.entry_price - distance_stop
+                                    if sens > 0 else trade.entry_price + distance_stop)
+            else:
+                stop_reconstitue = trade.entry_price
+            signal_repli = SignalPublie(
+                reference=trade.position_id,
+                pair=paire_lisible(trade.symbol, getattr(self.risk.account, "currency", "EUR")),
+                side=trade.side.value,
+                entry_price=trade.entry_price,
+                stop_loss=stop_reconstitue,
+                volume=trade.volume,
+                rationale=(f"Clôture reconstituée par le moteur : {trade.reason}. "
+                           f"Résultat exact du simulateur : {trade.profit:+.2f} "
+                           f"{self.risk.account.currency}."),
+            )
             for etage in range(1, (getattr(trade, "etages", 1) or 1) + 1):
                 self.publisher.publier_cloture(
                     f"{trade.position_id}:{etage}",
                     statut, trade.closed_at, result_pct,
-                    profit_eur=float(trade.profit) if etage == 1 else 0.0)
+                    profit_eur=float(trade.profit) if etage == 1 else 0.0,
+                    signal=signal_repli,
+                    published_at=trade.opened_at)
         except Exception as exc:                            # noqa: BLE001
             logger.warning("publication de la cloture impossible : %s", exc)
 
@@ -1478,7 +1502,8 @@ class TradingEngine:
         try:
             from .signal_publisher import (SignalPublie, calculer_risk_reward,
                                            conviction_depuis_score,
-                                           paire_lisible, rediger_rationale)
+                                           nom_de_compte, paire_lisible,
+                                           rediger_rationale)
             inst = self.universe.get(ev.symbol)
             devise = getattr(inst, "quote_currency", "EUR") or "EUR"
             paire = paire_lisible(ev.symbol, devise)
@@ -1509,9 +1534,12 @@ class TradingEngine:
                 # reellement. `sizing.lots` ne donnerait que la derniere
                 # tranche.
                 volume=float(getattr(pos, "volume", 0.0) or 0.0) or None,
-                # Quel compte simule publie. Deux simulations en
-                # parallele doivent rester lisibles separement.
-                compte=os.environ.get("GB_COMPTE_DEMO", "demo"),
+                # Quel compte publie : « reel » pour l'argent reel, sinon
+                # le nom de la simulation. Deux simulations en parallele
+                # doivent rester lisibles separement — et le reel ne doit
+                # SURTOUT pas se faire passer pour l'une d'elles, sans
+                # quoi l'application ne le trouve plus.
+                compte=nom_de_compte(self.config.engine.broker == "paper"),
                 conviction=conviction_depuis_score(float(ev.score)),
                 rationale=rediger_rationale(
                     paire, canal, etage=etage, graine=f"{pos.id}:{etage}",

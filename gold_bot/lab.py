@@ -11,15 +11,107 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from .backtest import Backtester
 from .backtest_portefeuille import BacktestPortefeuille
+from .core import Candle
+from .datasources.base import tf_seconds
+from .universe import Universe, ajouter_cryptos, instrument_crypto
 
 logger = logging.getLogger(__name__)
 BAR_BACKTEST = 1200
 BAR_FORWARD = 240
+LAB_HISTORY_DAYS = int(os.getenv("GB_LAB_HISTORY_DAYS", "365"))
 MIN_TRADES = 100
 MIN_FORWARD_TRADES = 20
 MIN_PF = 1.20
-MIN_WIN = 40.0
+MIN_WIN = 51.0
 MIN_PAYOFF = 1.0
+LAB_BITVAVO_CACHE = Path(os.getenv("GB_LAB_BITVAVO_CACHE", "data/lab-bitvavo"))
+LAB_BITVAVO_LIMIT = 1440
+LAB_BITVAVO_INTERVALS = {"M1": "1m", "M3": "3m", "M5": "5m", "M15": "15m", "M30": "30m", "H1": "1h", "H4": "4h", "D1": "1d"}
+LAB_DATA_MEMORY = {}
+
+def _lab_align(ts, seconds):
+    return int(ts // seconds) * seconds
+
+def _lab_http_json(url, params=None):
+    if params:
+        from urllib.parse import urlencode
+        url = f"{url}?{urlencode(params)}"
+    req = urllib.request.Request(url, headers={"User-Agent": "gold-bot-lab/1.0", "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=20) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+def _lab_cache_file(market, timeframe):
+    return LAB_BITVAVO_CACHE / market.replace("-", "_") / f"{timeframe}.json"
+
+def _lab_read_cache(path):
+    if not path.exists():
+        return []
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+        return [Candle(float(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5])) for r in rows]
+    except Exception:
+        return []
+
+def _lab_write_cache(path, candles):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps([[c.ts, c.open, c.high, c.low, c.close, c.volume] for c in candles], separators=(",", ":")), encoding="utf-8")
+    tmp.replace(path)
+
+def _lab_fetch_range(market, timeframe, start, end):
+    interval = LAB_BITVAVO_INTERVALS[timeframe]
+    step = tf_seconds(timeframe) * 1000
+    cursor_end = _lab_align(end / 1000, tf_seconds(timeframe)) * 1000
+    out = []
+    while cursor_end >= start:
+        rows = _lab_http_json("https://api.bitvavo.com/v2/" + market + "/candles",
+                              {"interval": interval, "end": cursor_end, "limit": LAB_BITVAVO_LIMIT})
+        if not rows:
+            break
+        got = [Candle(float(r[0]) / 1000, float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5]))
+               for r in rows if len(r) >= 6]
+        got.sort(key=lambda c: c.ts)
+        out.extend(got)
+        oldest = int(got[0].ts * 1000)
+        if oldest <= start:
+            break
+        cursor_end = oldest - 1
+    uniq = {c.ts: c for c in out}
+    return [uniq[k] for k in sorted(uniq) if start <= int(k * 1000) <= end]
+
+def _lab_candles_1y(market, timeframe, extra_days=0):
+    now = time.time(); seconds = tf_seconds(timeframe)
+    end = _lab_align(now, seconds) + seconds - 1; start = end - (LAB_HISTORY_DAYS + extra_days) * 86400
+    path = _lab_cache_file(market, timeframe); cached = _lab_read_cache(path)
+    if cached and cached[0].ts <= start and cached[-1].ts >= end - seconds:
+        return [c for c in cached if start <= c.ts <= end]
+    logger.info("Lab Bitvavo: téléchargement %s %s sur %d jours", market, timeframe, LAB_HISTORY_DAYS)
+    fresh = _lab_fetch_range(market, timeframe, int(start * 1000), int(end * 1000))
+    if not fresh:
+        raise RuntimeError(f"historique vide {market} {timeframe}")
+    _lab_write_cache(path, fresh)
+    return [c for c in fresh if start <= c.ts <= end]
+
+def _lab_prepare_universe_and_data(timeframes):
+    markets = _lab_http_json("https://api.bitvavo.com/v2/markets")
+    quote = os.getenv("BITVAVO_QUOTE_ASSET", "EUR").upper()
+    markets = [m for m in markets if isinstance(m, dict) and m.get("quote") == quote and m.get("status") == "trading" and m.get("base") not in (None, "", quote)]
+    bases = {str(m["base"]).upper(): m for m in markets}
+    ajouter_cryptos({b: "crypto_alt" for b in bases})
+    instruments = [instrument_crypto(b, "crypto_alt", quote_currency=quote) for b in sorted(bases)]
+    data = {}; skipped = {}
+    for inst in instruments:
+        base = inst.symbol[:-3]; market = bases[base]["market"]
+        try:
+            series = {tf: _lab_candles_1y(market, tf, max(1, int((BAR_FORWARD * tf_seconds(tf) + 86399) / 86400))) for tf in timeframes}
+            if any(len(v) < 200 or (v[-1].ts - v[0].ts) < LAB_HISTORY_DAYS * 86400 * 0.95 for v in series.values()):
+                skipped[base] = "historique inférieur à 95% de 1 an"; continue
+            data[inst.symbol] = series
+        except Exception as exc:
+            skipped[base] = str(exc)[:160]
+    logger.info("Lab Bitvavo: %d marchés EUR trading, %d chargés, %d écartés", len(markets), len(data), len(skipped))
+    return instruments, data, {"markets_trading_eur": len(markets), "symbols_loaded": len(data), "symbols_skipped": len(skipped), "skipped": skipped, "history_days": LAB_HISTORY_DAYS, "source": "Bitvavo REST candles"}
+
 LAB_STATE = Path(os.getenv("GB_LAB_STATE_FILE", "data/lab-state.json"))
 LAB_BOOK = Path(os.getenv("GB_LAB_BOOK_FILE", "data/lab-book.jsonl"))
 LAB_SYMBOLS = tuple(x.strip().upper() for x in os.getenv(
@@ -127,6 +219,10 @@ REGLAGES_GLOBAUX = {
     "mode", "min_confirmations", "require_candle_confirmation",
     "confirmation_margin", "rsi_achat_min", "rsi_achat_max",
     "rsi_vente_min", "rsi_vente_max",
+    # Le filtre de volatilite est execute par le moteur avant la branche
+    # de famille : ces reglages ont donc un effet quelle que soit la famille.
+    "min_atr_percentile", "max_atr_percentile",
+    "min_atr_price_ratio", "max_spread_atr_ratio",
 }
 
 #: Reglages de `cfg.trade` / `cfg.risk` lus par le moteur quel que soit
@@ -331,8 +427,14 @@ class StrategyLab:
             logger.warning("sync lab_research %s: %s", research_id, str(exc)[:120])
 
     def _record(self, c):
+        record = asdict(c)
         with LAB_BOOK.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(asdict(c), ensure_ascii=False) + "\n")
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        # Index compact des seules stratégies validées : le promoteur DEMO 2
+        # n'a jamais besoin de rescanner un carnet qui peut devenir très gros.
+        if c.stage == "VALIDATED":
+            with (LAB_BOOK.parent / "lab-validated.jsonl").open("a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
         self._supabase("lab_strategies", {
             "strategy_id": c.id, "agent": c.agent, "parent_id": c.parent_id,
             "stage": c.stage, "fingerprint": c.fingerprint, "params": c.params,
@@ -388,15 +490,24 @@ class StrategyLab:
         # IMPORTANT : un seul compte virtuel pour tout l'univers. Le Lab ne
         # doit plus donner le capital entier a chaque crypto puis additionner
         # les profits : le portefeuille partage cash, risque et positions.
-        self._publish("BACKTEST", f"{cid}: portefeuille historique")
+        self._publish("BACKTEST", f"{cid}: Bitvavo, 1 an, univers EUR")
         start_balance = float(cfg.engine.start_balance)
         try:
-            porte = BacktestPortefeuille(cfg).run(
-                list(LAB_SYMBOLS), bars=BAR_BACKTEST,
-                start_balance=start_balance, decalage=BAR_FORWARD)
+            timeframes = list(getattr(cfg.strategy, "timeframes", (cfg.strategy.entry_tf,)))
+            lab_instruments, lab_data, lab_scope = _lab_prepare_universe_and_data(timeframes)
+            symbols = sorted(lab_data)
+            train_data = {sym: {tf: vals[:-BAR_FORWARD] if len(vals) > BAR_FORWARD else []
+                                for tf, vals in series.items()}
+                          for sym, series in lab_data.items()}
+            portefeuille = BacktestPortefeuille(cfg)
+            portefeuille.rejeu.universe = Universe(lab_instruments)
+            porte = portefeuille.run(symbols, bars=BAR_BACKTEST,
+                                     start_balance=start_balance, decalage=BAR_FORWARD,
+                                     series_by_symbol=train_data)
             bt = _stats_portefeuille(porte, start_balance)
+            bt["data_scope"] = lab_scope
         except Exception as exc:
-            logger.warning("backtest portefeuille %s: %s", cid, str(exc)[:200])
+            logger.warning("backtest Bitvavo %s: %s", cid, str(exc)[:200])
             bt = {"symbols_tested": 0, "trades": 0, "wins": 0, "losses": 0,
                   "win_rate": 0.0, "profit_factor": 0.0, "payoff": 0.0,
                   "profit": 0.0, "start_balance": start_balance,
@@ -417,10 +528,15 @@ class StrategyLab:
             self.state["candidates"] += 1
             self._publish("FORWARD_TEST", f"{cid}: portefeuille recent")
             try:
-                porte_fw = BacktestPortefeuille(cfg).run(
-                    list(LAB_SYMBOLS), bars=BAR_FORWARD,
-                    start_balance=start_balance, decalage=0)
+                portefeuille_fw = BacktestPortefeuille(cfg)
+                portefeuille_fw.rejeu.universe = Universe(lab_instruments)
+                recent = {sym: {tf: vals[-BAR_FORWARD:] for tf, vals in series.items()}
+                          for sym, series in lab_data.items()}
+                porte_fw = portefeuille_fw.run(symbols, bars=BAR_FORWARD,
+                                               start_balance=start_balance, decalage=0,
+                                               series_by_symbol=recent)
                 c.forward = _stats_portefeuille(porte_fw, start_balance)
+                c.forward["data_scope"] = lab_scope
             except Exception as exc:
                 logger.warning("forward portefeuille %s: %s", cid, str(exc)[:200])
                 c.forward = {"symbols_tested": 0, "trades": 0, "wins": 0, "losses": 0,
