@@ -240,58 +240,31 @@ function ApercuMedia({ type, ratio }: { type: "photo" | "video" | "audio"; ratio
   return <View style={{ width: "100%", aspectRatio: ratio === "16:9" ? 16 / 9 : ratio === "9:16" ? 9 / 16 : 3 / 4, borderRadius: rayon.m, backgroundColor: c.creux, marginTop: espace.m, alignItems: "center", justifyContent: "center" }}><T v="petit" couleur={c.encreDouce}>{label}</T></View>;
 }
 
-function CartePublication({ pub, afficherMedia = true }: { pub: Publication; afficherMedia?: boolean }) {
+function texteSecurise(value: unknown, secours = "") {
+  return typeof value === "string" ? value : value == null ? secours : String(value);
+}
+
+function CartePublication({ pub, afficherMedia = false }: { pub: Publication; afficherMedia?: boolean }) {
   const c = useCouleurs();
-  const schedule = pub.scheduled_at
-    ? new Date(pub.scheduled_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
-    : null;
-  const meta = [
-    FORMAT_LABELS[pub.content_format] ?? pub.content_format,
-    pub.platform === "both" ? "Instagram + TikTok" : pub.platform === "tiktok" ? "TikTok" : "Instagram",
-    pub.aspect_ratio,
-  ].join(" • ");
+  const format = texteSecurise(pub.content_format, "contenu");
+  const plateforme = pub.platform === "both" ? "Instagram + TikTok" : pub.platform === "tiktok" ? "TikTok" : "Instagram";
+  const statut = texteSecurise(pub.statut, "inconnu");
+  const ratio = texteSecurise(pub.aspect_ratio, "3:4");
+  const demande = texteSecurise(pub.demande);
+  const legende = texteSecurise(pub.legende);
+  const date = texteSecurise(pub.created_at);
+  const meta = [FORMAT_LABELS[pub.content_format] ?? format, plateforme, ratio].join(" • ");
   return (
     <Carte style={{ marginBottom: espace.m }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <View style={{ flex: 1, marginRight: espace.s }}>
-          <T v="petit" couleur={c.encreDouce}>{meta}</T>
-          <T v="sousTitre" style={{ marginTop: 2 }}>{pub.location_name ?? "Luna"}</T>
-        </View>
-        <T v="legende">{schedule ? "prévu " + schedule : quandCourt(pub.created_at)}</T>
-      </View>
-
-      <T v="sousTitre" couleur={couleurStatut(c, pub.statut)} style={{ marginTop: 4 }}>
-        {LIBELLE_STATUT[pub.statut]}
-      </T>
-
-      {!!pub.demande && <T v="petit" couleur={c.encreDouce} style={{ marginTop: espace.s }}>{pub.demande}</T>}
-      {!!pub.legende && <T v="corps" style={{ marginTop: espace.s }}>{pub.legende}</T>}
-
-      {afficherMedia && (pub.chemin_video || pub.chemin_photo || pub.chemin_voix) && (
-        <ApercuMedia type={pub.chemin_video ? "video" : pub.chemin_voix ? "audio" : "photo"} ratio={pub.aspect_ratio} />
-      )}
-
-      {(pub.location_type || pub.highlight_name || pub.call_to_action) && (
-        <View style={{ marginTop: espace.s }}>
-          {!!pub.location_type && <T v="legende">Lieu : {pub.location_type}</T>}
-          {!!pub.highlight_name && <T v="legende">Highlight : {pub.highlight_name} • statut {pub.highlight_name && pub.chemin_photo ? "à enregistrer / suivi serveur" : "planifie"}</T>}
-          {!!pub.call_to_action && <T v="legende">CTA : {pub.call_to_action}</T>}
-        </View>
-      )}
-
-      {!!pub.publish_requested && (
-        <T v="legende" couleur={c.gain} style={{ marginTop: espace.s }}>
-          publication demandee • contenu IA signale : {pub.ai_disclosure ? "oui" : "non"}
-        </T>
-      )}
-
-      {Object.keys(pub.erreurs ?? {}).length > 0 && (
-        <View style={{ marginTop: espace.s }}>
-          {Object.entries(pub.erreurs).map(([etape, msg]) => (
-            <T key={etape} v="legende" couleur={c.perte}>! {etape} : {msg}</T>
-          ))}
-        </View>
-      )}
+      <T v="petit" couleur={c.encreDouce}>{meta}</T>
+      <T v="sousTitre" style={{ marginTop: 2 }}>{texteSecurise(pub.location_name, "Luna")}</T>
+      <T v="sousTitre" couleur={couleurStatut(c, pub.statut)} style={{ marginTop: 4 }}>{statut}</T>
+      {!!demande && <T v="petit" couleur={c.encreDouce} style={{ marginTop: espace.s }}>{demande}</T>}
+      {!!legende && <T v="corps" style={{ marginTop: espace.s }}>{legende}</T>}
+      {afficherMedia && (pub.chemin_video || pub.chemin_photo || pub.chemin_voix) ? (
+        <ApercuMedia type={pub.chemin_video ? "video" : pub.chemin_voix ? "audio" : "photo"} ratio={ratio} />
+      ) : null}
+      <T v="legende" style={{ marginTop: espace.s }}>{date ? quandCourt(date) : ""}</T>
     </Carte>
   );
 }
