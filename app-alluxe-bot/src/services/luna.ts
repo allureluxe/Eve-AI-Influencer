@@ -86,7 +86,7 @@ export interface Publication {
 const COLONNES_PUBLICATION =
   "id, created_at, demande, statut, media_type, reference_path, aspect_ratio, duration_seconds, quality, provider, provider_task_id, generation_status, publish_requested, published_at, published_platform, published_media_id, publication_task_id, publication_status, highlight_status, content_format, platform, scheduled_at, timezone, location_name, location_city, location_type, highlight_name, hook, call_to_action, hashtags, ai_disclosure, monetization_track, strategy_version, source_job, legende, scene_prompt, chemin_photo, chemin_voix, chemin_video, erreurs";
 
-export async function publications(limite = 60): Promise<Publication[]> {
+export async function publications(limite = 30): Promise<Publication[]> {
   const { data, error } = await supabase
     .from("luna_publications")
     .select(COLONNES_PUBLICATION)

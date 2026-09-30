@@ -298,7 +298,7 @@ function LecteurVideo({ chemin }: { chemin: string }) {
   );
 }
 
-function CartePublication({ pub }: { pub: Publication }) {
+function CartePublication({ pub, afficherMedia = true }: { pub: Publication; afficherMedia?: boolean }) {
   const c = useCouleurs();
   const schedule = pub.scheduled_at
     ? new Date(pub.scheduled_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
@@ -325,14 +325,14 @@ function CartePublication({ pub }: { pub: Publication }) {
       {!!pub.demande && <T v="petit" couleur={c.encreDouce} style={{ marginTop: espace.s }}>{pub.demande}</T>}
       {!!pub.legende && <T v="corps" style={{ marginTop: espace.s }}>{pub.legende}</T>}
 
-      {pub.chemin_video ? (
+      {afficherMedia && (pub.chemin_video ? (
         <LecteurVideo chemin={pub.chemin_video} />
       ) : (
         <>
           {pub.chemin_photo && <PhotoPublication chemin={pub.chemin_photo} ratio={pub.aspect_ratio} />}
           {pub.chemin_voix && <LecteurVoix chemin={pub.chemin_voix} />}
         </>
-      )}
+      ))}
 
       {(pub.location_type || pub.highlight_name || pub.call_to_action) && (
         <View style={{ marginTop: espace.s }}>
@@ -717,7 +717,7 @@ export function EcranLuna() {
 
           {(liste ?? []).length === 0
             ? <Vide titre="Aucune création pour le moment" detail="Utilise « Créer » pour lancer une Story, une publication Instagram ou un autre contenu." />
-            : (liste ?? []).map((pub) => <CartePublication key={pub.id} pub={pub} />)
+            : (liste ?? []).map((pub, index) => <CartePublication key={pub.id} pub={pub} afficherMedia={index < 3} />)
           }
         </>
       )}
