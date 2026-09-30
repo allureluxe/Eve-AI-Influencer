@@ -61,13 +61,24 @@ class TestLesPublicationsPortentLeNomDuCompte:
                          entry_price=100.0, stop_loss=90.0, compte="demo2")
         assert s.vers_supabase()["compte"] == "demo2"
 
-    def test_le_premier_compte_n_alourdit_pas_chaque_ligne(self):
-        """`demo` est la valeur par defaut en base : l'ecrire a chaque
-        fois n'ajouterait rien."""
+    def test_le_compte_part_TOUJOURS_meme_quand_c_est_le_defaut(self):
+        """C'est l'assertion inverse, et l'ancienne etait la cause d'un bug.
+
+        Elle disait : « `demo` est la valeur par defaut en base, l'ecrire
+        a chaque fois n'ajouterait rien. » Vrai pour les simulations,
+        FAUX pour le robot reel : lui non plus ne posait pas la colonne,
+        et la base lui mettait donc « demo ». Ses lignes portaient
+        `is_demo = false` ET `compte = demo` — introuvables dans l'onglet
+        reel, qui demande les deux ensemble.
+
+        Constate le 29 septembre : « 0,00 EUR en cours » affiche pendant
+        que six positions valaient 1 382 EUR. Voir
+        `tests/test_compte_reel_publie.py`.
+        """
         from gold_bot.signal_publisher import SignalPublie
         s = SignalPublie(reference="x:1", pair="BTC/EUR", side="buy",
                          entry_price=100.0, stop_loss=90.0)
-        assert "compte" not in s.vers_supabase()
+        assert s.vers_supabase()["compte"] == "demo"
 
     def test_les_alertes_portent_le_compte(self):
         from gold_bot.notifiers import AlluxeBotChannel

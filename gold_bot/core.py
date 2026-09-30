@@ -251,6 +251,25 @@ class Position:
         return price <= self.stop_loss if self.side is Side.BUY else price >= self.stop_loss
 
     def hit_target(self, price: float) -> bool:
+        """Vrai quand le prix atteint l'objectif — et JAMAIS s'il n'y en a pas.
+
+        `initial_levels` rend une cible de **zero** quand `tp_actif` est
+        faux, avec ce commentaire : « les moteurs de sortie savent ainsi
+        qu'il n'existe PAS de TP ». Ils ne le savaient pas. Sans la garde
+        ci-dessous, `prix >= 0` est vrai a la premiere cotation venue :
+        une position a l'achat se fermait « objectif atteint » dans la
+        seconde qui suivait son ouverture.
+
+        Constate sur la demo 2 dans la nuit du 27 septembre 2026 : TIA,
+        ETH, ETH et SOL ouvertes puis fermees en 10 a 26 secondes, et le
+        simulateur reglant la sortie AU PRIX DE LA CIBLE, c'est-a-dire a
+        zero — **-482,37 EUR**, soit -9 a -16 R pour un risque de 9 EUR.
+
+        C'est le piege recense tout au long de CLAUDE.md : une regle
+        ecrite dans un commentaire, et executee nulle part.
+        """
+        if not self.take_profit:
+            return False
         return price >= self.take_profit if self.side is Side.BUY else price <= self.take_profit
 
 

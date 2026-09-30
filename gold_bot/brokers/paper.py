@@ -303,19 +303,26 @@ class PaperBroker(Broker):
             inst = self._instruments.get(symbol)
             if inst is None:
                 continue
+            # PAS D'OBJECTIF = PAS DE SORTIE SUR OBJECTIF.
+            #
+            # `tp_actif: false` fait rendre une cible de zero. Compare
+            # telle quelle, `candle.high >= 0` est vrai sur toute bougie,
+            # et la sortie se reglait AU PRIX DE LA CIBLE — zero. Voir
+            # `Position.hit_target`, qui porte le detail de l'incident.
+            avec_objectif = bool(pos.take_profit)
             if pos.side is Side.BUY:
                 pos.track(candle.high)
                 if candle.low <= pos.stop_loss:
                     out.append(self._settle(pos, pos.stop_loss, None, "stop-loss touche", candle.ts))
                     continue
-                if candle.high >= pos.take_profit:
+                if avec_objectif and candle.high >= pos.take_profit:
                     out.append(self._settle(pos, pos.take_profit, None, "objectif atteint", candle.ts))
             else:
                 pos.track(candle.low)
                 if candle.high >= pos.stop_loss:
                     out.append(self._settle(pos, pos.stop_loss, None, "stop-loss touche", candle.ts))
                     continue
-                if candle.low <= pos.take_profit:
+                if avec_objectif and candle.low <= pos.take_profit:
                     out.append(self._settle(pos, pos.take_profit, None, "objectif atteint", candle.ts))
         return out
 

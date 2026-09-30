@@ -130,8 +130,37 @@ def _publier_la_fiche_du_compte(compte: str, cfg, capital: float | None = None,
     if capital is not None:
         corps["capital_eur"] = round(float(capital), 2)
     if balance is not None:
-        depart = float(getattr(cfg.engine, "start_balance", 0.0) or 0.0)
-        corps["encaisse_eur"] = round(float(balance) - depart, 2)
+        # Le solde du PaperBroker inclut les frais d'entree des positions
+        # encore ouvertes. Ils ne sont PAS du benefice realise. Pour
+        # l'application, « encaissé » doit donc venir exclusivement des
+        # trades fermes publies pendant cette session.
+        realise = 0.0
+        try:
+            import urllib.parse
+            chemin_etat = f"data/state-{compte}.json"
+            with open(chemin_etat, "r", encoding="utf-8") as fh:
+                since = float(json.load(fh).get("started_at") or 0.0)
+            if since <= 0:
+                raise ValueError("session start absent")
+            iso = dt.datetime.fromtimestamp(float(since), dt.timezone.utc).isoformat().replace("+00:00", "Z")
+            params = urllib.parse.urlencode({
+                "select": "profit_eur",
+                "compte": f"eq.{compte}",
+                "is_demo": "eq.true",
+                "status": "in.(closed_tp,closed_sl)",
+                "published_at": f"gte.{iso}",
+            }, safe="(),.")
+            req = urllib.request.Request(
+                f"{url}/rest/v1/signals?{params}",
+                headers={"apikey": cle, "authorization": f"Bearer {cle}"},
+            )
+            lignes = json.loads(urllib.request.urlopen(req, timeout=10).read().decode() or "[]")
+            realise = sum(float(x.get("profit_eur") or 0.0) for x in lignes)
+        except Exception:
+            # Si la lecture Supabase echoue, ne pas transformer les frais
+            # d'entree en « gains encaisses ». Le 0 neutre est plus honnete.
+            realise = 0.0
+        corps["encaisse_eur"] = round(realise, 2)
     else:
         corps["encaisse_eur"] = 0.0
     # Les colonnes capital_eur/encaisse_eur sont ajoutees par

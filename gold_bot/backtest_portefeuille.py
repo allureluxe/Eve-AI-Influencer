@@ -128,7 +128,8 @@ class BacktestPortefeuille:
 
     def run(self, symbols: list[str], bars: int = 1500,
             start_balance: float = 1000.0,
-            decalage: int = 0) -> ResultatPortefeuille:
+            decalage: int = 0,
+            series_by_symbol: Optional[dict[str, dict[str, list]]] = None) -> ResultatPortefeuille:
         """`decalage` : reculer de N bougies pour mesurer HORS ECHANTILLON.
 
         Un reglage choisi sur une periode y parait toujours bon. La seule
@@ -147,8 +148,9 @@ class BacktestPortefeuille:
         for sym in symbols:
             try:
                 prets.append(self.rejeu.preparer(
-                    sym, bars, start_balance, broker=broker, risk=risk,
-                    decalage=decalage))
+                    sym, bars, start_balance,
+                    series=(series_by_symbol or {}).get(sym),
+                    broker=broker, risk=risk, decalage=decalage))
             except Exception as exc:  # noqa: BLE001
                 resultat.ecartes[sym.upper()] = str(exc)[:80]
                 logger.info("ecarte du portefeuille : %s (%s)", sym,
