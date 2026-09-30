@@ -28,7 +28,7 @@ import { espace } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
 import { BarreDeTri, LigneFermee, LignePosition, Tri, trier } from "../composants/ListePositions";
 import {
-  etagesAffiches, gainTotalEnDirect, resteAInvestir,
+  etagesAffiches, gainTotalEnDirect, resultatRealiseCompteReel, resteAInvestir,
 } from "../composants/positionsTri";
 import { CourbeCapital } from "../composants/CourbeCapital";
 
@@ -141,10 +141,10 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   // Ne jamais afficher fiche.encaisse_eur ici : ce snapshot peut etre stale
   // ou provenir d'une publication precedente. Identite comptable :
   // equity = capital de depart + realise + latent.
-  const gainEncaisse = React.useMemo(() => {
-    if (capitalVivant == null) return 0;
-    return capitalVivant - depart - gainLatent;
-  }, [capitalVivant, depart, gainLatent]);
+  const gainEncaisse = React.useMemo(
+    () => resultatRealiseCompteReel(capitalVivant, depart, gainLatent),
+    [capitalVivant, depart, gainLatent],
+  );
 
   // CAPITAL REEL EN DIRECT = CASH Bitvavo + valeur des quantites réellement
   // détenues, évaluées avec les prix Bitvavo déjà rafraîchis toutes les 3 s.
