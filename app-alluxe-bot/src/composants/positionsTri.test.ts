@@ -9,7 +9,7 @@
  * 500 EUR et relue a 3 300 pese 6,6 fois trop lourd dans le tri.
  */
 import { Position } from "../services/robot";
-import { chiffresDe, gainTotalEnDirect, trier } from "./positionsTri";
+import { chiffresDe, gainTotalEnDirect, resultatRealiseCompteReel, trier } from "./positionsTri";
 import { regrouperLesEtages } from "../services/format";
 
 function position(sur: Partial<Position> & { id: string }): Position {
@@ -181,6 +181,20 @@ describe("le total des positions en cours", () => {
     const sommeDesLignes = ps.reduce(
       (s, p) => s + (chiffresDe(p, 1000, prix[p.pair as keyof typeof prix])?.eur ?? 0), 0);
     expect(gainTotalEnDirect(ps, 1000, prix)).toBeCloseTo(sommeDesLignes, 9);
+  });
+});
+
+describe("la comptabilite du mode Reel", () => {
+  it("derive le realise de l'equity, du depart et du latent", () => {
+    expect(resultatRealiseCompteReel(2347.05, 2400, -29.34)).toBeCloseTo(-23.61, 2);
+  });
+
+  it("ne compte jamais le latent une seconde fois", () => {
+    expect(resultatRealiseCompteReel(2400, 2400, 35)).toBeCloseTo(-35, 2);
+  });
+
+  it("retourne zero si l'equity n'est pas encore disponible", () => {
+    expect(resultatRealiseCompteReel(null, 2400, -10)).toBe(0);
   });
 });
 
