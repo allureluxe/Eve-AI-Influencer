@@ -1,4 +1,4 @@
-from ops.labo_recherche import FAMILLES_EXECUTABLES, valider
+from ops.labo_recherche import FAMILLES_EXECUTABLES, _empreinte_idee, valider
 
 
 def test_famille_macro_nest_pas_executée_implicitement():
@@ -34,3 +34,15 @@ def test_famille_executable_conserve_les_reglages_connus():
 
 def test_liste_des_familles_est_explicitement_bornee():
     assert FAMILLES_EXECUTABLES == {"tendance", "momentum", "donchian", "reversion", "volatilite", "risque", "filtre", "sortie"}
+
+
+def test_empreinte_identifie_une_meme_experience_independamment_de_l_ordre():
+    a = {"famille": "momentum", "params": {"min_adx": 20, "donchian_entrees": [20]}}
+    b = {"famille": "momentum", "params": {"donchian_entrees": [20], "min_adx": 20}}
+    assert _empreinte_idee(a) == _empreinte_idee(b)
+
+
+def test_empreinte_change_quand_un_reglage_change():
+    a = {"famille": "momentum", "params": {"min_adx": 20}}
+    b = {"famille": "momentum", "params": {"min_adx": 25}}
+    assert _empreinte_idee(a) != _empreinte_idee(b)

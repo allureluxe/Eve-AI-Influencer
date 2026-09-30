@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import hashlib
 import json
 import os
 import re
@@ -233,12 +234,62 @@ def valider(idee: dict, connus: set[str]) -> tuple[dict | None, str]:
     return idee, ""
 
 
+def _empreinte_idee(idee: dict) -> str:
+    """Identifie une expérience par son mécanisme et ses paramètres.
+
+    Deux cerveaux peuvent reformuler la même expérience à chaque demi-heure.
+    Si les paramètres testés sont identiques, la seconde ligne n'apporte
+    aucune information au Lab : on la considère comme un doublon.
+    """
+    payload = {
+        "famille": str(idee.get("famille", "")).strip().lower(),
+        "params": idee.get("params", {}),
+    }
+    brut = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(brut.encode("utf-8")).hexdigest()
+
+
+def _empreintes_existantes(url: str, cle: str, limit: int = 5000) -> set[str]:
+    """Charge les expériences déjà déposées, sans lire ni exposer aucun secret."""
+    endpoint = (
+        f"{url}/rest/v1/lab_research?select=famille,hypothese"
+        f"&statut=eq.IDEATED&order=created_at.desc&limit={int(limit)}"
+    )
+    req = urllib.request.Request(endpoint, headers={
+        "apikey": cle, "Authorization": f"Bearer {cle}",
+    })
+    try:
+        rows = json.loads(urllib.request.urlopen(req, timeout=30).read().decode() or "[]")
+    except Exception as exc:  # noqa: BLE001
+        print(f"lecture des doublons impossible : {type(exc).__name__}")
+        return set()
+    result: set[str] = set()
+    for row in rows:
+        try:
+            h = json.loads(row.get("hypothese") or "{}")
+            result.add(_empreinte_idee({"famille": row.get("famille"), "params": h.get("params", {})}))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+    return result
+
+
 def deposer(idees: list[dict], mode: str) -> int:
     url = os.environ.get("SUPABASE_URL", "").rstrip("/")
     cle = os.environ.get("SUPABASE_SERVICE_KEY", "")
     if not url or not cle:
         print("SUPABASE absent, rien depose")
         return 0
+    deja = _empreintes_existantes(url, cle)
+    uniques: list[dict] = []
+    for idee in idees:
+        empreinte = _empreinte_idee(idee)
+        if empreinte in deja:
+            continue
+        deja.add(empreinte)
+        uniques.append(idee)
+    if len(uniques) < len(idees):
+        print(f"  {len(idees) - len(uniques)} doublon(s) ignore(s)")
+
     lignes = [{
         "sujet": str(i.get("titre", ""))[:300],
         "mode": mode,
@@ -253,7 +304,7 @@ def deposer(idees: list[dict], mode: str) -> int:
                                 ensure_ascii=False)[:4000],
         "conditions": str(i.get("conditions", ""))[:2000],
         "statut": ("IDEATED" if str(i.get("famille", "")).strip().lower() in FAMILLES_RECHERCHE_EXECUTABLES else "FEATURE_REQUIRED"),
-    } for i in idees]
+    } for i in uniques]
     if not lignes:
         return 0
     req = urllib.request.Request(
