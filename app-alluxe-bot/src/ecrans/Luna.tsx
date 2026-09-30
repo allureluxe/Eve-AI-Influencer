@@ -11,7 +11,7 @@ import {
   Image, Pressable, RefreshControl, ScrollView, Switch, TextInput, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Audio, ResizeMode, Video } from "expo-av";
+
 import { Ionicons } from "@expo/vector-icons";
 import {
   demanderGeneration, performances, Publication, Persona,
@@ -234,68 +234,10 @@ function PhotoPublication({ chemin, ratio }: { chemin: string; ratio: string }) 
   return <Image source={{ uri: url }} style={{ width: "100%", aspectRatio: ratio === "16:9" ? 16 / 9 : 3 / 4, borderRadius: rayon.m, marginTop: espace.m }} />;
 }
 
-function LecteurVoix({ chemin }: { chemin: string }) {
+function ApercuMedia({ type, ratio }: { type: "photo" | "video" | "audio"; ratio: string }) {
   const c = useCouleurs();
-  const [url, setUrl] = React.useState<string | null>(null);
-  const [enLecture, setEnLecture] = React.useState(false);
-  const son = React.useRef<Audio.Sound | null>(null);
-
-  React.useEffect(() => {
-    let vivant = true;
-    urlSignee(chemin).then((u) => { if (vivant) setUrl(u); });
-    return () => { vivant = false; son.current?.unloadAsync(); };
-  }, [chemin]);
-
-  const basculer = async () => {
-    if (!url) return;
-    if (!son.current) {
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: url }, { shouldPlay: true },
-        (statut) => { if (statut.isLoaded && statut.didJustFinish) setEnLecture(false); },
-      );
-      son.current = sound;
-      setEnLecture(true);
-      return;
-    }
-    const statut = await son.current.getStatusAsync();
-    if (statut.isLoaded && statut.isPlaying) {
-      await son.current.pauseAsync(); setEnLecture(false);
-    } else {
-      await son.current.playFromPositionAsync(
-        statut.isLoaded && statut.didJustFinish ? 0 : (statut.isLoaded ? statut.positionMillis : 0),
-      );
-      setEnLecture(true);
-    }
-  };
-
-  return (
-    <Pressable onPress={basculer} disabled={!url} style={{
-      flexDirection: "row", alignItems: "center", backgroundColor: c.creux,
-      borderRadius: rayon.s, paddingVertical: espace.s, paddingHorizontal: espace.m,
-      marginTop: espace.s, alignSelf: "flex-start", opacity: url ? 1 : 0.5,
-    }}>
-      <Ionicons name={enLecture ? "pause" : "play"} size={16} color={c.encre} />
-      <T v="petit" style={{ marginLeft: espace.xs }}>Voix</T>
-    </Pressable>
-  );
-}
-
-function LecteurVideo({ chemin }: { chemin: string }) {
-  const c = useCouleurs();
-  const [url, setUrl] = React.useState<string | null>(null);
-  React.useEffect(() => {
-    let vivant = true;
-    urlSignee(chemin).then((u) => { if (vivant) setUrl(u); });
-    return () => { vivant = false; };
-  }, [chemin]);
-
-  if (!url) return <View style={{ width: "100%", aspectRatio: 9 / 16, borderRadius: rayon.m, backgroundColor: c.creux, marginTop: espace.m }} />;
-  return (
-    <Video
-      source={{ uri: url }} style={{ width: "100%", aspectRatio: 9 / 16, borderRadius: rayon.m, marginTop: espace.m }}
-      useNativeControls resizeMode={ResizeMode.COVER} isLooping
-    />
-  );
+  const label = type === "video" ? "Vidéo disponible" : type === "audio" ? "Voix disponible" : "Photo disponible";
+  return <View style={{ width: "100%", aspectRatio: ratio === "16:9" ? 16 / 9 : ratio === "9:16" ? 9 / 16 : 3 / 4, borderRadius: rayon.m, backgroundColor: c.creux, marginTop: espace.m, alignItems: "center", justifyContent: "center" }}><T v="petit" couleur={c.encreDouce}>{label}</T></View>;
 }
 
 function CartePublication({ pub, afficherMedia = true }: { pub: Publication; afficherMedia?: boolean }) {
@@ -325,14 +267,9 @@ function CartePublication({ pub, afficherMedia = true }: { pub: Publication; aff
       {!!pub.demande && <T v="petit" couleur={c.encreDouce} style={{ marginTop: espace.s }}>{pub.demande}</T>}
       {!!pub.legende && <T v="corps" style={{ marginTop: espace.s }}>{pub.legende}</T>}
 
-      {afficherMedia && (pub.chemin_video ? (
-        <LecteurVideo chemin={pub.chemin_video} />
-      ) : (
-        <>
-          {pub.chemin_photo && <PhotoPublication chemin={pub.chemin_photo} ratio={pub.aspect_ratio} />}
-          {pub.chemin_voix && <LecteurVoix chemin={pub.chemin_voix} />}
-        </>
-      ))}
+      {afficherMedia && (pub.chemin_video || pub.chemin_photo || pub.chemin_voix) && (
+        <ApercuMedia type={pub.chemin_video ? "video" : pub.chemin_voix ? "audio" : "photo"} ratio={pub.aspect_ratio} />
+      )}
 
       {(pub.location_type || pub.highlight_name || pub.call_to_action) && (
         <View style={{ marginTop: espace.s }}>
