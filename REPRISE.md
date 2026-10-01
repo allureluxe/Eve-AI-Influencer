@@ -1,4 +1,46 @@
-# Ou on en est — mis a jour le 26 septembre 2026
+# Ou on en est — mis a jour le 1er octobre 2026 (soir)
+
+## LE ROBOT REEL TOURNE — et ce n'est PAS robot-dual-live
+
+Verifie sur le VPS le 1er oct. :
+
+    robot-trading.service    ACTIF   run_bot.py run --config robot.bitvavo.json   <- ARGENT REEL
+    robot-dual-live.service  arrete depuis le 27 sept.
+    robot-demo / demo2 / lab actifs
+
+Ce qui suit dans ce fichier (« robot reel a l'arret », « ne pas redemarrer
+robot-dual-live ») date d'AVANT et ne decrit plus la realite.
+
+- Depot du 25 sept. (120 EUR), puis capital ~2 400 EUR du 29 sept. au
+  1er oct. ; **retrait de ~1 610 EUR le 1er oct. vers 17h-18h UTC**.
+  Capital reel : **596 EUR**. Le robot a redemarre a 19h41 UTC sur 595,62.
+- Resultat reel du 29 sept. au 1er oct. : environ -44 EUR (35 trades).
+- **Chien de garde** : il etait DECLENCHE depuis le 16 sept. (equite 0
+  apres le retrait total) et ne surveillait que `robot-dual-live`. Recale
+  a la main le 1er oct. (reference 595,64, plancher 268,04). Corrige dans
+  `d87ab9d` (branche `claude/slt-weo70p`) : il coupe desormais chaque
+  service reel actif, `robot-trading` compris. **A VERIFIER** : la regle
+  sudoers lui permet-elle `systemctl stop robot-trading` ?
+- **Alertes du reel publiees sous compte="demo"** : corrige dans le meme
+  commit (prend effet au prochain redemarrage de robot-trading).
+
+### En attente
+
+1. Ramener `d87ab9d` sur le VPS (`git merge --ff-only origin/claude/slt-weo70p`).
+2. PROMPT vendu a 0,017583 SOUS son stop 0,018679 au redemarrage de 19h41
+   UTC (-10,18 EUR, -1,48 R) : les stops sont-ils vraiment poses chez
+   Bitvavo quand le robot est arrete ? A verifier avant tout.
+3. `robot-trading` redemarre souvent (6 « Robot demarre » du 29 sept. au
+   1er oct.) : cause inconnue.
+4. Erreurs Bitvavo 403 « acceptable window » (horloge ?) le 1er oct.
+5. Agent Alluxe : cycle autonome en echec toutes les ~15 min (repli Groq
+   `llama-3.3-70b-versatile` -> 404), `ops/agent_alluxe.py:668`.
+6. Demo 2 (Lab, canal 6/5, sans pyramide) contre reel (canal 10, pyramide
+   illimitee) : 3 jours seulement, rien a conclure avant ~40 trades.
+
+---
+
+# Ce qui suit date du 26 septembre 2026
 
 ## LUNA — la ou on s'est arretes
 
