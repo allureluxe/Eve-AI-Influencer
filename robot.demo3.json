@@ -1,4 +1,5 @@
 {
+  "_temoin": "Compte 3 du 1er oct. 2026 : IDENTIQUE au compte demo (miroir du reel), SAUF rachat_meme_bougie_apres_gain = true. Apres une sortie GAGNANTE, il peut racheter la meme crypto le meme jour ; apres une perte, il attend la bougie suivante comme le reel. Observe du 19 sept. au 1er oct. : 10 rachats de ce type, 10 gagnants, +41 EUR -- trop peu pour armer le reel. Comparer demo3 a demo apres ~40 trades chacun.",
   "_arme_en_reel": "NON. Capital purement virtuel (simulateur PaperBroker), aucun ordre reel n'est jamais envoye.",
   "_note": "Cree le 18 sept. a la demande de l'operateur : simuler la strategie D1 Turtle avec 500 EUR virtuels, sur les VRAIES cotations Bitvavo en direct, avant de deposer les 500 EUR reels. Memes reglages strategie/risque/trade que robot.bitvavo.json -- seul le lieu d'execution change (paper au lieu de bitvavo). univers_dynamique_bitvavo=true pour scanner le meme univers ~215 cryptos que le robot reel (voir gold_bot/engine.py, ce reglage est desactive par defaut partout ailleurs pour ne jamais faire d'appel reseau dans les tests).",
   "engine": {
@@ -89,7 +90,8 @@
     "ticket_min_eur": 15.0,
     "carence_meme_bougie": true,
     "unite_du_signal": "D1",
-    "reserve_pyramide_pct": 1.67
+    "reserve_pyramide_pct": 0.0,
+    "rachat_meme_bougie_apres_gain": true
   },
   "trade": {
     "atr_stop_mult": 1.6,
@@ -99,13 +101,13 @@
     "max_stop_atr_for_cost": 3.0,
     "tp_r_multiple": 2.0,
     "spread_buffer_mult": 1.2,
-    "breakeven_at_r": 0.5,
+    "breakeven_at_r": 0.7,
     "breakeven_offset_r": 0.05,
     "partial_enabled": false,
     "partial_at_r": 1.0,
     "partial_fraction": 0.3,
     "trail_start_r": 1.1,
-    "trail_atr_mult": 3.0,
+    "trail_atr_mult": 2.0,
     "trail_tighten_atr_mult": 0.6,
     "extend_enabled": true,
     "extend_at_progress": 0.8,
@@ -143,6 +145,5 @@
     "active": false,
     "sans_frais_jusqu_au": "",
     "volume_plafond": 0.0
-  },
-  "_temoin": "Compte 3 du 20 sept. : identique au compte demo, SAUF le point mort (0,5 R ici, 0,7 la-bas). Le rejeu mettait 0,5 en tete de +149 EUR sur 380 trades, mais l'ecart vaut 0,09 fois son incertitude : indiscernable du hasard. Seul un test en parallele peut trancher."
+  }
 }
