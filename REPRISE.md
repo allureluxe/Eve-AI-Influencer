@@ -1,4 +1,30 @@
-# Ou on en est — mis a jour le 1er octobre 2026 (soir)
+# Ou on en est — mis a jour le 2 octobre 2026, 00h30
+
+## 2 OCT. 00h30 — CE QUI A ETE FAIT CETTE NUIT (lire en premier)
+
+- **Serveur passe a 8 Go** (reboot ~23h46). Au reboot, `robot-dual-live`
+  (enabled) s'est relance a la place de `robot-trading`. Corrige, accord
+  operateur « garde le robot » : dual-live **disabled**, robot-trading et
+  demo2 **enabled**. Apres chaque reboot : verifier lequel tourne.
+- **Lab plafonne** : drop-in `systemd/robot-lab.memoire.conf` (1,6 Go max).
+- **Faux depot de 495 EUR** (1er oct. 23h41, serveur sature) : la
+  reference etait montee a 1 825 EUR pour 580. Cause corrigee dans
+  `gold_bot/risk.py` (+ tests). state.json nettoye apres arret : BNT,
+  MANTRA, ALT retires (verifies vendus chez Bitvavo), reference 580,30,
+  objectif hebdo 580,30, **pic 662,79 laisse tel quel** (vrai sommet).
+  Sauvegardes : `data/*.avant-nettoyage-2oct`. Branche `claude/slt-weo70p`
+  fusionnee (1 229 tests verts) : les points « ramener d87ab9d » et
+  « ticket 15 » ci-dessous sont FAITS.
+- Risque engage reel apres redemarrage : 8,9 % (10 vraies positions) >
+  plafond 5 % -> aucune nouvelle entree tant que les stops ne montent pas.
+- **OTA** : expo-updates ajoute, commit `3c32781` **NON POUSSE** (le push
+  declenche le build APK). Attend le jeton Expo de l'operateur
+  (`mettre_a_jour_jeton_expo.py`), puis `eas init` -> projectId ->
+  `EAS_PROJECT_ID_ALLUXE_BOT` dans le workflow -> push -> UN APK -> ensuite
+  `eas update` pour tout changement JS.
+- Demo 1 repartie a 3 300 EUR au reboot (etait ~3 530) : cause non
+  cherchee encore.
+- Recherche du Lab : credit API Claude epuise, ChatGPT en timeout.
 
 ## LE ROBOT REEL TOURNE — et ce n'est PAS robot-dual-live
 
