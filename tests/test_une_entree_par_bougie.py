@@ -143,13 +143,20 @@ class TestLaCarenceSurvitAuRedemarrage:
         assert "memoriser_sorties" in inspect.getsource(TradingEngine.start)
 
 
-class TestRachatApresGainExperience:
-    """Desarmee par defaut ; a mesurer sur une demo avant tout armement."""
+class TestRachatApresGain:
+    """ARMEE SUR LE REEL le 1er oct. 2026, decision de l'operateur, sur
+    10 rachats observes (10 gagnants, +41 EUR, demos seulement). La demo 1
+    suit le reel ; la demo 3 garde l'ancienne regle comme TEMOIN."""
 
-    def test_desarmee_par_defaut_et_dans_le_reel(self):
-        from gold_bot.settings import BotConfig
+    def test_desarmee_par_defaut(self):
         assert RiskConfig().rachat_meme_bougie_apres_gain is False
-        assert BotConfig.load("robot.bitvavo.json").risk.rachat_meme_bougie_apres_gain is False
+
+    def test_armee_sur_le_reel_et_son_miroir_pas_sur_le_temoin(self):
+        from gold_bot.settings import BotConfig
+        assert BotConfig.load("robot.bitvavo.json").risk.rachat_meme_bougie_apres_gain is True
+        assert BotConfig.load("robot.demo.json").risk.rachat_meme_bougie_apres_gain is True
+        assert BotConfig.load("robot.demo3.json").risk.rachat_meme_bougie_apres_gain is False, (
+            "sans temoin, on ne saura jamais ce que la regle rapporte")
 
     def test_armee_elle_laisse_racheter_apres_un_gain(self):
         rm = RiskManager(RiskConfig(carence_meme_bougie=True, unite_du_signal="D1",

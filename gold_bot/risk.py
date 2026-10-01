@@ -194,15 +194,16 @@ class RiskConfig:
     # autre geste, et `check_exposure` le laisse passer explicitement.
     carence_meme_bougie: bool = False
     unite_du_signal: str = "D1"
-    # EXPERIENCE (1er oct. 2026), DESARMEE PAR DEFAUT : laisser racheter
-    # le meme jour quand la sortie precedente etait GAGNANTE.
+    # Laisser racheter le meme jour quand la sortie precedente etait
+    # GAGNANTE. Desarmee par defaut ; ARMEE SUR LE REEL le 1er oct. 2026
+    # par decision de l'operateur (voir CLAUDE.md), demo 3 en temoin.
     #
     # Sur les trades enregistres du 19 sept. au 1er oct., 10 rachats du
     # meme jour sont passes (par la fuite des redemarrages, voir
     # `memoriser_sorties`) : 10 gagnants sur 10, +41 EUR, et TOUS apres
     # une sortie gagnante sur le suiveur — une tendance qui continue.
     # Aucun cas apres un stop perdant. Echantillon trop petit, demos
-    # seulement : a mesurer sur une demo avant tout armement en reel.
+    # seulement : la demo 3 garde l'ancienne regle pour le mesurer.
     rachat_meme_bougie_apres_gain: bool = False
 
     # --- Serie ---

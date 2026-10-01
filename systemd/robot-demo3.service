@@ -10,7 +10,7 @@
 # prix uniquement, publique, sans cle).
 
 [Unit]
-Description=Simulation DEMO 3 -- rachat apres sortie gagnante, capital virtuel
+Description=Simulation DEMO 3 -- temoin sans rachat apres gain, capital virtuel
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=300
