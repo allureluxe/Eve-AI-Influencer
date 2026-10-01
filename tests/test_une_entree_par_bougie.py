@@ -103,3 +103,63 @@ class TestLePyramidageNEstPasTouche:
         assert "carence" not in source.lower() or "ne s'applique pas" in source, (
             "le delai de carence s'applique au renforcement : il tuerait "
             "le pyramidage, d'ou vient tout le benefice")
+
+
+def _trade(symbol: str, closed_at: float, profit: float):
+    from gold_bot.core import ClosedTrade, Side
+    return ClosedTrade(position_id=f"{symbol}-{closed_at}", symbol=symbol,
+                       side=Side.BUY, volume=1.0, entry_price=1.0,
+                       exit_price=1.0, opened_at=closed_at - 3600,
+                       closed_at=closed_at, profit=profit, r_multiple=0.0,
+                       reason="stop")
+
+
+class TestLaCarenceSurvitAuRedemarrage:
+    """1er oct. 2026 : `_derniere_sortie` ne vivait qu'en memoire. Les demos,
+    qui redemarraient jusqu'a 9 fois par jour, ont rachete 10 fois le
+    meme jour alors que la regle etait armee. Le reel avait la meme fuite."""
+
+    def test_un_robot_neuf_relit_la_sortie_dans_le_journal(self):
+        rm = RiskManager(RiskConfig(carence_meme_bougie=True, unite_du_signal="D1"))
+        rm.memoriser_sorties([_trade("BTCUSD", MIDI, -5.0)])
+        assert rm.carence_restante("BTCUSD", MIDI + 3600) > 0, (
+            "apres un redemarrage, le rachat du meme jour repasse")
+
+    def test_la_sortie_la_plus_recente_l_emporte(self):
+        rm = RiskManager(RiskConfig(carence_meme_bougie=True, unite_du_signal="D1"))
+        hier = MIDI - 86400
+        rm.memoriser_sorties([_trade("BTCUSD", MIDI, 1.0), _trade("BTCUSD", hier, 1.0)])
+        assert rm._derniere_sortie["BTCUSD"] == MIDI
+
+    def test_aucun_compteur_n_est_touche(self):
+        rm = RiskManager(RiskConfig())
+        rm.memoriser_sorties([_trade("BTCUSD", MIDI, -5.0)] * 5)
+        assert rm.account.consecutive_losses == 0
+        assert rm.account.realized_today == 0.0
+
+    def test_le_moteur_relit_le_journal_au_demarrage(self):
+        import inspect
+        from gold_bot.engine import TradingEngine
+        assert "memoriser_sorties" in inspect.getsource(TradingEngine.start)
+
+
+class TestRachatApresGainExperience:
+    """Desarmee par defaut ; a mesurer sur une demo avant tout armement."""
+
+    def test_desarmee_par_defaut_et_dans_le_reel(self):
+        from gold_bot.settings import BotConfig
+        assert RiskConfig().rachat_meme_bougie_apres_gain is False
+        assert BotConfig.load("robot.bitvavo.json").risk.rachat_meme_bougie_apres_gain is False
+
+    def test_armee_elle_laisse_racheter_apres_un_gain(self):
+        rm = RiskManager(RiskConfig(carence_meme_bougie=True, unite_du_signal="D1",
+                                    rachat_meme_bougie_apres_gain=True))
+        rm.record_close(_trade("BTCUSD", MIDI, 3.0))
+        assert rm.carence_restante("BTCUSD", MIDI + 3600) == 0.0
+
+    def test_armee_elle_bloque_toujours_apres_une_perte(self):
+        rm = RiskManager(RiskConfig(carence_meme_bougie=True, unite_du_signal="D1",
+                                    rachat_meme_bougie_apres_gain=True))
+        rm.record_close(_trade("BTCUSD", MIDI, -3.0))
+        assert rm.carence_restante("BTCUSD", MIDI + 3600) > 0, (
+            "un stop perdant (le cas PROMPT) doit attendre la bougie suivante")
