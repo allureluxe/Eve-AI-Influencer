@@ -4,11 +4,22 @@
 // pourquoi complet.
 require("dotenv").config();
 
+// Mises a jour OTA (decision de l'operateur, 29 sept. puis 2 oct. 2026) :
+// les changements JS/TS arrivent sans nouvel APK. Le projet EAS est
+// identifie par EAS_PROJECT_ID_ALLUXE_BOT ; absent, l'OTA est desactive
+// et l'APK se comporte comme avant. `runtimeVersion` suit `version` :
+// changer de version = changement natif = nouvel APK obligatoire.
+const projetEas = process.env.EAS_PROJECT_ID_ALLUXE_BOT ?? "";
+
 module.exports = () => ({
   expo: {
     name: "Alluxe Bot",
     slug: "alluxe-bot",
     version: "1.0.0",
+    runtimeVersion: { policy: "appVersion" },
+    updates: projetEas
+      ? { enabled: true, url: `https://u.expo.dev/${projetEas}`, checkAutomatically: "ON_LOAD", fallbackToCacheTimeout: 0 }
+      : { enabled: false },
     orientation: "portrait",
     scheme: "alluxebot",
     userInterfaceStyle: "automatic",
@@ -36,6 +47,7 @@ module.exports = () => ({
       "./plugins/reveil-vocal",
     ],
     extra: {
+      ...(projetEas ? { eas: { projectId: projetEas } } : {}),
       supabaseUrl: process.env.SUPABASE_URL ?? "",
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? "",
       // Compte de service dedie (pas le compte personnel de l'operateur) :
