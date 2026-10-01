@@ -141,10 +141,8 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   // Ne jamais afficher fiche.encaisse_eur ici : ce snapshot peut etre stale
   // ou provenir d'une publication precedente. Identite comptable :
   // equity = capital de depart + realise + latent.
-  const gainEncaisse = React.useMemo(
-    () => resultatRealiseCompteReel(capitalVivant, depart, gainLatent),
-    [capitalVivant, depart, gainLatent],
-  );
+  // Calcule plus bas, APRES capitalVivant et gainLatent : lire une const
+  // avant sa declaration leve une ReferenceError et l'ecran plante.
 
   // CAPITAL REEL EN DIRECT = CASH Bitvavo + valeur des quantites réellement
   // détenues, évaluées avec les prix Bitvavo déjà rafraîchis toutes les 3 s.
@@ -176,6 +174,11 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
   const gainLatent = React.useMemo(
     () => positions ? gainTotalEnDirect(positions, depart, prixLive) : 0,
     [positions, depart, prixLive],
+  );
+
+  const gainEncaisse = React.useMemo(
+    () => resultatRealiseCompteReel(capitalVivant, depart, gainLatent),
+    [capitalVivant, depart, gainLatent],
   );
 
   // « ENCAISSE » : ce qui est DEJA dans la caisse, latent exclu.
