@@ -10,9 +10,19 @@ name: Construire l'APK Android (Alluxe Bot)
 
 on:
   workflow_dispatch:
+  # Depuis le 2 oct. 2026 l'application recoit les changements JS/TS par
+  # OTA (ops/publier_ota_app.sh). Un APK n'est reconstruit que pour ce qui
+  # change le binaire : dependances, config Expo, plugins natifs, icones.
   push:
     branches: ["claude/gold-trading-system-auto-6boe8m"]
-    paths: ["app-alluxe-bot/**", ".github/workflows/build-android-alluxe-bot.yml"]
+    paths:
+      - "app-alluxe-bot/package.json"
+      - "app-alluxe-bot/package-lock.json"
+      - "app-alluxe-bot/app.config.js"
+      - "app-alluxe-bot/plugins/**"
+      - "app-alluxe-bot/assets/**"
+      - "app-alluxe-bot/google-services.json"
+      - ".github/workflows/build-android-alluxe-bot.yml"
 
 permissions:
   contents: write

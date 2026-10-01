@@ -17,11 +17,15 @@
   « ticket 15 » ci-dessous sont FAITS.
 - Risque engage reel apres redemarrage : 8,9 % (10 vraies positions) >
   plafond 5 % -> aucune nouvelle entree tant que les stops ne montent pas.
-- **OTA** : expo-updates ajoute, commit `3c32781` **NON POUSSE** (le push
-  declenche le build APK). Attend le jeton Expo de l'operateur
-  (`mettre_a_jour_jeton_expo.py`), puis `eas init` -> projectId ->
-  `EAS_PROJECT_ID_ALLUXE_BOT` dans le workflow -> push -> UN APK -> ensuite
-  `eas update` pour tout changement JS.
+- **OTA EN SERVICE** : projet Expo `@vps-eve/alluxe-bot`, canal
+  `production`, runtime 1.0.0. APK f8757ab construit (contient l'OTA,
+  verifie dans le manifeste) — lien :
+  https://github.com/allureluxe/Eve-AI-Influencer/releases/download/dernier-build-alluxe-bot/app-release.apk
+  Pour tout changement JS/TS : `bash ops/publier_ota_app.sh "message"`
+  (teste le 2 oct.). Le workflow APK ne se relance plus que sur
+  package.json, app.config.js, plugins, assets. Changement natif ou `version` -> nouvel APK obligatoire.
+- **Demo 3 installee** (temoin sans rachat apres gain), plafond memoire.
+- **syslog** : copie du robot reel et du Lab coupee (5 Go en une semaine).
 - Demo 1 n'etait PAS remise a zero (solde bien repris). Mais chaque
   redemarrage d'une demo comptait la reprise de son solde comme un depot :
   reference demo 1 a 6 609 pour ~3 425, demo 2 a 1 102 pour ~986. Corrige
