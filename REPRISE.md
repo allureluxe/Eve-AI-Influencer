@@ -24,6 +24,9 @@
   Pour tout changement JS/TS : `bash ops/publier_ota_app.sh "message"`
   (teste le 2 oct.). Le workflow APK ne se relance plus que sur
   package.json, app.config.js, plugins, assets. Changement natif ou `version` -> nouvel APK obligatoire.
+- **`verbose_scan` a false** sur reel, demo, demo3 : 72 000 lignes / 10 min,
+  journal du reel limite a ~2 h d'historique. Demos : ~30 lignes/min.
+  **Le reel le prendra a son prochain redemarrage** (pas relance pour ca).
 - **Demo 3 installee** (temoin sans rachat apres gain), plafond memoire.
 - **syslog** : copie du robot reel et du Lab coupee (5 Go en une semaine).
 - Demo 1 n'etait PAS remise a zero (solde bien repris). Mais chaque
