@@ -858,6 +858,8 @@ class TradingEngine:
 
         self.objectives.sync(acc.equity)
         self._restore_positions()
+        # La carence « une entree par bougie » doit survivre au redemarrage.
+        self.risk.memoriser_sorties(self.journal.trades)
 
         n_events = self.news.refresh(force=True)
         sources = [s["source"] for s in self.registry.status() if s["configuree"]]

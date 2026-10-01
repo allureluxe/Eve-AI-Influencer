@@ -62,6 +62,10 @@ class TestLeRejeuTraverseLesMEMESPortes:
             # Mouvement de tresorerie, appele par le moteur quand la
             # plateforme confirme un retrait -- pas une porte d'entree.
             "absorber_retrait",
+            # Relit le journal au DEMARRAGE pour que la carence survive a
+            # un redemarrage. Le rejeu ne redemarre jamais : il alimente
+            # deja la memoire par `record_close`, trade apres trade.
+            "memoriser_sorties",
             # Calculs de cout, utilises A L'INTERIEUR de `size_position`
             # (verifie : risk.py lignes 1099 et 1168). Les brancher a
             # part les appliquerait deux fois.

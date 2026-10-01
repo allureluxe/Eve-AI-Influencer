@@ -83,6 +83,29 @@ class TestRepliDeModele(unittest.TestCase):
                 agent._appeler_moteur_avec_repli([{"role": "user", "content": "x"}])
         self.assertEqual(essayes, ["gros"])
 
+    def test_un_modele_retire_est_saute_sans_masquer_le_429(self):
+        """1er oct. 2026 : le 404 du dernier repli remplacait le vrai
+        motif (429) dans le journal, toutes les ~15 min."""
+        essayes: list[str] = []
+
+        def faux(messages, modele=""):
+            essayes.append(modele)
+            if modele == "retire":
+                raise agent.ErreurAgent(
+                    "HTTP 404 : The model `retire` does not exist")
+            raise agent.ErreurAgent("HTTP 429 : Rate limit reached")
+
+        with mock.patch.object(agent, "_appeler_moteur", faux), \
+             mock.patch.object(agent, "MODELES_DE_REPLI", ["retire", "petit"]), \
+             mock.patch.dict("os.environ", {"LUNA_API_MODELE": "gros"}):
+            with self.assertRaises(agent.ErreurAgent) as ctx:
+                agent._appeler_moteur_avec_repli([{"role": "user", "content": "x"}])
+        self.assertEqual(essayes, ["gros", "retire", "petit"])
+        self.assertIn("429", str(ctx.exception))
+
+    def test_le_repli_par_defaut_n_est_plus_le_modele_retire(self):
+        self.assertNotIn("llama-3.3-70b-versatile", agent.MODELES_DE_REPLI)
+
     def test_il_existe_au_moins_un_modele_de_repli(self):
         self.assertTrue(agent.MODELES_DE_REPLI,
                         "sans repli, un rationnement redevient un silence")

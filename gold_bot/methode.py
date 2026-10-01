@@ -142,6 +142,11 @@ def resume_methode(cfg: BotConfig) -> str:
         morceaux.append(f"à l'abri dès {protection:.1f}× le risque"
                         .replace(".", ","))
 
+    # LE RACHAT APRES UN GAIN (reel + demo, 1er oct. 2026), meme raison : c'est
+    # la seule difference entre demo et demo3, elle doit se lire.
+    if getattr(cfg.risk, "rachat_meme_bougie_apres_gain", False):
+        morceaux.append("rachat le jour même après un gain")
+
     # LA LIMITE PAR FAMILLE, pour la meme raison que le point mort : sans
     # elle, deux comptes qui ne different QUE par ce reglage affichent la
     # meme phrase. C'est arrive deux fois en deux jours.

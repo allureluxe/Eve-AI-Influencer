@@ -194,6 +194,17 @@ class RiskConfig:
     # autre geste, et `check_exposure` le laisse passer explicitement.
     carence_meme_bougie: bool = False
     unite_du_signal: str = "D1"
+    # Laisser racheter le meme jour quand la sortie precedente etait
+    # GAGNANTE. Desarmee par defaut ; ARMEE SUR LE REEL le 1er oct. 2026
+    # par decision de l'operateur (voir CLAUDE.md), demo 3 en temoin.
+    #
+    # Sur les trades enregistres du 19 sept. au 1er oct., 10 rachats du
+    # meme jour sont passes (par la fuite des redemarrages, voir
+    # `memoriser_sorties`) : 10 gagnants sur 10, +41 EUR, et TOUS apres
+    # une sortie gagnante sur le suiveur — une tendance qui continue.
+    # Aucun cas apres un stop perdant. Echantillon trop petit, demos
+    # seulement : la demo 3 garde l'ancienne regle pour le mesurer.
+    rachat_meme_bougie_apres_gain: bool = False
 
     # --- Serie ---
     max_consecutive_losses: int = 4    # au-dela : pause forcee
@@ -351,6 +362,9 @@ class RiskManager:
         # de `last_trade_ts` qui est global : c'est le rachat du MEME actif
         # qui coute, pas la cadence generale.
         self._derniere_sortie: dict[str, float] = {}
+        # Cette derniere sortie etait-elle gagnante ? Ne sert qu'a
+        # `rachat_meme_bougie_apres_gain`.
+        self._sortie_gagnante: dict[str, bool] = {}
 
     # ---------------------------------------------------------------
     # Suivi du compte
@@ -532,6 +546,23 @@ class RiskManager:
             avant_pic, acc.peak_equity, avant_jour, acc.day_start_equity,
             avant_semaine, acc.week_start_equity)
 
+    def memoriser_sorties(self, trades) -> None:
+        """Reconstruit la memoire des sorties depuis le journal des trades.
+
+        `_derniere_sortie` ne vivait qu'en memoire : chaque redemarrage
+        l'effacait, et la regle « une entree par bougie » ne tenait plus.
+        Trouve le 1er oct. 2026 : 10 rachats du meme jour sur les demos
+        (qui redemarraient jusqu'a 9 fois par jour) alors que la regle y
+        etait armee. Le robot reel avait la meme fuite.
+
+        Ne touche a AUCUN compteur (pertes d'affilee, resultat du jour) :
+        seulement a l'heure de la derniere sortie par symbole.
+        """
+        for trade in trades:
+            if trade.closed_at >= self._derniere_sortie.get(trade.symbol, 0.0):
+                self._derniere_sortie[trade.symbol] = trade.closed_at
+                self._sortie_gagnante[trade.symbol] = trade.profit > 0
+
     def record_close(self, trade: ClosedTrade) -> None:
         """Enregistre un trade cloture (statistiques et coupe-circuits)."""
         acc = self.account
@@ -540,6 +571,7 @@ class RiskManager:
         acc.trades_today += 1
         acc.last_trade_ts = trade.closed_at
         self._derniere_sortie[trade.symbol] = trade.closed_at
+        self._sortie_gagnante[trade.symbol] = trade.profit > 0
         if trade.profit < 0:
             acc.consecutive_losses += 1
             acc.consecutive_wins = 0
@@ -661,7 +693,9 @@ class RiskManager:
         #
         # Ce n'est donc pas un reglage a optimiser : c'est une incoherence
         # a supprimer. On aligne le robot sur son unite de temps.
-        if cfg.carence_meme_bougie and sortie:
+        apres_gain = (cfg.rachat_meme_bougie_apres_gain
+                      and self._sortie_gagnante.get(symbol, False))
+        if cfg.carence_meme_bougie and sortie and not apres_gain:
             secondes = tf_seconds(cfg.unite_du_signal)
             if secondes > 0:
                 maintenant = now or time.time()
