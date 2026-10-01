@@ -77,3 +77,28 @@ class TestLeMoteurEcritEtRelitLeSolde:
         assert not coupables, (
             f"ces courtiers portent un attribut `balance` : {coupables}. "
             "Le moteur leur ecraserait leur solde au demarrage.")
+
+
+class TestLaRepriseDuSoldeNEstPasUnDepot:
+    """2 oct. 2026 : a chaque redemarrage, la demo 1 prenait la reprise de
+    son propre solde (3 300 -> 3 512) pour un apport. Sa reference etait
+    montee a 6 609 EUR pour un compte de ~3 500 : positions bridees."""
+
+    def test_le_moteur_recale_l_equite_apres_la_reprise(self):
+        from gold_bot.engine import TradingEngine
+        src = inspect.getsource(TradingEngine.start)
+        reprise = src.index("self._restore_positions()")
+        recalage = src.index("self.risk.account.equity = apres.equity")
+        assert recalage > reprise, (
+            "l'equite n'est plus recalee APRES la reprise du solde : chaque "
+            "redemarrage de la demo redeviendra un faux depot")
+
+    def test_avec_le_recalage_le_premier_cycle_ne_voit_aucun_apport(self):
+        from gold_bot.risk import RiskConfig, RiskManager
+        rm = RiskManager(RiskConfig())
+        rm.sync_account(3300.0, 3300.0, ts=1_790_000_000.0)
+        rm.account.reference_equity = 3500.0      # relue depuis l'etat
+        rm.account.equity = 3512.57               # recalage apres reprise
+        rm.sync_account(3512.57, 3460.0, ts=1_790_000_010.0)
+        assert rm.dernier_apport == 0.0
+        assert rm.account.reference_equity == 3500.0

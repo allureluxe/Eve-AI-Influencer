@@ -22,8 +22,11 @@
   (`mettre_a_jour_jeton_expo.py`), puis `eas init` -> projectId ->
   `EAS_PROJECT_ID_ALLUXE_BOT` dans le workflow -> push -> UN APK -> ensuite
   `eas update` pour tout changement JS.
-- Demo 1 repartie a 3 300 EUR au reboot (etait ~3 530) : cause non
-  cherchee encore.
+- Demo 1 n'etait PAS remise a zero (solde bien repris). Mais chaque
+  redemarrage d'une demo comptait la reprise de son solde comme un depot :
+  reference demo 1 a 6 609 pour ~3 425, demo 2 a 1 102 pour ~986. Corrige
+  dans `engine.start()` (recalage apres `_restore_positions`) + tests ;
+  references et objectifs hebdo des deux demos recales, pics gardes.
 - Recherche du Lab : credit API Claude epuise, ChatGPT en timeout.
 
 ## LE ROBOT REEL TOURNE — et ce n'est PAS robot-dual-live

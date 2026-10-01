@@ -858,6 +858,14 @@ class TradingEngine:
 
         self.objectives.sync(acc.equity)
         self._restore_positions()
+        # LA REPRISE N'EST PAS UN DEPOT (2 oct. 2026). Le simulateur repart
+        # du capital de la config (3 300) puis retrouve son solde ci-dessus :
+        # sans ce recalage, le premier cycle voyait le saut 3 300 -> 3 512 et
+        # le prenait pour un apport. A chaque redemarrage la reference de la
+        # demo 1 gonflait ainsi, jusqu'a 6 609 EUR pour un compte de ~3 500.
+        apres = self.broker.account()
+        self.risk.account.equity = apres.equity
+        self.risk.account.balance = apres.balance
         # La carence « une entree par bougie » doit survivre au redemarrage.
         self.risk.memoriser_sorties(self.journal.trades)
 
