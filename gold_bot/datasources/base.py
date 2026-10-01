@@ -102,6 +102,11 @@ def http_get(
                 raw = resp.read().decode("utf-8", errors="replace")
             return json.loads(raw) if as_json else raw
         except urllib.error.HTTPError as exc:
+            # L'erreur PORTE la connexion : sans close(), elle reste ouverte
+            # (CLOSE-WAIT) jusqu'au ramasse-miettes. 2 oct. 2026 : la demo
+            # en accumulait ~150 par minute vers Binance, qui repond 400 a
+            # chaque crypto qu'il ne cote pas -- limite de 1 024 en minutes.
+            exc.close()
             last_err = exc
             statut = exc.code
             # Une erreur 4xx vient de la requete elle-meme : la reessayer

@@ -423,7 +423,10 @@ class SupabaseREST:
                 brut = rep.read().decode()
                 return json.loads(brut) if brut.strip() else []
         except urllib.error.HTTPError as exc:
-            detail = exc.read().decode()[:300]
+            try:
+                detail = exc.read().decode()[:300]
+            finally:
+                exc.close()   # sinon la connexion reste ouverte (CLOSE-WAIT)
             raise SupabaseIndisponible(f"HTTP {exc.code} : {detail}") from exc
         except Exception as exc:                      # reseau, DNS, timeout
             raise SupabaseIndisponible(str(exc)) from exc

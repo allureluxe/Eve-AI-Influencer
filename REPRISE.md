@@ -27,7 +27,15 @@
 - **`verbose_scan` a false** sur reel, demo, demo3 : 72 000 lignes / 10 min,
   journal du reel limite a ~2 h d'historique. Demos : ~30 lignes/min.
   **Le reel le prendra a son prochain redemarrage** (pas relance pour ca).
-- **Demo 3 installee** (temoin sans rachat apres gain), plafond memoire.
+- **Demo 3 ARRETEE (disabled)** apres 20 min : tous les robots partagent
+  l'IP du serveur, donc le quota Bitvavo. Avec elle, le robot REEL a pris
+  14 pauses quota en 30 min (jusqu'a 185 s) ; sans elle, 0 en 5 min.
+  A relancer seulement apres avoir reduit la consommation des demos/Lab
+  (cache de bougies partage, ou cadence plus lente).
+- **Fuite de connexions** : la demo accumulait ~150 sockets/min en
+  CLOSE-WAIT vers Binance (erreur HTTP jamais fermee). Corrige dans
+  datasources/base.py, bitvavo.py, signal_publisher.py + test. Pris par
+  demo/demo2 a leur prochain redemarrage, par le reel au sien.
 - **syslog** : copie du robot reel et du Lab coupee (5 Go en une semaine).
 - Demo 1 n'etait PAS remise a zero (solde bien repris). Mais chaque
   redemarrage d'une demo comptait la reprise de son solde comme un depot :

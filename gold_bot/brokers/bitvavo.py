@@ -360,7 +360,10 @@ class BitvavoBroker(Broker):
                 self._noter_le_quota(dict(resp.headers))
                 brut = resp.read().decode("utf-8", errors="replace")
         except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
+            try:
+                detail = exc.read().decode("utf-8", errors="replace")
+            finally:
+                exc.close()   # sinon la connexion reste ouverte (CLOSE-WAIT)
             code, message = self._lire_erreur(detail)
             if code == 105:
                 # Quota depasse : Bitvavo indique dans le message l'instant
