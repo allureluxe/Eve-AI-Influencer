@@ -715,7 +715,7 @@ chez Bitvavo) et **6 mois** en walk-forward, le classement s'inverse.
 | `risk.pyramide_locked_r_min` | **0.01** | un étage ne s'ajoute que si la pyramide est déjà à l'abri (stop au-dessus du prix moyen) | 0,5 N « Turtle » |
 | `risk.pyramide_espacement_atr` | **0.25** | 12 sept., mesuré avec le canal 10 | 0.5 |
 | `risk.max_total_risk_pct` | **5.0** | 10 sept. : seul palier qui améliore l'apprentissage ET le hors-échantillon, et le recul BAISSE (34,0 → 29,7 %) | 3.5 |
-| `risk.ticket_min_eur` | **5.0** | 25 sept. : le vrai minimum de Bitvavo, vérifié sur ses 427 marchés en euros. À 120 € de dépôt réel, un plancher à 15 bloquait TOUT — voir ci-dessous | 20.0 puis 15.0 |
+| `risk.ticket_min_eur` | **15.0** | 1er oct. : capital réel 596 € (> 250 €), remonté comme prévu ; identique à la démo 1. Le plancher plie tout seul si le capital ne le porte plus (`_ajuster_le_plancher`) | 20.0, 15.0, puis 5.0 (25 sept., dépôt de 120 €) |
 | `risk.base_risk_pct` | **0.6** | palier « preuve » — pas le 1 % du Turtle | — |
 
 Le prix assumé du canal 10 : **le recul maximal double** (13,8 → 26,9 %),
@@ -747,7 +747,8 @@ contredisaient. La seconde est la plus fondamentale ; la borne basse
 devient le **minimum réel de Bitvavo**, vérifié sur ses 427 marchés en
 euros : **5,00 €**.
 
-**À REMONTER À 15 € DÈS QUE LE CAPITAL DÉPASSE 250 €.** En dessous de
+**À REMONTER À 15 € DÈS QUE LE CAPITAL DÉPASSE 250 €** — fait le
+1er octobre, à 596 € de capital réel. En dessous de
 ce seuil, 15 € bloque tout ; au-dessus, il reprend son sens et la
 configuration réelle redevient strictement identique à la démo 1.
 
