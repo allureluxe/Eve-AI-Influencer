@@ -300,6 +300,10 @@ class AccountState:
     paused_until: float = 0.0
     halted: bool = False
     halt_reason: str = ""
+    # Equite juste AVANT une chute inexpliquee, et l'heure de la chute :
+    # un rebond qui ne fait qu'effacer cette chute n'est pas un depot.
+    equite_avant_chute: float = 0.0
+    chute_ts: float = 0.0
 
     def drawdown_pct(self) -> float:
         if self.peak_equity <= 0:
@@ -399,11 +403,28 @@ class RiskManager:
         #
         # Seuil volontairement large (5 % du capital ET 3x le realise du
         # jour) : on recale sur un apport franc, pas sur un gros gagnant.
+        #
+        # UNE LECTURE FAUSSE N'EST PAS UN DEPOT (2 oct. 2026). Le 1er oct. a
+        # 23h41, serveur sature, une lecture d'equite est tombee de ~580 a
+        # ~85 EUR (positions non valorisees) puis revenue : le rebond de
+        # +495 EUR a ete pris pour un apport, et la reference est passee de
+        # 1 330 a 1 825 EUR pour un compte de 580 — positions bridees.
+        # Le rebond se mesure donc depuis l'equite d'AVANT une chute
+        # inexpliquee recente (moins d'une heure) : il ne compte comme apport
+        # que pour ce qui DEPASSE ce niveau.
         self.dernier_apport = 0.0
         precedent = acc.equity
+        if acc.equite_avant_chute > 0 and now - acc.chute_ts > 3600:
+            acc.equite_avant_chute = 0.0
         if precedent > 0 and acc.reference_equity > 0:
-            saut = equity - precedent
             explique = abs(acc.realized_today) * 3.0 + 0.02 * precedent
+            chute = precedent - equity
+            if chute > max(explique, 0.05 * precedent) and acc.equite_avant_chute <= 0:
+                acc.equite_avant_chute, acc.chute_ts = precedent, now
+            base = max(precedent, acc.equite_avant_chute)
+            if acc.equite_avant_chute > 0 and equity >= acc.equite_avant_chute - explique:
+                acc.equite_avant_chute = 0.0
+            saut = equity - base
             if saut > max(explique, 0.05 * precedent):
                 acc.reference_equity += saut
                 # Memorise pour l'appelant : l'objectif hebdomadaire doit
@@ -492,6 +513,8 @@ class RiskManager:
             return
         acc = self.account
         avant_ref, avant_pic = acc.reference_equity, acc.peak_equity
+        # La chute est expliquee par le retrait : plus de niveau a retrouver.
+        acc.equite_avant_chute = 0.0
         avant_jour, avant_semaine = acc.day_start_equity, acc.week_start_equity
         acc.reference_equity = max(0.0, acc.reference_equity - montant)
         acc.peak_equity = max(acc.equity, acc.peak_equity - montant)
