@@ -27,7 +27,14 @@
   reference demo 1 a 6 609 pour ~3 425, demo 2 a 1 102 pour ~986. Corrige
   dans `engine.start()` (recalage apres `_restore_positions`) + tests ;
   references et objectifs hebdo des deux demos recales, pics gardes.
-- Recherche du Lab : credit API Claude epuise, ChatGPT en timeout.
+- **A FAIRE PLUS TARD (decision operateur 2 oct.) — recherche du Lab** :
+  credit de la cle API Claude epuise (aucun cout tant qu'il est vide),
+  ChatGPT en timeout. Cout mesure au rythme actuel (cron toutes les 30 min,
+  Sonnet 5, ~7k jetons en entree, jusqu'a 12k en sortie) : 65 a 175 EUR/mois.
+  Plan propose et accepte sur le principe : passer le cron a 2 fois par
+  jour (7h et 19h, ~3 a 8 EUR/mois), PUIS il recharge 10 EUR sur
+  https://console.anthropic.com/settings/billing (sans recharge auto).
+  Ne rien faire avant qu'il le redemande.
 
 ## LE ROBOT REEL TOURNE — et ce n'est PAS robot-dual-live
 
