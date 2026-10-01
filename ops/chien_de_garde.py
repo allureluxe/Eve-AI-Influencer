@@ -28,7 +28,7 @@ depuis le pic depasse la limite.
   confondre desarmerait la protection au pire moment. Le robot s'arrete
   donc dans les deux cas, et un humain tranche avec `--recaler`.
 
-Quand il declenche : `systemctl stop robot-dual-live`, puis il pose un
+Quand il declenche : `systemctl stop` de chaque service de SERVICES actif, puis il pose un
 fichier temoin et NE REDEMARRE JAMAIS le bot tout seul. Retirer le
 fichier temoin (data/CHIEN_DE_GARDE_DECLENCHE) et redemarrer a la main
 apres avoir compris ce qui s'est passe.
@@ -94,7 +94,13 @@ def _ecrire_reference(valeur: float, motif: str) -> None:
     except Exception:  # noqa: BLE001
         pass
 
-SERVICE = "robot-dual-live"
+#: TOUS les services qui peuvent engager l'argent reel. Trouve le 1er oct.
+#: 2026 : le chien de garde ne surveillait que `robot-dual-live`, arrete
+#: depuis le 27 sept., pendant que `robot-trading` (run_bot.py +
+#: robot.bitvavo.json) passait les ordres reels. Il protegeait un service
+#: mort et laissait passer celui qui tradait. On coupe donc tous ceux qui
+#: sont actifs, sans supposer lequel porte le compte.
+SERVICES = ("robot-trading", "robot-dual-live")
 TEMOIN = os.path.join(RACINE, "data", "CHIEN_DE_GARDE_DECLENCHE")
 JOURNAL = os.path.join(RACINE, "data", "chien_de_garde.log")
 
@@ -118,13 +124,17 @@ def _log(ligne: str) -> None:
     print(texte, end="")
 
 
-def _service_actif() -> bool:
-    try:
-        r = subprocess.run(["systemctl", "is-active", SERVICE],
-                           capture_output=True, text=True, timeout=10)
-        return r.stdout.strip() == "active"
-    except Exception:
-        return False
+def _services_actifs() -> list[str]:
+    actifs = []
+    for service in SERVICES:
+        try:
+            r = subprocess.run(["systemctl", "is-active", service],
+                               capture_output=True, text=True, timeout=10)
+            if r.stdout.strip() == "active":
+                actifs.append(service)
+        except Exception:
+            pass
+    return actifs
 
 
 def _lire_equite() -> float | None:
@@ -182,22 +192,23 @@ def main() -> int:
         ref = equite
     PLANCHER_EUR = ref * (1 - PLANCHER_PCT)
     marge = equite - PLANCHER_EUR
-    actif = _service_actif()
+    actifs = _services_actifs()
 
     if equite <= PLANCHER_EUR:
         _log(f"DECLENCHEMENT : equite {equite:.2f} EUR <= plancher "
              f"{PLANCHER_EUR:.2f} EUR (perte {ref - equite:.2f} depuis la reference "
              f"{ref:.2f}). Si c'est un RETRAIT et non une perte : "
              f"ops/chien_de_garde.py --recaler. "
-             f"Arret de {SERVICE}.")
-        try:
-            r = subprocess.run(["sudo", "-n", "systemctl", "stop", SERVICE],
-                               capture_output=True, text=True, timeout=30)
-            ok = (r.returncode == 0)
-            _log(f"  systemctl stop -> {'OK' if ok else 'ECHEC'} "
-                 f"{r.stderr.strip()[:160]}")
-        except Exception as exc:  # noqa: BLE001
-            _log(f"  systemctl stop a echoue : {str(exc)[:160]}")
+             f"Arret de {', '.join(actifs) or 'aucun service actif'}.")
+        for service in actifs:
+            try:
+                r = subprocess.run(["sudo", "-n", "systemctl", "stop", service],
+                                   capture_output=True, text=True, timeout=30)
+                ok = (r.returncode == 0)
+                _log(f"  systemctl stop {service} -> {'OK' if ok else 'ECHEC'} "
+                     f"{r.stderr.strip()[:160]}")
+            except Exception as exc:  # noqa: BLE001
+                _log(f"  systemctl stop {service} a echoue : {str(exc)[:160]}")
         try:
             with open(TEMOIN, "w", encoding="utf-8") as f:
                 f.write(_dt.datetime.now(_dt.timezone.utc).strftime(
@@ -207,7 +218,7 @@ def main() -> int:
         return 0
 
     _log(f"OK : equite {equite:.2f} EUR | plancher {PLANCHER_EUR:.2f} | "
-         f"marge {marge:.2f} EUR | service {'actif' if actif else 'ARRETE'}")
+         f"marge {marge:.2f} EUR | service {', '.join(actifs) or 'AUCUN ACTIF'}")
     return 0
 
 

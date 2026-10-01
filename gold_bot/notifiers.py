@@ -155,7 +155,7 @@ class AlluxeBotChannel(Channel):
     name = "alluxe_bot"
 
     def __init__(self, min_level: str = "trade", est_demo: bool = False,
-                 compte: str = "demo") -> None:
+                 compte: str | None = None) -> None:
         self.url = os.getenv("SUPABASE_URL", "").rstrip("/")
         self.cle = os.getenv("SUPABASE_SERVICE_KEY", "")
         self.min_level = min_level
@@ -164,9 +164,12 @@ class AlluxeBotChannel(Channel):
         # confonde jamais avec une vraie alerte (trouve le 18 sept.,
         # meme fuite que pour la table `signals`).
         self.est_demo = est_demo
-        # Quel compte simule parle. Deux simulations en parallele doivent
-        # pouvoir etre lues separement dans l'application.
-        self.compte = compte
+        # Quel compte parle. Deux simulations en parallele doivent pouvoir
+        # etre lues separement dans l'application. Sans compte explicite, le
+        # robot REEL publiait sous "demo" (trouve le 1er oct. 2026 : ses
+        # alertes `is_demo=false` portaient compte="demo", alors que
+        # l'application lit le reel sous compte="reel").
+        self.compte = compte or ("demo" if est_demo else "reel")
 
     def enabled(self) -> bool:
         return bool(self.url and self.cle)
