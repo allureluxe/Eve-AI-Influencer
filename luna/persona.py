@@ -130,7 +130,11 @@ class Apparence:
         "blemishes, exactly ONE small subtle beauty mark just above the "
         "left side of the mouth, no other moles or beauty marks anywhere, "
         "NOT several moles, NOT a cluster of beauty marks, "
-        "no tattoo anywhere, "
+        # « anywhere » ne suffisait pas : sur les vues de DOS (26 sept.),
+        # un motif type tatouage apparaissait entre les omoplates et en
+        # bas du dos. Le dos est donc nomme explicitement.
+        "no tattoo anywhere, clean bare back with no tattoo, no ink, no "
+        "pattern and no markings on the back, shoulders or lower back, "
         "naturally tanned golden complexion, visible skin texture, "
         "no plastic or airbrushed look"
     )
