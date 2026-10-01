@@ -665,7 +665,7 @@ def _attendre_son_tour(cout: int) -> None:
 # dit. Le silence est la pire des reponses.
 MODELES_DE_REPLI = [x.strip() for x in os.environ.get(
     "LUNA_API_MODELES_REPLI",
-    "openai/gpt-oss-20b,llama-3.3-70b-versatile").split(",") if x.strip()]
+    "openai/gpt-oss-20b").split(",") if x.strip()]
 
 
 def _appeler_moteur(messages: list[dict], modele: str = "") -> dict:
@@ -755,12 +755,26 @@ def _appeler_moteur_avec_repli(messages: list[dict]) -> dict:
                 print(f"repli sur {modele} (le modele principal est rationne)")
             return reponse
         except ErreurAgent as e:
-            derniere = e
             texte = str(e)
             if "HTTP 429" in texte or "HTTP 503" in texte:
+                derniere = e
+                continue
+            # Un modele RETIRE par le fournisseur (404 « does not exist »)
+            # ne dit rien des autres : on le saute. Et surtout on garde
+            # l'erreur precedente -- le 1er oct. 2026, le 404 de
+            # `llama-3.3-70b-versatile` masquait toutes les ~15 min le
+            # vrai motif, le rationnement (429) des deux premiers modeles.
+            if _modele_inexistant(texte):
+                print(f"modele {modele} inexistant chez le fournisseur : ignore")
+                derniere = derniere or e
                 continue
             raise
     raise derniere or ErreurAgent("aucun modele disponible")
+
+
+def _modele_inexistant(texte: str) -> bool:
+    return "HTTP 404" in texte and (
+        "does not exist" in texte or "model_not_found" in texte)
 
 
 def _repondre(rest_lecture: _Rest, tours: list[dict],
