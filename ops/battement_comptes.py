@@ -248,6 +248,11 @@ def _depart_reel() -> float | None:
                 continue
             mouvements.append((int(x["timestamp"]), signe * float(x["amount"])))
 
+    if PERIODE_REEL_DEPUIS:
+        # La periode affichee commence a un capital connu : on n'y ajoute
+        # que les virements qui la suivent (horodatages Bitvavo en ms).
+        apres = sum(m for ts, m in mouvements if ts / 1000.0 > PERIODE_REEL_DEPUIS)
+        return round(PERIODE_REEL_CAPITAL + apres, 2)
     if not mouvements:
         return None
     mouvements.sort()
@@ -433,12 +438,21 @@ def capital_du_compte(compte: str) -> float | None:
     return float(solde) + latent
 
 
-#: Decision de l'operateur, 2 oct. 2026 : l'historique REEL de l'application
-#: repart du capital a ~600 EUR, soit le redemarrage du 1er oct. a 19h41 UTC
-#: sur 595,62 EUR apres le retrait de 1 610 EUR. Les trades fermes avant ne
-#: sont plus publies (le journal local data/trades.jsonl, lui, est intact :
-#: statistiques et regle des 40 trades n'en dependent pas de l'appli).
-HISTORIQUE_REEL_DEPUIS = 1790883660.0
+#: DEBUT DE LA PERIODE AFFICHEE POUR LE COMPTE REEL -- UN SEUL ENDROIT.
+#:
+#: Decision de l'operateur, 2 oct. 2026 : tout l'affichage du reel repart
+#: du capital a ~600 EUR, soit le redemarrage du 1er oct. a 19h41 UTC sur
+#: 595,62 EUR apres le retrait de 1 610 EUR. Ce couple pilote ENSEMBLE :
+#:   - l'historique publie (trades fermes avant : non publies) ;
+#:   - le capital de depart (595,62 + depots - retraits posterieurs) ;
+#:   - donc « encaisse » = capital - depart - latent, sur la meme periode
+#:     que l'historique, au lieu des depots nets depuis le 25 sept. (648).
+#: « Quand on fait un changement, tout l'affichage se remet a jour » :
+#: changer ces deux valeurs suffit, au battement suivant (5 min). Le
+#: journal local data/trades.jsonl reste intact.
+PERIODE_REEL_DEPUIS = 1790883660.0
+PERIODE_REEL_CAPITAL = 595.62
+HISTORIQUE_REEL_DEPUIS = PERIODE_REEL_DEPUIS
 
 
 def _synchroniser_historique_reel(url: str, cle: str) -> None:
