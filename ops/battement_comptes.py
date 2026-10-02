@@ -433,6 +433,14 @@ def capital_du_compte(compte: str) -> float | None:
     return float(solde) + latent
 
 
+#: Decision de l'operateur, 2 oct. 2026 : l'historique REEL de l'application
+#: repart du capital a ~600 EUR, soit le redemarrage du 1er oct. a 19h41 UTC
+#: sur 595,62 EUR apres le retrait de 1 610 EUR. Les trades fermes avant ne
+#: sont plus publies (le journal local data/trades.jsonl, lui, est intact :
+#: statistiques et regle des 40 trades n'en dependent pas de l'appli).
+HISTORIQUE_REEL_DEPUIS = 1790883660.0
+
+
 def _synchroniser_historique_reel(url: str, cle: str) -> None:
     """Publie le journal d'execution reel dans la table d'historique complete."""
     chemin = Path("data/trades.jsonl")
@@ -450,6 +458,8 @@ def _synchroniser_historique_reel(url: str, cle: str) -> None:
         try:
             opened = float(trade["opened_at"])
             closed = float(trade["closed_at"])
+            if closed < HISTORIQUE_REEL_DEPUIS:
+                continue
             entry = float(trade["entry_price"])
             exit_price = float(trade["exit_price"])
             volume = float(trade["volume"])
