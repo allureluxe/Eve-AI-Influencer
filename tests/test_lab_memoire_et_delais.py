@@ -23,5 +23,5 @@ def test_les_unites_lentes_gardent_toute_la_periode():
 
 def test_le_delai_suit_la_longueur_demandee():
     assert cerveaux._delai_pour(1200) == cerveaux.DELAI
-    assert cerveaux._delai_pour(12000) >= 300
+    assert cerveaux._delai_pour(12000) >= 600
     assert cerveaux._delai_pour(10**6) <= 600

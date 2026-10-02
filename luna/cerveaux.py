@@ -67,9 +67,10 @@ def _delai_pour(max_jetons: int) -> float:
     comprise) et coupait a 90 s -- « The read operation timed out » a
     chaque passage, depuis des jours. OpenAI facture une reponse meme
     quand on ne l'attend plus : on payait pour ne rien recevoir.
-    Compter ~40 jetons/s, jamais moins de DELAI, jamais plus de 10 min.
+    Compter ~20 jetons/s (reflexion comprise), jamais moins de DELAI,
+    jamais plus de 10 min : 300 s ne suffisaient pas a 12 000 jetons.
     """
-    return float(min(600, max(DELAI, max_jetons / 40.0)))
+    return float(min(600, max(DELAI, max_jetons / 20.0)))
 
 
 class CerveauErreur(RuntimeError):
