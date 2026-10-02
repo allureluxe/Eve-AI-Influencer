@@ -47,8 +47,11 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
        sudo cp systemd/alluxe-ia-publication.* /etc/systemd/system/
        sudo systemctl daemon-reload
        sudo systemctl enable --now alluxe-ia-publication.timer
-10. **[Claude] Les 21 posts suivants** (jours 10 à 30 du concept) dans
-    `alluxe_ia/posts.json`.
+10. ✅ **[Claude] Les 21 posts suivants** (jours 10 à 30) dans `alluxe_ia/posts.json` :
+    résumer, images, LinkedIn, voyage, réunions, Excel, négocier, sport, 5 erreurs,
+    devoirs, Leboncoin/Vinted, décider, semaine, présentation, langues, cadeaux,
+    messages difficiles, idée de business, déménagement, assistant perso, best-of.
+    **À relire et tester comme les 9 premiers** avant qu'ils partent.
 
 ## Phase 2 — accélérer (semaines 2 à 4)
 

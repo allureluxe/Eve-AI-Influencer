@@ -112,5 +112,260 @@
       {"type": "prompt", "titre": "Les 4 cases ensemble", "prompt": "Tu es un conseiller en recrutement qui aide des petites entreprises.\nRéécris l'annonce ci-dessous.\nContexte : nous sommes une boulangerie de 6 personnes, nous cherchons un vendeur le week-end, et l'ancienne annonce n'a reçu aucune réponse en 3 semaines.\nFormat : 120 mots maximum, un titre accrocheur, 3 puces pour les avantages."},
       {"type": "appel", "mot_cle": "PROMPTS", "texte": "pour recevoir le modèle à remplir en message privé."}
     ]
+  },
+  {
+    "id": "10-resumer",
+    "legende": "Un PDF de 40 pages, un compte rendu interminable, un contrat : l'IA le résume en 2 minutes. Encore faut-il lui demander le bon résumé.\n\n3 prompts selon ce que tu dois en faire.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#resume #productivite #chatgpt #pdf #intelligenceartificielle",
+    "slides": [
+      {"type": "couverture", "titre": "Ne lis plus jamais un document de 40 pages en entier.", "texte": "3 prompts pour résumer selon ce que tu dois en faire."},
+      {"type": "prompt", "titre": "1. L'essentiel en 1 minute", "prompt": "Résume le document joint en 5 points maximum, du plus important au moins important.\nPour chaque point : une phrase, et la page où il se trouve.\nTermine par la seule chose que je dois retenir si je n'en retiens qu'une."},
+      {"type": "prompt", "titre": "2. Ce qui me concerne", "prompt": "Je suis [ton rôle / ta situation].\nDans le document joint, ne garde que ce qui me concerne directement : ce que je dois faire, les dates limites, l'argent en jeu.\nPrésente-le en liste avec les dates en gras."},
+      {"type": "prompt", "titre": "3. Les pièges", "prompt": "Lis le document joint comme un avocat prudent.\nListe les clauses ou passages qui pourraient me désavantager, les engagements cachés et ce qui n'est pas clair.\nPour chacun : cite le passage exact et explique le risque en une phrase."},
+      {"type": "texte", "titre": "À vérifier", "texte": "L'IA peut rater une ligne ou inventer une page. Pour un contrat ou un document officiel, relis toujours les passages qu'elle cite."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "11-images-ia",
+    "legende": "Les 4 prompts d'images qu'on me demande le plus : un logo simple, une illustration de post, un visuel produit, une affiche d'événement.\n\nÀ coller dans ChatGPT, Gemini ou tout générateur d'images.\n\nℹ️ Une image générée utilisée dans une publicité doit porter la mention « Image virtuelle ».\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#imageia #prompt #design #chatgpt #logo #creation",
+    "slides": [
+      {"type": "couverture", "titre": "4 prompts d'images qui font pro du premier coup.", "texte": "Logo, illustration, visuel produit, affiche."},
+      {"type": "prompt", "titre": "Un logo simple", "prompt": "Crée un logo pour [nom], une activité de [domaine].\nStyle : minimaliste, plat, lisible en petit.\nUne icône simple qui évoque [idée] + le nom écrit en [police moderne / manuscrite].\nCouleurs : [2 couleurs maximum]. Fond blanc. Pas de dégradé ni d'effet 3D."},
+      {"type": "prompt", "titre": "Une illustration de post", "prompt": "Illustration au format carré pour un post sur [sujet].\nStyle : [flat design / aquarelle / photo réaliste].\nUne seule idée visuelle forte : [ce qu'on doit voir].\nBeaucoup d'espace vide en haut pour ajouter un titre. Couleurs : [palette]."},
+      {"type": "prompt", "titre": "Un visuel produit", "prompt": "Photo produit de [produit] posé sur [surface : bois clair / marbre / tissu].\nLumière naturelle douce venant de la fenêtre, ombres légères.\nAngle : trois quarts, légèrement au-dessus.\nArrière-plan flou aux tons [couleur]. Rendu photo réaliste, aucun texte."},
+      {"type": "prompt", "titre": "Une affiche d'événement", "prompt": "Affiche verticale pour [événement] le [date] à [lieu].\nAmbiance : [festive / élégante / sportive].\nTitre en très grand : « [titre] ». Date et lieu en plus petit en bas.\nComposition aérée, maximum 3 couleurs. Vérifie l'orthographe de chaque mot."},
+      {"type": "texte", "titre": "Le texte dans l'image", "texte": "Les générateurs font encore des fautes sur le texte. Garde-le court, et ajoute-le toi-même avec Canva si une lettre est fausse."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "12-linkedin",
+    "legende": "Poster sur LinkedIn sans passer pour un robot ni pour un gourou.\n\n3 prompts : l'idée, le post, les commentaires.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#linkedin #personalbranding #chatgpt #redaction #reseau",
+    "slides": [
+      {"type": "couverture", "titre": "Des posts LinkedIn qui sonnent comme toi, pas comme ChatGPT.", "texte": "Trouver l'idée, écrire le post, réussir ses commentaires."},
+      {"type": "prompt", "titre": "1. Trouver quoi dire", "prompt": "Je travaille comme [métier] depuis [durée].\nPose-moi 5 questions sur mon quotidien, mes erreurs et ce que j'ai appris.\nÀ partir de mes réponses, propose 10 idées de posts concrets, chacune avec une première phrase qui donne envie de lire la suite."},
+      {"type": "prompt", "titre": "2. Écrire le post", "prompt": "Écris un post LinkedIn à partir de cette histoire : [ton histoire en vrac].\nRègles : phrases courtes, pas d'emoji en début de ligne, aucun mot comme « passionné » ou « ravi », pas de morale en conclusion.\nTermine par une vraie question au lecteur. 150 mots maximum."},
+      {"type": "prompt", "titre": "3. Commenter intelligemment", "prompt": "Voici un post que je veux commenter : [post].\nPropose 3 commentaires de 2 phrases qui ajoutent quelque chose : un exemple vécu, un chiffre ou une nuance.\nAucun « super post », aucune flatterie."},
+      {"type": "texte", "titre": "Le test final", "texte": "Relis ton post à voix haute. Si une phrase te gêne à dire, elle gênera aussi à lire : coupe-la."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "13-voyage",
+    "legende": "Organiser un voyage prend des heures d'onglets ouverts. Avec ces 3 prompts : l'itinéraire, le budget et la valise.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#voyage #roadtrip #chatgpt #astuces #organisation",
+    "slides": [
+      {"type": "couverture", "titre": "Ton voyage organisé en 15 minutes au lieu de 3 soirées.", "texte": "Itinéraire, budget et valise : 3 prompts."},
+      {"type": "prompt", "titre": "1. L'itinéraire", "prompt": "Organise un voyage de [nombre] jours à [destination] en [mois], pour [qui : couple, famille avec enfants de X ans, amis].\nRythme : [tranquille / soutenu]. On aime [centres d'intérêt].\nJour par jour : matin, après-midi, soir, avec les temps de trajet.\nRegroupe les visites proches pour éviter les allers-retours."},
+      {"type": "prompt", "titre": "2. Le budget", "prompt": "Estime le budget de ce voyage : [itinéraire].\nPar poste : transport, logement, repas, activités, imprévus.\nDonne une version économique et une version confort.\nIndique 5 astuces pour payer moins cher sans gâcher le séjour."},
+      {"type": "prompt", "titre": "3. La valise", "prompt": "Fais-moi la liste de valise pour [destination] en [mois], [nombre] jours, pour [qui].\nActivités prévues : [activités].\nClasse par catégorie, coche ce qui doit aller en bagage cabine, et ajoute les papiers à ne pas oublier."},
+      {"type": "texte", "titre": "Avant de réserver", "texte": "Les prix et horaires donnés par l'IA peuvent être anciens. Vérifie-les toujours sur le site officiel avant de payer."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "14-reunions",
+    "legende": "Le compte rendu de réunion que personne ne veut écrire : l'IA le fait à partir de tes notes en vrac.\n\n3 prompts : préparer, résumer, relancer.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#reunion #productivite #travail #chatgpt #management",
+    "slides": [
+      {"type": "couverture", "titre": "Tes réunions : préparées, résumées et suivies en 5 minutes.", "texte": "3 prompts pour avant, pendant et après."},
+      {"type": "prompt", "titre": "1. Préparer", "prompt": "Je prépare une réunion de [durée] avec [participants] sur [sujet].\nObjectif : [décision attendue].\nPropose un ordre du jour minuté, les 3 questions à trancher et les objections probables avec une réponse pour chacune."},
+      {"type": "prompt", "titre": "2. Le compte rendu", "prompt": "Voici mes notes de réunion en vrac : [notes].\nRédige un compte rendu avec : décisions prises, actions (qui fait quoi, pour quand), points restés ouverts.\nUne ligne par élément, rien d'autre."},
+      {"type": "prompt", "titre": "3. La relance", "prompt": "À partir de ce compte rendu : [compte rendu], écris le mail de suivi aux participants.\nRappelle les actions de chacun avec leur date, en 6 lignes maximum, ton cordial et direct."},
+      {"type": "texte", "titre": "Les données sensibles", "texte": "Retire les noms de clients, chiffres confidentiels et informations RH avant de coller tes notes."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "15-excel",
+    "legende": "Plus besoin de connaître les formules Excel par cœur : décris ce que tu veux, l'IA écrit la formule et t'explique comment la coller.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#excel #googlesheets #formules #bureautique #chatgpt",
+    "slides": [
+      {"type": "couverture", "titre": "Excel sans connaître une seule formule.", "texte": "Décris ce que tu veux en français, l'IA fait le reste."},
+      {"type": "prompt", "titre": "1. La formule", "prompt": "Dans Excel, la colonne A contient [contenu], la colonne B [contenu].\nJe veux [résultat souhaité] dans la colonne C.\nDonne la formule à coller en C2, explique-la en une phrase, et dis-moi comment l'étendre à toute la colonne."},
+      {"type": "prompt", "titre": "2. Réparer une erreur", "prompt": "Ma formule [formule] affiche [erreur ou mauvais résultat].\nLes données ressemblent à ceci : [3 lignes d'exemple].\nExplique pourquoi ça ne marche pas et donne la formule corrigée."},
+      {"type": "prompt", "titre": "3. Le tableau de suivi", "prompt": "Crée la structure d'un tableau Excel pour suivre [dépenses / candidatures / stocks / clients].\nDonne les colonnes avec leur type, les formules utiles (totaux, retards, alertes) et une mise en forme conditionnelle pour repérer les urgences."},
+      {"type": "texte", "titre": "Ça marche aussi", "texte": "Dans Google Sheets et LibreOffice : précise juste le logiciel dans le prompt, les noms de fonctions changent parfois."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "16-negocier",
+    "legende": "Loyer, voiture d'occasion, facture d'opérateur, salaire : l'IA ne négocie pas à ta place, mais elle te fait répéter jusqu'à ce que tu sois prêt.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#negociation #argent #astuces #chatgpt #consommation",
+    "slides": [
+      {"type": "couverture", "titre": "Négocier sans trembler : l'IA joue le vendeur, tu t'entraînes.", "texte": "3 prompts pour préparer n'importe quelle négociation."},
+      {"type": "prompt", "titre": "1. Préparer", "prompt": "Je veux négocier [quoi] avec [qui]. Prix ou condition actuelle : [actuel]. Mon objectif : [objectif].\nAide-moi à préparer : mes arguments classés du plus fort au plus faible, ma limite, et 3 concessions que je peux faire sans perdre l'essentiel."},
+      {"type": "prompt", "titre": "2. Répéter", "prompt": "Joue le rôle de [vendeur / propriétaire / conseiller] qui veut céder le moins possible.\nJe commence la négociation, tu réponds comme dans la vraie vie, avec des objections réalistes.\nAprès 6 échanges, arrête-toi et dis-moi ce que j'aurais dû dire autrement."},
+      {"type": "prompt", "titre": "3. Le message", "prompt": "Rédige le message pour demander [réduction / geste / révision] à [destinataire].\nAppuie-toi sur ces faits : [faits : ancienneté, offres concurrentes, problème rencontré].\nTon poli, une demande chiffrée précise, 100 mots maximum."},
+      {"type": "texte", "titre": "La phrase qui aide", "texte": "« Qu'est-ce que vous pouvez faire de mieux ? » Puis te taire. Le silence négocie souvent mieux que les arguments."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "17-sport",
+    "legende": "Un programme de sport adapté à ton niveau et à ton emploi du temps, sans abonnement.\n\nℹ️ En cas de douleur, de traitement ou de reprise après blessure : demande d'abord l'avis d'un médecin.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#sport #fitness #routine #debutant #chatgpt",
+    "slides": [
+      {"type": "couverture", "titre": "Ton programme de sport sur mesure, gratuit.", "texte": "Adapté à ton niveau, ton matériel et ton emploi du temps."},
+      {"type": "prompt", "titre": "1. Le programme", "prompt": "Crée un programme de sport de [nombre] semaines pour un débutant.\nJe peux m'entraîner [jours] par semaine, [durée] par séance, à [maison / salle / dehors]. Matériel : [matériel ou aucun].\nObjectif : [objectif]. Progression semaine par semaine, avec échauffement et étirements."},
+      {"type": "prompt", "titre": "2. Expliquer un exercice", "prompt": "Explique-moi comment faire [exercice] correctement : position de départ, mouvement, respiration.\nDonne les 3 erreurs les plus fréquentes et une version plus facile si je n'y arrive pas encore."},
+      {"type": "prompt", "titre": "3. Ajuster", "prompt": "Voici comment s'est passée ma semaine : [ressenti, séances faites, difficultés].\nAdapte le programme de la semaine prochaine : ce qu'on garde, ce qu'on allège, ce qu'on augmente."},
+      {"type": "texte", "titre": "La règle", "texte": "Une douleur n'est pas un signe de progrès. L'IA ne voit pas ton corps : écoute-le, et demande conseil à un professionnel au moindre doute."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "18-erreurs",
+    "legende": "Si l'IA te donne des réponses fades, c'est rarement l'IA. Ce sont presque toujours ces 5 erreurs.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#prompt #chatgpt #claude #intelligenceartificielle #astuces",
+    "slides": [
+      {"type": "couverture", "titre": "5 erreurs qui rendent tes réponses d'IA nulles.", "texte": "Et la phrase à ajouter pour corriger chacune."},
+      {"type": "texte", "titre": "1. Trop court", "texte": "« Écris un mail à mon patron » ne dit rien. Qui est-il, qu'est-ce que tu veux obtenir, quel ton ? Trois lignes de contexte changent tout."},
+      {"type": "texte", "titre": "2. Pas de format", "texte": "Dis comment tu veux la réponse : « en 5 points », « en tableau », « 100 mots maximum ». Sinon tu reçois un pavé."},
+      {"type": "texte", "titre": "3. Accepter la 1re réponse", "texte": "La première version est un brouillon. Réponds « plus court », « plus concret », « avec un exemple ». La troisième est souvent la bonne."},
+      {"type": "texte", "titre": "4. Croire tout ce qu'elle dit", "texte": "Chiffres, dates, lois, citations : l'IA peut se tromper avec assurance. Demande-lui ses sources et vérifie ce qui compte."},
+      {"type": "texte", "titre": "5. Ne pas la laisser poser de questions", "texte": "Ajoute : « Avant de répondre, pose-moi les questions qui te manquent. » Elle arrête de deviner."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "19-devoirs",
+    "legende": "Aider ses enfants aux devoirs sans faire à leur place : l'IA devient un prof patient qui guide sans donner la réponse.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#parents #devoirs #ecole #education #chatgpt",
+    "slides": [
+      {"type": "couverture", "titre": "Les devoirs sans crise : l'IA explique, ton enfant trouve.", "texte": "3 prompts pour aider sans faire à sa place."},
+      {"type": "prompt", "titre": "1. Le prof qui guide", "prompt": "Tu es un professeur patient pour un élève de [classe].\nVoici l'exercice : [exercice].\nNe donne jamais la réponse. Pose une question à la fois pour l'aider à trouver lui-même, et encourage-le à chaque étape."},
+      {"type": "prompt", "titre": "2. Réexpliquer la leçon", "prompt": "Explique [notion] à un enfant de [âge] ans, avec un exemple de la vie de tous les jours et des mots simples.\nPuis donne 3 petits exercices du plus facile au plus difficile, avec les corrigés à part."},
+      {"type": "prompt", "titre": "3. Réviser un contrôle", "prompt": "Mon enfant a un contrôle de [matière] sur [chapitre] en [classe].\nPrépare un quiz de 10 questions qui ressemble à un vrai contrôle, puis une fiche des erreurs à éviter."},
+      {"type": "texte", "titre": "À savoir", "texte": "Les services d'IA grand public demandent souvent un âge minimum. Reste à côté de ton enfant quand il s'en sert."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "20-vendre",
+    "legende": "Vendre plus vite sur Leboncoin ou Vinted : une annonce qui donne confiance, un prix juste, et des réponses toutes prêtes.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#leboncoin #vinted #vendre #secondemain #chatgpt",
+    "slides": [
+      {"type": "couverture", "titre": "Vends plus vite sur Leboncoin et Vinted.", "texte": "L'annonce, le prix et les réponses aux acheteurs."},
+      {"type": "prompt", "titre": "1. L'annonce", "prompt": "Écris une annonce pour vendre [objet, marque, modèle], acheté en [année], état : [état], défauts : [défauts].\nUn titre avec les mots que les acheteurs tapent, une description honnête en 5 lignes, et les infos qu'on me demandera forcément (dimensions, accessoires, remise en main propre ou envoi)."},
+      {"type": "prompt", "titre": "2. Le prix", "prompt": "Je vends [objet] en [état]. Neuf, il coûtait [prix].\nQuels critères font monter ou baisser le prix d'occasion ?\nPropose un prix d'affichage et un prix minimum, et explique ta logique.\nJe vérifierai ensuite les annonces similaires."},
+      {"type": "prompt", "titre": "3. Les messages", "prompt": "Prépare des réponses courtes et polies pour : quelqu'un qui propose la moitié du prix, quelqu'un qui demande si c'est toujours dispo puis ne répond plus, et quelqu'un qui veut payer hors de la plateforme."},
+      {"type": "texte", "titre": "Sécurité", "texte": "Ne paie jamais hors de la plateforme et méfie-toi des liens de paiement envoyés par message : c'est l'arnaque la plus courante."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "21-decider",
+    "legende": "Changer de travail, déménager, acheter : quand tu tournes en rond, l'IA t'aide à y voir clair. Elle ne décide pas, elle pose les bonnes questions.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#decision #developpementpersonnel #chatgpt #reflexion",
+    "slides": [
+      {"type": "couverture", "titre": "Bloqué devant une décision ? 3 prompts pour trancher.", "texte": "L'IA ne décide pas à ta place : elle t'aide à voir clair."},
+      {"type": "prompt", "titre": "1. Mettre à plat", "prompt": "J'hésite entre [option A] et [option B].\nPose-moi d'abord 5 questions sur ce qui compte vraiment pour moi.\nEnsuite, fais un tableau : avantages, inconvénients, risques et ce qui est réversible ou non, pour chaque option."},
+      {"type": "prompt", "titre": "2. L'avocat du diable", "prompt": "Je penche pour [option].\nDéfends le choix inverse le mieux possible, avec les meilleurs arguments.\nPuis dis-moi ce qui devrait se passer pour que je regrette mon choix dans un an."},
+      {"type": "prompt", "titre": "3. Le petit test", "prompt": "Comment tester [option] à petite échelle avant de m'engager vraiment ?\nPropose 3 essais concrets réalisables en moins de 2 semaines, et ce que chacun m'apprendrait."},
+      {"type": "texte", "titre": "Le rappel", "texte": "Pour une décision médicale, juridique ou financière importante, l'IA aide à préparer les questions, pas à remplacer un professionnel."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "22-semaine",
+    "legende": "Une to-do liste trop longue, des priorités qui changent tout le temps : ces 3 prompts transforment le chaos en semaine qui tient.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#organisation #productivite #todo #planning #chatgpt",
+    "slides": [
+      {"type": "couverture", "titre": "Ta semaine organisée en 10 minutes le dimanche soir.", "texte": "Trier, planifier et tenir quand tout déborde."},
+      {"type": "prompt", "titre": "1. Trier", "prompt": "Voici tout ce que j'ai en tête : [liste en vrac].\nClasse chaque tâche : urgent et important, important pas urgent, à déléguer, à abandonner.\nSois franc sur ce qui peut vraiment disparaître."},
+      {"type": "prompt", "titre": "2. Planifier", "prompt": "Mes disponibilités cette semaine : [créneaux].\nPlace mes tâches importantes dans les créneaux où je suis le plus en forme ([matin / soir]), avec 20 % de marge pour les imprévus.\nRends-moi un planning jour par jour."},
+      {"type": "prompt", "titre": "3. Le mercredi soir", "prompt": "Voici où j'en suis : [fait / pas fait / nouveau].\nRéorganise la fin de semaine sans me surcharger : ce que je décale, ce que je raccourcis, ce que j'abandonne."},
+      {"type": "texte", "titre": "Le secret", "texte": "Trois tâches importantes par jour, pas dix. Une liste qu'on ne finit jamais décourage plus qu'elle n'aide."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "23-presentation",
+    "legende": "Une présentation à faire devant ta classe, ton équipe ou un client : le plan, les slides et l'entraînement à l'oral.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#presentation #prisedeparole #powerpoint #oral #chatgpt",
+    "slides": [
+      {"type": "couverture", "titre": "Ta présentation prête, du plan jusqu'au trac.", "texte": "Le plan, les slides et la répétition à l'oral."},
+      {"type": "prompt", "titre": "1. Le plan", "prompt": "Je présente [sujet] à [public] pendant [durée]. Objectif : qu'ils [retiennent / décident / achètent] [quoi].\nPropose un plan en 3 parties avec une ouverture qui accroche, une idée forte par partie et une conclusion qui appelle à l'action."},
+      {"type": "prompt", "titre": "2. Les slides", "prompt": "À partir de ce plan : [plan], écris le contenu de chaque slide : un titre qui affirme quelque chose et 3 éléments maximum.\nPour chaque slide, donne aussi ce que je dois dire à l'oral, en phrases courtes."},
+      {"type": "prompt", "titre": "3. Les questions", "prompt": "Voici ma présentation : [contenu].\nJoue un public exigeant : pose-moi les 5 questions les plus difficiles qu'on pourrait me poser, une par une, et commente mes réponses."},
+      {"type": "texte", "titre": "Contre le trac", "texte": "Répète à voix haute deux fois, debout. Tu connaîtras ton enchaînement et ta voix tremblera beaucoup moins."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "24-langues",
+    "legende": "Apprendre une langue avec l'IA : un partenaire de conversation patient, disponible à 23 h, qui corrige sans juger.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#anglais #langues #apprendre #espagnol #chatgpt",
+    "slides": [
+      {"type": "couverture", "titre": "Ton prof de langue particulier, disponible 24 h sur 24.", "texte": "Conversation, correction et vocabulaire utile."},
+      {"type": "prompt", "titre": "1. La conversation", "prompt": "Parle-moi uniquement en [langue], niveau [débutant / intermédiaire].\nOn discute de [sujet du quotidien]. Pose-moi une question à la fois.\nÀ la fin de chacune de mes réponses, corrige mes erreurs en français, en une ligne."},
+      {"type": "prompt", "titre": "2. Traduire naturellement", "prompt": "Traduis ce texte en [langue] comme le dirait un natif, pas mot à mot : [texte].\nPuis signale les 3 expressions que j'aurais traduites de travers et explique pourquoi."},
+      {"type": "prompt", "titre": "3. Le vocabulaire utile", "prompt": "Je pars à [situation : voyage, entretien, réunion] en [langue].\nDonne-moi les 20 phrases les plus utiles avec leur traduction et une prononciation simple écrite à la française."},
+      {"type": "texte", "titre": "Pour progresser", "texte": "Avec l'application vocale de ChatGPT ou de Gemini, tu peux faire la conversation à l'oral. Dix minutes par jour suffisent."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "25-cadeaux",
+    "legende": "Plus jamais à court d'idées de cadeaux : anniversaire, Noël, pot de départ. Des idées qui tombent juste, dans ton budget.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#cadeau #ideescadeaux #noel #anniversaire #chatgpt",
+    "slides": [
+      {"type": "couverture", "titre": "Des idées de cadeaux qui tombent juste à chaque fois.", "texte": "Personnalisées, dans ton budget, sans y passer des heures."},
+      {"type": "prompt", "titre": "1. Les idées", "prompt": "Trouve 10 idées de cadeaux pour [qui : âge, lien avec moi].\nIl ou elle aime [passions], passe son temps à [activités] et a déjà [ce qu'il a déjà].\nBudget : [montant]. Mélange objets, expériences et idées faites main, sans rien de banal."},
+      {"type": "prompt", "titre": "2. Le cadeau commun", "prompt": "On se cotise à [nombre] pour [occasion] de [personne], budget total [montant].\nPropose 5 idées de cadeau commun et un message à envoyer au groupe pour récolter l'argent sans gêne."},
+      {"type": "prompt", "titre": "3. Le mot qui va avec", "prompt": "Écris un petit mot pour accompagner un cadeau à [personne] pour [occasion].\nTon [drôle / tendre / sobre], en 3 phrases, avec un souvenir précis : [souvenir]."},
+      {"type": "texte", "titre": "Pour acheter", "texte": "Compare les prix avant de payer : les idées viennent de l'IA, les meilleurs prix viennent toujours d'une vraie recherche."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "26-messages-difficiles",
+    "legende": "Le voisin trop bruyant, le colocataire qui ne range rien, l'ami qui doit de l'argent : le message qu'on repousse depuis des semaines.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#communication #relations #voisins #chatgpt #astuces",
+    "slides": [
+      {"type": "couverture", "titre": "Le message difficile que tu repousses depuis des semaines.", "texte": "Voisin, colocataire, ami : le ton juste, sans conflit."},
+      {"type": "prompt", "titre": "1. Le premier message", "prompt": "Aide-moi à écrire un message à [voisin / colocataire / ami] à propos de [problème], qui dure depuis [durée].\nJe veux que ça s'arrête sans créer de conflit.\nDécris les faits sans accuser, dis ce que ça me fait, propose une solution concrète."},
+      {"type": "prompt", "titre": "2. Sa réponse", "prompt": "Voici ce qu'il m'a répondu : [réponse].\nAide-moi à répondre calmement, sans céder sur l'essentiel : [ce que je veux obtenir].\nPropose une version conciliante et une version plus ferme."},
+      {"type": "prompt", "titre": "3. Se calmer avant d'envoyer", "prompt": "Voici le message que j'allais envoyer à chaud : [message].\nDis-moi ce qui risque d'envenimer les choses, puis réécris-le pour qu'il obtienne ce que je veux sans blesser."},
+      {"type": "texte", "titre": "La règle", "texte": "Un sujet sensible se règle mieux de vive voix. Le message sert à ouvrir la discussion, pas à la gagner."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "27-idee-business",
+    "legende": "Une idée de petite activité en tête ? Avant d'y mettre un euro, ces 3 prompts te disent si elle tient la route.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#entrepreneur #sidebusiness #business #idee #chatgpt",
+    "slides": [
+      {"type": "couverture", "titre": "Ton idée d'activité testée avant d'y mettre un euro.", "texte": "3 prompts pour savoir si elle tient la route."},
+      {"type": "prompt", "titre": "1. Le crash-test", "prompt": "Mon idée : [idée], pour [clients visés], vendue [prix].\nJoue un investisseur sceptique : quelles sont les 5 raisons les plus probables pour que ça échoue ?\nPour chacune, comment le vérifier en moins d'une semaine ?"},
+      {"type": "prompt", "titre": "2. Les clients", "prompt": "Décris 3 profils de clients idéaux pour [idée] : leur problème, ce qu'ils utilisent aujourd'hui à la place, et où les trouver en ligne.\nPuis écris 5 questions à leur poser pour savoir s'ils paieraient vraiment."},
+      {"type": "prompt", "titre": "3. Le premier euro", "prompt": "Quelle est la version la plus simple de [idée] que je pourrais vendre dans 15 jours, sans site ni gros investissement ?\nDonne un plan en 10 étapes et le prix à tester."},
+      {"type": "texte", "titre": "Le vrai test", "texte": "L'avis de l'IA ne remplace pas celui d'un client. Une seule vente vaut plus que cent « bonne idée ! »."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "28-demenagement",
+    "legende": "Un déménagement, c'est 40 démarches à ne pas oublier. Ces 3 prompts font la liste, le planning et les courriers.\n\nLes démarches officielles se font sur service-public.fr.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#demenagement #administratif #organisation #checklist #chatgpt",
+    "slides": [
+      {"type": "couverture", "titre": "Déménager sans rien oublier.", "texte": "La liste, le planning et les courriers en 3 prompts."},
+      {"type": "prompt", "titre": "1. Le rétroplanning", "prompt": "Je déménage le [date] de [ville] à [ville], en [appartement / maison], avec [qui].\nFais un planning à rebours de 2 mois : quoi faire à J-60, J-30, J-15, J-7, le jour J et après, avec les démarches (contrats, adresse, école, assurance)."},
+      {"type": "prompt", "titre": "2. La lettre de préavis", "prompt": "Rédige ma lettre de préavis pour mon logement au [adresse], bail signé le [date].\nIndique la date de départ souhaitée et demande un rendez-vous pour l'état des lieux de sortie.\nPrécise quelle durée de préavis s'applique dans mon cas : [zone / meublé ou non]."},
+      {"type": "prompt", "titre": "3. Les cartons", "prompt": "Fais une liste de cartons pièce par pièce pour un logement de [taille], avec les affaires à garder sous la main les 3 premiers jours dans un carton « à ouvrir en premier »."},
+      {"type": "texte", "titre": "À vérifier", "texte": "Les règles de préavis changent selon les cas : vérifie la tienne sur service-public.fr avant d'envoyer la lettre."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "29-assistant-perso",
+    "legende": "Arrête de réexpliquer qui tu es à chaque conversation : ChatGPT, Claude et Gemini peuvent garder des instructions permanentes. Voici comment bien les écrire.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#chatgpt #claude #gemini #productivite #ia",
+    "slides": [
+      {"type": "couverture", "titre": "Crée ton assistant IA perso en 5 minutes.", "texte": "Des instructions permanentes pour ne plus jamais te répéter."},
+      {"type": "texte", "titre": "Où ça se trouve", "texte": "ChatGPT : « Personnalisation ». Claude : les « Projets ». Gemini : les « Gems ». Ce que tu y écris s'applique à toutes tes conversations."},
+      {"type": "prompt", "titre": "Les instructions à coller", "prompt": "Qui je suis : [métier, situation, niveau en IA].\nCe que je te demande le plus souvent : [3 usages].\nComment me répondre : en français, direct, sans introduction ni conclusion inutiles, avec des listes quand c'est plus clair.\nSi ma demande est floue, pose-moi une question avant de répondre."},
+      {"type": "prompt", "titre": "Le faire écrire par l'IA", "prompt": "Pose-moi 8 questions sur mon travail, mes habitudes et ce qui m'agace dans tes réponses.\nÀ partir de mes réponses, rédige les instructions personnalisées idéales pour toi, en 150 mots maximum."},
+      {"type": "texte", "titre": "Ce qu'il ne faut pas y mettre", "texte": "Ni mot de passe, ni adresse, ni données de santé. Ces instructions sont stockées avec ton compte."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "30-best-of",
+    "legende": "30 jours, des dizaines de prompts. Si tu ne devais en garder que 5, ce seraient ceux-là.\n\n💾 Sauvegarde pour le jour où tu en auras besoin.\n💬 Commente PROMPTS pour le pack complet.\n\n#prompt #chatgpt #intelligenceartificielle #bestof #astuces",
+    "slides": [
+      {"type": "couverture", "titre": "Si tu ne gardes que 5 prompts, garde ceux-là.", "texte": "Le meilleur de 30 jours de alluxe.ia."},
+      {"type": "prompt", "titre": "1. La méthode", "prompt": "Tu es [rôle]. Ta tâche : [tâche].\nContexte : [qui, pour quoi, contraintes].\nFormat : [longueur, structure, ton].\nAvant de répondre, pose-moi les questions qui te manquent."},
+      {"type": "prompt", "titre": "2. Le résumé utile", "prompt": "Je suis [ta situation]. Dans le document joint, ne garde que ce qui me concerne : ce que je dois faire, les dates limites, l'argent en jeu. En liste, dates en gras."},
+      {"type": "prompt", "titre": "3. Le mail difficile", "prompt": "Aide-moi à écrire à [qui] à propos de [sujet]. Je veux obtenir [objectif] sans abîmer la relation.\nDonne une version courte et ferme, et une version qui propose une alternative."},
+      {"type": "prompt", "titre": "4. L'entraînement", "prompt": "Joue le rôle de [recruteur / vendeur / public exigeant]. Je m'entraîne à [situation].\nUne question ou objection à la fois, et après 6 échanges, dis-moi ce que j'aurais dû dire autrement."},
+      {"type": "prompt", "titre": "5. Le tri", "prompt": "Voici tout ce que j'ai en tête : [liste en vrac].\nClasse chaque tâche : urgent et important, important pas urgent, à déléguer, à abandonner."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
   }
 ]
