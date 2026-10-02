@@ -1,5 +1,16 @@
 # Ou on en est — mis a jour le 2 octobre 2026, 00h30
 
+## 2 OCT. 16h00 — OTA PUBLIEE MAIS PAS RECUE PAR LE TELEPHONE
+
+Commit 592d082 (total encaisse a cote de « Historique (n) », reel + demo)
+publie par `ops/publier_ota_app.sh` : « Published! », groupe
+c9726be7-0aa5-406a-b714-622e35113539, runtime 1.0.0, canal production.
+Le telephone ne l'affiche pas, meme apres reinstallation de l'APK f8757ab
+(release du 1er oct. 22h38 UTC, celui qui contient l'OTA). Cause NON
+trouvee. Decision operateur : pas de nouvel APK maintenant, la modif
+partira avec le prochain. A diagnostiquer avant de compter sur l'OTA :
+afficher `Updates.updateId` / `Updates.channel` dans l'app.
+
 ## 2 OCT. 11h23 — robot reel RELANCE a sa demande (il part dormir)
 
 Charge tout le code du jour (faux depot, connexions fermees, verbose_scan
