@@ -19,6 +19,17 @@ logger = logging.getLogger(__name__)
 BAR_BACKTEST = 1200
 BAR_FORWARD = 240
 LAB_HISTORY_DAYS = int(os.getenv("GB_LAB_HISTORY_DAYS", "365"))
+# 2 oct. 2026 : un candidat en M5 chargeait 180 jours de M5 pour ~245
+# cryptos A LA FOIS (12 millions de bougies) -- le Lab etait tue par son
+# plafond memoire avant d'avoir teste quoi que ce soit, 16 h sans resultat.
+# Le nombre de bougies par serie est borne : les unites lentes gardent
+# toute la periode, les rapides n'en gardent que ce qui tient dans la borne.
+LAB_MAX_BARS = int(os.getenv("GB_LAB_MAX_BARS", "12000"))
+
+
+def _lab_jours(timeframe):
+    """Jours d'historique pour une unite : la periode, bornee en bougies."""
+    return max(7, min(LAB_HISTORY_DAYS, int(LAB_MAX_BARS * tf_seconds(timeframe) / 86400)))
 MIN_TRADES = 100
 MIN_FORWARD_TRADES = 20
 MIN_PF = 1.20
@@ -81,11 +92,12 @@ def _lab_fetch_range(market, timeframe, start, end):
 
 def _lab_candles_1y(market, timeframe, extra_days=0):
     now = time.time(); seconds = tf_seconds(timeframe)
-    end = _lab_align(now, seconds) + seconds - 1; start = end - (LAB_HISTORY_DAYS + extra_days) * 86400
+    jours = _lab_jours(timeframe)
+    end = _lab_align(now, seconds) + seconds - 1; start = end - (jours + extra_days) * 86400
     path = _lab_cache_file(market, timeframe); cached = _lab_read_cache(path)
     if cached and cached[0].ts <= start and cached[-1].ts >= end - seconds:
         return [c for c in cached if start <= c.ts <= end]
-    logger.info("Lab Bitvavo: téléchargement %s %s sur %d jours", market, timeframe, LAB_HISTORY_DAYS)
+    logger.info("Lab Bitvavo: téléchargement %s %s sur %d jours", market, timeframe, jours)
     fresh = _lab_fetch_range(market, timeframe, int(start * 1000), int(end * 1000))
     if not fresh:
         raise RuntimeError(f"historique vide {market} {timeframe}")
@@ -104,7 +116,7 @@ def _lab_prepare_universe_and_data(timeframes):
         base = inst.symbol[:-3]; market = bases[base]["market"]
         try:
             series = {tf: _lab_candles_1y(market, tf, max(1, int((BAR_FORWARD * tf_seconds(tf) + 86399) / 86400))) for tf in timeframes}
-            if any(len(v) < 200 or (v[-1].ts - v[0].ts) < LAB_HISTORY_DAYS * 86400 * 0.95 for v in series.values()):
+            if any(len(v) < 200 or (v[-1].ts - v[0].ts) < _lab_jours(tf) * 86400 * 0.95 for tf, v in series.items()):
                 skipped[base] = "historique inférieur à 95% de 1 an"; continue
             data[inst.symbol] = series
         except Exception as exc:

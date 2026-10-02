@@ -60,16 +60,28 @@ CADRE = (
 DELAI = 90
 
 
+def _delai_pour(max_jetons: int) -> float:
+    """Le delai suit la longueur demandee.
+
+    2 oct. 2026 : la recherche du labo demande 12 000 jetons (reflexion
+    comprise) et coupait a 90 s -- « The read operation timed out » a
+    chaque passage, depuis des jours. OpenAI facture une reponse meme
+    quand on ne l'attend plus : on payait pour ne rien recevoir.
+    Compter ~40 jetons/s, jamais moins de DELAI, jamais plus de 10 min.
+    """
+    return float(min(600, max(DELAI, max_jetons / 40.0)))
+
+
 class CerveauErreur(RuntimeError):
     pass
 
 
-def _poster(url: str, corps: dict, entetes: dict) -> dict:
+def _poster(url: str, corps: dict, entetes: dict, delai: float = DELAI) -> dict:
     requete = urllib.request.Request(
         url, data=json.dumps(corps).encode("utf-8"),
         headers={**entetes, **ENTETE_NAVIGATEUR}, method="POST")
     try:
-        with urllib.request.urlopen(requete, timeout=DELAI) as r:
+        with urllib.request.urlopen(requete, timeout=delai) as r:
             return json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "replace")[:400]
@@ -111,7 +123,8 @@ def demander_chatgpt(question: str, contexte: str = "",
                       {"role": "user", "content": contenu}],
          "max_completion_tokens": max_jetons},
         {"content-type": "application/json",
-         "authorization": f"Bearer {cle}"})
+         "authorization": f"Bearer {cle}"},
+        delai=_delai_pour(max_jetons))
     try:
         texte = rep["choices"][0]["message"]["content"].strip()
     except (KeyError, IndexError, AttributeError, TypeError) as e:
@@ -145,7 +158,8 @@ def demander_claude(question: str, contexte: str = "",
         {"model": modele, "max_tokens": max_jetons, "system": CADRE,
          "messages": [{"role": "user", "content": contenu}]},
         {"content-type": "application/json", "x-api-key": cle,
-         "anthropic-version": "2023-06-01"})
+         "anthropic-version": "2023-06-01"},
+        delai=_delai_pour(max_jetons))
     texte = "".join(b.get("text", "") for b in rep.get("content", [])
                     if b.get("type") == "text").strip()
     if not texte:
