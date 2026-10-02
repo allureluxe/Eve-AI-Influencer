@@ -881,6 +881,30 @@ class TradingEngine:
         self._running = True
         return True
 
+    def _garder_dans_l_univers(self, position: Position) -> None:
+        """Une crypto DETENUE reste suivie, meme sortie de l'univers.
+
+        2 oct. 2026 : DIA, detenue avec son stop chez Bitvavo, n'a pas ete
+        reprise au redemarrage. L'univers est recalcule a chaque demarrage
+        sur le volume du jour ; DIA etait passee sous le seuil, n'etait plus
+        dans le catalogue, et `reprendre()` la refusait. Plus de stop
+        suiveur ni de point mort sur une position ouverte, en silence.
+        Le volume decide de ce qu'on ACHETE, jamais de ce qu'on GERE.
+        """
+        if position.volume <= 0 or self.universe.get(position.symbol) is not None:
+            return
+        sym = position.symbol.upper()
+        if not sym.endswith("USD"):
+            return
+        from .universe import ajouter_cryptos, instrument_crypto
+        actif = sym[:-3]
+        ajouter_cryptos({actif: "crypto_alt"})
+        inst = instrument_crypto(actif, "crypto_alt")
+        inst.enabled = False          # gere jusqu'a la sortie, jamais rachete
+        self.universe.add(inst)
+        logger.info("%s hors de l'univers du jour mais detenue : gardee pour "
+                    "la gestion, exclue des achats", sym)
+
     def _restore_positions(self) -> None:
         """Reprend la gestion des positions deja ouvertes apres un redemarrage."""
         # Au comptant, le lieu d'execution ne voit que des avoirs : il repart
@@ -909,6 +933,7 @@ class TradingEngine:
             memorisee = self.store.position_memorisee(identifiant)
             if memorisee is None:
                 continue
+            self._garder_dans_l_univers(memorisee)
             if not self.broker.reprendre(memorisee):
                 logger.info("position memorisee %s non reprise par %s",
                             identifiant, self.broker.name)
