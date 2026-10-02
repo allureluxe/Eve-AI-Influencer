@@ -261,7 +261,7 @@ les emails (3). Les deux marchent à 0 abonné.
 
 **Plan d'activation**
 - **J1** : s'inscrire aux programmes des outils réellement utilisés ; créer
-  la page du kit (Gumroad ou Lemon Squeezy, gratuit) ; ManyChat sur KIT.
+  la page du kit (Gumroad ou Lemon Squeezy, gratuit) ; robot KIT branché.
 - **J2–J7** : chaque tuto cite l'outil utilisé, lien en message privé
   seulement à ceux qui le demandent, mention « Publicité ».
 - **J30** : premier email à la liste — le récapitulatif du mois.
@@ -290,10 +290,12 @@ les emails (3). Les deux marchent à 0 abonné.
 qui déclenche un message privé convertit autour de 15 à 25 %, et la
 réponse en moins d'une minute fait toute la différence.
 
-**Contrainte Meta, à respecter sinon le compte est limité** : après le
-dernier message de la personne, on n'a que **24 heures** pour lui écrire
-des messages automatiques. Toute la séquence tient donc dans 24 h ; si
-elle répond, la fenêtre se rouvre.
+**Deux règles de Meta, vérifiées le 3 oct. en construisant le robot**
+(`alluxe_ia/kit.py`) :
+- la réponse privée à un commentaire, c'est **un seul message**, dans les
+  7 jours. **Pas de relance automatique possible** si la personne ne
+  répond pas : le message 4 prévu au départ est retiré ;
+- dès que la personne répond, on a **24 heures** pour lui écrire.
 
 **Réponse publique sous le commentaire** (instantanée, 3 variantes
 tirées au hasard) : « Envoyé en privé 👀 » · « Regarde tes messages ! » ·
@@ -307,7 +309,7 @@ tirées au hasard) : « Envoyé en privé 👀 » · « Regarde tes messages ! �
 > tu as déjà construit quelque chose avec l'IA ?
 > [Je pars de zéro] [J'ai déjà commencé]
 
-**Message 2 — 3 heures après, selon la réponse** (qualification)
+**Message 2 — dès qu'elle répond, selon la réponse** (qualification ; une réponse floue va à un humain)
 - *De zéro* :
   > Parfait, c'est exactement là où j'étais. Le premier prompt du kit
   > (le cahier des charges) est celui qui m'a fait gagner le plus de
@@ -317,17 +319,14 @@ tirées au hasard) : « Envoyé en privé 👀 » · « Regarde tes messages ! �
   > Top ! Tu bloques plutôt sur quoi : l'IA qui oublie ce que tu lui as
   > dit, ou les bugs qu'elle ne trouve pas ? J'ai un post sur chacun.
 
-**Message 3 — 20 heures après, seulement s'il a répondu** (offre douce)
+**Message 3 — à sa réponse suivante, seulement si un lien partenaire est configuré** (offre douce)
 > Je te partage l'outil que j'utilise pour {ce qu'il a dit}. C'est celui
 > qui fait tourner mon labo depuis des semaines : {lien}
 > (Publicité : c'est un lien partenaire, ça ne change rien pour toi et ça
 > soutient le compte.) Si tu veux, je te dis comment je l'ai réglé.
 
-**Message 4 — 23 heures après, s'il n'a jamais répondu** (relance
-finale, dernière possibilité dans la fenêtre de 24 h)
-> Je ne te relance plus après celui-là, promis 🙂 Si le kit t'a servi,
-> la suite arrive chaque semaine sur le compte. Et si tu as une question
-> sur ce que tu veux construire, réponds ici, je lis tout.
+**Message 4 (relance) — retiré** : l'API n'autorise qu'un message après un
+commentaire. Celui qui ne répond pas reçoit le kit, et c'est tout.
 
 ---
 
@@ -431,12 +430,12 @@ dépôt.**
   12 h 30 (prêt, à installer après la bascule du compte).
 - Reels : `publier_reel` existe déjà dans `ops/instagram.py` ; TikTok :
   `ops/tiktok.py` (toujours déclaré « contenu IA »).
-- Messages privés : ManyChat (séquence du prompt n°6).
+- Messages privés : le robot KIT du dépôt (`ops/alluxe_ia_kit.py`), gratuit — ManyChat est payant au-delà de 25 contacts depuis mars 2026.
 
 **La procédure de l'assistant (20 min/jour, 80 % des tâches)**
 1. Répondre aux commentaires qui ne sont pas « KIT » avec la banque de
    réponses (un fichier de 20 réponses types, à tenir à jour).
-2. Lire les messages privés que ManyChat n'a pas traités ; ne jamais
+2. Lire les messages privés que le robot KIT a laissés à un humain ; ne jamais
    promettre un résultat, ne jamais parler de trading.
 3. Noter chaque jour dans un tableau : abonnés, portée, sauvegardes du
    dernier post, inscrits au kit.
@@ -459,7 +458,7 @@ dépôt.**
   (gratuit).
 - Légendes : Claude, à partir des notes de la semaine.
 - Analyse : les statistiques Instagram lues par l'API (point 12 de
-  `docs/ALLUXE_IA.md`, à construire), et les chiffres ManyChat.
+  `docs/ALLUXE_IA.md`, à construire), et `python3 ops/alluxe_ia_kit.py etat`.
 
 ## Sources
 

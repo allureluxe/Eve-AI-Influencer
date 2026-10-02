@@ -15,6 +15,10 @@ photo de profil, tests `tests/test_alluxe_ia.py`. 3 OCT. : NICHE CHANGEE
 `docs/alluxe_ia/CONCEPT_8_PROMPTS.md`. 11 posts, mot-cle unique KIT, kit
 `docs/alluxe_ia/kit-constructeur.pdf`. Publication quotidienne 12h30 PRETE
 mais NON installee (`systemd/alluxe-ia-publication.*`).
+ROBOT KIT (3 oct., nuit) : table `alluxe_ia_evenements`/`alluxe_ia_contacts` et
+fonction `alluxe-ia-webhook` DEPLOYEES sur Supabase (verify_jwt=false, signature
+HMAC). Inactif tant que l'operateur n'a pas fait les etapes de
+docs/ALLUXE_IA.md point 8 (secrets, webhook Meta, ALLUXE_IA_KIT_URL, timer).
 
 EN ATTENTE DE L'OPERATEUR : couper Luna sur le VPS (luna-planner.timer +
 cron), renommer le compte dans l'appli, relire et tester les 9 posts.

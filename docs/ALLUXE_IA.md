@@ -46,9 +46,30 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
    des posts, `docs/alluxe_ia/kit-constructeur.pdf` (régénérer : `python3 -m alluxe_ia.pack`).
 7. **[toi] La page de téléchargement** (Gumroad ou Lemon Squeezy, gratuit) et
    son lien dans la bio.
-8. **[toi] ManyChat** : mot-clé `KIT`, les 4 messages EXACTS du prompt n°6 de
-   `docs/alluxe_ia/CONCEPT_8_PROMPTS.md` (toute la séquence tient en 24 h, règle Meta).
-   Créer le compte ManyChat avec le compte Instagram : Claude ne peut pas le faire.
+8. ✅ **[Claude] Le robot KIT** (remplace ManyChat, payant au-delà de 25 contacts) :
+   quelqu'un commente KIT → réponse publique + le kit en privé, en moins d'une minute.
+   Table et fonction `alluxe-ia-webhook` **déployées sur Supabase le 3 oct.**, inactives
+   tant que Meta n'est pas branché. Code : `alluxe_ia/kit.py`, `ops/alluxe_ia_kit.py`,
+   `supabase/functions/alluxe-ia-webhook/`.
+
+   **[toi] Le brancher**, une fois la page Gumroad du kit créée :
+   1. Choisir un mot de vérification (n'importe lequel, ex. `alluxe-kit-2026`).
+   2. Supabase → Edge Functions → Secrets : `IG_WEBHOOK_VERIFY_TOKEN` = ce mot,
+      `IG_APP_SECRET` = le secret de l'application Instagram (Meta for Developers →
+      ton app → Instagram → Configuration de l'API → « Secret de l'app Instagram »).
+   3. Meta for Developers → ton app → Instagram → « Configurer les webhooks » :
+      URL `https://jwksajhtvhwktkbkpits.supabase.co/functions/v1/alluxe-ia-webhook`,
+      jeton de vérification = le mot ; s'abonner à **comments** et **messages**.
+   4. Le jeton Instagram doit porter `instagram_business_manage_comments` et
+      `instagram_business_manage_messages` ; sinon refaire l'autorisation avec ces
+      deux cases. L'app doit être en mode **Live** pour recevoir les webhooks.
+   5. Sur le VPS : `ALLUXE_IA_KIT_URL=<lien Gumroad>` dans `.env`, puis
+      `python3 ops/alluxe_ia_kit.py abonner`.
+   6. Tester : commenter KIT depuis un autre compte, puis
+      `python3 ops/alluxe_ia_kit.py traiter` (essai, n'envoie rien) et
+      `python3 ops/alluxe_ia_kit.py etat`.
+   7. Activer : `sudo cp systemd/alluxe-ia-kit.{service,timer} /etc/systemd/system/ &&
+      sudo systemctl daemon-reload && sudo systemctl enable --now alluxe-ia-kit.timer`.
 9. ✅ **[Claude] Publication automatique** : `systemd/alluxe-ia-publication.timer`
    lance `suivant --confirmer` chaque jour à 12 h 30. **Prête, pas installée** :
    à activer seulement après la phase 0 :

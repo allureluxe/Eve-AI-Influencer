@@ -1,0 +1,24 @@
+# alluxe.ia : le robot KIT répond aux commentaires KIT (ops/alluxe_ia_kit.py).
+#
+# NE PAS ACTIVER avant :
+#   - la fin de la phase 0 de docs/ALLUXE_IA.md (Luna coupée, compte renommé) ;
+#   - ALLUXE_IA_KIT_URL dans .env (le lien Gumroad du kit) ;
+#   - la fonction `alluxe-ia-webhook` déployée et branchée dans Meta,
+#     puis `python3 ops/alluxe_ia_kit.py abonner`.
+#
+#   sudo cp systemd/alluxe-ia-kit.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now alluxe-ia-kit.timer
+
+[Unit]
+Description=alluxe.ia -- robot KIT (reponses aux commentaires)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ubuntu/Eve-AI-Influencer/.venv/bin/python /home/ubuntu/Eve-AI-Influencer/ops/alluxe_ia_kit.py traiter --confirmer
