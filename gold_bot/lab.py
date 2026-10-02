@@ -372,7 +372,31 @@ class StrategyLab:
         LAB_STATE.parent.mkdir(parents=True, exist_ok=True)
         LAB_BOOK.parent.mkdir(parents=True, exist_ok=True)
         self.state = self._load()
+        self._reprendre_les_tests_interrompus()
         self._publish("IDLE", "Laboratoire pret")
+
+    def _reprendre_les_tests_interrompus(self):
+        """Une hypothese TESTING au demarrage est un test mort en route.
+
+        2 oct. 2026 : tue par son plafond memoire, le Lab laissait ses
+        hypotheses en TESTING pour toujours -- jamais retestees, jamais
+        conclues. Un seul Lab tourne : au demarrage, tout TESTING est orphelin.
+        """
+        url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        key = os.getenv("SUPABASE_SERVICE_KEY", "")
+        if not url or not key:
+            return
+        try:
+            req = urllib.request.Request(
+                f"{url}/rest/v1/lab_research?statut=eq.TESTING",
+                data=json.dumps({"statut": "IDEATED"}).encode(),
+                headers={"apikey": key, "authorization": f"Bearer {key}",
+                         "content-type": "application/json",
+                         "prefer": "return=minimal"},
+                method="PATCH")
+            urllib.request.urlopen(req, timeout=15).close()
+        except Exception as exc:  # noqa: BLE001 - jamais bloquant au demarrage
+            logger.warning("reprise des tests interrompus : %s", str(exc)[:120])
 
     def _load(self):
         try:
