@@ -26,7 +26,7 @@ class TestLesCerveauxN_ONT_AUCUN_OUTIL:
     def _corps_envoye(self, monkeypatch, fonction, cle_env, valeur):
         captures = {}
 
-        def faux_poster(url, corps, entetes):
+        def faux_poster(url, corps, entetes, **_options):
             captures["url"] = url
             captures["corps"] = corps
             captures["entetes"] = entetes
@@ -64,7 +64,7 @@ class TestLesClesNeFuientPas:
     def test_chaque_cerveau_n_envoie_que_SA_cle(self, monkeypatch):
         captures = {}
         monkeypatch.setattr(cerveaux, "_poster",
-                            lambda u, c, e: captures.update(entetes=e) or
+                            lambda u, c, e, **_o: captures.update(entetes=e) or
                             {"content": [{"type": "text", "text": "x"}]})
         monkeypatch.setenv("ANTHROPIC_API_KEY", "cle-anthropic")
         monkeypatch.setenv("OPENAI_API_KEY", "cle-openai")
@@ -79,7 +79,7 @@ class TestUnCerveauAbsentN_ARRETE_PAS_LES_AUTRES:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "cle")
         monkeypatch.setattr(cerveaux, "_poster",
-                            lambda *a: {"content": [{"type": "text",
+                            lambda *a, **_o: {"content": [{"type": "text",
                                                       "text": "avis de claude"}]})
         r = cerveaux.consulter("q")
         assert r["chatgpt"]["ok"] is False
@@ -88,7 +88,7 @@ class TestUnCerveauAbsentN_ARRETE_PAS_LES_AUTRES:
     def test_un_cerveau_inconnu_ne_casse_rien(self, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "cle")
         monkeypatch.setattr(cerveaux, "_poster",
-                            lambda *a: {"content": [{"type": "text", "text": "x"}]})
+                            lambda *a, **_o: {"content": [{"type": "text", "text": "x"}]})
         r = cerveaux.consulter("q", lesquels=("claude", "gemini"))
         assert r["claude"]["ok"] is True
         assert r["gemini"]["ok"] is False

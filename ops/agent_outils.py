@@ -709,7 +709,19 @@ SOURCES_RECHERCHE_TRADING = {
                    "bankofengland.co.uk", "boj.or.jp", "bankofcanada.ca",
                    "snb.ch", "rba.gov.au"],
     "quant": ["quantconnect.com", "quantpedia.com", "quantstart.com",
-              "alpharchitect.com", "robotwealth.com", "hudsonthames.org"],
+              "alpharchitect.com", "robotwealth.com", "hudsonthames.org",
+              "quantocracy.com", "quantifiedstrategies.com",
+              "quant.stackexchange.com", "wilmott.com", "risk.net",
+              "cfainstitute.org", "aqr.com", "man.com",
+              "twosigma.com", "research.cmegroup.com"],
+    # 2 oct. 2026, demande de l'operateur : « chercher partout, d'autres
+    # systemes, d'autres sites, d'autres organismes ». Les robots crypto
+    # open source publient des centaines de strategies OHLC testables.
+    "bots_open_source": ["github.com", "freqtrade.io", "jesse.trade",
+                         "hummingbot.org", "kaggle.com",
+                         "strat.ninja", "backtrader.com"],
+    "donnees_crypto": ["cryptoquant.com", "kaiko.com", "amberdata.io",
+                       "coinmetrics.io", "santiment.net", "theblockresearch.com"],
     "marches_finance": ["reuters.com", "bloomberg.com", "cnbc.com",
                         "ft.com", "wsj.com", "marketwatch.com",
                         "investing.com", "finance.yahoo.com", "nasdaq.com",
@@ -810,15 +822,17 @@ def recherche_idee_trading(args: dict) -> dict:
         "quant": ["quant", "academique"],
         "marches": ["marches_finance", "crypto"],
         "forums": ["trading_communities", "trading_education"],
-        "crypto": ["crypto", "quant", "trading_communities"],
+        "crypto": ["crypto", "quant", "trading_communities",
+                   "bots_open_source", "donnees_crypto"],
         "complet": ["academique", "quant", "marches_finance",
-                    "trading_communities", "crypto", "trading_education"],
+                    "trading_communities", "crypto", "trading_education",
+                    "bots_open_source", "donnees_crypto"],
     }
     familles = modes.get(mode, modes["complet"])
     from concurrent.futures import ThreadPoolExecutor, as_completed
     resultats = []
     # Une panne réseau sur une famille ne doit plus sérialiser les autres.
-    with ThreadPoolExecutor(max_workers=min(6, len(familles))) as pool:
+    with ThreadPoolExecutor(max_workers=min(8, len(familles))) as pool:
         futurs = {
             pool.submit(_recherche_sites, sujet,
                         SOURCES_RECHERCHE_TRADING[famille],

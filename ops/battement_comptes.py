@@ -196,6 +196,38 @@ def _signer_bitvavo(chemin: str) -> dict | None:
             "Bitvavo-Access-Timestamp": ts, "Bitvavo-Access-Window": "10000"}
 
 
+#: Virements de la periode affichee (ts en s, montant signe), remplis par
+#: `_depart_reel` et publies pour que la courbe de l'appli les neutralise.
+_VIREMENTS_PERIODE: list[tuple[float, float]] = []
+
+
+def _decaler_la_courbe(url: str, cle: str, compte: str, virements: list[dict]) -> None:
+    """Neutralise chaque virement dans la courbe, UNE fois, cote base.
+
+    Demande de l'operateur, 2 oct. 2026 : un retrait faisait chuter la
+    courbe comme une perte. La correction cote application n'arrivait pas
+    sur ses appareils (mise a jour OTA non recue) : la base decale donc
+    elle-meme les releves d'avant chaque virement. La fonction SQL tient le
+    registre des virements deja appliques (decaler_courbe_capital).
+    """
+    for v in virements:
+        try:
+            req = urllib.request.Request(
+                f"{url}/rest/v1/rpc/decaler_courbe_capital",
+                data=json.dumps({"p_compte": compte, "p_ts": v["ts"],
+                                 "p_montant": v["montant"]}).encode(),
+                headers={"apikey": cle, "authorization": f"Bearer {cle}",
+                         "content-type": "application/json"},
+                method="POST")
+            with urllib.request.urlopen(req, timeout=20) as r:
+                n = json.loads(r.read().decode() or "0")
+            if n:
+                log.info("courbe %s : %s releves decales de %+.2f (virement %s)",
+                         compte, n, v["montant"], v["ts"])
+        except Exception as exc:                               # noqa: BLE001
+            log.warning("courbe non decalee pour %s : %s", v.get("ts"), str(exc)[:120])
+
+
 def _depart_reel() -> float | None:
     """Ce que l'operateur a REELLEMENT mis dans le compte, net des retraits.
 
@@ -251,7 +283,9 @@ def _depart_reel() -> float | None:
     if PERIODE_REEL_DEPUIS:
         # La periode affichee commence a un capital connu : on n'y ajoute
         # que les virements qui la suivent (horodatages Bitvavo en ms).
-        apres = sum(m for ts, m in mouvements if ts / 1000.0 > PERIODE_REEL_DEPUIS)
+        _VIREMENTS_PERIODE[:] = sorted(
+            (ts / 1000.0, m) for ts, m in mouvements if ts / 1000.0 > PERIODE_REEL_DEPUIS)
+        apres = sum(m for _, m in _VIREMENTS_PERIODE)
         return round(PERIODE_REEL_CAPITAL + apres, 2)
     if not mouvements:
         return None
@@ -308,9 +342,27 @@ def _capital_bitvavo() -> float | None:
             total += quantite
             continue
         prix = _cours(actif)
-        if prix is not None:
-            total += quantite * prix
+        if prix is None:
+            # UN CAPITAL INCOMPLET EST PIRE QU'AUCUN CAPITAL. Le 1er et le
+            # 2 oct., un prix manquant a fait publier 83,90 puis 171,36 EUR
+            # (les euros seuls : la lecture des cours avait echoue) pour un
+            # compte a ~500 -- des pics faux sur la courbe. Une POSITION DU
+            # ROBOT sans prix annule le releve ; un reliquat inconnu non.
+            if f"{actif}USD" in _actifs_detenus_par_le_robot():
+                log.warning("capital non publie : pas de prix pour %s", actif)
+                return None
+            continue        # poussiere ou jeton delisté : sans effet
+        total += quantite * prix
     return total
+
+
+def _actifs_detenus_par_le_robot() -> set[str]:
+    """Symboles des positions ouvertes du robot reel (volume > 0)."""
+    try:
+        meta = json.loads(Path("data/state.json").read_text()).get("position_meta") or {}
+    except Exception:                                          # noqa: BLE001
+        return set()
+    return {k for k, m in meta.items() if float(m.get("volume") or 0) > 0}
 
 
 
@@ -586,6 +638,12 @@ def publier(compte: str, fichier: str) -> bool:
         depart_reel = _depart_reel()
         if depart_reel is not None and depart_reel > 0:
             corps["capital_depart"] = depart_reel
+            # La courbe de l'appli retire ces virements : un retrait n'est
+            # pas une perte (demande de l'operateur du 2 oct. 2026).
+            corps["virements"] = [
+                {"ts": dt.datetime.fromtimestamp(t, dt.timezone.utc).isoformat(),
+                 "montant": round(m, 2)} for t, m in _VIREMENTS_PERIODE]
+            _decaler_la_courbe(url, cle, compte, corps["virements"])
         cash = _cash_bitvavo()
         if cash is not None:
             corps["cash_eur"] = round(cash, 2)

@@ -1538,3 +1538,17 @@ def _nearest_kind(chart: ChartRead, price: float, kind: str, atr: float) -> Opti
     if not candidates:
         return None
     return min(candidates, key=lambda l: abs(l.price - price)).price
+
+
+def retour_a_la_moyenne(cfg, closes: list[float], prix: float, atr: float) -> bool:
+    """Famille « reversion » : le prix est-il revenu dans la bande de sortie ?
+
+    Vrai quand `SMA - prix <= reversion_sortie_atr x ATR`, la SMA etant
+    recalculee sur les cloture COURANTES. Une seule regle, partagee par le
+    rejeu et le moteur en direct (le direct ne l'avait pas, 2 oct. 2026).
+    """
+    n = int(cfg.reversion_ma_periode)
+    if len(closes) < n or atr <= 0 or prix <= 0:
+        return False
+    sma = sum(closes[-n:]) / n
+    return (sma - prix) <= cfg.reversion_sortie_atr * atr

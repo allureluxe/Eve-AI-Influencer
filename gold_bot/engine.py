@@ -46,7 +46,7 @@ from .risk import RiskManager
 from .scanner import Scanner, ScanResult
 from .settings import BotConfig
 from .state import StateStore, TradeJournal
-from .strategy import Evaluation, Strategy
+from .strategy import Evaluation, Strategy, retour_a_la_moyenne
 from .trade_manager import ActionType, TradeAction, TradeManager
 from .universe import Instrument, Universe, univers_bitvavo
 
@@ -69,6 +69,51 @@ def _devise_du_lieu_d_execution(broker: str) -> str:
     if broker == "okx":
         return OkxConfig.from_env().quote_asset
     return ""
+
+
+class _DiagnosticMemoire:
+    """Ce qui s'accumule en memoire, ecrit toutes les 10 min (GB_DIAG_MEMOIRE=1).
+
+    2 oct. 2026 : le robot reel est passe de 0,3 a 1,2 Go en 8 h, les demos
+    collent a leur plafond. Hors ligne, rien ne fuit : c'est le chemin
+    reseau. Active sur une DEMO seulement (tracemalloc ralentit et grossit
+    le processus), jamais sur le reel.
+    """
+
+    def __init__(self, chemin: str) -> None:
+        import tracemalloc
+        self._tm = tracemalloc
+        tracemalloc.start(15)
+        self._chemin = chemin
+        self._depart = None
+        self._dernier = time.time()
+
+    @classmethod
+    def si_demande(cls) -> Optional["_DiagnosticMemoire"]:
+        if os.getenv("GB_DIAG_MEMOIRE", "") != "1":
+            return None
+        compte = os.getenv("GB_COMPTE_DEMO", "") or "robot"
+        return cls(f"data/diag-memoire-{compte}.txt")
+
+    def peut_etre_ecrire(self) -> None:
+        if self._depart is None:
+            self._depart = self._tm.take_snapshot()
+            return
+        if time.time() - self._dernier < 600:
+            return
+        self._dernier = time.time()
+        import gc
+        gc.collect()
+        diff = self._tm.take_snapshot().compare_to(self._depart, "traceback")[:12]
+        lignes = [time.strftime("== %Y-%m-%d %H:%M:%S ==")]
+        for st in diff:
+            lignes.append(f"+{st.size_diff / 1048576:.1f} Mo  {st.count_diff:+d} objets")
+            lignes += [f"    {l.strip()[:160]}" for l in st.traceback.format()[-6:]]
+        try:
+            with open(self._chemin, "a", encoding="utf-8") as f:
+                f.write("\n".join(lignes) + "\n")
+        except OSError:
+            pass
 
 
 def registre_pour(config) -> DataRegistry:
@@ -973,11 +1018,14 @@ class TradingEngine:
         logger.info("boucle demarree — cadence %.0fs / %.0fs (position ouverte / recherche)",
                     self.config.engine.poll_seconds, self.config.engine.idle_poll_seconds)
 
+        diag = _DiagnosticMemoire.si_demande()
         while not self._stop_requested:
             cycle_start = time.time()
             try:
                 self.run_cycle()
                 self._consecutive_errors = 0
+                if diag is not None:
+                    diag.peut_etre_ecrire()
             except KeyboardInterrupt:
                 break
             except Exception as exc:  # noqa: BLE001 - le robot ne doit jamais mourir sur un cycle
@@ -1085,6 +1133,18 @@ class TradingEngine:
             actions = self.trade_manager.manage(
                 pos, tick, ind, chart=chart, news=window, digits=instrument.digits,
                 etages=positions)
+            # LA SORTIE DE LA FAMILLE « REVERSION » N'EXISTAIT QUE DANS LE
+            # REJEU (2 oct. 2026, en armant la demo 3) : en direct, la
+            # position achetee au creux n'aurait jamais ete revendue au
+            # rebond -- seulement au stop ou au stop temporel. Meme regle
+            # que backtest.py, contre la SMA COURANTE, au prix de vente.
+            if (self.config.strategy.famille == "reversion"
+                    and not any(a.type is ActionType.CLOSE for a in actions)
+                    and retour_a_la_moyenne(self.config.strategy,
+                                            [c.close for c in ind.candles],
+                                            tick.bid, ind.atr.value or 0.0)):
+                actions.append(TradeAction(ActionType.CLOSE, pos.id,
+                                           reason="reversion : retour a la MA"))
             for action in actions:
                 self._apply_action(pos, action, instrument)
 

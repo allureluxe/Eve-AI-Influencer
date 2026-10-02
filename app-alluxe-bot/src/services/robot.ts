@@ -429,6 +429,8 @@ export async function courbeCapital(
   //
   // Seule la vue « 1 jour » etait correcte, et c'est celle qu'on
   // regarde le plus : le defaut pouvait durer longtemps.
+  // Les virements sont neutralises COTE SERVEUR (decaler_courbe_capital,
+  // 2 oct. 2026) : les releves arrivent deja corriges, rien a faire ici.
   const { data, error } = await supabase
     .from("alluxe_bot_capital")
     .select("vu_le, capital_eur")
@@ -439,6 +441,7 @@ export async function courbeCapital(
   if (error) throw error;
   return ((data ?? []) as PointCapital[]).reverse();
 }
+
 
 export async function comptesDemo(): Promise<CompteDemo[]> {
   const { data, error } = await supabase

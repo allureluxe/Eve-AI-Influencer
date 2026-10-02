@@ -282,3 +282,4 @@ describe("le regroupement des étages d'une pyramide", () => {
       .toEqual(["X/EUR", "BTC/EUR", "Z/EUR"]);
   });
 });
+

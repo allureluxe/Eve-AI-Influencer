@@ -38,7 +38,29 @@ from gold_bot.brokers.bitvavo import BitvavoBroker  # noqa: E402
 FICHIER_REFERENCE = os.path.join(RACINE, "data", "etat_public_jour.json")
 
 
-def _capital_actuel() -> float:
+def _virements_du_jour(b) -> float:
+    """Depots moins retraits en euros depuis minuit UTC.
+
+    2 oct. 2026 : un retrait de 58 EUR a fait afficher « jour -14,47 % »
+    sur l'Accueil -- le retrait etait compte comme une perte. Un virement
+    deplace la reference, il ne fait ni gagner ni perdre.
+    """
+    minuit = dt.datetime.now(dt.timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0).timestamp() * 1000
+    net = 0.0
+    for chemin, signe in (("/depositHistory", 1.0), ("/withdrawalHistory", -1.0)):
+        try:
+            lignes = b._appel("GET", chemin)
+        except Exception:  # noqa: BLE001 - sans historique, on garde l'ancien calcul
+            continue
+        for x in lignes if isinstance(lignes, list) else []:
+            if (x.get("symbol") == "EUR" and x.get("status") == "completed"
+                    and float(x.get("timestamp", 0)) >= minuit):
+                net += signe * float(x.get("amount", 0) or 0)
+    return net
+
+
+def _capital_actuel() -> tuple[float, float]:
     b = BitvavoBroker()
     b.connect()
     soldes = b._appel("GET", "/balance")
@@ -59,7 +81,7 @@ def _capital_actuel() -> float:
             p = prix.get(f"{symbole}-EUR")
             if p:
                 total += montant * p
-    return total
+    return total, _virements_du_jour(b)
 
 
 def _reference_du_jour(capital_actuel: float) -> float:
@@ -108,8 +130,8 @@ def _publier(capital: float, variation_pct: float) -> None:
 
 
 def main() -> int:
-    capital = _capital_actuel()
-    reference = _reference_du_jour(capital)
+    capital, virements = _capital_actuel()
+    reference = _reference_du_jour(capital - virements)
     # UNE REFERENCE MINUSCULE NE PRODUIT PAS UN POURCENTAGE, ELLE PRODUIT
     # UNE ABSURDITE. Le 25 septembre, la reference valait quelques
     # millioniemes d'euro (reste des retraits du 16) et le depot de
@@ -120,7 +142,7 @@ def main() -> int:
     # on annonce 0 plutot qu'un nombre qui ferait douter de tout le
     # reste de l'ecran.
     if reference >= 1.0:
-        variation = (capital - reference) / reference * 100.0
+        variation = (capital - virements - reference) / reference * 100.0
     else:
         variation = 0.0
     # LA COLONNE REFUSE AU-DELA DE 999,999 — ET L'ECHEC EST SILENCIEUX.

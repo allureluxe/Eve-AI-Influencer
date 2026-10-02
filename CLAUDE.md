@@ -1518,10 +1518,14 @@ la **lecture et le diagnostic** : `journalctl`, `systemctl status`,
 `plan_croissance.py`, `comparer.py`, `verifier_*.py`). Rien de tout cela
 n'engage un centime.
 
-Restent en **demande explicite**, parce qu'elles touchent au robot armé
-ou sortent du VPS : `systemctl restart/start/stop`, `git push`,
-`git reset`, `git checkout`, les lanceurs `run_*.py`, et
-`reinitialiser_arret.py`.
+Restent en **demande explicite** : `git reset`, `git checkout`, les
+lanceurs `run_*.py` et `reinitialiser_arret.py`.
+
+**2 octobre — décision de l'opérateur :** `systemctl` (redémarrages) et
+`git push` sont passés en autorisés. Chaque demande coupait ses messages
+vocaux en pleine dictée, et la règle « demande » du fichier partagé
+passait avant ses « toujours autoriser ». Les interdictions (lire
+`.env`, `rm -rf`, `git push --force`) restent en place.
 
 Sont **refusées** : la lecture de `.env` (il porte les clés Bitvavo, et
 ce qui est lu part dans la conversation), `rm -rf`, et `git push --force`.
