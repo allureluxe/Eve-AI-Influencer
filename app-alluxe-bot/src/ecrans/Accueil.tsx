@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { espace, rayon } from "../theme";
 import { Logo, T, useCouleurs, useReglageTheme, Preference } from "../composants/base";
+import { versionAffichee } from "../services/miseAJour";
 
 interface Section {
   cle: "Alluxbot" | "Allure" | "Luna" | "Laboratoire" | "Agent";
@@ -145,6 +146,9 @@ export function EcranAccueil({ surChoix }: {
         <T v="titreGrand" style={{ marginTop: espace.m }}>Alluxe</T>
         <T v="corps" couleur={c.encreDouce} style={{ textAlign: "center", marginTop: espace.xs }}>
           Tout le projet, au meme endroit.
+        </T>
+        <T v="petit" couleur={c.encreDouce} style={{ marginTop: espace.xs }}>
+          {versionAffichee()}
         </T>
       </View>
       <ChoixTheme />

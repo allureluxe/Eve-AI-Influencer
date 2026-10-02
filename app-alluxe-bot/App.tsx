@@ -35,6 +35,7 @@ import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 
 import { supabase } from "./src/services/supabase";
+import { useMiseAJourAuto } from "./src/services/miseAJour";
 import { FournisseurTheme, Logo, T, useCouleurs, useTheme }
   from "./src/composants/base";
 import { EcranVerification } from "./src/ecrans/Verification";
@@ -364,6 +365,7 @@ function EcranDeLancement({ erreur }: { erreur?: string }) {
 }
 
 export default function App() {
+  useMiseAJourAuto();
   const [policesPretes] = useFonts({
     Fraunces_600SemiBold,
     Fraunces_400Regular_Italic,
