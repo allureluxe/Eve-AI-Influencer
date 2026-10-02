@@ -1,4 +1,41 @@
-# Ou on en est — mis a jour le 2 octobre 2026, 00h30
+# Ou on en est — mis a jour le 2 octobre 2026, 22h45
+
+## 2 OCT. 22h45 — ETAT ET LISTE A FAIRE (lire en premier)
+
+**Reel** (robot-trading, seul robot reel, enabled ; dual-live disabled) :
+~496 EUR, 8 positions. Retraits operateur : 12 EUR (1er oct.) et 58 EUR
+(2 oct. 17h34 UTC). Periode affichee depuis le 1er oct. 19h41 UTC
+(PERIODE_REEL_* dans ops/battement_comptes.py). Budget de risque a 7,5 %
+TEMPORAIRE (CLAUDE.md) : risque engage 6,55 % -> REDESCENDRE A 5,0 des
+qu'il passe sous 5 %. MALLOC_ARENA_MAX=2 pose (fuite memoire native :
+1,8 Go en 9 h ; relance 22h25 Paris). Verif auto programmee 23h13 Paris.
+
+**Appli** : courbe du capital = virements neutralises COTE SERVEUR
+(fonction SQL decaler_courbe_capital + registre alluxe_bot_virements_appliques,
+appelee par battement_comptes) ; points faux (capital sans cryptos) effaces
+et plus publies. Accueil « jour % » hors virements. L'OTA arrive mal sur ses
+appareils : pour un affichage urgent, corriger cote serveur. Installee aussi
+sur son Chromebook (Linux + adb).
+
+**Lab** : debloque (bornes en bougies GB_LAB_MAX_BARS=12000, 1 an ;
+hypotheses TESTING remises en file au demarrage). ChatGPT repond (delai
+10 min) ; sources elargies. Cout recherche ~5-7 EUR/jour toutes les 30 min
+-- signale, pas de reponse : rythme garde. Claude : credit vide (a faire
+plus tard, decision operateur).
+
+**Demo 1** : diagnostic memoire actif (GB_DIAG_MEMOIRE=1, drop-in diag.conf)
+-> data/diag-memoire-demo.txt ; RETIRER une fois la fuite tranchee.
+
+**A faire, par ordre** :
+1. Redescendre max_total_risk_pct a 5,0 quand risque engage < 5 %.
+2. Trancher la fuite memoire (comparer reel/demo2 avec MALLOC_ARENA_MAX vs
+   demo 1 sans) ; si ca tient, l'etendre a demo et lab.
+3. Demo 3 : il veut une 3e METHODE (pas un temoin) -- reponse attendue :
+   reversion ou meilleure du Lab. Avant de la lancer, alleger le quota
+   Bitvavo des demos (sinon le reel tombe en pause, vu le 2 oct.).
+4. Questions sans reponse : role de l'agent (repondre / agir seul) ;
+   label IA Instagram et stats Meta (lui seul).
+
 
 ## 2 OCT. 16h35 — OTA : DIAGNOSTIC
 
