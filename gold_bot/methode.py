@@ -73,6 +73,17 @@ def phrase_methode(cfg: BotConfig) -> str:
             f"Le risque par trade suit le palier atteint : {paliers}."
         )
 
+    if cfg.strategy.famille == "reversion":
+        n = int(cfg.strategy.reversion_ma_periode)
+        entree = f"{cfg.strategy.reversion_entree_atr:.1f}".replace(".", ",")
+        return (
+            f"Strategie {cfg.strategy.entry_tf} Retour a la moyenne {n} jours "
+            f"(achat quand le prix tombe {entree} fois sa volatilite sous sa "
+            f"moyenne de {n} jours, revente quand il y revient), {pyramide}, "
+            f"stop temporel de {jours_stop:.0f} jours. "
+            f"Le risque par trade suit le palier atteint : {paliers}."
+        )
+
     return (
         f"Strategie {cfg.strategy.entry_tf} {cfg.strategy.famille.capitalize()}-{canal} "
         f"(cassure de canal a {canal} jours), {pyramide}, stop suiveur a "
@@ -98,6 +109,8 @@ def resume_methode(cfg: BotConfig) -> str:
         detention = float(cfg.trade.detention_max_jours or 0.0)
         morceaux = [f"Momentum {formation} j",
                     f"revente au {detention:.0f}e jour"]
+    elif cfg.strategy.famille == "reversion":
+        morceaux = [f"Retour à la moyenne {int(cfg.strategy.reversion_ma_periode)} j"]
     else:
         canal = min(cfg.strategy.donchian_entrees or [20])
         morceaux = [f"Canal {canal} j"]

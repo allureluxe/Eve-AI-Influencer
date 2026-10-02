@@ -27,7 +27,7 @@ from .datasources.base import resample, tf_seconds
 from .indicators import IndicatorSet
 from .risk import RiskManager
 from .settings import BotConfig
-from .strategy import Strategy
+from .strategy import Strategy, retour_a_la_moyenne
 from .trade_manager import ActionType, TradeManager
 from .universe import Instrument, Universe, spread_estime
 
@@ -374,17 +374,14 @@ class Backtester:
             # stop ATR reste gere par `process_candle` : une reversion qui
             # ne revient jamais sort au stop.
             if cfg.strategy.famille == "reversion" and miennes():
-                n_ma = int(cfg.strategy.reversion_ma_periode)
                 closes = [c.close for c in indicators[entry_tf].candles]
-                if len(closes) >= n_ma and atr > 0:
-                    sma_now = sum(closes[-n_ma:]) / n_ma
-                    if (sma_now - candle.close) <= cfg.strategy.reversion_sortie_atr * atr:
-                        for pos in miennes():
-                            t = broker.close_position(pos.id, None, "reversion : retour a la MA")
-                            if t:
-                                result.trades.append(t)
-                                risk.record_close(t)
-                            strategy.noter_sortie_donchian(t.symbol, t.profit > 0)
+                if retour_a_la_moyenne(cfg.strategy, closes, candle.close, atr):
+                    for pos in miennes():
+                        t = broker.close_position(pos.id, None, "reversion : retour a la MA")
+                        if t:
+                            result.trades.append(t)
+                            risk.record_close(t)
+                        strategy.noter_sortie_donchian(t.symbol, t.profit > 0)
 
             # --- Recherche d'entree ---
             #

@@ -151,12 +151,12 @@ class TestRachatApresGain:
     def test_desarmee_par_defaut(self):
         assert RiskConfig().rachat_meme_bougie_apres_gain is False
 
-    def test_armee_sur_le_reel_et_son_miroir_pas_sur_le_temoin(self):
+    def test_armee_sur_le_reel_et_son_miroir(self):
+        # Le temoin (demo 3 sans la regle) a ete remplace le 2 oct. 2026 par
+        # une 3e methode, sur decision de l'operateur.
         from gold_bot.settings import BotConfig
         assert BotConfig.load("robot.bitvavo.json").risk.rachat_meme_bougie_apres_gain is True
         assert BotConfig.load("robot.demo.json").risk.rachat_meme_bougie_apres_gain is True
-        assert BotConfig.load("robot.demo3.json").risk.rachat_meme_bougie_apres_gain is False, (
-            "sans temoin, on ne saura jamais ce que la regle rapporte")
 
     def test_armee_elle_laisse_racheter_apres_un_gain(self):
         rm = RiskManager(RiskConfig(carence_meme_bougie=True, unite_du_signal="D1",

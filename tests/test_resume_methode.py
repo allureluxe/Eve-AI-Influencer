@@ -95,9 +95,11 @@ class TestLeResumeSuitLesREGLAGES:
         assert "0,5" in resume_methode(cfg)
 
     def test_le_rachat_apres_un_gain_apparait(self):
-        """Seule difference entre demo et demo3 depuis le 1er oct. 2026."""
+        """La regle armee le 1er oct. figure dans le resume de la demo 1.
+
+        (La demo 3 n'est plus le temoin sans cette regle depuis le 2 oct. :
+        decision de l'operateur, elle porte une 3e methode, la reversion.)"""
         assert "après un gain" in resume_methode(_cfg("robot.demo.json"))
-        assert "après un gain" not in resume_methode(_cfg("robot.demo3.json"))
 
     def test_un_reglage_modifie_change_le_resume(self):
         cfg = _cfg("robot.demo.json")

@@ -46,7 +46,7 @@ from .risk import RiskManager
 from .scanner import Scanner, ScanResult
 from .settings import BotConfig
 from .state import StateStore, TradeJournal
-from .strategy import Evaluation, Strategy
+from .strategy import Evaluation, Strategy, retour_a_la_moyenne
 from .trade_manager import ActionType, TradeAction, TradeManager
 from .universe import Instrument, Universe, univers_bitvavo
 
@@ -1133,6 +1133,18 @@ class TradingEngine:
             actions = self.trade_manager.manage(
                 pos, tick, ind, chart=chart, news=window, digits=instrument.digits,
                 etages=positions)
+            # LA SORTIE DE LA FAMILLE « REVERSION » N'EXISTAIT QUE DANS LE
+            # REJEU (2 oct. 2026, en armant la demo 3) : en direct, la
+            # position achetee au creux n'aurait jamais ete revendue au
+            # rebond -- seulement au stop ou au stop temporel. Meme regle
+            # que backtest.py, contre la SMA COURANTE, au prix de vente.
+            if (self.config.strategy.famille == "reversion"
+                    and not any(a.type is ActionType.CLOSE for a in actions)
+                    and retour_a_la_moyenne(self.config.strategy,
+                                            [c.close for c in ind.candles],
+                                            tick.bid, ind.atr.value or 0.0)):
+                actions.append(TradeAction(ActionType.CLOSE, pos.id,
+                                           reason="reversion : retour a la MA"))
             for action in actions:
                 self._apply_action(pos, action, instrument)
 
