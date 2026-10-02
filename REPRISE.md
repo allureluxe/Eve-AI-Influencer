@@ -1,5 +1,17 @@
 # Ou on en est — mis a jour le 2 octobre 2026, 00h30
 
+## 2 OCT. 16h35 — OTA : DIAGNOSTIC
+
+Serveur OK (u.expo.dev sert la derniere maj au bon runtime/canal) ; APK OK
+(ENABLED=true, URL et canal corrects, decode du manifeste). Cause : par
+defaut la maj s'applique a l'ouverture SUIVANTE apres fermeture complete.
+Corrige (27a1ca4, publie 01a0fd08) : l'appli verifie a l'ouverture et au
+retour au premier plan, puis se relance ; version affichee sur l'Accueil
+(« version integree » ou « maj xxxxxxxx »). Pour recevoir CETTE maj, une
+derniere fois : fermer l'appli completement, rouvrir, attendre ~10 s,
+refermer completement, rouvrir. Ensuite c'est automatique.
+Encaisse (gros chiffre Direct) = somme de l'historique (totalEncaisse).
+
 ## 2 OCT. 16h00 — OTA PUBLIEE MAIS PAS RECUE PAR LE TELEPHONE
 
 Commit 592d082 (total encaisse a cote de « Historique (n) », reel + demo)
