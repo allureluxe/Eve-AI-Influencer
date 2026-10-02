@@ -8,6 +8,7 @@ import { Position, etatCapital, historique } from "../services/robot";
 import { euros, gainRealiseDe, nomCrypto, pourcent, quand } from "../services/format";
 import { espace, rayon } from "../theme";
 import { Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
+import { totalEncaisse } from "../composants/ListePositions";
 
 const LIBELLE_STATUT: Record<string, string> = {
   closed_tp: "Objectif atteint",
@@ -77,6 +78,10 @@ export function EcranHistorique() {
 
   const gains = trades?.filter((t) => (t.result_pct ?? 0) > 0).length ?? 0;
   const pertes = trades?.filter((t) => (t.result_pct ?? 0) <= 0).length ?? 0;
+  // Demande de l'operateur (2 oct.) : le total des positions cloturees a
+  // cote de « Historique ». MEME fonction que l'ecran Direct, pour que
+  // l'onglet et le gros chiffre « encaisse » ne puissent jamais diverger.
+  const total = totalEncaisse(trades, capital);
 
   return (
     <ScrollView
@@ -91,8 +96,15 @@ export function EcranHistorique() {
         <Logo hauteur={40} />
       </View>
 
+      {total != null && (
+        <T v="sousTitre" couleur={total >= 0 ? c.gain : c.perte}
+           style={{ marginBottom: espace.xs }}>
+          Total encaissé : {euros(total)}
+        </T>
+      )}
       {trades && trades.length > 0 && (
         <T v="petit" couleur={c.encreDouce} style={{ marginBottom: espace.m }}>
+          {trades.length} position{trades.length > 1 ? "s" : ""} clôturée{trades.length > 1 ? "s" : ""} ·{" "}
           {gains} gain{gains > 1 ? "s" : ""}, {pertes} perte{pertes > 1 ? "s" : ""}
         </T>
       )}
