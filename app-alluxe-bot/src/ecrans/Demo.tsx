@@ -29,7 +29,7 @@ import { euros, gainRealiseDe, nomCrypto, pourcent, quand } from "../services/fo
 import { espace, rayon } from "../theme";
 import { usePrixLive } from "../services/prixLive";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
-import { BarreDeTri, LigneFermee, LignePosition, Tri, trier } from "../composants/ListePositions";
+import { BarreDeTri, LigneFermee, LignePosition, TitreHistorique, Tri, trier } from "../composants/ListePositions";
 import { etagesAffiches, gainTotalEnDirect, resteAInvestir } from "../composants/positionsTri";
 import { CourbeCapital } from "../composants/CourbeCapital";
 import { CleCompte, ChoixCompte, COMPTES } from "../composants/ChoixCompte";
@@ -413,9 +413,8 @@ export function EcranDemo({ navigation }: { navigation?: any }) {
         </>
       )}
 
-      <T v="sousTitre" style={{ marginTop: espace.xl, marginBottom: espace.s }}>
-        Historique {fermees ? `(${fermees.length})` : ""}
-      </T>
+      <TitreHistorique fermees={fermees} capital={capitalDepart}
+                       style={{ marginTop: espace.xl, marginBottom: espace.s }} />
       {fermees === null ? (
         <Chargement />
       ) : fermees.length === 0 ? (

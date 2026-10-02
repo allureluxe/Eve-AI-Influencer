@@ -176,6 +176,32 @@ const LIBELLE_STATUT: Record<string, string> = {
   cancelled: "Annulé",
 };
 
+/**
+ * Titre « Historique (n) · ±X € encaissés », partage Direct/Demo.
+ * Demande de l'operateur le 2 oct. : le total encaisse a cote du compteur.
+ * Le total est la SOMME DES LIGNES affichees dessous (meme `gainRealiseDe`),
+ * pour que le chiffre du titre et les lignes ne puissent jamais diverger.
+ */
+export function TitreHistorique({ fermees, capital, style }: {
+  fermees: Position[] | null; capital: number; style?: any;
+}) {
+  const c = useCouleurs();
+  const total = fermees && fermees.length > 0
+    ? fermees.reduce((s, t) => s + (gainRealiseDe(t, capital) ?? 0), 0)
+    : null;
+  return (
+    <View style={[{ flexDirection: "row", alignItems: "baseline", flexWrap: "wrap",
+                    gap: espace.s }, style]}>
+      <T v="sousTitre">Historique {fermees ? `(${fermees.length})` : ""}</T>
+      {total != null && (
+        <T v="sousTitre" couleur={total >= 0 ? c.gain : c.perte}>
+          · {euros(total)} encaissés
+        </T>
+      )}
+    </View>
+  );
+}
+
 export function LigneFermee({ p, capital }: { p: Position; capital: number }) {
   const c = useCouleurs();
   const gagnant = (p.result_pct ?? 0) > 0;

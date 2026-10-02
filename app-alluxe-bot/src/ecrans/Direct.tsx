@@ -26,7 +26,7 @@ import { useSuiviPositions } from "../services/suiviPositions";
 import { euros, pourcent } from "../services/format";
 import { espace } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
-import { BarreDeTri, LigneFermee, LignePosition, Tri, trier } from "../composants/ListePositions";
+import { BarreDeTri, LigneFermee, LignePosition, TitreHistorique, Tri, trier } from "../composants/ListePositions";
 import {
   etagesAffiches, gainTotalEnDirect, resultatRealiseCompteReel, resteAInvestir,
 } from "../composants/positionsTri";
@@ -319,9 +319,8 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
         </>
       )}
 
-      <T v="sousTitre" style={{ marginTop: espace.xl, marginBottom: espace.s }}>
-        Historique {fermees ? `(${fermees.length})` : ""}
-      </T>
+      <TitreHistorique fermees={fermees} capital={depart}
+                       style={{ marginTop: espace.xl, marginBottom: espace.s }} />
       {fermees === null ? (
         <Chargement />
       ) : fermees.length === 0 ? (
