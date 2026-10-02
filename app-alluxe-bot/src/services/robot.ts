@@ -6,7 +6,6 @@
  * compte de l'operateur (RLS deja permissive sur `signals`/`etat_public`
  * pour tout utilisateur connecte -- voir supabase/migrations).
  */
-import { Virement, sansVirements } from "./virements";
 import { supabase } from "./supabase";
 import { tableAbsente } from "./postgrest";
 import { regrouperLesEtages } from "./format";
@@ -430,20 +429,17 @@ export async function courbeCapital(
   //
   // Seule la vue « 1 jour » etait correcte, et c'est celle qu'on
   // regarde le plus : le defaut pouvait durer longtemps.
-  const [{ data, error }, fiche] = await Promise.all([
-    supabase
-      .from("alluxe_bot_capital")
-      .select("vu_le, capital_eur")
-      .eq("compte", compte)
-      .gte("vu_le", depuis)
-      .order("vu_le", { ascending: false })
-      .limit(limite),
-    supabase.from("alluxe_bot_comptes").select("virements").eq("compte", compte).maybeSingle(),
-  ]);
+  // Les virements sont neutralises COTE SERVEUR (decaler_courbe_capital,
+  // 2 oct. 2026) : les releves arrivent deja corriges, rien a faire ici.
+  const { data, error } = await supabase
+    .from("alluxe_bot_capital")
+    .select("vu_le, capital_eur")
+    .eq("compte", compte)
+    .gte("vu_le", depuis)
+    .order("vu_le", { ascending: false })
+    .limit(limite);
   if (error) throw error;
-  const virements = (Array.isArray((fiche.data as any)?.virements)
-    ? (fiche.data as any).virements : []) as Virement[];
-  return sansVirements(((data ?? []) as PointCapital[]).reverse(), virements);
+  return ((data ?? []) as PointCapital[]).reverse();
 }
 
 

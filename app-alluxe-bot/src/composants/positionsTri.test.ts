@@ -283,20 +283,3 @@ describe("le regroupement des étages d'une pyramide", () => {
   });
 });
 
-describe("courbe du capital sans virements (2 oct. 2026)", () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { sansVirements } = require("../services/virements");
-  it("decale les points d'avant un retrait, garde ceux d'apres", () => {
-    const pts = [
-      { vu_le: "2026-10-02T17:30:00Z", capital_eur: 568 },
-      { vu_le: "2026-10-02T17:35:00Z", capital_eur: 510 },
-    ];
-    const r = sansVirements(pts, [{ ts: "2026-10-02T17:33:53Z", montant: -58 }]);
-    expect(r[0].capital_eur).toBe(510);
-    expect(r[1].capital_eur).toBe(510);
-  });
-  it("ne touche a rien sans virement (demos)", () => {
-    const pts = [{ vu_le: "2026-10-02T17:30:00Z", capital_eur: 3300 }];
-    expect(sansVirements(pts, [])).toBe(pts);
-  });
-});

@@ -201,6 +201,33 @@ def _signer_bitvavo(chemin: str) -> dict | None:
 _VIREMENTS_PERIODE: list[tuple[float, float]] = []
 
 
+def _decaler_la_courbe(url: str, cle: str, compte: str, virements: list[dict]) -> None:
+    """Neutralise chaque virement dans la courbe, UNE fois, cote base.
+
+    Demande de l'operateur, 2 oct. 2026 : un retrait faisait chuter la
+    courbe comme une perte. La correction cote application n'arrivait pas
+    sur ses appareils (mise a jour OTA non recue) : la base decale donc
+    elle-meme les releves d'avant chaque virement. La fonction SQL tient le
+    registre des virements deja appliques (decaler_courbe_capital).
+    """
+    for v in virements:
+        try:
+            req = urllib.request.Request(
+                f"{url}/rest/v1/rpc/decaler_courbe_capital",
+                data=json.dumps({"p_compte": compte, "p_ts": v["ts"],
+                                 "p_montant": v["montant"]}).encode(),
+                headers={"apikey": cle, "authorization": f"Bearer {cle}",
+                         "content-type": "application/json"},
+                method="POST")
+            with urllib.request.urlopen(req, timeout=20) as r:
+                n = json.loads(r.read().decode() or "0")
+            if n:
+                log.info("courbe %s : %s releves decales de %+.2f (virement %s)",
+                         compte, n, v["montant"], v["ts"])
+        except Exception as exc:                               # noqa: BLE001
+            log.warning("courbe non decalee pour %s : %s", v.get("ts"), str(exc)[:120])
+
+
 def _depart_reel() -> float | None:
     """Ce que l'operateur a REELLEMENT mis dans le compte, net des retraits.
 
@@ -616,6 +643,7 @@ def publier(compte: str, fichier: str) -> bool:
             corps["virements"] = [
                 {"ts": dt.datetime.fromtimestamp(t, dt.timezone.utc).isoformat(),
                  "montant": round(m, 2)} for t, m in _VIREMENTS_PERIODE]
+            _decaler_la_courbe(url, cle, compte, corps["virements"])
         cash = _cash_bitvavo()
         if cash is not None:
             corps["cash_eur"] = round(cash, 2)
