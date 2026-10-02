@@ -1,0 +1,114 @@
+[
+  {
+    "id": "01-resume",
+    "legende": "Arrête de demander « fais-moi un résumé ». L'IA te rend alors un texte plus court… et aussi flou que l'original.\n\nCes 4 prompts lui disent POUR QUI elle résume et CE QUE tu vas en faire. La différence se voit dès le premier essai.\n\n💾 Sauvegarde le post pour l'avoir sous la main.\n💬 Commente PROMPTS et je t'envoie le pack complet en message.\n\n#intelligenceartificielle #chatgpt #claude #prompt #productivite #astuceIA",
+    "slides": [
+      {"type": "couverture", "titre": "Arrête d'écrire « fais-moi un résumé ».", "texte": "Écris plutôt ça. 4 prompts qui donnent des résumés qu'on peut vraiment utiliser."},
+      {"type": "texte", "titre": "Le problème", "texte": "« Résume ce texte » ne dit pas à l'IA pour qui elle écrit, ni ce que tu vas faire du résumé. Elle coupe au hasard. Tu obtiens un texte plus court, pas plus clair."},
+      {"type": "prompt", "titre": "Pour décider vite", "prompt": "Résume ce document pour quelqu'un qui doit prendre une décision en 2 minutes.\nDonne : la décision à prendre, les 3 arguments pour, les 3 arguments contre, et ce que tu recommandes.\nMaximum 120 mots."},
+      {"type": "prompt", "titre": "Pour ne rien oublier", "prompt": "Liste toutes les actions, dates limites et personnes responsables mentionnées dans ce texte.\nPrésente-les en tableau : action | qui | quand.\nSi une information manque, écris « non précisé » au lieu de l'inventer."},
+      {"type": "prompt", "titre": "Pour l'expliquer à quelqu'un", "prompt": "Explique le contenu de ce texte à quelqu'un d'intelligent qui ne connaît rien au sujet.\nUtilise une comparaison de la vie courante, puis les 3 idées essentielles.\nPas de jargon, ou alors défini entre parenthèses."},
+      {"type": "prompt", "titre": "Pour vérifier que tu as compris", "prompt": "Pose-moi 5 questions sur ce texte, de la plus simple à la plus difficile.\nAttends mes réponses une par une, corrige-moi, puis dis-moi ce que j'ai mal compris."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie le pack complet en message privé."}
+    ]
+  },
+  {
+    "id": "02-pdf-80-pages",
+    "legende": "Un PDF de 80 pages, une seule page à lire. Le prompt est dans le post.\n\nLa clé : demander une structure fixe (thèse, chiffres, limites) au lieu d'un résumé libre. L'IA ne peut plus « oublier » ce qui compte.\n\n💾 Sauvegarde-le pour ton prochain rapport.\n\n#intelligenceartificielle #chatgpt #claude #prompt #PDF #travail",
+    "slides": [
+      {"type": "couverture", "titre": "Le prompt qui transforme un PDF de 80 pages en 1 page.", "texte": "Testé sur des rapports, des contrats et des études."},
+      {"type": "texte", "titre": "Pourquoi ça marche", "texte": "Tu imposes une structure. L'IA doit remplir chaque case : elle ne peut plus sauter les chiffres ni les limites, qui sont justement ce qu'on oublie."},
+      {"type": "prompt", "titre": "Le prompt", "prompt": "Je te joins un document long. Produis une fiche d'une page avec exactement ces rubriques :\n1. En une phrase : de quoi parle ce document\n2. Les 5 idées principales, avec le numéro de page\n3. Les chiffres importants\n4. Ce que le document ne dit pas ou ne prouve pas\n5. Les 3 questions que je devrais poser à l'auteur\nCite le texte entre guillemets quand c'est important. N'invente rien."},
+      {"type": "texte", "titre": "L'astuce en plus", "texte": "Demande ensuite : « Quelle rubrique t'a été la plus difficile à remplir, et pourquoi ? » C'est souvent là que se cache le point faible du document."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "pour recevoir d'autres prompts de ce genre en message privé."}
+    ]
+  },
+  {
+    "id": "03-methode-4-cases",
+    "legende": "La méthode que j'utilise pour écrire n'importe quel prompt : 4 cases, toujours dans le même ordre.\n\nRôle · Tâche · Contexte · Format.\n\nSi ta réponse est décevante, c'est presque toujours la case Contexte qui est vide.\n\n💾 Sauvegarde, c'est le post à garder.\n\n#intelligenceartificielle #chatgpt #claude #prompt #methode",
+    "slides": [
+      {"type": "couverture", "titre": "La méthode en 4 cases pour écrire n'importe quel prompt.", "texte": "Rôle, tâche, contexte, format. Dans cet ordre."},
+      {"type": "texte", "titre": "1. Le rôle", "texte": "Dis à l'IA qui elle est. « Tu es un comptable qui explique à un artisan » ne donne pas la même réponse que « Tu es un expert-comptable »."},
+      {"type": "texte", "titre": "2. La tâche", "texte": "Un verbe précis : compare, réécris, classe, critique. « Aide-moi avec » ne veut rien dire pour une IA."},
+      {"type": "texte", "titre": "3. Le contexte", "texte": "Ce que tu sais et qu'elle ne sait pas : ton public, ton objectif, ce que tu as déjà essayé. C'est la case qu'on oublie, et c'est elle qui fait la différence."},
+      {"type": "texte", "titre": "4. Le format", "texte": "La forme de la réponse : un tableau, 5 points, 100 mots, un mail prêt à envoyer. Sans format, tu reçois un pavé."},
+      {"type": "prompt", "titre": "Les 4 cases ensemble", "prompt": "Tu es un conseiller en recrutement qui aide des petites entreprises.\nRéécris l'annonce ci-dessous.\nContexte : nous sommes une boulangerie de 6 personnes, nous cherchons un vendeur le week-end, et l'ancienne annonce n'a reçu aucune réponse en 3 semaines.\nFormat : 120 mots maximum, un titre accrocheur, 3 puces pour les avantages."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "pour recevoir le modèle à remplir en message privé."}
+    ]
+  },
+  {
+    "id": "04-travail-du-lundi",
+    "legende": "6 prompts pour le travail que tout le monde repousse le lundi matin.\n\nMails en retard, réunion à préparer, semaine à organiser : copie, colle, adapte les crochets.\n\n💬 Commente PROMPTS et je t'envoie les 6 en texte, prêts à copier.\n\n#intelligenceartificielle #chatgpt #claude #prompt #productivite #organisation",
+    "slides": [
+      {"type": "couverture", "titre": "6 prompts qui font ton travail du lundi.", "texte": "Les tâches qu'on repousse, faites en quelques minutes."},
+      {"type": "prompt", "titre": "Trier ta boîte mail", "prompt": "Voici les objets et expéditeurs de mes mails non lus.\nClasse-les en : à traiter aujourd'hui, à déléguer, à lire plus tard, à ignorer.\nPour ceux à traiter, propose une réponse de 2 phrases."},
+      {"type": "prompt", "titre": "Préparer une réunion", "prompt": "Je vais en réunion pour [sujet] avec [qui].\nDonne-moi : l'objectif à atteindre, 3 questions à poser, 2 objections probables et comment y répondre."},
+      {"type": "prompt", "titre": "Organiser la semaine", "prompt": "Voici ma liste de tâches et mes rendez-vous de la semaine.\nRépartis les tâches par jour en mettant le travail difficile le matin, et dis-moi ce qui ne rentrera pas et peut être reporté."},
+      {"type": "prompt", "titre": "Relancer sans être lourd", "prompt": "Écris une relance polie pour [personne] qui ne m'a pas répondu depuis [durée] au sujet de [sujet].\nTon : cordial, direct, 4 phrases maximum, avec une question fermée à la fin."},
+      {"type": "prompt", "titre": "Dire non", "prompt": "Aide-moi à refuser cette demande : [demande].\nJe veux garder une bonne relation avec la personne. Propose 2 versions : une courte, une avec une alternative."},
+      {"type": "prompt", "titre": "Faire le point du vendredi", "prompt": "Voici ce que j'ai fait cette semaine.\nRésume en 5 lignes ce qui a avancé, ce qui a bloqué, et la priorité de la semaine prochaine, pour l'envoyer à mon responsable."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "et je t'envoie les 6 prompts en texte, prêts à copier."}
+    ]
+  },
+  {
+    "id": "05-cinq-erreurs",
+    "legende": "Si les réponses de ton IA sont molles, génériques ou fausses, c'est rarement l'IA.\n\nCe sont presque toujours ces 5 erreurs. La n°4 est la plus fréquente.\n\n💾 Sauvegarde et relis-le avant ton prochain prompt.\n\n#intelligenceartificielle #chatgpt #claude #prompt #erreurs",
+    "slides": [
+      {"type": "couverture", "titre": "Les 5 erreurs qui rendent tes réponses d'IA nulles.", "texte": "Et comment corriger chacune en une phrase."},
+      {"type": "texte", "titre": "1. Demander trop vague", "texte": "« Écris un post sur le sport » donne un texte que personne ne lit. Dis pour qui, dans quel but, et avec quel ton."},
+      {"type": "texte", "titre": "2. Tout demander d'un coup", "texte": "Un prompt qui demande 6 choses en fait 3 mal. Découpe : d'abord le plan, puis chaque partie."},
+      {"type": "texte", "titre": "3. Ne pas donner d'exemple", "texte": "Colle un exemple de ce que tu veux. L'IA imite très bien, elle devine très mal."},
+      {"type": "texte", "titre": "4. Accepter la première réponse", "texte": "La première version est un brouillon. Réponds « plus court », « plus concret », « avec un exemple chiffré ». La troisième est souvent la bonne."},
+      {"type": "texte", "titre": "5. Croire tout ce qu'elle dit", "texte": "Une IA peut inventer un chiffre ou une source avec assurance. Demande-lui toujours : « Qu'est-ce qui, dans ta réponse, mérite d'être vérifié ? »"},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "pour recevoir mes prompts corrigés en message privé."}
+    ]
+  },
+  {
+    "id": "06-jamais-a-une-ia",
+    "legende": "Ce qu'il ne faut jamais coller dans une IA. J'ai appris la règle n°1 en construisant un robot connecté à un vrai compte : une clé copiée au mauvais endroit et elle part dans la conversation.\n\n🔁 Partage-le à quelqu'un qui colle tout dans ChatGPT.\n\n#intelligenceartificielle #securite #chatgpt #claude #donneespersonnelles",
+    "slides": [
+      {"type": "couverture", "titre": "Ce qu'il ne faut JAMAIS donner à une IA.", "texte": "6 choses à garder pour toi, même quand c'est pratique."},
+      {"type": "texte", "titre": "1. Tes mots de passe et clés", "texte": "Mots de passe, codes, clés d'accès à un service. Ce que tu colles dans une conversation peut être conservé. Remplace-les par « XXX » avant de coller."},
+      {"type": "texte", "titre": "2. Les données des autres", "texte": "Noms, adresses, téléphones de clients ou de collègues. Anonymise : « Client A », « Ville B ». Le résultat est le même."},
+      {"type": "texte", "titre": "3. Tes papiers", "texte": "Carte d'identité, RIB, fiche de paie, ordonnance. Si tu veux de l'aide sur un document, recopie seulement la partie utile."},
+      {"type": "texte", "titre": "4. Les secrets de ton travail", "texte": "Contrats, chiffres non publiés, projets confidentiels. Vérifie d'abord ce que ton entreprise autorise."},
+      {"type": "texte", "titre": "5 et 6. Une décision à sa place", "texte": "Santé, argent, droit : l'IA aide à préparer les questions, pas à trancher. Et ne lui demande jamais de te confirmer ce que tu as déjà décidé : elle le fera."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "pour recevoir mes prompts qui marchent sans donnée sensible."}
+    ]
+  },
+  {
+    "id": "07-automatisations-nuit",
+    "legende": "Pendant que je dors, trois programmes travaillent : ils trient, préparent et surveillent.\n\nPas de magie : un serveur loué quelques euros par mois et de l'IA pour écrire le code. Je raconte tout en coulisses dans les prochains posts.\n\n💬 Commente COULISSES si tu veux le détail.\n\n#automatisation #intelligenceartificielle #claude #nocode #coulisses",
+    "slides": [
+      {"type": "couverture", "titre": "3 automatisations qui tournent pendant que je dors.", "texte": "Construites avec de l'IA, sans être développeur."},
+      {"type": "texte", "titre": "1. Un tri qui se fait seul", "texte": "Chaque nuit, un programme lit ce qui est arrivé dans la journée, range, et me prépare un résumé pour le matin."},
+      {"type": "texte", "titre": "2. Du contenu préparé à l'avance", "texte": "Les posts de cette page sont fabriqués en lot : textes, slides, légendes. Le matin, je relis et je valide."},
+      {"type": "texte", "titre": "3. Un gardien", "texte": "Un petit programme vérifie toutes les 5 minutes que tout tourne. Si quelque chose casse, il arrête proprement et me prévient."},
+      {"type": "texte", "titre": "Ce qu'il faut pour commencer", "texte": "Un serveur à quelques euros par mois, une IA qui écrit le code avec toi, et beaucoup de patience pour tester. Le plus long n'est pas d'écrire : c'est de vérifier."},
+      {"type": "appel", "mot_cle": "COULISSES", "texte": "et je te raconte comment c'est construit."}
+    ]
+  },
+  {
+    "id": "08-robot-sans-coder",
+    "legende": "J'ai construit un robot complet en discutant avec une IA, sans formation de développeur.\n\nCe post parle de la méthode, pas d'argent : ce n'est pas un conseil d'investissement, et je ne partage pas de résultats.\n\nLa vraie leçon : l'IA écrit vite, mais c'est toi qui dois prouver que ça marche.\n\n💬 Commente COULISSES pour la suite.\n\n#claude #claudecode #intelligenceartificielle #programmation #coulisses",
+    "slides": [
+      {"type": "couverture", "titre": "J'ai construit un robot avec Claude Code sans être développeur.", "texte": "Ce que j'en ai appris, sans filtre."},
+      {"type": "texte", "titre": "Ce que l'IA fait très bien", "texte": "Écrire le code, l'expliquer, corriger les erreurs à partir d'un message. Des choses qui m'auraient pris des semaines prennent une soirée."},
+      {"type": "texte", "titre": "Ce qu'elle ne fait pas à ta place", "texte": "Décider ce qui est juste. Une règle peut être écrite, lue, affichée… et ne jamais s'exécuter. Il faut le vérifier, à chaque fois."},
+      {"type": "texte", "titre": "La règle que je garde", "texte": "Tout ce qui est décidé est écrit dans un fichier que l'IA relit à chaque session. Sinon, elle oublie, et toi aussi."},
+      {"type": "texte", "titre": "Par où commencer", "texte": "Un petit projet utile pour toi, un serveur bon marché, et des tests. Beaucoup de tests. Ce sont eux qui te disent si l'IA a raison."},
+      {"type": "appel", "mot_cle": "COULISSES", "texte": "pour la suite de l'histoire en message privé."}
+    ]
+  },
+  {
+    "id": "09-mode-emploi",
+    "legende": "Bienvenue sur alluxe.ia 👋\n\nIci : de l'IA appliquée à de vrais projets. Des prompts testés, des automatisations qui tournent, et les coulisses de ce que je construis.\n\nCommence par les posts épinglés, et commente PROMPTS sous n'importe quel post pour recevoir le pack gratuit.\n\n#intelligenceartificielle #chatgpt #claude #prompt #automatisation",
+    "slides": [
+      {"type": "couverture", "titre": "Comment utiliser cette page.", "texte": "alluxe.ia en 30 secondes."},
+      {"type": "texte", "titre": "Ce que tu trouveras ici", "texte": "Des prompts prêts à copier, des méthodes pour mieux utiliser l'IA, et les coulisses de projets réels construits avec elle."},
+      {"type": "texte", "titre": "Comment en profiter", "texte": "Sauvegarde les posts utiles. Commente le mot-clé indiqué en fin de post : je t'envoie la version complète en message privé."},
+      {"type": "texte", "titre": "Ce que tu ne trouveras pas", "texte": "Des promesses d'argent facile, des conseils d'investissement, ou des outils que je n'utilise pas moi-même."},
+      {"type": "appel", "mot_cle": "PROMPTS", "texte": "pour recevoir le pack gratuit et commencer."}
+    ]
+  }
+]

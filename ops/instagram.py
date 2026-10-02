@@ -230,6 +230,69 @@ def publier(image_url: str, legende: str = "",
     return ident
 
 
+CARROUSEL_MAX = 10
+
+
+def _attendre_conteneur(cid: str, attente_max: float = 60.0) -> None:
+    fin = time.time() + attente_max
+    while time.time() < fin:
+        etat = _appel("GET", cid, fields="status_code,status")
+        code = etat.get("status_code")
+        if code == "FINISHED":
+            return
+        if code == "ERROR":
+            raise InstagramErreur(f"conteneur en erreur : {etat.get('status')}")
+        time.sleep(3)
+    raise InstagramErreur(
+        f"conteneur toujours pas pret apres {attente_max:.0f} s")
+
+
+def publier_carrousel(image_urls: list[str], legende: str = "",
+                      attente_max: float = 90.0) -> str:
+    """Publie un carrousel (2 a 10 images). Rend l'identifiant du post.
+
+    LE FORMAT DE alluxe.ia (2 oct. 2026). Trois temps au lieu de deux :
+
+      1. un conteneur par image, marque `is_carousel_item` -- SANS
+         legende : elle serait ignoree sur un element ;
+      2. un conteneur `CAROUSEL` qui liste les enfants dans l'ordre et
+         porte la legende ;
+      3. la publication de ce conteneur parent.
+
+    Chaque image doit etre une URL https publique, comme pour `publier`.
+    """
+    if not 2 <= len(image_urls) <= CARROUSEL_MAX:
+        raise InstagramErreur(
+            f"un carrousel prend 2 a {CARROUSEL_MAX} images, recu {len(image_urls)}")
+    for u in image_urls:
+        if not u.lower().startswith("https://"):
+            raise InstagramErreur(f"image non publique : {u[:60]}")
+
+    enfants = []
+    for u in image_urls:
+        c = _appel("POST", f"{_compte()}/media",
+                   image_url=u, is_carousel_item="true")
+        if not c.get("id"):
+            raise InstagramErreur(f"element de carrousel refuse : {c}")
+        enfants.append(c["id"])
+    for cid in enfants:
+        _attendre_conteneur(cid, attente_max)
+
+    parent = _appel("POST", f"{_compte()}/media", media_type="CAROUSEL",
+                    children=",".join(enfants), caption=legende)
+    pid = parent.get("id")
+    if not pid:
+        raise InstagramErreur(f"carrousel refuse : {parent}")
+    _attendre_conteneur(pid, attente_max)
+
+    publiee = _appel("POST", f"{_compte()}/media_publish", creation_id=pid)
+    ident = publiee.get("id")
+    if not ident:
+        raise InstagramErreur(f"publication refusee : {publiee}")
+    log.info("carrousel publie sur Instagram : %s (%d images)", ident, len(enfants))
+    return ident
+
+
 def rafraichir() -> int:
     """Repousse l'echeance du jeton. Rend le nombre de jours restants.
 

@@ -1,3 +1,22 @@
+# Ou on en est — alluxe.ia, 2 octobre 2026 (soir)
+
+## LE COMPTE INSTAGRAM DE LUNA DEVIENT @alluxe.ia
+
+Decision de l'operateur. Liste ordonnee : `docs/ALLUXE_IA.md`. Concept :
+https://claude.ai/artifact/Ht7E2zj2NGop7AgfGSY6Gb
+
+FAIT (branche claude/slt-weo70p) : gabarit des slides (`alluxe_ia/slides.py`,
+polices OFL livrees), 9 posts de lancement (`alluxe_ia/posts.json`),
+publication de carrousels (`ops/instagram.py::publier_carrousel`), commande
+`ops/alluxe_ia.py` (rendu local par defaut, `--confirmer` pour publier),
+photo de profil, tests `tests/test_alluxe_ia.py`.
+
+EN ATTENTE DE L'OPERATEUR : couper Luna sur le VPS (luna-planner.timer +
+cron), renommer le compte dans l'appli, relire et tester les 9 posts.
+AUCUN post n'a ete publie.
+
+---
+
 # Ou on en est — mis a jour le 2 octobre 2026, 00h30
 
 ## 2 OCT. 16h35 — OTA : DIAGNOSTIC

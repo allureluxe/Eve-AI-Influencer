@@ -5,6 +5,25 @@ d'environ 51 EUR. Plusieurs sessions travaillent sur la même branche. Les
 décisions ci-dessous ont été prises par l'opérateur ; elles ne sont pas des
 valeurs par défaut à optimiser.
 
+## Le compte Instagram de Luna devient @alluxe.ia — 2 octobre
+
+Décision de l'opérateur : le compte Instagram de Luna est repris et
+renommé **@alluxe.ia**, une page sans visage sur l'IA pratique en
+français (carrousels « pack de prompts », mot-clé en commentaire, messages
+automatiques). La liste ordonnée des étapes est dans `docs/ALLUXE_IA.md`.
+
+Conséquences à ne pas oublier :
+- **La publication automatique de Luna doit rester coupée**
+  (`luna-planner.timer` et les tâches cron Luna), sinon des photos de Luna
+  partiraient sur la nouvelle page : c'est le même compte et le même jeton.
+- Les carrousels se publient par `ops/alluxe_ia.py`, **jamais sans
+  `--confirmer`** ; un post publié est noté dans `data/alluxe_ia/publies.json`
+  et n'est jamais reposté.
+- Le robot de trading n'y apparaît que comme histoire technique : aucun
+  résultat, aucun lien vers Bitvavo (loi du 9 juin 2023).
+
+---
+
 ## Rachat le jour même après une sortie GAGNANTE — armé le 1er octobre
 
 Décision de l'opérateur : `risk.rachat_meme_bougie_apres_gain = true`
