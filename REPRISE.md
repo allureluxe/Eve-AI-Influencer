@@ -1,5 +1,14 @@
 # Ou on en est — mis a jour le 2 octobre 2026, 00h30
 
+## 2 OCT. 11h23 — robot reel RELANCE a sa demande (il part dormir)
+
+Charge tout le code du jour (faux depot, connexions fermees, verbose_scan
+coupe, Binance/Pionex/MoonX retires). Reparti en REEL : 570,03 EUR,
+8 positions (nuit : CAP -5,94, HUMA +0,04). Reference 580,30, pic 662,79,
+aucun faux depot au demarrage. EN ATTENTE DE LUI : choix de la 3e methode
+pour la demo 3 (reversion ou meilleure du Lab) — et alleger le quota
+Bitvavo des demos avant de la lancer.
+
 ## 2 OCT. 00h30 — CE QUI A ETE FAIT CETTE NUIT (lire en premier)
 
 - **Serveur passe a 8 Go** (reboot ~23h46). Au reboot, `robot-dual-live`
