@@ -492,6 +492,16 @@ class BitvavoBroker(Broker):
         logger.info("marches Bitvavo charges : %d cotable(s) en %s",
                     len(self._regles), self.config.quote_asset)
 
+    def rafraichir_marches(self) -> None:
+        """Recharge les regles de marche (un appel public, sans cle).
+
+        Les regles ne sont chargees qu'au demarrage, pour le catalogue de
+        ce moment-la. Une crypto ajoutee ensuite -- par exemple une position
+        DETENUE sortie de l'univers du jour -- resterait sans regle, donc
+        refusee par `supports()` et jamais reprise.
+        """
+        self._charger_regles()
+
     def _decimales_des_actifs(self) -> dict[str, int]:
         """Precision de quantite propre a chaque actif.
 

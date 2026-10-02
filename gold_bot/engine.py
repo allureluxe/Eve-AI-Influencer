@@ -902,6 +902,16 @@ class TradingEngine:
         inst = instrument_crypto(actif, "crypto_alt")
         inst.enabled = False          # gere jusqu'a la sortie, jamais rachete
         self.universe.add(inst)
+        # Les regles de marche ne couvrent que le catalogue du demarrage :
+        # sans elles, `supports()` refuse encore la crypto (2e verrou DIA).
+        broker = getattr(self, "broker", None)
+        rafraichir = getattr(broker, "rafraichir_marches", None)
+        if rafraichir is not None and not broker.supports(sym):
+            try:
+                rafraichir()
+            except Exception as exc:  # noqa: BLE001 - le stop reste chez la plateforme
+                logger.warning("regles de marche non rechargees pour %s : %s",
+                               sym, str(exc)[:120])
         logger.info("%s hors de l'univers du jour mais detenue : gardee pour "
                     "la gestion, exclue des achats", sym)
 

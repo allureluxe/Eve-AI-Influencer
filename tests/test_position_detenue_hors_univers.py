@@ -40,3 +40,18 @@ def test_une_position_soldee_n_est_pas_rajoutee():
     m = _moteur()
     m._garder_dans_l_univers(_position("ZZSOLDEEUSD", volume=0.0))
     assert m.universe.get("ZZSOLDEEUSD") is None
+
+
+def test_les_regles_de_marche_sont_rechargees_si_le_courtier_l_ignore():
+    """2e verrou DIA : les regles ne couvraient que le catalogue du demarrage."""
+    class Courtier:
+        appels = 0
+        def supports(self, _sym):
+            return self.appels > 0
+        def rafraichir_marches(self):
+            self.appels += 1
+    m = _moteur()
+    m.broker = Courtier()
+    m._garder_dans_l_univers(_position("ZZREGLESUSD"))
+    assert m.broker.appels == 1
+    assert m.broker.supports("ZZREGLESUSD")
