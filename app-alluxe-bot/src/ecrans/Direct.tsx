@@ -26,9 +26,9 @@ import { useSuiviPositions } from "../services/suiviPositions";
 import { euros, pourcent } from "../services/format";
 import { espace } from "../theme";
 import { Carte, Chargement, Logo, T, useCouleurs, Vide } from "../composants/base";
-import { BarreDeTri, LigneFermee, LignePosition, TitreHistorique, Tri, trier } from "../composants/ListePositions";
+import { BarreDeTri, LigneFermee, LignePosition, TitreHistorique, Tri, totalEncaisse, trier } from "../composants/ListePositions";
 import {
-  etagesAffiches, gainTotalEnDirect, resultatRealiseCompteReel, resteAInvestir,
+  etagesAffiches, gainTotalEnDirect, resteAInvestir,
 } from "../composants/positionsTri";
 import { CourbeCapital } from "../composants/CourbeCapital";
 
@@ -176,9 +176,13 @@ export function EcranDirect({ navigation }: { navigation?: any }) {
     [positions, depart, prixLive],
   );
 
+  // ENCAISSE = la somme des positions cloturees de l'historique affiche,
+  // la meme fonction que le titre « Historique (n) · X EUR encaisses ».
+  // 2 oct. : l'identite capital - depart - latent donnait -9 EUR a cote
+  // d'un historique a -16 EUR -- deux chiffres pour la meme chose.
   const gainEncaisse = React.useMemo(
-    () => resultatRealiseCompteReel(capitalVivant, depart, gainLatent),
-    [capitalVivant, depart, gainLatent],
+    () => totalEncaisse(fermees, depart) ?? 0,
+    [fermees, depart],
   );
 
   // « ENCAISSE » : ce qui est DEJA dans la caisse, latent exclu.

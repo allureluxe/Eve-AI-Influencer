@@ -182,13 +182,24 @@ const LIBELLE_STATUT: Record<string, string> = {
  * Le total est la SOMME DES LIGNES affichees dessous (meme `gainRealiseDe`),
  * pour que le chiffre du titre et les lignes ne puissent jamais diverger.
  */
+/**
+ * LE chiffre « encaisse » de l'application : la somme des lignes cloturees
+ * affichees. Utilise par le titre de l'historique ET par le gros chiffre
+ * « encaisses » du haut de l'ecran -- consigne du 2 oct. : les deux ne
+ * doivent jamais diverger, et un changement de l'historique (une periode
+ * qui repart, des lignes effacees) se repercute partout d'un coup.
+ */
+export function totalEncaisse(fermees: Position[] | null, capital: number): number | null {
+  return fermees && fermees.length > 0
+    ? fermees.reduce((s, t) => s + (gainRealiseDe(t, capital) ?? 0), 0)
+    : null;
+}
+
 export function TitreHistorique({ fermees, capital, style }: {
   fermees: Position[] | null; capital: number; style?: any;
 }) {
   const c = useCouleurs();
-  const total = fermees && fermees.length > 0
-    ? fermees.reduce((s, t) => s + (gainRealiseDe(t, capital) ?? 0), 0)
-    : null;
+  const total = totalEncaisse(fermees, capital);
   return (
     <View style={[{ flexDirection: "row", alignItems: "baseline", flexWrap: "wrap",
                     gap: espace.s }, style]}>
