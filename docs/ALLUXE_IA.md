@@ -34,13 +34,19 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
 
 ## Phase 1 — la machine à abonnés et à emails (semaine 1)
 
-6. **[Claude] Le pack gratuit** : PDF de 20 prompts au même gabarit.
+6. ✅ **[Claude] Le pack gratuit** : PDF de 20 prompts au même gabarit,
+   `docs/alluxe_ia/pack-gratuit.pdf` (régénérer : `python3 -m alluxe_ia.pack`).
 7. **[toi] La page de téléchargement** (Gumroad ou Lemon Squeezy, gratuit) et
    son lien dans la bio.
 8. **[toi] ManyChat** : mots-clés `PROMPTS` (tous les posts) et `PHOTO` (post 02) avec les 4 messages du concept (étape 6).
    Créer le compte ManyChat avec le compte Instagram : Claude ne peut pas le faire.
-9. **[Claude] Publication automatique** : une tâche planifiée qui lance
-   `suivant --confirmer` chaque jour à 12 h 30, après la phase 0.
+9. ✅ **[Claude] Publication automatique** : `systemd/alluxe-ia-publication.timer`
+   lance `suivant --confirmer` chaque jour à 12 h 30. **Prête, pas installée** :
+   à activer seulement après la phase 0 :
+
+       sudo cp systemd/alluxe-ia-publication.* /etc/systemd/system/
+       sudo systemctl daemon-reload
+       sudo systemctl enable --now alluxe-ia-publication.timer
 10. **[Claude] Les 21 posts suivants** (jours 10 à 30 du concept) dans
     `alluxe_ia/posts.json`.
 

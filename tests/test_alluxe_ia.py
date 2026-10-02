@@ -115,3 +115,23 @@ class TestRienNePartSansConfirmation:
         a.noter_publication(post.id, "123")
         with pytest.raises(SystemExit):
             a.publier_post(post, confirmer=True)
+
+
+class TestLePackGratuit:
+
+    def test_vingt_prompts_tous_trouves_et_distincts(self):
+        from alluxe_ia.pack import prompts_choisis
+        prompts = prompts_choisis()
+        assert len(prompts) == 20
+        assert len({p for _, _, p in prompts}) == 20
+        assert all(p.strip() for _, _, p in prompts)
+
+    def test_la_publication_quotidienne_ne_publie_qu_avec_confirmation(self):
+        with open(os.path.join(RACINE, "systemd", "alluxe-ia-publication.service"),
+                  encoding="utf-8") as f:
+            service = f.read()
+        assert "suivant --confirmer" in service
+        with open(os.path.join(RACINE, "systemd", "alluxe-ia-publication.timer"),
+                  encoding="utf-8") as f:
+            assert "Persistent=false" in f.read(), (
+                "un rattrapage publierait deux posts d'affilee")

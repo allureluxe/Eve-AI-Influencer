@@ -1,0 +1,25 @@
+# alluxe.ia : publie le prochain carrousel non publie (ops/alluxe_ia.py).
+#
+# NE PAS ACTIVER avant la fin de la phase 0 de docs/ALLUXE_IA.md :
+#   - publication automatique de Luna coupee (luna-planner.timer, cron) ;
+#   - compte renomme @alluxe.ia ;
+#   - les 9 posts relus et leurs prompts testes.
+# Sinon un carrousel alluxe.ia partirait sur un compte qui porte encore
+# les photos et le nom de Luna.
+#
+#   sudo cp systemd/alluxe-ia-publication.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now alluxe-ia-publication.timer
+
+[Unit]
+Description=alluxe.ia -- publication du carrousel du jour
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ubuntu/Eve-AI-Influencer/.venv/bin/python /home/ubuntu/Eve-AI-Influencer/ops/alluxe_ia.py suivant --confirmer
