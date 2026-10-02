@@ -37,7 +37,7 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
 6. **[Claude] Le pack gratuit** : PDF de 20 prompts au même gabarit.
 7. **[toi] La page de téléchargement** (Gumroad ou Lemon Squeezy, gratuit) et
    son lien dans la bio.
-8. **[toi] ManyChat** : mot-clé `PROMPTS` et les 4 messages du concept (étape 6).
+8. **[toi] ManyChat** : mots-clés `PROMPTS` (tous les posts) et `PHOTO` (post 02) avec les 4 messages du concept (étape 6).
    Créer le compte ManyChat avec le compte Instagram : Claude ne peut pas le faire.
 9. **[Claude] Publication automatique** : une tâche planifiée qui lance
    `suivant --confirmer` chaque jour à 12 h 30, après la phase 0.
