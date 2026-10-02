@@ -162,7 +162,14 @@ class BitvavoProvider(PriceProvider):
     # 400 laisse 600 appels/minute au COURTIER, qui partage le meme quota :
     # ordres, soldes, poses de stop. C'est lui qu'il ne faut jamais affamer,
     # une position sans stop etant le pire cas du systeme.
-    capabilities = ProviderCapabilities(asset_classes=("crypto",), rate_limit_per_min=400)
+    #
+    # 2 oct. 2026 : le quota de 1 000/min est PAR ADRESSE IP, donc partage
+    # par tous les robots du serveur. Trois robots a 400 = 1 200 : le reel
+    # tombait en pause (jusqu'a 185 s). Les demos se reglent plus bas par
+    # GB_BITVAVO_DATA_RATE_PER_MIN (drop-in systemd) ; le reel garde 400.
+    capabilities = ProviderCapabilities(
+        asset_classes=("crypto",),
+        rate_limit_per_min=int(os.getenv("GB_BITVAVO_DATA_RATE_PER_MIN", "400")))
     devise_crypto = os.getenv("BITVAVO_QUOTE_ASSET", "EUR").upper()
 
     # Meme catalogue que l'univers et que l'execution : une liste tenue a la

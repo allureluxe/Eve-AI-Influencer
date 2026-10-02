@@ -43,7 +43,18 @@ LAB_DATA_MEMORY = {}
 def _lab_align(ts, seconds):
     return int(ts // seconds) * seconds
 
+#: Rythme maximal du Lab vers Bitvavo. Il n'en avait aucun : ses
+#: telechargements partaient en rafale sur le quota de 1 000/min PARTAGE par
+#: IP avec le robot reel (2 oct. 2026).
+LAB_RATE_PER_MIN = int(os.getenv("GB_LAB_RATE_PER_MIN", "100"))
+_LAB_DERNIER_APPEL = [0.0]
+
+
 def _lab_http_json(url, params=None):
+    attente = 60.0 / max(1, LAB_RATE_PER_MIN) - (time.time() - _LAB_DERNIER_APPEL[0])
+    if attente > 0:
+        time.sleep(attente)
+    _LAB_DERNIER_APPEL[0] = time.time()
     if params:
         from urllib.parse import urlencode
         url = f"{url}?{urlencode(params)}"
