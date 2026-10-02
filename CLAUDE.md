@@ -8,9 +8,16 @@ valeurs par défaut à optimiser.
 ## Le compte Instagram de Luna devient @alluxe.ia — 2 octobre
 
 Décision de l'opérateur : le compte Instagram de Luna est repris et
-renommé **@alluxe.ia**, une page sans visage sur l'IA pratique en
-français (carrousels « pack de prompts », mot-clé en commentaire, messages
-automatiques). La liste ordonnée des étapes est dans `docs/ALLUXE_IA.md`.
+renommé **@alluxe.ia**, une page sans visage. **Niche changée le 3 oct.**
+après une recherche qui manquait : non plus « packs de prompts » (format
+saturé, repris du compte d'exemple sans vérifier), mais **« je construis
+des systèmes réels avec l'IA sans être développeur »** — coulisses du
+labo, de l'appli, de l'agent et de la publication automatique, tutos,
+erreurs racontées. Mot-clé unique `KIT`. Les 8 prompts de @_mind__vision_
+exécutés un par un : `docs/alluxe_ia/CONCEPT_8_PROMPTS.md` ; liste ordonnée
+des étapes : `docs/ALLUXE_IA.md`. Ne pas écrire « premier au monde » :
+chaque brique existe ailleurs, c'est l'assemblage par une seule personne
+qui est rare, et c'est vérifiable.
 
 Conséquences à ne pas oublier :
 - **La publication automatique de Luna doit rester coupée**

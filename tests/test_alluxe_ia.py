@@ -119,12 +119,19 @@ class TestRienNePartSansConfirmation:
 
 class TestLePackGratuit:
 
-    def test_vingt_prompts_tous_trouves_et_distincts(self):
-        from alluxe_ia.pack import prompts_choisis
+    def test_le_kit_tire_ses_prompts_des_posts(self):
+        from alluxe_ia.pack import THEMES, prompts_choisis
+        ids = {p.id for p in _posts()}
+        assert set(THEMES) <= ids, f"posts absents : {set(THEMES) - ids}"
         prompts = prompts_choisis()
-        assert len(prompts) == 20
-        assert len({p for _, _, p in prompts}) == 20
+        assert len(prompts) >= 10
+        assert len({p for _, _, p in prompts}) == len(prompts)
         assert all(p.strip() for _, _, p in prompts)
+
+    def test_chaque_post_appelle_le_meme_mot_cle(self):
+        """La sequence ManyChat ne connait qu'un mot-cle : KIT."""
+        for post in _posts():
+            assert post.slides[-1].mot_cle == "KIT", post.id
 
     def test_la_publication_quotidienne_ne_publie_qu_avec_confirmation(self):
         with open(os.path.join(RACINE, "systemd", "alluxe-ia-publication.service"),

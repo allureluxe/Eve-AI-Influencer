@@ -1,12 +1,12 @@
-"""Le pack gratuit de alluxe.ia : 20 prompts en PDF, texte selectionnable.
+"""Le kit du constructeur de alluxe.ia : les prompts des posts, en PDF.
 
-C'est ce que recoit quelqu'un qui commente PROMPTS (sequence ManyChat) et
-ce qui se telecharge depuis le lien de la bio. Les prompts sont TIRES de
-alluxe_ia/posts.json, dans l'ordre de CHOIX ci-dessous : un prompt
-corrige dans un post est corrige dans le pack au prochain rendu, il n'y a
-pas deux copies a tenir a jour.
+C'est ce que recoit quelqu'un qui commente KIT (sequence ManyChat) et ce
+qui se telecharge depuis le lien de la bio. Les prompts sont TIRES de
+alluxe_ia/posts.json (posts listes dans THEMES) : un prompt corrige dans
+un post est corrige dans le kit au prochain rendu, il n'y a pas deux
+copies a tenir a jour.
 
-    python3 -m alluxe_ia.pack            ->  data/alluxe_ia/pack-gratuit.pdf
+    python3 -m alluxe_ia.pack            ->  data/alluxe_ia/kit-constructeur.pdf
 
 Necessite fpdf2 (pip install fpdf2), seulement pour produire le PDF.
 """
@@ -19,34 +19,14 @@ ICI = os.path.dirname(os.path.abspath(__file__))
 RACINE = os.path.dirname(ICI)
 POLICES = os.path.join(ICI, "polices")
 
-# (identifiant du post, titre de la slide prompt) -- 20 prompts.
-CHOIX = [
-    ("01-cv-lettre", "1. Le CV taillé pour l'offre"),
-    ("01-cv-lettre", "2. Les mots-clés des logiciels de tri"),
-    ("01-cv-lettre", "3. La lettre qu'on lit jusqu'au bout"),
-    ("01-cv-lettre", "4. L'entretien répété"),
-    ("01-cv-lettre", "5. La question piège du salaire"),
-    ("02-photo-pro", "Le prompt"),
-    ("03-mails", "Relancer sans être lourd"),
-    ("03-mails", "Dire non sans fâcher"),
-    ("03-mails", "Réclamer et obtenir gain de cause"),
-    ("04-apprendre", "1. Le plan d'apprentissage"),
-    ("04-apprendre", "2. L'explication qui fait tilt"),
-    ("04-apprendre", "3. Le prof qui interroge"),
-    ("04-apprendre", "4. La fiche de révision"),
-    ("05-budget", "1. Le grand tri"),
-    ("05-budget", "2. Les fuites"),
-    ("06-administratif", "Comprendre un courrier officiel"),
-    ("06-administratif", "Contester une décision"),
-    ("07-repas-semaine", "Le menu de la semaine"),
-    ("08-bien-acheter", "2. Comparer sans se faire avoir"),
-    ("09-methode-4-cases", "Les 4 cases ensemble"),
-]
-
+# Theme affiche au-dessus de chaque prompt, par post. Un post absent
+# d'ici n'entre pas dans le kit.
 THEMES = {
-    "01-cv-lettre": "Candidature", "02-photo-pro": "Photo pro", "03-mails": "Mails",
-    "04-apprendre": "Apprendre", "05-budget": "Budget", "06-administratif": "Administratif",
-    "07-repas-semaine": "Repas", "08-bien-acheter": "Achats", "09-methode-4-cases": "Méthode",
+    "02-le-labo": "Le labo", "03-108-rejetees": "Déboguer",
+    "04-cahier-des-charges": "Démarrer un projet", "05-publication-auto": "Automatiser",
+    "06-fichier-decisions": "Mémoire de l'IA", "07-tests-verts": "Vérifier",
+    "08-agent-garde-fous": "Sécurité", "09-methode-4-cases": "Méthode",
+    "11-assistant-perso": "Assistant perso",
 }
 
 # Memes couleurs que les slides (alluxe_ia/slides.py).
@@ -61,17 +41,20 @@ CADRE = (238, 243, 240)
 
 
 def prompts_choisis() -> list[tuple[str, str, str]]:
-    """(thème, titre, prompt) pour chaque entrée de CHOIX, dans l'ordre."""
+    """(thème, titre, prompt) de chaque slide prompt des posts de THEMES,
+    dans l'ordre de posts.json."""
     with open(os.path.join(ICI, "posts.json"), encoding="utf-8") as f:
-        posts = {p["id"]: p for p in json.load(f)}
+        posts = json.load(f)
     sortie = []
-    for pid, titre in CHOIX:
-        slide = next(s for s in posts[pid]["slides"]
-                     if s["type"] == "prompt" and s["titre"] == titre)
-        propre = titre.split(". ", 1)[-1] if titre[:2].rstrip(".").isdigit() else titre
-        if propre == "Le prompt":
-            propre = "La photo de profil pro"
-        sortie.append((THEMES[pid], propre, slide["prompt"]))
+    for post in posts:
+        if post["id"] not in THEMES:
+            continue
+        for slide in post["slides"]:
+            if slide["type"] != "prompt":
+                continue
+            titre = slide["titre"]
+            propre = titre.split(". ", 1)[-1] if titre[:2].rstrip(".").isdigit() else titre
+            sortie.append((THEMES[post["id"]], propre, slide["prompt"]))
     return sortie
 
 
@@ -91,7 +74,8 @@ def construire(chemin: str) -> str:
     pdf.add_font("texte", "", os.path.join(POLICES, "AtkinsonHyperlegible-Regular.ttf"))
     pdf.add_font("texte", "B", os.path.join(POLICES, "AtkinsonHyperlegible-Bold.ttf"))
     pdf.add_font("mono", "", os.path.join(POLICES, "JetBrainsMono.ttf"))
-    pdf.set_title("alluxe.ia — 20 prompts qui font le travail à ta place")
+    prompts = prompts_choisis()
+    pdf.set_title(f"alluxe.ia — le kit du constructeur ({len(prompts)} prompts)")
     pdf.set_author("alluxe.ia")
 
     # Couverture, sombre comme les slides.
@@ -109,13 +93,13 @@ def construire(chemin: str) -> str:
     pdf.cell(0, 8, "alluxe.ia")
     pdf.set_font("titre", size=40)
     pdf.set_xy(20, 95)
-    pdf.multi_cell(170, 17, "20 prompts qui font le travail à ta place.")
+    pdf.multi_cell(170, 17, "Le kit du constructeur.")
     pdf.set_font("texte", size=14)
     pdf.set_text_color(160, 178, 170)
     pdf.set_x(20)
-    pdf.multi_cell(170, 7.5, "Candidature, mails, apprentissage, budget, paperasse, "
-                   "repas, achats. Copie, remplace les crochets, colle dans "
-                   "ChatGPT, Claude ou Gemini.")
+    pdf.multi_cell(170, 7.5, f"Les {len(prompts)} prompts que j'utilise vraiment pour construire "
+                   "avec Claude et ChatGPT sans être développeur, dans l'ordre "
+                   "où je m'en sers. Copie, remplace les crochets, colle.")
     pdf.set_font("texte", "B", size=12)
     pdf.set_text_color(*MENTHE)
     pdf.set_xy(20, 265)
@@ -154,7 +138,7 @@ def construire(chemin: str) -> str:
 
     # Les 20 prompts : chaque bloc reste entier sur sa page.
     pdf.add_page()
-    for i, (theme, titre, prompt) in enumerate(prompts_choisis(), start=1):
+    for i, (theme, titre, prompt) in enumerate(prompts, start=1):
         pdf.set_font("mono", size=9.5)
         lignes = pdf.multi_cell(158, 5.2, prompt, dry_run=True, output="LINES")
         hauteur_bloc = 22 + len(lignes) * 5.2 + 12
@@ -185,14 +169,13 @@ def construire(chemin: str) -> str:
     pdf.multi_cell(170, 12, "La suite sur @alluxe.ia")
     pdf.set_font("texte", size=12)
     pdf.set_x(20)
-    pdf.multi_cell(170, 6.5, "Un nouveau pack de prompts chaque semaine, des "
-                   "méthodes et les coulisses de projets construits avec l'IA. "
-                   "Commente le mot-clé sous un post pour recevoir la version complète.")
+    pdf.multi_cell(170, 6.5, "Chaque semaine : les coulisses d'un système réel construit "
+                   "avec l'IA, ce qui a cassé, et comment le refaire chez toi.")
     pdf.ln(6)
     pdf.set_font("texte", size=10)
     pdf.set_text_color(*DOUX)
     pdf.set_x(20)
-    pdf.multi_cell(170, 5.5, "Ce pack est gratuit et ne contient aucun lien "
+    pdf.multi_cell(170, 5.5, "Ce kit est gratuit et ne contient aucun lien "
                    "sponsorisé. Les réponses de l'IA sont à vérifier : ce document "
                    "ne remplace pas un conseil juridique, médical ou financier.")
 
@@ -202,4 +185,4 @@ def construire(chemin: str) -> str:
 
 
 if __name__ == "__main__":
-    print(construire(os.path.join(RACINE, "data", "alluxe_ia", "pack-gratuit.pdf")))
+    print(construire(os.path.join(RACINE, "data", "alluxe_ia", "kit-constructeur.pdf")))

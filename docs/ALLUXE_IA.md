@@ -8,7 +8,12 @@ https://claude.ai/artifact/Ht7E2zj2NGop7AgfGSY6Gb
 
 L'application « Allure » (`app-signaux`) n'est pas concernée par cette liste.
 
-**3 oct. : niche remise en question, voir `docs/alluxe_ia/RECHERCHE_NICHE.md`. Ne rien publier avant le choix de l'opérateur.**
+**3 oct. : NICHE CHANGÉE.** La niche « packs de prompts » avait été reprise
+du compte d'exemple sans recherche ; elle est saturée. Décision de
+l'opérateur : **« je construis des systèmes avec l'IA sans être
+développeur »** (coulisses, tutos, erreurs). Les 8 prompts de
+@_mind__vision_ ont été exécutés un par un : `docs/alluxe_ia/CONCEPT_8_PROMPTS.md`
+(recherche : `docs/alluxe_ia/RECHERCHE_NICHE.md`). Mot-clé unique : **KIT**.
 
 Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
 
@@ -23,24 +28,26 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
 
 2. **[toi] Transformer le compte dans l'appli Instagram** :
    - archiver (pas supprimer) les posts et stories à la une de Luna ;
-   - nom d'utilisateur `@alluxe.ia`, nom affiché « alluxe.ia · prompts & automatisation » ;
-   - bio : « L'IA qui fait le travail à ta place. / Prompts testés, automatisations réelles, zéro blabla. / 👇 Commente PROMPTS sous un post » ;
+   - nom d'utilisateur `@alluxe.ia`, nom affiché « alluxe.ia · je construis avec l'IA » ;
+   - bio : « Je construis des systèmes réels avec Claude et ChatGPT, sans être dev. / Coulisses + tutos chaque semaine. / 👇 Commente KIT » ;
+   - stories à la une : Commencer · Le labo · L'appli · Tutos · Kit · Questions ;
    - photo de profil : `python3 ops/alluxe_ia.py profil` → `data/alluxe_ia/profil.jpg` ;
    - catégorie du compte pro : « Éducation » ou « Créateur de contenu numérique ».
-3. ✅ **[Claude] Gabarit des slides, 9 posts de lancement, publication de
-   carrousels** (`alluxe_ia/`, `ops/alluxe_ia.py`, `ops/instagram.py::publier_carrousel`).
-4. **[toi] Relire les 9 posts et tester chaque prompt** : `python3 ops/alluxe_ia.py rendre`
+3. ✅ **[Claude] Gabarit des slides, 11 posts de lancement (nouvelle niche),
+   publication de carrousels** (`alluxe_ia/`, `ops/alluxe_ia.py`, `ops/instagram.py::publier_carrousel`).
+4. **[toi] Relire les 11 posts et tester chaque prompt** : `python3 ops/alluxe_ia.py rendre`
    puis ouvrir `data/alluxe_ia/<post>/`. Un prompt non testé ne part pas.
-5. **[toi ou Claude] Publier les 9 posts sur 3 jours**, 3 par jour :
+5. **[toi ou Claude] Publier les 9 premiers posts (la grille) sur 5 jours** :
    `python3 ops/alluxe_ia.py suivant --confirmer`.
 
 ## Phase 1 — la machine à abonnés et à emails (semaine 1)
 
-6. ✅ **[Claude] Le pack gratuit** : PDF de 20 prompts au même gabarit,
-   `docs/alluxe_ia/pack-gratuit.pdf` (régénérer : `python3 -m alluxe_ia.pack`).
+6. ✅ **[Claude] Le kit du constructeur** (aimant à emails) : PDF des 12 prompts
+   des posts, `docs/alluxe_ia/kit-constructeur.pdf` (régénérer : `python3 -m alluxe_ia.pack`).
 7. **[toi] La page de téléchargement** (Gumroad ou Lemon Squeezy, gratuit) et
    son lien dans la bio.
-8. **[toi] ManyChat** : mots-clés `PROMPTS` (tous les posts) et `PHOTO` (post 02) avec les 4 messages du concept (étape 6).
+8. **[toi] ManyChat** : mot-clé `KIT`, les 4 messages EXACTS du prompt n°6 de
+   `docs/alluxe_ia/CONCEPT_8_PROMPTS.md` (toute la séquence tient en 24 h, règle Meta).
    Créer le compte ManyChat avec le compte Instagram : Claude ne peut pas le faire.
 9. ✅ **[Claude] Publication automatique** : `systemd/alluxe-ia-publication.timer`
    lance `suivant --confirmer` chaque jour à 12 h 30. **Prête, pas installée** :
@@ -49,11 +56,9 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
        sudo cp systemd/alluxe-ia-publication.* /etc/systemd/system/
        sudo systemctl daemon-reload
        sudo systemctl enable --now alluxe-ia-publication.timer
-10. ✅ **[Claude] Les 21 posts suivants** (jours 10 à 30) dans `alluxe_ia/posts.json` :
-    résumer, images, LinkedIn, voyage, réunions, Excel, négocier, sport, 5 erreurs,
-    devoirs, Leboncoin/Vinted, décider, semaine, présentation, langues, cadeaux,
-    messages difficiles, idée de business, déménagement, assistant perso, best-of.
-    **À relire et tester comme les 9 premiers** avant qu'ils partent.
+10. **[Claude] Les posts des semaines 2 à 4** : idées 10 à 30 du prompt n°3, écrites
+    chaque dimanche à partir de ce qui s'est réellement passé dans la semaine.
+    **[toi] Filmer les Reels écran** (labo, publication auto, agent, appli).
 
 ## Phase 2 — accélérer (semaines 2 à 4)
 
@@ -76,6 +81,7 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
 - « Publicité » ou « Collaboration commerciale » sur tout lien rémunéré,
   « Image virtuelle » sur une image générée par IA dans un contenu commercial
   (loi du 9 juin 2023).
+- Affiliation : seulement les outils réellement utilisés, avec « Publicité ».
 - Le robot de trading n'apparaît que comme histoire technique : jamais de
   résultats, de gains, ni de lien vers Bitvavo.
 - Aucune clé, mot de passe ou donnée personnelle visible sur une capture.

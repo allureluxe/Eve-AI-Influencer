@@ -9,9 +9,12 @@ FAIT (branche claude/slt-weo70p) : gabarit des slides (`alluxe_ia/slides.py`,
 polices OFL livrees), 9 posts de lancement (`alluxe_ia/posts.json`),
 publication de carrousels (`ops/instagram.py::publier_carrousel`), commande
 `ops/alluxe_ia.py` (rendu local par defaut, `--confirmer` pour publier),
-photo de profil, tests `tests/test_alluxe_ia.py`. 30 posts au total (9 de
-lancement + 21), pack gratuit `docs/alluxe_ia/pack-gratuit.pdf`, publication
-quotidienne 12h30 PRETE mais NON installee (`systemd/alluxe-ia-publication.*`).
+photo de profil, tests `tests/test_alluxe_ia.py`. 3 OCT. : NICHE CHANGEE
+(« je construis avec l'IA sans etre developpeur ») apres recherche ; les
+8 prompts de @_mind__vision_ executes un par un dans
+`docs/alluxe_ia/CONCEPT_8_PROMPTS.md`. 11 posts, mot-cle unique KIT, kit
+`docs/alluxe_ia/kit-constructeur.pdf`. Publication quotidienne 12h30 PRETE
+mais NON installee (`systemd/alluxe-ia-publication.*`).
 
 EN ATTENTE DE L'OPERATEUR : couper Luna sur le VPS (luna-planner.timer +
 cron), renommer le compte dans l'appli, relire et tester les 9 posts.
