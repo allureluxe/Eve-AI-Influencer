@@ -8,6 +8,8 @@ https://claude.ai/artifact/Ht7E2zj2NGop7AgfGSY6Gb
 
 L'application « Allure » (`app-signaux`) n'est pas concernée par cette liste.
 
+**3 oct. : niche remise en question, voir `docs/alluxe_ia/RECHERCHE_NICHE.md`. Ne rien publier avant le choix de l'opérateur.**
+
 Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
 
 ## Phase 0 — la bascule (cette semaine)
