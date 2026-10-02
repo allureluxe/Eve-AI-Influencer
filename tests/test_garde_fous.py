@@ -695,8 +695,15 @@ class TestLevierMaitrise:
         assert cfg.risk.base_risk_pct <= 1.0, (
             f"risque de base a {cfg.risk.base_risk_pct} % : trop eleve pour "
             "un compte a levier")
-        assert cfg.risk.max_total_risk_pct <= 5.5, (
-            f"risque total a {cfg.risk.max_total_risk_pct} % : au-dela de 5,5 "
+        # DECISION DE L'OPERATEUR, 2 OCT. 2026 : 5,0 -> 7,5 % sur le REEL,
+        # confirmee deux fois apres avoir lu ce garde-fou. Raison : apres le
+        # retrait de 1 610 EUR du 1er oct., les 8 positions ouvertes avant
+        # risquaient 7,1 % d'un compte de 570 EUR et le robot n'achetait
+        # plus rien. Consequence acceptee : une journee ou tous les stops
+        # partent peut declencher le coupe-circuit journalier (4 %).
+        # REDESCENDRE A 5,0 quand le risque engage sera revenu sous 5 %.
+        assert cfg.risk.max_total_risk_pct <= 7.5, (
+            f"risque total a {cfg.risk.max_total_risk_pct} % : au-dela de 7,5 (decision du 2 oct.) "
             "aucune mesure ne montre de gain des DEUX cotes du walk-forward "
             "— voir le tableau dans ce docstring avant de remonter")
 
@@ -724,7 +731,14 @@ class TestLevierMaitrise:
         # La perte journaliere, elle, PEUT etre franchie par une journee
         # noire : c'est son role. Mais si le budget total la depasse a lui
         # seul, le robot s'arrete des qu'il travaille normalement.
-        assert cfg.risk.max_total_risk_pct <= cfg.risk.daily_loss_limit_pct * 1.5, (
+        # DECISION DE L'OPERATEUR, 2 OCT. 2026 : 5,0 -> 7,5 % sur le REEL,
+        # confirmee deux fois apres avoir lu ce garde-fou. Raison : apres le
+        # retrait de 1 610 EUR du 1er oct., les 8 positions ouvertes avant
+        # risquaient 7,1 % d'un compte de 570 EUR et le robot n'achetait
+        # plus rien. Consequence acceptee : une journee ou tous les stops
+        # partent peut declencher le coupe-circuit journalier (4 %).
+        # REDESCENDRE A 5,0 quand le risque engage sera revenu sous 5 %.
+        assert cfg.risk.max_total_risk_pct <= max(7.5, cfg.risk.daily_loss_limit_pct * 1.5), (
             f"budget total {cfg.risk.max_total_risk_pct} % contre une limite "
             f"journaliere de {cfg.risk.daily_loss_limit_pct} % : une seule "
             "journee ou tous les stops partent suffirait a couper le robot")

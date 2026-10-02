@@ -672,6 +672,34 @@ prix du réglage choisi.
 
 ---
 
+## Le budget de risque monte à 7,5 % sur le réel — 2 octobre, TEMPORAIRE
+
+Décision de l'opérateur, confirmée deux fois (« vas-y monte ») après
+avoir lu les deux garde-fous qu'elle franchit.
+
+**Pourquoi.** Le retrait de 1 610 EUR du 1er octobre a ramené le compte
+à ~570 EUR. Les 8 positions ouvertes AVANT le retrait avaient été
+dimensionnées sur l'ancien capital : ~5,60 EUR de risque chacune au lieu
+de ~3,40, soit **7,1 % engagés pour 5 % autorisés**. Le robot voyait 16
+occasions valides par cycle et les refusait toutes (« risque total déjà
+engagé »).
+
+**Ce qu'il franchit, et qui a été dit avant :**
+- 10 septembre, mesuré : au-delà de 5,5 % aucun gain des deux côtés du
+  walk-forward. 7,5 % n'est PAS une valeur mesurée.
+- 7,5 % dépasse 1,5 × la perte journalière autorisée (4 %) : une
+  journée où tous les stops partent ensemble (31 août : six stops dans
+  la nuit) peut couper le robot par son propre coupe-circuit.
+
+**La démo 1 reste à 5,0** : la cause (le retrait) n'existe que sur le
+réel. Écart assumé à la règle « démo = réel », le temps du retour.
+
+**À REDESCENDRE À 5,0** dès que le risque engagé repasse sous 5 % (stops
+remontés au point mort ou positions fermées). Les tests
+`test_garde_fous.py` et `test_pyramide.py` portent la même consigne.
+
+---
+
 ## D1 « Turtle » — armé le 3 septembre, remplace le M30
 
 **Le M30 était perdant, et la mesure est certaine :** −0,158 R sur
@@ -714,7 +742,7 @@ chez Bitvavo) et **6 mois** en walk-forward, le classement s'inverse.
 | `risk.pyramide_max` | **99** (illimité) | 9 et 12 sept. : mesuré PAR NOMBRE D'ÉTAGES, pas par présence/absence — voir la section pyramidage | 0 puis 3 |
 | `risk.pyramide_locked_r_min` | **0.01** | un étage ne s'ajoute que si la pyramide est déjà à l'abri (stop au-dessus du prix moyen) | 0,5 N « Turtle » |
 | `risk.pyramide_espacement_atr` | **0.25** | 12 sept., mesuré avec le canal 10 | 0.5 |
-| `risk.max_total_risk_pct` | **5.0** | 10 sept. : seul palier qui améliore l'apprentissage ET le hors-échantillon, et le recul BAISSE (34,0 → 29,7 %) | 3.5 |
+| `risk.max_total_risk_pct` | **7.5** (réel, TEMPORAIRE) — 5.0 en démo | 2 oct. : décision de l'opérateur, voir « Le budget de risque monte à 7,5 % ». Le 5,0 du 10 sept. reste la valeur mesurée | 3.5 puis 5.0 |
 | `risk.ticket_min_eur` | **15.0** | 1er oct. : capital réel 596 € (> 250 €), remonté comme prévu ; identique à la démo 1. Le plancher plie tout seul si le capital ne le porte plus (`_ajuster_le_plancher`) | 20.0, 15.0, puis 5.0 (25 sept., dépôt de 120 €) |
 | `risk.base_risk_pct` | **0.6** | palier « preuve » — pas le 1 % du Turtle | — |
 

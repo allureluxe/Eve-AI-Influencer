@@ -868,6 +868,13 @@ class TestLePlafondDeCorrelationEstRetire:
     def test_le_budget_de_risque_reste_la_vraie_borne(self):
         """Sans plafond par famille, c'est lui qui limite l'exposition."""
         cfg = BotConfig.load("robot.bitvavo.json")
-        assert 0 < cfg.risk.max_total_risk_pct <= 5.0, (
+        # DECISION DE L'OPERATEUR, 2 OCT. 2026 : 5,0 -> 7,5 % sur le REEL,
+        # confirmee deux fois apres avoir lu ce garde-fou. Raison : apres le
+        # retrait de 1 610 EUR du 1er oct., les 8 positions ouvertes avant
+        # risquaient 7,1 % d'un compte de 570 EUR et le robot n'achetait
+        # plus rien. Consequence acceptee : une journee ou tous les stops
+        # partent peut declencher le coupe-circuit journalier (4 %).
+        # REDESCENDRE A 5,0 quand le risque engage sera revenu sous 5 %.
+        assert 0 < cfg.risk.max_total_risk_pct <= 7.5, (
             "le budget de risque total est desormais le SEUL garde-fou "
             "contre une exposition sectorielle concentree")
