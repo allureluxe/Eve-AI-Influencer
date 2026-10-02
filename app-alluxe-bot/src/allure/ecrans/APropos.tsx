@@ -45,7 +45,7 @@ export function EcranAPropos({ onRetour }: { onRetour: () => void }) {
           "Allure ne touche jamais a ton argent. Aucune connexion a ton " +
           "compte, aucun ordre passe a ta place.",
           "Allure ne te demande jamais tes cles d'echange, ni ton mot de " +
-          "passe Bitvavo ou Binance. Personne de serieux ne le fait.",
+          "passe Bitvavo. Personne de serieux ne le fait.",
           "Allure ne promet aucun gain. Les signaux publies sont ceux " +
           "d'un robot qui engage son propre argent, et il perd " +
           "regulierement.",

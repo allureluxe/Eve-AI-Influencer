@@ -1450,7 +1450,7 @@ qui refusait tout en silence.
 
 **Ne jamais supprimer un test pour faire passer la suite.** Si un test
 échoue sur du code correct, c'est l'assertion qu'il faut corriger — et le
-dire. Deux tests Pionex exigeaient l'inverse de ce que leur nom annonçait.
+dire. Deux tests exigeaient l'inverse de ce que leur nom annonçait.
 
 **Le simulateur (`paper`) doit rester constructible.** Il a été retiré des
 brokers valides : plus de dry-run, plus de rejeu historique, et aucun

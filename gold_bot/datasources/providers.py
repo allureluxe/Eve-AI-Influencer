@@ -2,7 +2,7 @@
 
 Le robot ne depend jamais d'un seul fournisseur : le registre teste les
 sources dans l'ordre et bascule automatiquement a la premiere qui repond.
-Les sources sans cle API (Yahoo, Binance, Stooq) assurent le fonctionnement
+Les sources sans cle API (Yahoo, Bitvavo, Stooq) assurent le fonctionnement
 par defaut ; les sources a cle (TwelveData, AlphaVantage, Finnhub, Polygon,
 MetalPrice) s'activent seules des que la variable d'environnement existe.
 """
@@ -137,82 +137,6 @@ class YahooProvider(PriceProvider):
         if timeframe == "H4" and out:
             out = resample(out, "H1", "H4")
         return out[-limit:]
-
-
-# ==========================================================================
-# Binance - gratuit, sans cle, ideal pour les cryptos 24/7
-# ==========================================================================
-class BinanceProvider(PriceProvider):
-    """Binance : donnees crypto de reference, granularite a la minute, sans cle."""
-
-    name = "binance"
-    capabilities = ProviderCapabilities(asset_classes=("crypto",), rate_limit_per_min=120)
-
-    # Le catalogue est celui de l'univers, pas une seconde liste tenue a la
-    # main : une source de prix plus etroite que les instruments reellement
-    # negociables produit des trous silencieux, et une liste divergente se
-    # remarque des qu'on ajoute un actif.
-    #
-    # La devise de cotation suit celle de l'execution (BINANCE_QUOTE_ASSET) :
-    # lire les prix sur BTC/USDT tout en achetant sur BTC/USDC introduirait un
-    # ecart entre les niveaux calcules et ceux envoyes a la plateforme.
-    # OBJET PARTAGE (voir universe.ACTIFS_PAR_SYMBOLE) : une copie figee
-    # a l'import rendrait invisibles les cryptos decouvertes au demarrage.
-    ACTIFS = ACTIFS_PAR_SYMBOLE
-    INTERVALS = {"M1": "1m", "M3": "3m", "M5": "5m", "M15": "15m",
-                 "M30": "30m", "H1": "1h", "H4": "4h", "D1": "1d"}
-
-    @property
-    def devise(self) -> str:
-        return os.getenv("BINANCE_QUOTE_ASSET", "USDT").upper()
-
-    def symbol_for(self, symbol: str, asset_class: str) -> Optional[str]:
-        actif = self.ACTIFS.get(symbol.upper())
-        return f"{actif}{self.devise}" if actif else None
-
-    def fetch_candles(self, symbol: str, asset_class: str, timeframe: str, limit: int) -> list[Candle]:
-        code = self.symbol_for(symbol, asset_class)
-        if not code:
-            raise SymbolNotSupported(f"{self.name}: {symbol} non cote ici")
-        interval = self.INTERVALS.get(timeframe)
-        if not interval:
-            raise ProviderError(f"{self.name}: unite de temps non supportee {timeframe}")
-        self.throttle()
-        try:
-            rows = http_get(
-                "https://api.binance.com/api/v3/klines",
-                params={"symbol": code, "interval": interval, "limit": min(limit, 1000)},
-            )
-        except ProviderError as exc:
-            # Binance repond 400 « Invalid symbol » pour une paire absente
-            # dans cette devise de cotation. Ce n'est pas une panne : la
-            # source reste saine pour les 80 autres instruments.
-            if getattr(exc, "status", None) == 400:
-                raise SymbolNotSupported(
-                    f"{self.name}: {symbol} non cote en {self.devise}") from exc
-            raise
-        if not isinstance(rows, list):
-            raise ProviderError(f"{self.name}: reponse inattendue")
-        return [
-            Candle(float(r[0]) / 1000.0, float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5]))
-            for r in rows
-        ]
-
-    def fetch_tick(self, symbol: str, asset_class: str) -> Optional[Tick]:
-        code = self.symbol_for(symbol, asset_class)
-        if not code:
-            return None
-        self.throttle()
-        try:
-            data = http_get("https://api.binance.com/api/v3/ticker/bookTicker",
-                            params={"symbol": code})
-        except ProviderError as exc:
-            if getattr(exc, "status", None) == 400:
-                raise SymbolNotSupported(
-                    f"{self.name}: {symbol} non cote en {self.devise}") from exc
-            raise
-        return Tick(time.time(), float(data["bidPrice"]), float(data["askPrice"]))
-
 
 
 # ==========================================================================
@@ -638,12 +562,14 @@ class FinnhubProvider(PriceProvider):
     def symbol_for(self, symbol: str, asset_class: str) -> Optional[str]:
         s = symbol.upper()
         if asset_class == "crypto":
-            return f"BINANCE:{s[:-3]}USDT"
+            return None   # crypto : Bitvavo et OKX la couvrent
         return f"OANDA:{s[:3]}_{s[3:]}"
 
     def fetch_candles(self, symbol: str, asset_class: str, timeframe: str, limit: int) -> list[Candle]:
         if not self.key:
             raise ProviderError(f"{self.name}: cle absente")
+        if asset_class == "crypto":
+            raise SymbolNotSupported(f"{self.name}: crypto non servie")
         res = self.RES.get(timeframe)
         if not res:
             raise ProviderError(f"{self.name}: unite de temps non supportee {timeframe}")

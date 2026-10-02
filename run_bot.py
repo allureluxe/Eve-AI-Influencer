@@ -130,34 +130,6 @@ def cmd_check(args) -> int:
     print("\n[Execution]")
     print(f"   broker configure : {cfg.engine.broker}"
           + (" (DRY-RUN)" if cfg.engine.dry_run else ""))
-    # `if` ET PAS `elif` : le commit 8e68b1f (« MoonX retire partout ») a
-    # supprime le bloc `if cfg.engine.broker == "moonx"` qui precedait, et
-    # a laisse ce `elif` sans son `if`. Le fichier ne compilait plus du
-    # tout -- l'etape « Syntax check » de la CI echouait depuis, donc les
-    # 1 102 tests n'etaient PLUS JAMAIS LANCES chez GitHub. Ils passaient
-    # en local, ce qui a masque la panne : la suite verte qu'on regardait
-    # etait celle du poste, pas celle du depot.
-    #
-    # Le robot arme n'a jamais ete touche : les trois services tournent
-    # sur run_dual_live.py. Ce fichier-ci n'est qu'un outil de diagnostic.
-    if cfg.engine.broker in ("binance", "binance_spot"):
-        from gold_bot.brokers import BinanceBroker, BinanceSpotBroker
-        broker = (BinanceSpotBroker() if cfg.engine.broker == "binance_spot"
-                  else BinanceBroker())
-        if not getattr(broker, "supports_short", True):
-            print("   ACHAT SEUL : le spot ne permet pas la vente a decouvert")
-        print(f"   mode Binance : {broker.mode}")
-        if broker.connect():
-            acc = broker.account()
-            print(f"   compte : {acc.equity:.2f} {acc.currency} "
-                  f"(disponible {acc.margin_free:.2f})")
-            from gold_bot.brokers.binance import SYMBOLES as BN_SYMBOLES
-            print(f"   instruments : {', '.join(sorted(BN_SYMBOLES))}")
-            if not broker.healthy():
-                print("   ATTENTION : la cle Binance a ete refusee, le solde affiche est fictif")
-        else:
-            print("   -> definir BINANCE_API_KEY et BINANCE_API_SECRET")
-
     print("\n[Alertes]")
     print(f"   canaux actifs : {', '.join(Notifier().active_channels())}")
 
@@ -357,16 +329,6 @@ def cmd_run(args) -> int:
         print(f"demarrage impossible : {exc}")
         return 2
 
-    if cfg.engine.broker in ("binance", "binance_spot") and not cfg.engine.dry_run:
-        nom = {"binance": "Binance Futures"}.get(cfg.engine.broker, "Binance Spot")
-        print("\n" + "!" * 74)
-        print(f"  EXECUTION REELLE : le robot va passer des ordres seul sur {nom}.")
-        print("  Coupe-circuits actifs : "
-              f"perte journaliere {cfg.risk.daily_loss_limit_pct} %, "
-              f"hebdomadaire {cfg.risk.weekly_loss_limit_pct} %, "
-              f"drawdown max {cfg.risk.max_drawdown_pct} %.")
-        print("  Arret propre : Ctrl+C (les positions restent protegees par leur stop).")
-        print("!" * 74 + "\n")
 
     engine.run()
     return 0
@@ -400,8 +362,7 @@ def options_communes() -> argparse.ArgumentParser:
     commun = argparse.ArgumentParser(add_help=False, argument_default=argparse.SUPPRESS)
     commun.add_argument("--config", help="fichier de configuration JSON")
     commun.add_argument("--broker",
-                        choices=["paper", "binance", "binance_spot",
-                                 "bitvavo", "okx"],
+                        choices=["paper", "bitvavo"],
                         help="lieu d'execution")
     commun.add_argument("--dry-run", action="store_true", help="analyser sans envoyer d'ordre")
     commun.add_argument("--offline", action="store_true", help="donnees synthetiques (tests)")

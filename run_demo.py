@@ -57,7 +57,7 @@ class PaperBrokerCryptoBitvavo(PaperBroker):
         return symbol.upper() in ACTIFS_PAR_SYMBOLE
 
 
-# Meme technique que run_bitvavo.py/run_pionex.py : on ne touche pas au
+# Meme technique que run_bitvavo.py : on ne touche pas au
 # fichier partage gold_bot/engine.py ni gold_bot/brokers/paper.py, on
 # remplace juste le nom que `_build_broker()` va resoudre au moment de
 # construire le broker paper -- isole a ce seul processus.

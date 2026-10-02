@@ -192,7 +192,7 @@ export const espace = {
  * Rayons modernises (13 sept., retour reel : « trop comme un journal,
  * plus moderne, une app bancaire »). L'ancienne charte voulait des
  * angles nets ; l'operateur a tranche pour des cartes arrondies, dans
- * le genre Revolut/N26/Binance. Decision produit, pas un oubli.
+ * le genre Revolut/N26. Decision produit, pas un oubli.
  */
 export const rayon = { s: 12, m: 16, l: 22, rond: 999 } as const;
 

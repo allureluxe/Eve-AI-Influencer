@@ -107,7 +107,7 @@ titre "3/5  Plateforme d'execution"
 
 echo "  Ou le robot doit-il passer ses ordres ?"
 echo
-echo "    1) Binance Futures  (recommande : API publique, testnet gratuit)"
+echo "    1) Bitvavo (comptant, en euros)"
 echo "    2) Aucune pour l'instant (simulation seulement)"
 echo
 read -r -p "  Votre choix [1] : " choix_plateforme
@@ -116,22 +116,21 @@ choix_plateforme=${choix_plateforme:-1}
 case "$choix_plateforme" in
 1)
     echo
-    echo "  Creez vos cles sur Binance : Profil > Gestion API > Creer une API."
-    echo "  Cochez UNIQUEMENT 'Activer les Futures'. Ne cochez JAMAIS les retraits."
-    echo "  Pour le testnet (argent fictif) : testnet.binancefuture.com"
+    echo "  Creez vos cles sur Bitvavo : Parametres > Cles API."
+    echo "  Cochez 'Afficher' et 'Trader'. Ne cochez JAMAIS 'Retirer'."
     echo
-    ecrire_cle "BINANCE_API_KEY"    "Cle API Binance" oui
-    ecrire_cle "BINANCE_API_SECRET" "Secret API Binance" oui
+    ecrire_cle "BITVAVO_API_KEY"    "Cle API Bitvavo" oui
+    ecrire_cle "BITVAVO_API_SECRET" "Secret API Bitvavo" oui
     echo
-    read -r -p "  Commencer sur le testnet, avec de l'argent fictif ? [O/n] : " testnet
-    if [[ "$testnet" =~ ^[Nn] ]]; then
-        ecrire_valeur "BINANCE_TESTNET" "0"
+    read -r -p "  Commencer en simulation, sans envoyer d'ordre ? [O/n] : " simu
+    if [[ "$simu" =~ ^[Nn] ]]; then
+        ecrire_valeur "BITVAVO_DRY_RUN" "0"
         echo -e "  ${ROUGE}ATTENTION${FIN} : mode reel. Les ordres engageront de l'argent veritable."
     else
-        ecrire_valeur "BINANCE_TESTNET" "1"
-        ok "Testnet actif : aucun risque tant que vous ne changerez pas ce reglage."
+        ecrire_valeur "BITVAVO_DRY_RUN" "1"
+        ok "Simulation active : aucun ordre tant que vous ne changerez pas ce reglage."
     fi
-    ecrire_valeur "GB_CONFIG" "robot.binance.json"
+    ecrire_valeur "GB_CONFIG" "robot.bitvavo.json"
     ;;
 *)
     info "Aucune plateforme configuree : le robot tournera en simulation."

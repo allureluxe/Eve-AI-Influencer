@@ -1,10 +1,9 @@
 /**
- * Communaute -- le fil des posts, comme le "Square" de Binance.
+ * Communaute -- le fil des posts.
  *
- * PAS UN SIXIEME ONGLET. Demande explicite du 14 sept. : « essaye de
- * faire un peu comme Binance fait ». Binance ne donne pas au fil social
- * une case a lui dans la barre du bas -- il se rejoint par une icone
- * depuis l'accueil, et reste un ecran a part entiere une fois ouvert.
+ * PAS UN SIXIEME ONGLET. Demande explicite du 14 sept. : le fil social
+ * n'a pas de case a lui dans la barre du bas -- il se rejoint par une
+ * icone depuis l'accueil, et reste un ecran a part entiere une fois ouvert.
  * Meme choix ici : une icone dans l'en-tete d'Accueil.tsx ouvre cet
  * ecran, avec son propre "‹ Retour".
  *

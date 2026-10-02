@@ -10,7 +10,7 @@ from gold_bot.engine import TradingEngine
 
 # The historical engine already knows how to validate/configure "ibkr", but
 # its generic broker factory predates the IBKR adapter. Keep the change local
-# to this runner so the existing Bitvavo/Pionex/Paper paths remain untouched.
+# to this runner so the existing Bitvavo/Paper paths remain untouched.
 _original_build_broker = TradingEngine._build_broker
 
 

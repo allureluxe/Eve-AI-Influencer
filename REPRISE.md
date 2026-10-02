@@ -33,7 +33,7 @@
   A relancer seulement apres avoir reduit la consommation des demos/Lab
   (cache de bougies partage, ou cadence plus lente).
 - **Fuite de connexions** : la demo accumulait ~150 sockets/min en
-  CLOSE-WAIT vers Binance (erreur HTTP jamais fermee). Corrige dans
+  CLOSE-WAIT vers une source de prix (erreur HTTP jamais fermee). Corrige dans
   datasources/base.py, bitvavo.py, signal_publisher.py + test. Pris par
   demo/demo2 a leur prochain redemarrage, par le reel au sien.
 - **syslog** : copie du robot reel et du Lab coupee (5 Go en une semaine).

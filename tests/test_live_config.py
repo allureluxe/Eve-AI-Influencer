@@ -43,7 +43,7 @@ class TestLiveConfig(unittest.TestCase):
 
     def test_broker_obsolete_refuse(self):
         cfg = BotConfig()
-        cfg.engine.broker = "binance"
+        cfg.engine.broker = "okx"
         self.assertTrue(any("broker invalide" in p for p in cfg.validate()))
 
 

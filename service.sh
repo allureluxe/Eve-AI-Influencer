@@ -103,7 +103,7 @@ demarrer)
     # L'unite systemd fige la configuration au moment de l'installation.
     # Changer GB_CONFIG dans .env ne la met PAS a jour : sans ce controle,
     # le robot repart sur l'ancienne plateforme en silence — c'est ainsi
-    # qu'un service Bitvavo s'est retrouve a envoyer des ordres a Binance.
+    # qu'un service s'est retrouve a envoyer ses ordres a l'ancienne plateforme.
     VOULUE=$(grep -E "^GB_CONFIG=" "$DOSSIER/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d " \"'")
     VOULUE="$(basename "${VOULUE:-}")"
     INSTALLEE=$(grep -oE "run_bot\.py run --config [^ ]+" "$UNITE" 2>/dev/null | awk '{print $NF}')

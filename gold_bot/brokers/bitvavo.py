@@ -1,6 +1,6 @@
 """Execution sur Bitvavo (comptant, en euros).
 
-Choisi apres le retrait de Binance du marche europeen : Bitvavo est agree
+Bitvavo est agree
 MiCA par l'AFM (Pays-Bas), donc utilisable par un resident francais sans
 sortir du cadre europeen, et cote nativement en EUR — pas de conversion
 parasite entre le capital et les paires tradees.
@@ -11,10 +11,10 @@ Trois consequences structurelles, qu'il vaut mieux connaitre que subir.
    Comme tout comptant, pas de vente a decouvert. Le robot ignore ses
    signaux de vente et ne travaille que dans les phases de hausse.
 
-2. LES FRAIS IMPOSENT UNE ECHELLE DE TEMPS PLUS LENTE QUE BINANCE
+2. LES FRAIS IMPOSENT UNE ECHELLE DE TEMPS LENTE
    Palier de base (moins de 100 000 EUR sur 30 jours) : 0,15 % maker,
    0,25 % taker. Le robot entre et sort au marche, donc taker des deux
-   cotes : 0,50 % d'aller-retour, contre 0,20 % sur Binance.
+   cotes : 0,50 % d'aller-retour.
 
        cout / risque = frais aller-retour / (distance du stop en % du prix)
 
@@ -24,8 +24,7 @@ Trois consequences structurelles, qu'il vaut mieux connaitre que subir.
        stop minimum = 0,50 % / 0,15 = 3,3 % du prix
 
    Soit H4, pas H1. Ce n'est pas un reglage a forcer, c'est de
-   l'arithmetique. Le meme calcul sur Binance donnait 1,3 % et autorisait
-   H1 ; ici la contrainte est 2,5 fois plus dure.
+   l'arithmetique.
 
    Le tarif reel du compte est lu au demarrage sur /account/fees : si le
    volume fait descendre le palier, le robot en profite sans qu'on touche

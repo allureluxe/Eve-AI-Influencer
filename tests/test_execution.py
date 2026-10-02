@@ -84,9 +84,6 @@ class TestSimulateur(BaseBroker):
         self.assertGreater(self.broker.account().equity, depart)
 
 
-# La classe TestMoonX a ete retiree avec le broker qu'elle couvrait : le
-# module moonx ne fournit plus que l'aide HTTP des notifications.
-
 class TestPersistance(unittest.TestCase):
     def test_l_etat_de_gestion_survit_au_redemarrage(self):
         fd, path = tempfile.mkstemp(suffix=".json")

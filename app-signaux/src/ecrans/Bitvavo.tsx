@@ -165,7 +165,7 @@ export function EcranBitvavo({ onRetour }: { onRetour: () => void }) {
         </T>
 
         <Etape n={1} titre="Ouvre ta plateforme"
-               detail="Bitvavo, Binance, Kraken : celle que tu utilises deja." />
+               detail="Bitvavo, ou celle que tu utilises deja." />
         <Etape n={2} titre="Cherche la crypto du signal"
                detail="Le nom exact est affiche sur la carte du signal." />
         <Etape n={3} titre="Achete au marche"

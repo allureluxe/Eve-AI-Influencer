@@ -281,7 +281,7 @@ class TestRegistreCentralise:
         from gold_bot.engine import registre_pour
         from gold_bot.settings import BotConfig
         cfg = BotConfig.load("robot.bitvavo.json")
-        cfg.engine.broker = "binance_spot"
+        cfg.engine.broker = "ibkr"
         assert registre_pour(cfg).devise_crypto == ""
 
 

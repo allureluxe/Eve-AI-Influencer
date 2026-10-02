@@ -1,5 +1,5 @@
 /**
- * Messages prives -- boite de reception, comme sur Binance.
+ * Messages prives -- boite de reception.
  *
  * PAS UN ONGLET NON PLUS -- meme raisonnement que Communaute.tsx : une
  * icone depuis Accueil, un ecran a part entiere avec son "‹ Retour".

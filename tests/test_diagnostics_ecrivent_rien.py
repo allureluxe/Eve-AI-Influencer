@@ -43,8 +43,7 @@ DECLENCHEURS = ("TradingEngine", "depuis_quand", "marqueur", "calibrer")
 #: Les lanceurs : eux DOIVENT ecrire le marqueur, c'est leur role.
 #: Reconnus par leur prefixe plutot que par une liste : une liste
 #: nommee se perime au premier lanceur ajoute — ce test a echoue des
-#: son ecriture sur `run_bot.py` et `run_pionex.py`, que j'avais
-#: oublies.
+#: son ecriture sur des lanceurs que j'avais oublies.
 def _est_un_lanceur(nom: str) -> bool:
     return nom.startswith("run_") or nom == "run.py"
 

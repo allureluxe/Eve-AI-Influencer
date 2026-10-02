@@ -29,13 +29,13 @@ class TestUnSeulDictionnairePourToutLeMonde:
     def test_le_courtier_et_les_sources_partagent_l_objet(self):
         from gold_bot.brokers.bitvavo import ACTIFS as courtier
         from gold_bot.datasources.providers import (
-            BinanceProvider, BitvavoProvider, OkxProvider)
+            BitvavoProvider, OkxProvider)
         from gold_bot.universe import ACTIFS_PAR_SYMBOLE
 
         assert courtier is ACTIFS_PAR_SYMBOLE, (
             "le courtier Bitvavo garde une COPIE du catalogue : une crypto "
             "decouverte au demarrage lui sera inconnue a l'execution")
-        for source in (BitvavoProvider, BinanceProvider, OkxProvider):
+        for source in (BitvavoProvider, OkxProvider):
             assert source.ACTIFS is ACTIFS_PAR_SYMBOLE, (
                 f"{source.name} garde une copie du catalogue")
 
@@ -155,7 +155,7 @@ class TestLaLimiteD_AppelsVientDeL_API:
 class TestToutesLesCryptosSontCoteesEnEuro:
     """Le 13 septembre, XTZ et ZETA sont sortis en "/USD" dans l'application.
 
-    `Instrument.quote_currency` a pour defaut "USD" (heritage Binance). Le
+    `Instrument.quote_currency` a pour defaut "USD" (heritage du depot). Le
     robot, lui, ne negocie que les marches EUR de Bitvavo. `instrument_crypto`
     ne passait jamais ce parametre, et les quatre instruments crypto reglages
     a la main (BTC, ETH, SOL, XRP) ne le passaient pas non plus : TOUTE crypto

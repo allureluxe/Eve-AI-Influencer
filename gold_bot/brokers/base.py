@@ -1,7 +1,7 @@
 """Interface d'execution.
 
 Toute la logique du robot est ecrite contre cette interface : le moteur ne
-sait pas s'il parle a un simulateur ou a MoonX. Changer de lieu
+sait pas s'il parle a un simulateur ou a Bitvavo. Changer de lieu
 d'execution ne demande donc aucune modification de la strategie.
 """
 from __future__ import annotations

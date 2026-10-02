@@ -92,16 +92,15 @@ LONDON_NY_OVERLAP = ((12, 17),)
 
 
 # ---------------------------------------------------------------------------
-# Catalogue crypto : actif Binance -> groupe de correlation.
+# Catalogue crypto : actif -> groupe de correlation.
 #
 # Les groupes evitent d'empiler trois fois le meme pari : dix jetons de layer 1
 # montent et descendent ensemble, les tenir simultanement revient a tripler une
 # position unique sans le savoir.
 #
-# Toutes ces paires n'existent pas dans toutes les devises de cotation. Celles
-# qui manquent en USDC sont ecartees au demarrage par
-# `BinanceSpotBroker.supports()` : il n'y a rien a maintenir a la main ici, une
-# entree inconnue de Binance est simplement ignoree.
+# Toutes ces paires n'existent pas chez Bitvavo. Celles qui manquent sont
+# ecartees au demarrage par le filtre de l'univers sur les marches du
+# courtier : une entree inconnue est simplement ignoree.
 # ---------------------------------------------------------------------------
 CATALOGUE_CRYPTO: dict[str, str] = {
     # --- References ---
@@ -202,7 +201,7 @@ def instrument_crypto(actif: str, groupe: str, priorite: float = 0.75,
     reference, comme les paliers de 10 $ sur l'or.
 
     `quote_currency` doit rester "EUR" : le `symbol` interne finit toujours
-    en "USD" (convention historique Binance), mais le robot ne negocie que
+    en "USD" (convention historique du depot), mais le robot ne negocie que
     les marches EUR de Bitvavo. Sans ce parametre explicite, `Instrument`
     retombe sur son defaut "USD" et l'application affiche de faux "/USD"
     sur les signaux publies -- vu en reel sur XTZ et ZETA le 13 sept.
@@ -354,7 +353,7 @@ DEFAULT_UNIVERSE: list[Instrument] = [
 
 # Le reste du catalogue crypto, genere automatiquement. Les quatre paires
 # ci-dessus gardent leurs valeurs reglees a la main ; toutes les autres
-# recoivent des valeurs generiques que Binance corrigera au demarrage.
+# recoivent des valeurs generiques que le courtier corrigera au demarrage.
 _deja_definis = {i.symbol for i in DEFAULT_UNIVERSE}
 DEFAULT_UNIVERSE.extend(
     instrument_crypto(actif, groupe)

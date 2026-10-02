@@ -110,7 +110,7 @@ class TestEtendueUnivers:
             "la paire generique porte un spread nul : BTCUSD a ete ecrase")
 
     def test_traduction_en_code_du_lieu_d_execution(self):
-        """Binance a ete retire du projet : la meme garantie sur Bitvavo."""
+        """Le code de marche du lieu d'execution."""
         assert marche("PEPEUSD", "EUR") == "PEPE-EUR"
         assert marche("BTCUSD", "EUR") == "BTC-EUR"
         assert marche("INCONNUUSD", "EUR") is None
@@ -147,7 +147,7 @@ class TestInstrumentGenere:
 
     def test_normalisation_du_lot_fonctionne(self):
         inst = instrument_crypto("SUI", "crypto_l1")
-        inst.min_lot, inst.lot_step = 0.1, 0.1     # ce que ferait Binance
+        inst.min_lot, inst.lot_step = 0.1, 0.1
         assert inst.normalize_lot(0.35, round_down=True) == 0.3
 
 
@@ -223,7 +223,7 @@ class TestScanParallele:
 class TestQuarantaineDesSources:
     """Un symbole inconnu d'une source ne doit pas couper cette source.
 
-    Regression : le scan demandait une paire exotique a Binance, qui repondait
+    Regression : le scan demandait une paire exotique a une source, qui repondait
     « symbole non supporte ». Cette erreur mettait la source en quarantaine
     cinq minutes — et le BTC, parfaitement cote, se retrouvait alors sans
     aucune source active. Un seul instrument inconnu suffisait a aveugler le
@@ -312,15 +312,15 @@ class TestSourceEtBrokerAlignes:
         silencieux : le robot le scanne et n'obtient jamais de donnees.
         """
         from gold_bot.brokers.bitvavo import ACTIFS as ACTIFS_BROKER
-        from gold_bot.datasources.providers import BinanceProvider
+        from gold_bot.datasources.providers import BitvavoProvider
 
-        assert set(BinanceProvider.ACTIFS) == set(ACTIFS_BROKER)
+        assert set(BitvavoProvider.ACTIFS) == set(ACTIFS_BROKER)
 
     def test_toutes_les_cryptos_de_l_univers_ont_une_source(self):
-        from gold_bot.datasources.providers import BinanceProvider
+        from gold_bot.datasources.providers import BitvavoProvider
         from gold_bot.universe import Universe
 
-        source = BinanceProvider.ACTIFS
+        source = BitvavoProvider.ACTIFS
         manquants = [i.symbol for i in Universe()
                      if i.asset_class == "crypto" and i.symbol not in source]
         assert not manquants, f"sans source de prix : {manquants}"
@@ -329,8 +329,7 @@ class TestSourceEtBrokerAlignes:
 class TestErreurHttpEtSymboleInconnu:
     """Une paire absente de la devise de cotation n'est pas une panne.
 
-    Binance repond « 400 Invalid symbol » pour CROUSDC si la paire n'existe
-    qu'en USDT. Sans distinction, cette reponse mettait toute la source en
+    Bitvavo repond 400 pour un marche qu'il ne liste pas. Sans distinction, cette reponse mettait toute la source en
     quarantaine et aveuglait le robot sur les 84 autres instruments.
     """
 
@@ -396,7 +395,7 @@ class TestErreurHttpEtSymboleInconnu:
             raise err
 
         monkeypatch.setattr(providers, "http_get", faux_get)
-        source = providers.BinanceProvider()
+        source = providers.BitvavoProvider()
         source.throttle = lambda: None
         try:
             source.fetch_candles("CROUSD", "crypto", "H1", 100)
@@ -414,7 +413,7 @@ class TestErreurHttpEtSymboleInconnu:
             raise err
 
         monkeypatch.setattr(providers, "http_get", faux_get)
-        source = providers.BinanceProvider()
+        source = providers.BitvavoProvider()
         source.throttle = lambda: None
         try:
             source.fetch_candles("BTCUSD", "crypto", "H1", 100)
@@ -476,7 +475,7 @@ class TestPlafondJournalierIllimite:
 class TestSourceRefuseeALAuthentification:
     """Une cle morte ne se repare pas en attendant cinq minutes.
 
-    Observe en production : MoonX repondait 401 sur chaque instrument. La
+    Observe en production : une source repondait 401 sur chaque instrument. La
     quarantaine de 300 s expirait, le robot reessayait les 68 paires, se
     reprenait 68 refus, et recommencait indefiniment. Le journal devenait
     illisible et chaque cycle perdait des dizaines d'appels reseau.

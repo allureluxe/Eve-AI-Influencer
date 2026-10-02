@@ -104,10 +104,9 @@ function Section({ eyebrow, titre, paragraphes }: {
 
 /**
  * Un raccourci vers un ecran a part (Communaute, Messages) -- icone +
- * libelle, sans case dans la barre du bas. Meme principe que Binance :
- * le fil social et la messagerie se rejoignent par une icone depuis
- * l'accueil, pas par un onglet supplementaire (retour reel, 14 sept. :
- * « essaye de faire un peu comme Binance fait »).
+ * libelle, sans case dans la barre du bas : le fil social et la
+ * messagerie se rejoignent par une icone depuis l'accueil, pas par un
+ * onglet supplementaire (retour reel, 14 sept.).
  */
 function Raccourci({ icone, libelle, onPress }: {
   icone: keyof typeof Ionicons.glyphMap; libelle: string; onPress: () => void;
@@ -203,7 +202,7 @@ export function EcranAccueil() {
         eyebrow="Comment s'en servir"
         titre="Le signal arrive, tu passes l'ordre toi-meme"
         paragraphes={[
-          "Ouvre ton application Bitvavo ou Binance, cherche la crypto " +
+          "Ouvre ton application Bitvavo, cherche la crypto " +
           "indiquee, et passe un ordre d'achat au marche pour le " +
           "montant que tu as decide.",
           "Place ensuite un ordre stop au prix de protection affiche. " +

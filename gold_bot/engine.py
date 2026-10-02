@@ -32,11 +32,10 @@ from typing import Optional
 from .apprentissage import PoidsAdaptatifs, alimenter_depuis_journal
 from .calibrage import calibrer, duree_stop_temporel
 from .promotion import Promotion
-from .brokers import (BinanceBroker, BinanceConfig, BinanceSpotBroker,
-                      BitvavoBroker, BitvavoConfig, Broker,
+from .brokers import (BitvavoBroker, BitvavoConfig, Broker,
                       BrokerError, OkxBroker,
                       OkxConfig, PaperBroker,
-                      PaperConfig, SpotConfig)
+                      PaperConfig)
 from .core import ClosedTrade, Position, Side, Tick
 from .datasources import DataRegistry, build_registry
 from .macro import MacroEngine
@@ -288,21 +287,7 @@ class TradingEngine:
     # ---------------------------------------------------------------
     def _build_broker(self) -> Broker:
         cfg = self.config.engine
-        # MoonX retire le 20 septembre : identifiants jamais complets,
-        # courtier marque obsolete, et sa source de prix repondait 401 a
-        # chaque demarrage. Une configuration qui le demanderait encore
-        # tombera sur le `else` final, qui refuse proprement.
-        if cfg.broker == "binance":
-            bn = BinanceConfig.from_env()
-            if cfg.dry_run:
-                bn.dry_run = True
-            broker = BinanceBroker(bn)
-        elif cfg.broker == "binance_spot":
-            sp = SpotConfig.from_env()
-            if cfg.dry_run:
-                sp.dry_run = True
-            broker = BinanceSpotBroker(sp)
-        elif cfg.broker == "bitvavo":
+        if cfg.broker == "bitvavo":
             bv = BitvavoConfig.from_env()
             # DEUX INTERRUPTEURS, ET LE FICHIER L'EMPORTE.
             #
@@ -778,14 +763,6 @@ class TradingEngine:
     def start(self) -> bool:
         """Prepare le robot. Retourne False si le demarrage est impossible."""
         cfg = self.config.engine
-
-        if cfg.broker == "binance" and not cfg.dry_run:
-            bn = getattr(self.broker, "config", None)
-            if bn is not None and not bn.testnet:
-                self.notifier.warning(
-                    "Binance en mode REEL",
-                    "Les ordres engagent de l'argent veritable. "
-                    "BINANCE_TESTNET=1 bascule sur de l'argent fictif.")
 
         if cfg.broker == "okx" and not cfg.dry_run and not cfg.offline:
             ok = getattr(self.broker, "config", None)

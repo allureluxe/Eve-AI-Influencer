@@ -66,7 +66,7 @@ class SymbolNotSupported(ProviderError):
     Distinction essentielle : une source injoignable doit etre mise en
     quarantaine pour laisser la main aux suivantes, mais une source qui ne
     connait simplement pas ce symbole reste parfaitement saine pour tous les
-    autres. Les confondre revient a couper Binance pour le BTC parce qu'on lui
+    autres. Les confondre revient a couper Bitvavo pour le BTC parce qu'on lui
     a demande une paire exotique qu'elle ne liste pas.
     """
 
@@ -104,7 +104,7 @@ def http_get(
         except urllib.error.HTTPError as exc:
             # L'erreur PORTE la connexion : sans close(), elle reste ouverte
             # (CLOSE-WAIT) jusqu'au ramasse-miettes. 2 oct. 2026 : la demo
-            # en accumulait ~150 par minute vers Binance, qui repond 400 a
+            # en accumulait ~150 par minute vers une source qui repond 400 a
             # chaque crypto qu'il ne cote pas -- limite de 1 024 en minutes.
             exc.close()
             last_err = exc
@@ -142,7 +142,7 @@ class ProviderCapabilities:
     # un message qui ressemble a une panne alors que c'est une
     # declaration manquante.
     #
-    # Les fournisseurs purement crypto (Bitvavo, Binance, OKX) surchargent
+    # Les fournisseurs purement crypto (Bitvavo, OKX) surchargent
     # ce tuple par ("crypto",) : ils ne sont pas concernes.
     asset_classes: tuple[str, ...] = ("metal", "forex", "crypto", "index",
                                       "stock")

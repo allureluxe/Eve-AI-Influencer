@@ -27,8 +27,7 @@ from dataclasses import replace
 
 from gold_bot.core import Side
 from gold_bot.datasources import PROVIDER_CLASSES, DataRegistry
-from gold_bot.datasources.providers import (BinanceProvider, BitvavoProvider,
-                                            YahooProvider)
+from gold_bot.datasources.providers import BitvavoProvider, YahooProvider
 from gold_bot.universe import CATALOGUE_CRYPTO, instrument_crypto
 
 
@@ -209,30 +208,29 @@ class TestDisponibiliteDesSymboles:
 class TestDeviseDeCotation:
     """Le garde-fou le plus important de ce connecteur.
 
-    Bitvavo cote en euros, Binance et Yahoo en dollars. Les melanger pour un
+    Bitvavo cote en euros, Yahoo en dollars. Les melanger pour un
     meme instrument ferait calculer les niveaux sur une echelle de prix
     differente de celle ou les ordres partent.
     """
 
     def test_registre_en_euros_ecarte_les_sources_en_dollars(self):
-        r = DataRegistry(providers=[BitvavoProvider(), BinanceProvider(), YahooProvider()],
+        r = DataRegistry(providers=[BitvavoProvider(), YahooProvider()],
                          devise_crypto="EUR")
         noms = [p.name for p in r.usable("crypto")]
         assert "bitvavo" in noms
-        assert "binance" not in noms
         assert "yahoo" not in noms
 
     def test_sans_contrainte_toutes_les_sources_restent(self):
-        r = DataRegistry(providers=[BitvavoProvider(), BinanceProvider()], devise_crypto="")
+        r = DataRegistry(providers=[BitvavoProvider(), YahooProvider()], devise_crypto="")
         assert len(r.usable("crypto")) == 2
 
     def test_dollars_equivalents_entre_eux(self):
         """USDT, USDC et USD valent un dollar a moins d'un pour cent pres."""
-        r = DataRegistry(providers=[BinanceProvider()], devise_crypto="USDC")
-        assert [p.name for p in r.usable("crypto")] == ["binance"]
+        r = DataRegistry(providers=[YahooProvider()], devise_crypto="USDC")
+        assert [p.name for p in r.usable("crypto")] == ["yahoo"]
 
     def test_l_euro_n_est_pas_un_dollar(self):
-        r = DataRegistry(providers=[BinanceProvider()], devise_crypto="EUR")
+        r = DataRegistry(providers=[YahooProvider()], devise_crypto="EUR")
         assert r.usable("crypto") == []
 
     def test_la_contrainte_ne_touche_pas_les_autres_classes(self):
@@ -243,7 +241,7 @@ class TestDeviseDeCotation:
     def test_bitvavo_prioritaire_dans_le_registre_par_defaut(self):
         """La source du lieu d'execution doit passer avant les autres."""
         noms = [c.__name__ for c in PROVIDER_CLASSES]
-        assert noms.index("BitvavoProvider") < noms.index("BinanceProvider")
+        assert noms.index("BitvavoProvider") < noms.index("YahooProvider")
 
 
 # ==========================================================================
@@ -370,7 +368,7 @@ class TestBougies:
 class TestFraisEtEchelleDeTemps:
     """L'arithmetique qui a fait passer la configuration de H1 a H4."""
 
-    def test_le_h1_de_binance_ne_tient_plus_sur_bitvavo(self):
+    def test_le_h1_ne_tient_pas_sur_bitvavo(self):
         aller_retour_bitvavo = 2 * 0.0025
         stop_h1 = 0.0154
         assert aller_retour_bitvavo / stop_h1 > 0.15, (
@@ -383,7 +381,7 @@ class TestFraisEtEchelleDeTemps:
         assert aller_retour_bitvavo / stop_h4 <= 0.15
 
     def test_configuration_livree_coherente(self):
-        """La commission declaree doit etre celle de Bitvavo, pas de Binance."""
+        """La commission declaree doit etre celle de Bitvavo."""
         from gold_bot.settings import BotConfig
         cfg = BotConfig.load("robot.bitvavo.json")
         # « bitvavo » au comptant, « bitvavo_margin » quand la vente a

@@ -231,7 +231,7 @@ React que je te fournis en pièce jointe [eve-app-v2.jsx].
   "dernière mise à jour il y a X minutes"
 - un écran d'accueil au premier lancement : 3 écrans qui expliquent ce qu'Eve
   fait, ce qu'elle ne fait pas (elle ne touche pas à ton argent), et comment
-  passer un ordre sur Bitvavo ou Binance
+  passer un ordre sur Bitvavo
 
 Build Android via EAS.
 ```

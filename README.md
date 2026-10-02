@@ -51,7 +51,6 @@ python3 run_bot.py backtest BTC-EUR
 python3 run_bot.py run
 ```
 
-Les anciennes intégrations Binance et MoonX ne font plus partie du projet.
 
 ### Sécurité
 

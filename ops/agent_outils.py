@@ -250,7 +250,7 @@ def commande_sure(commande: str) -> None:
 #: lisent le compte Bitvavo (`etat.py`, `bilan_journee.py`) ne
 #: fonctionneront pas depuis l'agent -- il faudra les lancer autrement.
 MOTS_SENSIBLES = ("KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "MDP",
-                  "SUPABASE", "BITVAVO", "PIONEX", "BINANCE",
+                  "SUPABASE", "BITVAVO",
                   "TELEGRAM", "INSTAGRAM", "TIKTOK", "EXPO", "CLOUDFLARE",
                   "HUGGINGFACE", "OPENAI", "GEMINI", "ANTHROPIC", "CLAUDE")
 
@@ -721,7 +721,7 @@ SOURCES_RECHERCHE_TRADING = {
                             "elitetrader.com", "forexfactory.com",
                             "forums.babypips.com"],
     "crypto": ["coinbase.com", "coindesk.com", "theblock.co",
-               "cryptoslate.com", "research.binance.com", "messari.io",
+               "cryptoslate.com", "messari.io",
                "glassnode.com", "paradigm.xyz", "a16zcrypto.com"],
     "trading_education": ["cmegroup.com/education", "ig.com",
                           "cmcmarkets.com", "babypips.com",
