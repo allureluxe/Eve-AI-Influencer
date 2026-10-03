@@ -55,7 +55,10 @@ plus tard, decision operateur).
 -> data/diag-memoire-demo.txt ; RETIRER une fois la fuite tranchee.
 
 **A faire, par ordre** :
-1. Redescendre max_total_risk_pct a 5,0 quand risque engage < 5 %.
+1. FAIT 3 oct. : max_total_risk_pct revenu a 5,0 (decision operateur). Aussi
+   le 3 oct. : NOM restee sous son stop (stopLossLimit non servi), vendue
+   -7,15 EUR ; stops desormais AU MARCHE + filet logiciel (CLAUDE.md). Demo 3 =
+   retour a la moyenne. Robot KIT @alluxe.ia branche (Meta OK), minuteur non installe.
 2. Trancher la fuite memoire (comparer reel/demo2 avec MALLOC_ARENA_MAX vs
    demo 1 sans) ; si ca tient, l'etendre a demo et lab.
 3. Demo 3 : il veut une 3e METHODE (pas un temoin) -- reponse attendue :
