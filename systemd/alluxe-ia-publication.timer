@@ -1,0 +1,14 @@
+# Un carrousel par jour a 12 h 30, heure de Paris (heure de depart du
+# concept, a recaler sur les statistiques Instagram apres 2 semaines).
+# Persistent=false : un jour manque (serveur arrete) ne declenche PAS de
+# rattrapage, pour ne jamais publier deux posts coup sur coup.
+
+[Unit]
+Description=alluxe.ia -- un carrousel par jour
+
+[Timer]
+OnCalendar=*-*-* 12:30:00 Europe/Paris
+Persistent=false
+
+[Install]
+WantedBy=timers.target

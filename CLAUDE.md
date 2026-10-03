@@ -5,6 +5,32 @@ d'environ 51 EUR. Plusieurs sessions travaillent sur la même branche. Les
 décisions ci-dessous ont été prises par l'opérateur ; elles ne sont pas des
 valeurs par défaut à optimiser.
 
+## Le compte Instagram de Luna devient @alluxe.ia — 2 octobre
+
+Décision de l'opérateur : le compte Instagram de Luna est repris et
+renommé **@alluxe.ia**, une page sans visage. **Niche changée le 3 oct.**
+après une recherche qui manquait : non plus « packs de prompts » (format
+saturé, repris du compte d'exemple sans vérifier), mais **« je construis
+des systèmes réels avec l'IA sans être développeur »** — coulisses du
+labo, de l'appli, de l'agent et de la publication automatique, tutos,
+erreurs racontées. Mot-clé unique `KIT`. Les 8 prompts de @_mind__vision_
+exécutés un par un : `docs/alluxe_ia/CONCEPT_8_PROMPTS.md` ; liste ordonnée
+des étapes : `docs/ALLUXE_IA.md`. Ne pas écrire « premier au monde » :
+chaque brique existe ailleurs, c'est l'assemblage par une seule personne
+qui est rare, et c'est vérifiable.
+
+Conséquences à ne pas oublier :
+- **La publication automatique de Luna doit rester coupée**
+  (`luna-planner.timer` et les tâches cron Luna), sinon des photos de Luna
+  partiraient sur la nouvelle page : c'est le même compte et le même jeton.
+- Les carrousels se publient par `ops/alluxe_ia.py`, **jamais sans
+  `--confirmer`** ; un post publié est noté dans `data/alluxe_ia/publies.json`
+  et n'est jamais reposté.
+- Le robot de trading n'y apparaît que comme histoire technique : aucun
+  résultat, aucun lien vers Bitvavo (loi du 9 juin 2023).
+
+---
+
 ## Rachat le jour même après une sortie GAGNANTE — armé le 1er octobre
 
 Décision de l'opérateur : `risk.rachat_meme_bougie_apres_gain = true`
@@ -25,10 +51,12 @@ la mesure réelle du 12 sept. (14 doublons, gain net nul) disait l'inverse.
 Le banc de rejeu ne peut pas trancher : il avance d'une bougie D1 à la
 fois, et « 1 h » ou « 1 bougie » y donnent un résultat identique.
 
-**Le témoin : `robot.demo3.json`**, identique à la démo 1 sauf cette règle
-(désarmée). Comparer démo 1 et démo 3 après ~40 trades chacune. Si la
-démo 3 fait mieux, désarmer sur le réel. Le 1er oct., la démo 3 n'est pas
-démarrée : il faut un serveur plus grand (~1,3 Go par robot).
+**Plus de témoin depuis le 2 oct.** `robot.demo3.json` devait garder
+l'ancienne règle pour mesurer celle-ci ; l'opérateur a préféré en faire
+une 3e méthode (« retour à la moyenne », commit baa4017). La règle n'a
+donc plus de comparaison directe : la juger sur les rachats du réel et de
+la démo 1 eux-mêmes (résultat des rachats après gain contre les autres
+entrées), et la désarmer si ces rachats perdent après ~20 cas.
 
 ---
 

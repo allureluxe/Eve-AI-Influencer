@@ -1,3 +1,31 @@
+# Ou on en est — alluxe.ia, 2 octobre 2026 (soir)
+
+## LE COMPTE INSTAGRAM DE LUNA DEVIENT @alluxe.ia
+
+Decision de l'operateur. Liste ordonnee : `docs/ALLUXE_IA.md`. Concept :
+https://claude.ai/artifact/Ht7E2zj2NGop7AgfGSY6Gb
+
+FAIT (branche claude/slt-weo70p) : gabarit des slides (`alluxe_ia/slides.py`,
+polices OFL livrees), 9 posts de lancement (`alluxe_ia/posts.json`),
+publication de carrousels (`ops/instagram.py::publier_carrousel`), commande
+`ops/alluxe_ia.py` (rendu local par defaut, `--confirmer` pour publier),
+photo de profil, tests `tests/test_alluxe_ia.py`. 3 OCT. : NICHE CHANGEE
+(« je construis avec l'IA sans etre developpeur ») apres recherche ; les
+8 prompts de @_mind__vision_ executes un par un dans
+`docs/alluxe_ia/CONCEPT_8_PROMPTS.md`. 11 posts, mot-cle unique KIT, kit
+`docs/alluxe_ia/kit-constructeur.pdf`. Publication quotidienne 12h30 PRETE
+mais NON installee (`systemd/alluxe-ia-publication.*`).
+ROBOT KIT (3 oct., nuit) : table `alluxe_ia_evenements`/`alluxe_ia_contacts` et
+fonction `alluxe-ia-webhook` DEPLOYEES sur Supabase (verify_jwt=false, signature
+HMAC). Inactif tant que l'operateur n'a pas fait les etapes de
+docs/ALLUXE_IA.md point 8 (secrets, webhook Meta, ALLUXE_IA_KIT_URL, timer).
+
+EN ATTENTE DE L'OPERATEUR : couper Luna sur le VPS (luna-planner.timer +
+cron), renommer le compte dans l'appli, relire et tester les 9 posts.
+AUCUN post n'a ete publie.
+
+---
+
 # Ou on en est — mis a jour le 2 octobre 2026, 22h45
 
 ## 2 OCT. 22h45 — ETAT ET LISTE A FAIRE (lire en premier)
