@@ -35,7 +35,7 @@ IPS = 30
 GAUCHE = 90
 LARGEUR_TEXTE = 1080 - GAUCHE - 160      # la colonne de boutons à droite
 HAUT_LIBRE, BAS_LIBRE = 300, 1450        # entre les onglets et la légende
-ENTREE = 0.35                            # secondes de glissement à l'arrivée
+ENTREE = 0.5                             # secondes de glissement à l'arrivée
 
 ICI = os.path.dirname(os.path.abspath(__file__))
 RACINE = os.path.dirname(ICI)
@@ -61,14 +61,14 @@ REELS: dict[str, dict] = {
             "💬 Commente KIT : je t'envoie en privé les prompts que j'utilise vraiment.\n\n"
             "#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode"),
         "temps": [
-            Temps("Je ne sais pas coder.", 1.8, taille=118),
-            Temps("J'ai quand même construit tout ça avec l'IA :", 2.0, taille=96, couleur=MENTHE),
-            Temps("Un labo qui teste des idées jour et nuit.", 1.6),
-            Temps("Des comptes d'essai à argent fictif.", 1.6),
-            Temps("Une appli sur mon téléphone.", 1.5),
-            Temps("Un agent qui écrit du code à ma place.", 1.6),
-            Temps("Et cette page, qui se publie toute seule.", 1.8),
-            Temps("Je te montre comment.", 2.8, taille=100, couleur=ENCRE,
+            Temps("Je ne sais pas coder.", 2.6, taille=118),
+            Temps("J'ai quand même construit tout ça avec l'IA :", 3.0, taille=96, couleur=MENTHE),
+            Temps("Un labo qui teste des idées jour et nuit.", 2.8),
+            Temps("Des comptes d'essai à argent fictif.", 2.8),
+            Temps("Une appli sur mon téléphone.", 2.5),
+            Temps("Un agent qui écrit du code à ma place.", 2.8),
+            Temps("Et cette page, qui se publie toute seule.", 3.0),
+            Temps("Je te montre comment.", 4.5, taille=100, couleur=ENCRE,
                   sous_texte="pour recevoir les prompts que j'utilise vraiment.",
                   mot_cle="KIT"),
         ],
