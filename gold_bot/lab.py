@@ -214,11 +214,7 @@ class Candidate:
     reason: str = ""
 
 def fingerprint(params: dict) -> str:
-    # Calculee sur les reglages NORMALISES (3 oct. 2026) : une hypothese
-    # mesuree a tort avec un percentile en pour cent change d'empreinte et
-    # peut etre retestee ; les autres gardent la leur.
-    normalises = {k: normaliser_reglage(k, v) for k, v in params.items()}
-    raw = json.dumps(normalises, sort_keys=True, separators=(",", ":"), default=list).encode()
+    raw = json.dumps(params, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(raw).hexdigest()[:16]
 
 #: CE QUE CHAQUE FAMILLE LIT REELLEMENT DANS `cfg.strategy`.
@@ -311,29 +307,10 @@ def reglages_sans_effet(params: dict, famille: str) -> list[str]:
     return sorted(set(inertes))
 
 
-def normaliser_reglage(key, value):
-    """Remet une valeur proposee par un cerveau dans l'unite du moteur.
-
-    3 oct. 2026 : un tiers des essais du Lab rendaient ZERO trade sur un an
-    et ~400 cryptos. ChatGPT ecrit les percentiles en pour cent (60) quand
-    le moteur attend une fraction (0,60) -- un filtre « percentile >= 60 »
-    ne passe jamais -- et un canal en nombre seul (55) quand le moteur
-    attend une liste d'horizons.
-    """
-    if key.endswith("_percentile") and isinstance(value, (int, float)) and value > 1:
-        return value / 100.0
-    if key == "donchian_entrees" and isinstance(value, (int, float)):
-        return (int(value),)
-    if key == "donchian_entrees" and isinstance(value, list):
-        return tuple(int(v) for v in value)
-    return value
-
-
 def _apply(cfg, params):
     for key, value in params.items():
         if key in ("name", "strategie_famille"):
             continue
-        value = normaliser_reglage(key, value)
         for section in (cfg.strategy, cfg.trade, cfg.risk):
             if hasattr(section, key):
                 setattr(section, key, value)
