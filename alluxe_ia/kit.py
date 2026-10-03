@@ -27,6 +27,11 @@ DELAI_COMMENTAIRE = dt.timedelta(days=6)  # marge sous les 7 jours
 
 _KIT = re.compile(r"(?<![\w])kit(?![\w])", re.IGNORECASE)
 
+# Quand Meta refuse le message privé (application pas encore vérifiée par
+# Meta : en mode Développement, seuls les testeurs peuvent recevoir un
+# message), on ne prétend pas l'avoir envoyé : on renvoie au lien de la bio.
+REPONSE_BIO = "Le kit est en lien dans ma bio 👆"
+
 REPONSES_PUBLIQUES = (
     "Envoyé en privé 👀",
     "Regarde tes messages !",
@@ -153,3 +158,31 @@ def decider(ev: dict, contact: dict | None, maintenant: dt.datetime,
                         resultat="offre envoyée")
     return Decision(contact=base if etape else {},
                     resultat="à lire par un humain" if etape else "inconnu, ignoré")
+
+
+def commentaires_releves(medias: dict[str, list[dict]], compte_id: str,
+                         compte_nom: str) -> list[dict]:
+    """Les commentaires lus par l'API, au format de `alluxe_ia_evenements`.
+
+    `medias` : {id du post: [commentaires tels que rendus par
+    GET /{media}/comments?fields=id,text,timestamp,username,from]}.
+    Ceux du compte lui-même (ses propres réponses) sont écartés, sinon le
+    robot se répondrait.
+    """
+    sortie = []
+    for media_id, commentaires in medias.items():
+        for c in commentaires:
+            auteur = (c.get("from") or {}).get("id") or ""
+            nom = c.get("username") or (c.get("from") or {}).get("username")
+            if not c.get("id") or auteur == compte_id or (nom and nom == compte_nom):
+                continue
+            if not auteur:
+                # Sans identifiant d'auteur, impossible de suivre la personne.
+                continue
+            ev = {"ident": str(c["id"]), "type": "commentaire",
+                  "ig_user_id": str(auteur), "username": nom,
+                  "texte": c.get("text"), "media_id": str(media_id)}
+            if c.get("timestamp"):
+                ev["recu_at"] = c["timestamp"]
+            sortie.append(ev)
+    return sortie

@@ -26,6 +26,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -33,7 +34,7 @@ import urllib.request
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-from alluxe_ia.kit import Action, decider  # noqa: E402
+from alluxe_ia.kit import REPONSE_BIO, Action, commentaires_releves, decider  # noqa: E402
 
 MAX_TENTATIVES = 3
 PAR_PASSAGE = 50
@@ -90,6 +91,12 @@ class Rest:
     def marquer(self, ev_id: int, champs: dict) -> None:
         self._req("PATCH", f"alluxe_ia_evenements?id=eq.{ev_id}", champs)
 
+    def deposer(self, evenements: list[dict]) -> None:
+        """Ajoute les commentaires relevés ; ceux déjà connus sont ignorés."""
+        if evenements:
+            self._req("POST", "alluxe_ia_evenements?on_conflict=ident", evenements,
+                      {"prefer": "resolution=ignore-duplicates"})
+
     def compter(self, table: str, filtre: str = "") -> int:
         h = {"prefer": "count=exact", "range": "0-0"}
         r = urllib.request.Request(
@@ -117,13 +124,72 @@ def executer(action: Action) -> None:
         raise ValueError(action.genre)
 
 
-def traiter(confirmer: bool) -> int:
+def relever(rest, posts: int = 10) -> int:
+    """Lit les commentaires des derniers posts, sans attendre Meta.
+
+    POURQUOI. Le 3 oct., le webhook était branché et validé par Meta, mais
+    aucun commentaire n'est jamais arrivé : l'application Meta est en mode
+    Développement, et Meta n'y prévient le webhook que pour les testeurs.
+    Lire les commentaires de son propre compte, lui, est permis sans
+    vérification de l'application. Le webhook reste en place : le jour où
+    Meta l'alimente, les doublons sont absorbés par l'unicité d'`ident`.
+    """
+    from ops import instagram as ig
+    moi = ig._appel("GET", "me", fields="id,username")
+    medias = ig._appel("GET", "me/media", fields="id", limit=str(posts)).get("data", [])
+    lus = {}
+    for m in medias:
+        r = ig._appel("GET", f"{m['id']}/comments",
+                      fields="id,text,timestamp,username,from", limit="50")
+        lus[m["id"]] = r.get("data", [])
+    evenements = commentaires_releves(lus, str(moi.get("id", "")), moi.get("username", ""))
+    rest.deposer(evenements)
+    return len(evenements)
+
+
+def _refus_definitif(exc: Exception) -> bool:
+    """Meta refuse le message (droits, application non vérifiée) : inutile
+    de réessayer. Une panne réseau ou un 5xx, eux, se retentent."""
+    m = re.search(r"HTTP (\d{3})", str(exc))
+    return bool(m) and m.group(1) in ("400", "403")
+
+
+def envoyer(actions: list[Action]) -> str:
+    """Exécute les actions d'une décision. Le message privé passe EN PREMIER :
+    la réponse publique « Envoyé en privé » ne doit jamais mentir. S'il est
+    refusé pour de bon, la réponse publique renvoie au lien de la bio.
+    Rend un complément pour le résultat (vide si tout est parti)."""
+    privees = [a for a in actions if a.genre == "reponse_privee"]
+    autres = [a for a in actions if a.genre != "reponse_privee"]
+    note = ""
+    for a in privees:
+        try:
+            executer(a)
+        except Exception as exc:  # noqa: BLE001
+            if not _refus_definitif(exc):
+                raise
+            note = f" (repli bio : message privé refusé par Meta : {str(exc)[:160]})"
+            autres = [Action(x.genre, x.cible, REPONSE_BIO) if x.genre == "reponse_publique"
+                      else x for x in autres]
+    for a in autres:
+        executer(a)
+    return note
+
+
+def traiter(confirmer: bool, releve: bool = False) -> int:
     lien = os.environ.get("ALLUXE_IA_KIT_URL", "").strip()
     if not lien.startswith("https://"):
         print("ALLUXE_IA_KIT_URL absent ou pas en https : rien à envoyer.")
         return 1
     offre = os.environ.get("ALLUXE_IA_OFFRE_URL", "").strip()
     rest = Rest()
+    if releve:
+        try:
+            n = relever(rest)
+            if n:
+                print(f"{n} commentaire(s) relevé(s)")
+        except Exception as exc:  # noqa: BLE001 -- le webhook reste là
+            print(f"relevé des commentaires impossible : {str(exc)[:200]}")
     maintenant = dt.datetime.now(dt.timezone.utc)
     evenements = rest.a_traiter()
     for ev in evenements:
@@ -136,8 +202,7 @@ def traiter(confirmer: bool) -> int:
                 print(f"         {a.genre} -> {a.texte[:70]!r}")
             continue
         try:
-            for a in d.actions:
-                executer(a)
+            note = envoyer(d.actions)
         except Exception as exc:  # noqa: BLE001
             n = int(ev.get("tentatives") or 0) + 1
             champs = {"tentatives": n, "resultat": f"erreur : {str(exc)[:300]}"}
@@ -148,9 +213,9 @@ def traiter(confirmer: bool) -> int:
             continue
         rest.maj_contact(ev["ig_user_id"], d.contact)
         rest.marquer(ev["id"], {"traite_at": maintenant.isoformat(),
-                                "resultat": d.resultat})
+                                "resultat": d.resultat + note})
         if d.actions:
-            print(f"{ev['type']} de {qui} : {d.resultat}")
+            print(f"{ev['type']} de {qui} : {d.resultat}{note}")
     return 0
 
 
@@ -191,7 +256,7 @@ def main() -> int:
             fcntl.flock(verrou, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return 0
-        return traiter(args.confirmer)
+        return traiter(args.confirmer, releve=True)
     return abonner() if args.cmd == "abonner" else etat()
 
 

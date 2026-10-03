@@ -49,6 +49,18 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
    et minuteur `alluxe-ia-kit.timer` actif depuis le 3 oct. 19 h. Ancien texte :
    **[toi] La page de téléchargement** (Gumroad ou Lemon Squeezy, gratuit) et
    son lien dans la bio.
+8. ⚠ **Robot KIT — 3 oct. au soir : Meta n'envoie RIEN au webhook.**
+   Webhook validé par Meta (GET 200 à 11h16 UTC) mais aucun commentaire reçu
+   de la journée : l'application Meta est en mode **Développement**, où Meta
+   ne prévient le webhook (et n'autorise les messages privés) que pour les
+   comptes testeurs. **Contournement en place** : le robot lit lui-même les
+   commentaires des 10 derniers posts à chaque passage (`relever`), essaie le
+   message privé, et s'il est refusé répond en public « Le kit est en lien
+   dans ma bio 👆 ». **[toi]** mettre le lien du kit dans la bio, et demander
+   la vérification de l'app par Meta (accès avancé
+   `instagram_business_manage_comments` et `instagram_business_manage_messages`,
+   puis mode Live) pour que les messages privés partent.
+
 8. ✅ **[Claude] Le robot KIT** (remplace ManyChat, payant au-delà de 25 contacts) :
    quelqu'un commente KIT → réponse publique + le kit en privé, en moins d'une minute.
    Table et fonction `alluxe-ia-webhook` **déployées sur Supabase le 3 oct.**, inactives

@@ -134,3 +134,58 @@ class TestRienNePartSansConfirmation:
         assert len(envoyes) == 2
         assert rest.marques[0][1]["resultat"] == "kit envoyé"
         assert rest.contacts[0][1]["etape"] == 1
+
+
+class TestLeReleveEtLeRepli:
+    """3 oct. : Meta n'envoyait aucun commentaire au webhook (application en
+    mode Développement). Le robot lit donc lui-même les commentaires, et si
+    Meta refuse le message privé, il renvoie au lien de la bio au lieu de
+    prétendre avoir écrit."""
+
+    def test_le_releve_ecarte_le_compte_lui_meme(self):
+        from alluxe_ia.kit import commentaires_releves
+        lus = {"M1": [
+            {"id": "C1", "text": "KIT", "username": "lea", "from": {"id": "U1", "username": "lea"},
+             "timestamp": "2026-10-03T20:00:00+0000"},
+            {"id": "C2", "text": "Envoyé en privé 👀", "username": "alluxe.ia",
+             "from": {"id": "MOI", "username": "alluxe.ia"}},
+            {"id": "C3", "text": "KIT", "username": "anonyme"},   # sans auteur : inutilisable
+        ]}
+        evs = commentaires_releves(lus, "MOI", "alluxe.ia")
+        assert [(e["ident"], e["ig_user_id"], e["media_id"]) for e in evs] == [("C1", "U1", "M1")]
+        assert evs[0]["recu_at"].startswith("2026-10-03")
+
+    def test_message_prive_d_abord_puis_reponse_publique(self, monkeypatch):
+        import ops.alluxe_ia_kit as k
+        from alluxe_ia.kit import decider
+        ordre = []
+        monkeypatch.setattr(k, "executer", lambda a: ordre.append(a.genre))
+        d = decider(_com(), None, MAINTENANT, LIEN)
+        assert k.envoyer(d.actions) == ""
+        assert ordre == ["reponse_privee", "reponse_publique"]
+
+    def test_refus_de_meta_renvoie_a_la_bio_sans_mentir(self, monkeypatch):
+        import ops.alluxe_ia_kit as k
+        from alluxe_ia.kit import REPONSE_BIO, decider
+        publiques = []
+
+        def faux(a):
+            if a.genre == "reponse_privee":
+                raise RuntimeError("HTTP 400 sur X/messages : (#10) not allowed")
+            publiques.append(a.texte)
+
+        monkeypatch.setattr(k, "executer", faux)
+        note = k.envoyer(decider(_com(), None, MAINTENANT, LIEN).actions)
+        assert publiques == [REPONSE_BIO] and "repli bio" in note
+
+    def test_une_panne_passagere_se_retente(self, monkeypatch):
+        import ops.alluxe_ia_kit as k
+        from alluxe_ia.kit import decider
+
+        def panne(a):
+            raise RuntimeError("HTTP 500 sur X/messages : erreur serveur")
+
+        monkeypatch.setattr(k, "executer", panne)
+        import pytest
+        with pytest.raises(RuntimeError):
+            k.envoyer(decider(_com(), None, MAINTENANT, LIEN).actions)
