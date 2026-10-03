@@ -52,7 +52,8 @@ sur son Chromebook (Linux + adb).
 **Lab** : debloque (bornes en bougies GB_LAB_MAX_BARS=12000, 1 an ;
 hypotheses TESTING remises en file au demarrage). ChatGPT repond (delai
 10 min) ; sources elargies. Cout recherche ~5-7 EUR/jour toutes les 30 min
--- signale, pas de reponse : rythme garde. Claude : credit vide (a faire
+-- 3 oct. : passee a toutes les 2 h (17 */2), la file IDEATED (82)
+  grossissait plus vite que le Lab ne teste (~4-5/h). ~1,5 EUR/jour. Claude : credit vide (a faire
 plus tard, decision operateur).
 
 **Demo 1** : diagnostic memoire actif (GB_DIAG_MEMOIRE=1, drop-in diag.conf)
@@ -68,7 +69,9 @@ plus tard, decision operateur).
 3. Demo 3 : il veut une 3e METHODE (pas un temoin) -- reponse attendue :
    reversion ou meilleure du Lab. Avant de la lancer, alleger le quota
    Bitvavo des demos (sinon le reel tombe en pause, vu le 2 oct.).
-4. Questions sans reponse : role de l'agent (repondre / agir seul) ;
+4. FAIT 3 oct. : l'agent AGIT -- veille chiffree toutes les 5 min
+   (ops/veille_agent.py, alertes + notif), cycle modele toutes les 3 h.
+   Questions restantes :
    label IA Instagram et stats Meta (lui seul).
 
 
