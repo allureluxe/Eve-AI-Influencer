@@ -606,37 +606,8 @@ class StrategyLab:
         if passed:
             self.state["candidates"] += 1
             self._publish("FORWARD_TEST", f"{cid}: portefeuille recent")
-            try:
-                portefeuille_fw = BacktestPortefeuille(cfg)
-                portefeuille_fw.rejeu.universe = Universe(lab_instruments)
-                recent = {sym: {tf: vals[-BAR_FORWARD:] for tf, vals in series.items()}
-                          for sym, series in lab_data.items()}
-                porte_fw = portefeuille_fw.run(symbols, bars=BAR_FORWARD,
-                                               start_balance=start_balance, decalage=0,
-                                               series_by_symbol=recent)
-                c.forward = _stats_portefeuille(porte_fw, start_balance)
-                c.forward["data_scope"] = lab_scope
-            except Exception as exc:
-                logger.warning("forward portefeuille %s: %s", cid, str(exc)[:200])
-                c.forward = {"symbols_tested": 0, "trades": 0, "wins": 0, "losses": 0,
-                             "win_rate": 0.0, "profit_factor": 0.0, "payoff": 0.0,
-                             "profit": 0.0, "start_balance": start_balance,
-                             "end_balance": start_balance, "portfolio_mode": True,
-                             "error": str(exc)[:300]}
-            forward_pass = (
-                c.forward["trades"] >= MIN_FORWARD_TRADES
-                and c.forward["profit_factor"] >= MIN_PF
-                and c.forward["win_rate"] >= MIN_WIN
-                and c.forward["payoff"] > MIN_PAYOFF
-            )
-            if forward_pass:
-                c.stage, c.reason = "VALIDATED", "backtest + forward test franchis"
-                self.state["validated"] += 1
-                self.state["forward_passed"] += 1
-            elif c.forward["trades"] < MIN_FORWARD_TRADES:
-                c.stage, c.reason = "INCUBATION", "forward insuffisant"
-            else:
-                c.stage, c.reason = "RETIRED-WEAK", "forward bar non franchie"
+            self._forward_et_verdict(c, cfg, lab_instruments, lab_data, symbols,
+                                     start_balance, lab_scope)
             self._record(c)
 
         self.state["current"] = None
@@ -710,7 +681,93 @@ class StrategyLab:
             logger.warning("lecture lab_research: %s", str(exc)[:160])
             return None
 
+    def _forward_et_verdict(self, c, cfg, lab_instruments, lab_data, symbols,
+                            start_balance, lab_scope):
+        """Forward test sur la periode RECENTE puis verdict (pose c.stage)."""
+        try:
+            portefeuille_fw = BacktestPortefeuille(cfg)
+            portefeuille_fw.rejeu.universe = Universe(lab_instruments)
+            recent = {sym: {tf: vals[-BAR_FORWARD:] for tf, vals in series.items()}
+                      for sym, series in lab_data.items()}
+            porte_fw = portefeuille_fw.run(symbols, bars=BAR_FORWARD,
+                                           start_balance=start_balance, decalage=0,
+                                           series_by_symbol=recent)
+            c.forward = _stats_portefeuille(porte_fw, start_balance)
+            c.forward["data_scope"] = lab_scope
+        except Exception as exc:
+            logger.warning("forward portefeuille %s: %s", c.id, str(exc)[:200])
+            c.forward = {"symbols_tested": 0, "trades": 0, "wins": 0, "losses": 0,
+                         "win_rate": 0.0, "profit_factor": 0.0, "payoff": 0.0,
+                         "profit": 0.0, "start_balance": start_balance,
+                         "end_balance": start_balance, "portfolio_mode": True,
+                         "error": str(exc)[:300]}
+        forward_pass = (
+            c.forward["trades"] >= MIN_FORWARD_TRADES
+            and c.forward["profit_factor"] >= MIN_PF
+            and c.forward["win_rate"] >= MIN_WIN
+            and c.forward["payoff"] > MIN_PAYOFF
+        )
+        if forward_pass:
+            c.stage, c.reason = "VALIDATED", "backtest + forward test franchis"
+            self.state["validated"] = int(self.state.get("validated", 0)) + 1
+            self.state["forward_passed"] = int(self.state.get("forward_passed", 0)) + 1
+        elif c.forward["trades"] < MIN_FORWARD_TRADES:
+            c.stage, c.reason = "INCUBATION", "forward insuffisant"
+        else:
+            c.stage, c.reason = "RETIRED-WEAK", "forward bar non franchie"
+
+    def _incubation_a_revoir(self):
+        """La plus ancienne strategie en INCUBATION non revue depuis 7 jours.
+
+        3 oct. 2026 : une strategie au bon backtest mais au forward trop
+        court restait en INCUBATION pour toujours -- rien ne la reprenait,
+        alors que la periode recente avance chaque jour et finit par lui
+        donner assez de trades. 31 attendaient ainsi.
+        """
+        if not LAB_BOOK.exists():
+            return None
+        derniers = {}
+        for ligne in LAB_BOOK.read_text(encoding="utf-8").splitlines():
+            try:
+                r = json.loads(ligne)
+            except Exception:
+                continue
+            derniers[r.get("id")] = r
+        vues = self.state.setdefault("incubations_revues", {})
+        maintenant = time.time()
+        a_revoir = [r for r in derniers.values()
+                    if r.get("stage") == "INCUBATION"
+                    and maintenant - float(vues.get(r["id"], r.get("created_at", 0))) >= 7 * 86400]
+        return min(a_revoir, key=lambda r: vues.get(r["id"], r.get("created_at", 0))) if a_revoir else None
+
+    def reexaminer_incubation(self, r):
+        """Refait le seul forward test d'une strategie en INCUBATION."""
+        self.state.setdefault("incubations_revues", {})[r["id"]] = time.time()
+        params = dict(r.get("params") or {})
+        params_exec = dict(params)
+        params_exec["famille"] = famille_execution(params, getattr(self.base.strategy, "famille", "tendance"))
+        cfg = _apply(copy.deepcopy(self.base), params_exec)
+        start_balance = float(cfg.engine.start_balance)
+        self._publish("FORWARD_TEST", f"{r['id']}: reexamen de l'incubation")
+        timeframes = list(getattr(cfg.strategy, "timeframes", (cfg.strategy.entry_tf,)))
+        lab_instruments, lab_data, lab_scope = _lab_prepare_universe_and_data(timeframes)
+        c = Candidate(r["id"], r.get("agent", ""), r.get("parent_id"), "INCUBATION",
+                      r.get("fingerprint", ""), params, time.time(), r.get("backtest") or {})
+        self._forward_et_verdict(c, cfg, lab_instruments, lab_data, sorted(lab_data),
+                                 start_balance, lab_scope)
+        c.reason = c.reason + " (reexamen hebdomadaire)"
+        self._record(c)
+        self._save()
+        self._publish(c.stage, c.reason)
+        return c
+
     def cycle(self):
+        # Une strategie en INCUBATION a revoir passe en premier : son seul
+        # forward test est court, et c'est la file la plus proche d'une
+        # validation.
+        incubation = self._incubation_a_revoir()
+        if incubation:
+            return self.reexaminer_incubation(incubation)
         # Les hypotheses issues de la veille et des deux cerveaux passent
         # AVANT la grille interne. Elles subissent exactement les memes
         # garde-fous, backtest portefeuille et forward-test.
