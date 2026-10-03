@@ -23,6 +23,11 @@ module.exports = () => ({
           requestHeaders: { "expo-channel-name": "production" } }
       : { enabled: false },
     orientation: "portrait",
+    // Version web (3 oct. 2026) : servie sous un sous-chemin par GitHub
+    // Pages (/Eve-AI-Influencer). Absent pour l'APK.
+    ...(process.env.EXPO_BASE_URL ? { experiments: { baseUrl: process.env.EXPO_BASE_URL } } : {}),
+    web: { name: "Alluxe Bot", shortName: "Alluxe Bot", favicon: "./assets/icone.png",
+           themeColor: "#FFFFFF", backgroundColor: "#FFFFFF" },
     scheme: "alluxebot",
     userInterfaceStyle: "automatic",
     icon: "./assets/icone.png",

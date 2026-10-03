@@ -1,0 +1,79 @@
+# Publie la version web d'Alluxe Bot sur GitHub Pages (3 oct. 2026,
+# decision de l'operateur).
+#
+# Adresse : https://allureluxe.github.io/Eve-AI-Influencer/
+#
+# LE MOT DE PASSE DU COMPTE DE SERVICE NE PART JAMAIS ICI. Une page web
+# se lit dans n'importe quel navigateur : la session s'ouvre cote
+# serveur, par la fonction Edge `connexion-web`, apres l'ecran « annee »
+# (voir src/ecrans/Verification.web.tsx). Une etape refuse de publier si
+# le paquet contient quand meme un mot de passe.
+
+name: Publier la version web (Alluxe Bot)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/gold-trading-system-auto-6boe8m"
+      - "claude/galaxy-tab-app-install-2tiwbh"
+    paths:
+      - "app-alluxe-bot/**"
+      - ".github/workflows/publier-web-alluxe-bot.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-alluxe-bot
+  cancel-in-progress: true
+
+jobs:
+  construire:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://jwksajhtvhwktkbkpits.supabase.co
+      SUPABASE_ANON_KEY: sb_publishable_hd3loPAD_x3_D_HPmxekcQ_vvDH0xmm
+      ALLUXE_BOT_SERVICE_EMAIL: alluxe-bot@service.interne
+      EXPO_BASE_URL: /Eve-AI-Influencer
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.1"
+
+      - name: Installer les dependances
+        working-directory: app-alluxe-bot
+        run: npm install
+
+      - name: Exporter la version web
+        working-directory: app-alluxe-bot
+        run: npx expo export --platform web --output-dir dist
+
+      - name: Refuser un paquet qui porterait un mot de passe
+        working-directory: app-alluxe-bot
+        run: |
+          if grep -rqE '"servicePassword":"[^"]+' dist; then
+            echo "Le paquet web contient un mot de passe de service : publication refusee."
+            exit 1
+          fi
+          # Un lien direct ou une page rechargee retombe sur l'appli.
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app-alluxe-bot/dist
+
+  publier:
+    needs: construire
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - id: deploiement
+        uses: actions/deploy-pages@v4
