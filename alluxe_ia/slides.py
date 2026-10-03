@@ -164,6 +164,38 @@ def _ajuster(texte: str, fabrique, depart: int, minimum: int,
 
 # ---------------------------------------------------------------- slides
 
+LOGO = os.path.join(ICI, "logo-allure.png")
+
+
+def medaillon(taille: int) -> Image.Image:
+    """Le logo Allure dans un rond : anneau menthe, liseré sombre, disque clair.
+
+    Dessine en 4x puis reduit, sinon le bord du cercle crenele en 88 px.
+    """
+    k = 4
+    t = taille * k
+    img = Image.new("RGBA", (t, t), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.ellipse([0, 0, t - 1, t - 1], fill=MENTHE)
+    a = int(t * 0.045)
+    d.ellipse([a, a, t - 1 - a, t - 1 - a], fill=FOND)
+    b = int(t * 0.085)
+    d.ellipse([b, b, t - 1 - b, t - 1 - b], fill=ENCRE)
+
+    logo = Image.open(LOGO).convert("RGBA")
+    w = int(t * 0.80)
+    h = int(logo.height * w / logo.width)
+    logo = logo.resize((w, h), Image.LANCZOS)
+    calque = Image.new("RGBA", (t, t), (0, 0, 0, 0))
+    calque.paste(logo, ((t - w) // 2, (t - h) // 2 + int(t * 0.04)), logo)
+    # Le logo deborde du disque (feuilles) : on le rogne au cercle interieur.
+    disque = Image.new("L", (t, t), 0)
+    ImageDraw.Draw(disque).ellipse([b, b, t - 1 - b, t - 1 - b], fill=255)
+    calque.putalpha(Image.composite(calque.getchannel("A"), Image.new("L", (t, t), 0), disque))
+    img.alpha_composite(calque)
+    return img.resize((taille, taille), Image.LANCZOS)
+
+
 def _fond_et_entete(numero: int, total: int) -> tuple[Image.Image, ImageDraw.ImageDraw]:
     img = Image.new("RGB", (LARGEUR, HAUTEUR), FOND)
     d = ImageDraw.Draw(img)
@@ -173,10 +205,10 @@ def _fond_et_entete(numero: int, total: int) -> tuple[Image.Image, ImageDraw.Ima
         c = tuple(int(FOND[i] + (FOND_HAUT[i] - FOND[i]) * t) for i in range(3))
         d.line([(0, y), (LARGEUR, y)], fill=c)
 
-    # En-tete : pastille + nom + pseudo, identique sur chaque slide.
+    # En-tete : medaillon + nom + pseudo, identique sur chaque slide.
     cx, cy, r = MARGE + 44, MARGE + 44, 44
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=MENTHE)
-    d.text((cx, cy + 2), "a.", font=titre_police(46), fill=FOND, anchor="mm")
+    m = medaillon(2 * r)
+    img.paste(m, (cx - r, cy - r), m)
     d.text((cx + r + 24, cy - 6), NOM, font=titre_police(38), fill=ENCRE, anchor="ls")
     d.text((cx + r + 24, cy + 34), PSEUDO, font=texte_police(28), fill=DOUX, anchor="ls")
     if total > 1:
@@ -274,16 +306,40 @@ def rendre(post: Post) -> list[Image.Image]:
 
 
 def photo_profil(taille: int = 1080) -> Image.Image:
-    """La photo de profil : la pastille « a. » seule, lisible en 110 px.
+    """La photo de profil : le medaillon Allure seul, lisible en 110 px.
 
     Instagram la recoupe en cercle : tout le dessin tient dans le disque
     central, rien d'important dans les coins.
     """
     img = Image.new("RGB", (taille, taille), FOND)
-    d = ImageDraw.Draw(img)
-    r = int(taille * 0.42)
-    c = taille // 2
-    d.ellipse([c - r, c - r, c + r, c + r], fill=MENTHE)
-    d.text((c, c + int(taille * 0.02)), "a.", font=titre_police(int(taille * 0.46)),
-           fill=FOND, anchor="mm")
+    m = medaillon(int(taille * 0.92))
+    img.paste(m, ((taille - m.width) // 2, (taille - m.height) // 2), m)
     return img
+
+
+def couverture_kit() -> tuple[Image.Image, Image.Image]:
+    """Couverture (1280 x 720) et vignette (600 x 600) de la page Gumroad du kit,
+    dans la charte des slides : meme fond, meme medaillon, meme menthe."""
+    cou = Image.new("RGB", (1280, 720), FOND)
+    d = ImageDraw.Draw(cou)
+    for y in range(720):
+        t = 1 - y / 720
+        d.line([(0, y), (1280, y)],
+               fill=tuple(int(FOND[i] + (FOND_HAUT[i] - FOND[i]) * t) for i in range(3)))
+    m = medaillon(380)
+    cou.paste(m, (100, 170), m)
+    x = 560
+    d.text((x, 200), "GRATUIT · PDF", font=mono_police(26), fill=MENTHE)
+    d.text((x, 250), "Le kit du", font=titre_police(84), fill=ENCRE)
+    d.text((x, 345), "constructeur", font=titre_police(84), fill=ENCRE)
+    d.text((x, 470), "Mes prompts pour construire avec l'IA,", font=texte_police(32), fill=DOUX)
+    d.text((x, 512), "sans être développeur.", font=texte_police(32), fill=DOUX)
+    d.text((x, 590), PSEUDO, font=texte_police(30, gras=True), fill=AMBRE)
+
+    vig = Image.new("RGB", (600, 600), FOND)
+    dv = ImageDraw.Draw(vig)
+    m = medaillon(300)
+    vig.paste(m, (150, 70), m)
+    dv.text((300, 430), "Le kit du constructeur", font=titre_police(44), fill=ENCRE, anchor="mm")
+    dv.text((300, 492), "gratuit · " + PSEUDO, font=texte_police(28), fill=MENTHE, anchor="mm")
+    return cou, vig
