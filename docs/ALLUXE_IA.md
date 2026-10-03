@@ -44,7 +44,10 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
 
 6. ✅ **[Claude] Le kit du constructeur** (aimant à emails) : PDF des 12 prompts
    des posts, `docs/alluxe_ia/kit-constructeur.pdf` (régénérer : `python3 -m alluxe_ia.pack`).
-7. **[toi] La page de téléchargement** (Gumroad ou Lemon Squeezy, gratuit) et
+7. ✅ **Pas de Gumroad (3 oct.)** : le kit est servi en lien direct depuis Supabase
+   (`alluxe-ia-public/kit-constructeur.pdf`, `ALLUXE_IA_KIT_URL`). Robot KIT branché dans Meta
+   et minuteur `alluxe-ia-kit.timer` actif depuis le 3 oct. 19 h. Ancien texte :
+   **[toi] La page de téléchargement** (Gumroad ou Lemon Squeezy, gratuit) et
    son lien dans la bio.
 8. ✅ **[Claude] Le robot KIT** (remplace ManyChat, payant au-delà de 25 contacts) :
    quelqu'un commente KIT → réponse publique + le kit en privé, en moins d'une minute.

@@ -28,7 +28,11 @@ CONSTATE 3 OCT. 18h55 (API) : compte renomme @alluxe.ia, 0 post visible
 (Luna archivee), 9 abonnes. 19h10 : bio KIT et logo en place (verifies par l'API) ; le
 nom affiche lu par l'API est encore « Luna » (propagation ou non enregistre). PDF de relecture :
 data/alluxe_ia/relecture-11-posts.pdf.
-EN ATTENTE DE L'OPERATEUR : relire et
+3 OCT. 19h : PAS DE GUMROAD -- le kit est servi en lien direct depuis Supabase
+(ALLUXE_IA_KIT_URL = storage public alluxe-ia-public/kit-constructeur.pdf, mis a
+jour 19h avec le logo). Webhook Meta branche par une autre session ; minuteur
+alluxe-ia-kit.timer INSTALLE et actif (30 s). Publication 12h30 toujours NON installee.
+EN ATTENTE DE L'OPERATEUR (le reste de la ligne est en partie depasse) : relire et
 tester les 11 posts, page Gumroad du kit puis branchement KIT (point 8).
 AUCUN post n'a ete publie.
 
