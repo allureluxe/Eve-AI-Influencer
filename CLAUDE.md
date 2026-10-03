@@ -672,6 +672,31 @@ prix du réglage choisi.
 
 ---
 
+## Le stop déposé chez Bitvavo passe AU MARCHÉ — 3 octobre
+
+**NOM est restée ouverte sous son stop.** Le stop déposé était un
+`stopLossLimit`, limite à 0,2 % sous le déclenchement. NOM-EUR a chuté
+d'un coup sous cette limite : l'ordre s'est déclenché puis est resté en
+carnet, non servi, pendant que le prix continuait de baisser. Vendue à la
+main avec l'accord de l'opérateur : **−7,15 EUR au lieu de −5,62**.
+PROMPT avait fait la même chose le 1er octobre.
+
+**Décision : `stopLoss` au marché** (`_poser_stop`, plus de champ `price`).
+Une limite protège du glissement, pas de la chute — et c'est la chute
+qu'un stop doit couvrir. Sur une crypto peu liquide on vendra parfois un
+peu sous le stop ; rester ouvert dessous coûte toujours plus. Format
+vérifié en réel sur VELO le 3 oct. (`amount` + `triggerAmount` acceptés).
+
+**Et un filet logiciel** (`prix_sous_le_stop`, `engine.py`) : à chaque
+cycle, si le prix de vente est au stop ou dessous et que la position vit
+encore, le moteur réel vend au marché. Il ne le vérifiait jamais : le
+contrôle `hit_stop` ne servait qu'au simulateur.
+
+Ne pas revenir au `stopLossLimit` « pour éviter le glissement » sans
+avoir relu ce paragraphe.
+
+---
+
 ## Le budget de risque monte à 7,5 % sur le réel — 2 octobre, TEMPORAIRE
 
 Décision de l'opérateur, confirmée deux fois (« vas-y monte ») après

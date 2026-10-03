@@ -938,7 +938,7 @@ class TestLeStopSuitReellementLaPosition:
         position.stop_loss = nouveau
 
         assert b.modify_position("HBARUSD", stop_loss=nouveau) is True
-        stops = [c for c in envoyes if c.get("orderType") == "stopLossLimit"]
+        stops = [c for c in envoyes if c.get("orderType") == "stopLoss"]
         assert len(stops) == 1, "l'ordre stop n'a pas ete repose chez Bitvavo"
         assert float(stops[0]["triggerAmount"]) == pytest.approx(nouveau, rel=1e-4)
 
@@ -955,7 +955,7 @@ class TestLeStopSuitReellementLaPosition:
         infime = 0.066748      # 0,005R plus haut, sous le seuil de 0,15R
         position.stop_loss = infime
         b.modify_position("HBARUSD", stop_loss=infime)
-        assert [c for c in envoyes if c.get("orderType") == "stopLossLimit"] == []
+        assert [c for c in envoyes if c.get("orderType") == "stopLoss"] == []
 
     def test_stop_jamais_depose_est_toujours_pose(self, monkeypatch):
         """Apres un redemarrage, le robot ignore ce que tient la plateforme."""
@@ -963,7 +963,7 @@ class TestLeStopSuitReellementLaPosition:
         b._stop_pose.pop("HBARUSD")
         position.stop_loss = 0.066750
         b.modify_position("HBARUSD", stop_loss=0.066750)
-        assert len([c for c in envoyes if c.get("orderType") == "stopLossLimit"]) == 1
+        assert len([c for c in envoyes if c.get("orderType") == "stopLoss"]) == 1
 
     def test_l_annulation_oublie_le_niveau(self, monkeypatch):
         b, _, _ = self.broker(monkeypatch)
@@ -977,7 +977,7 @@ class TestLeStopSuitReellementLaPosition:
         for niveau in (0.067214, 0.067800, 0.068500):
             position.stop_loss = niveau
             assert b.modify_position("HBARUSD", stop_loss=niveau) is True
-        stops = [c for c in envoyes if c.get("orderType") == "stopLossLimit"]
+        stops = [c for c in envoyes if c.get("orderType") == "stopLoss"]
         assert len(stops) == 3
         envoyes_tries = [float(c["triggerAmount"]) for c in stops]
         assert envoyes_tries == sorted(envoyes_tries)
@@ -1010,10 +1010,10 @@ class TestStopRefusePourExcesDePrecision:
         def appel(methode, chemin, params=None, corps=None, signe=True):
             if methode == "POST" and chemin == "/order":
                 essais.append(corps)
-                prix = str(corps.get("price", ""))
+                prix = str(corps.get("triggerAmount", ""))
                 if len(prix.partition(".")[2]) > decimales_max:
                     raise BrokerError(
-                        "Bitvavo 400 sur POST /order [429] Field 'price' has "
+                        "Bitvavo 400 sur POST /order [429] Field 'triggerAmount' has "
                         "too many decimal digits.")
                 return {"orderId": "stop-1"}
             return {}
@@ -1026,7 +1026,7 @@ class TestStopRefusePourExcesDePrecision:
         b._poser_stop(position)
         assert b._stops["LRCUSD"] == "stop-1"
         assert len(essais) > 1, "aucun nouvel essai apres le refus"
-        accepte = essais[-1]["price"]
+        accepte = essais[-1]["triggerAmount"]
         assert len(accepte.partition(".")[2]) <= 6
 
     def test_la_position_n_est_pas_jetee(self, monkeypatch):
@@ -1072,7 +1072,7 @@ class TestStopRefusePourExcesDePrecision:
         monkeypatch.setattr(b, "_appel", appel)
         with pytest.raises(BrokerError):
             b._poser_stop(position)
-        stops = [c for c in essais if c.get("orderType") == "stopLossLimit"]
+        stops = [c for c in essais if c.get("orderType") == "stopLoss"]
         assert len(stops) == 1, "une erreur sans rapport a ete rejouee"
 
     def test_position_fermee_si_aucune_precision_ne_passe(self, monkeypatch):

@@ -71,6 +71,19 @@ def _devise_du_lieu_d_execution(broker: str) -> str:
     return ""
 
 
+def prix_sous_le_stop(pos: Position, tick: Tick) -> bool:
+    """Le prix auquel on SORTIRAIT a-t-il franchi le stop de la position ?
+
+    Achat : on vend au bid. Vente : on rachete a l'ask. Un stop nul ou
+    absent ne declenche rien.
+    """
+    if not pos.stop_loss or pos.stop_loss <= 0:
+        return False
+    if pos.side is Side.BUY:
+        return 0 < tick.bid <= pos.stop_loss
+    return tick.ask >= pos.stop_loss > 0
+
+
 class _DiagnosticMemoire:
     """Ce qui s'accumule en memoire, ecrit toutes les 10 min (GB_DIAG_MEMOIRE=1).
 
@@ -1133,6 +1146,22 @@ class TradingEngine:
             actions = self.trade_manager.manage(
                 pos, tick, ind, chart=chart, news=window, digits=instrument.digits,
                 etages=positions)
+            # FILET LOGICIEL : PRIX SOUS LE STOP, POSITION TOUJOURS OUVERTE.
+            #
+            # 3 oct. 2026 : NOM est restee ouverte sous son stop -- l'ordre
+            # deposé chez Bitvavo (stopLossLimit) s'etait declenche puis
+            # n'avait pas trouve preneur a sa limite. Le moteur reel ne
+            # verifiait jamais lui-meme le stop (`hit_stop` ne servait qu'au
+            # simulateur). Desormais, si le prix de vente est au stop ou
+            # dessous et que la position vit encore, on vend au marche.
+            if (not isinstance(self.broker, PaperBroker)
+                    and not any(a.type is ActionType.CLOSE for a in actions)
+                    and prix_sous_le_stop(pos, tick)):
+                logger.warning("%s : prix %s au stop %s ou dessous, position encore "
+                               "ouverte -- vente au marche (filet logiciel)",
+                               pos.symbol, tick.bid, pos.stop_loss)
+                actions.append(TradeAction(ActionType.CLOSE, pos.id,
+                                           reason="filet : prix sous le stop"))
             # LA SORTIE DE LA FAMILLE « REVERSION » N'EXISTAIT QUE DANS LE
             # REJEU (2 oct. 2026, en armant la demo 3) : en direct, la
             # position achetee au creux n'aurait jamais ete revendue au

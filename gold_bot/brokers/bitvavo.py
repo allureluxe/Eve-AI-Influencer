@@ -41,7 +41,8 @@ Trois consequences structurelles, qu'il vaut mieux connaitre que subir.
    inacceptable.
 
    Le choix retenu : SEUL LE STOP est depose sur la plateforme, sous forme
-   de stopLossLimit. L'objectif est gere par le robot. Consequence assumee
+   de stopLoss AU MARCHE (stopLossLimit jusqu'au 3 oct. 2026 -- voir
+   `_poser_stop`). L'objectif est gere par le robot. Consequence assumee
    et dissymetrique dans le bon sens — si le robot s'arrete, la perte
    reste bornee par un ordre reel qui vit sans lui ; ce qu'on perd, c'est
    au pire une prise de benefice, jamais la protection.
@@ -930,10 +931,11 @@ class BitvavoBroker(Broker):
                 f"notionnel {notionnel:.2f} {self.config.quote_asset} sous le minimum "
                 f"{regle.min_notional} sur {code}")
 
-        # Le stop de vente est place 0,2 % sous son declenchement. Une
-        # position juste au-dessus du minimum d'achat peut donc produire un
-        # stop inferieur au minimum Bitvavo (ex. 4,94 EUR pour un minimum de
-        # 5 EUR). Il vaut mieux refuser l'entree que l'acheter puis la fermer
+        # Le stop de vente se valorise a son declenchement (stopLoss au
+        # marche depuis le 3 oct. 2026 ; on garde la marge de 0,2 % de
+        # l'ancienne limite, par prudence). Une position juste au-dessus du
+        # minimum d'achat peut produire un stop inferieur au minimum
+        # Bitvavo (ex. 4,94 EUR pour un minimum de 5 EUR). Il vaut mieux refuser l'entree que l'acheter puis la fermer
         # immediatement avec une perte certaine. On verifie le niveau le plus
         # defensif, avant meme d'envoyer l'ordre d'achat.
         prix_stop_limite = max(0.0, stop_loss) * 0.998
@@ -1216,11 +1218,17 @@ class BitvavoBroker(Broker):
 
     # ------------------------------------------------------------------
     def _poser_stop(self, position: Position) -> None:
-        """Depose le stop sur la plateforme, en stopLossLimit.
+        """Depose le stop sur la plateforme, en stopLoss AU MARCHE.
 
-        La limite est placee legerement sous le declenchement pour que
-        l'ordre parte meme si le prix glisse : une limite posee pile au
-        niveau du stop peut rester non servie exactement quand elle compte.
+        3 OCT. 2026 : C'ETAIT UN stopLossLimit, ET IL N'A PAS VENDU. La
+        limite etait a 0,2 % sous le declenchement. NOM-EUR a chute d'un
+        coup sous cette limite : l'ordre s'est declenche puis est reste en
+        carnet, non servi, pendant que le prix continuait de baisser
+        (-7,15 EUR au lieu de -5,62). PROMPT avait fait pareil le 1er oct.
+        Une limite protege du glissement ; elle ne protege pas de la chute,
+        et c'est la chute qu'un stop doit couvrir. Au marche, la sortie est
+        certaine -- un glissement de quelques dixiemes de pour cent est le
+        prix accepte.
 
         Faute d'OCO chez Bitvavo, l'objectif n'est PAS depose ici — voir
         l'en-tete du module. Si le stop ne peut pas etre pose, la position
@@ -1250,8 +1258,7 @@ class BitvavoBroker(Broker):
         for precision in range(regle.price_precision, 1, -1):
             essai = replace(regle, price_precision=precision)
             declenchement = essai.arrondir_prix(position.stop_loss)
-            limite = essai.arrondir_prix(position.stop_loss * 0.998)
-            if limite <= 0 or declenchement <= 0:
+            if declenchement <= 0:
                 break
 
             # Un stop de vente doit encore être plaçable au moment où il est
@@ -1270,7 +1277,7 @@ class BitvavoBroker(Broker):
                 raise erreur
 
             quantite = regle.arrondir_quantite(position.volume)
-            notionnel_stop = quantite * limite
+            notionnel_stop = quantite * declenchement
             if (quantite <= 0
                     or (regle.min_amount and quantite < regle.min_amount)
                     or notionnel_stop < regle.min_notional):
@@ -1288,10 +1295,9 @@ class BitvavoBroker(Broker):
                 raise erreur
             try:
                 reponse = self._appel("POST", "/order", corps={
-                    "market": code, "side": "sell", "orderType": "stopLossLimit",
+                    "market": code, "side": "sell", "orderType": "stopLoss",
                     "operatorId": self.config.operator_id,
                     "amount": formater(quantite, regle.amount_decimals),
-                    "price": formater(limite),
                     "triggerType": "price",
                     "triggerReference": "lastTrade",
                     "triggerAmount": formater(declenchement),
