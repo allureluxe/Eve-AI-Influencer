@@ -57,7 +57,14 @@ RYTHME_SECONDES = 0.4
 # L'agent ne se contente plus d'attendre un message : il effectue aussi
 # un cycle de travail autonome regulier. Le rythme est volontairement
 # lent pour laisser le serveur et les quotas IA disponibles au produit.
-AUTONOMIE_INTERVALLE_SECONDES = 15 * 60
+# 15 min -> 3 h le 3 oct. 2026 : a 15 min, le modele gratuit (Groq,
+# 200 000 jetons/jour) etait epuise en quelques heures et CHAQUE cycle
+# echouait en 429. La surveillance, elle, ne passe plus par le modele :
+# voir VEILLE_INTERVALLE_SECONDES et ops/veille_agent.py.
+AUTONOMIE_INTERVALLE_SECONDES = 3 * 3600
+# Controles chiffres sans modele (robot, stops, services, memoire, Lab) :
+# decision de l'operateur du 3 oct. -- « qu'il agisse ».
+VEILLE_INTERVALLE_SECONDES = 5 * 60
 HEARTBEAT_INTERVALLE_SECONDES = 30
 HISTORIQUE_MESSAGES = 12  # tours de conversation gardes comme contexte
 # Un agent qui AGIT enchaine : lire un fichier, le modifier, lancer les
@@ -1159,6 +1166,9 @@ def main() -> int:
           f"{AUTONOMIE_INTERVALLE_SECONDES}s")
     dernier_autonome = 0.0
     dernier_heartbeat = 0.0
+    dernier_veille = 0.0
+    from veille_agent import Veille, prevenir_par_l_application
+    veille = Veille(prevenir_par_l_application)
     sources = {
         os.path.join(RACINE, "ops", "agent_alluxe.py"): os.path.getmtime(__file__),
         os.path.join(RACINE, "ops", "agent_outils.py"): os.path.getmtime(
@@ -1172,6 +1182,11 @@ def main() -> int:
             if not traite:
                 traite = _traiter_message_discussion(rest)
             maintenant = time.monotonic()
+            if maintenant - dernier_veille >= VEILLE_INTERVALLE_SECONDES:
+                dernier_veille = maintenant
+                for alerte in veille.passer():
+                    _journal_agent(rest, "veille", alerte.cle[:120], alerte.niveau,
+                                   f"{alerte.titre} -- {alerte.corps}"[:500], time.time())
             if maintenant - dernier_autonome >= AUTONOMIE_INTERVALLE_SECONDES:
                 _cycle_autonome(rest)
                 dernier_autonome = maintenant

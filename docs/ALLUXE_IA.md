@@ -29,7 +29,7 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
 2. **[toi] Transformer le compte dans l'appli Instagram** :
    - archiver (pas supprimer) les posts et stories à la une de Luna ;
    - nom d'utilisateur `@alluxe.ia`, nom affiché « alluxe.ia · je construis avec l'IA » ;
-   - bio : « Je construis des systèmes réels avec Claude et ChatGPT, sans être dev. / Coulisses + tutos chaque semaine. / 👇 Commente KIT » ;
+   - bio (choisie le 3 oct.) : « Pas dev. J'ai quand même construit un robot, un labo et une appli avec l'IA. / Je te montre comment. / 👇 Commente KIT » ;
    - stories à la une : Commencer · Le labo · L'appli · Tutos · Kit · Questions ;
    - photo de profil : `python3 ops/alluxe_ia.py profil` → `data/alluxe_ia/profil.jpg` ;
    - catégorie du compte pro : « Éducation » ou « Créateur de contenu numérique ».
