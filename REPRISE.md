@@ -41,7 +41,8 @@ http://alluxev.cluster129.hosting.ovh.net/ ; alluxe.fr pas encore propage a
 01h. Verif auto programmee ~02h30. A FAIRE : HTTPS (SSL gratuit OVH) quand le
 domaine repond ; l'operateur met « alluxe.fr » en bio + bio : « Pas dev. J'ai
 quand meme construit un robot, un labo et une appli avec l'IA. / Je te montre
-comment. / 👇 Le kit gratuit ». Mise a jour du site : ops/publier_site_alluxe.py.
+comment. / 👇 Le kit gratuit ». Mise a jour du site : ops/publier_site_alluxe.py. Logo agrandi a 180 px,
+centre au-dessus du nom (demande operateur, 4 oct.).
 
 **Appli** : OTA en service mais arrive mal sur ses appareils -> pour un
 affichage urgent, corriger cote serveur. Aussi sur Chromebook (Linux+adb).
