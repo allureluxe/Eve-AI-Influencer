@@ -24,7 +24,7 @@ import {
   ScrollView, TextInput, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { WebView } from "react-native-webview";
+import { VueWeb as WebView } from "../composants/VueWeb";
 import { Ionicons } from "@expo/vector-icons";
 import { Message, RACCOURCIS, ecrire, messages, rapport, suivre }
   from "../services/discussion";

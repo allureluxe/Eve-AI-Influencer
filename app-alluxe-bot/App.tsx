@@ -15,7 +15,7 @@
  * jamais quelqu'un d'autre ouvrait ce telephone.
  */
 import React from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { NavigationContainer, DefaultTheme, DarkTheme, createNavigationContainerRef }
   from "@react-navigation/native";
 import * as Linking from "expo-linking";
@@ -79,7 +79,7 @@ function traiterLienReveil(url: string) {
 // Affiche la notification meme quand l'appli est deja ouverte -- sinon
 // "achat/vente/robot suspendu" n'apparaitrait que si le telephone etait
 // verrouille, ce qui n'est pas ce que l'operateur a demande.
-Notifications.setNotificationHandler({
+if (Platform.OS !== "web") Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: false,
   }),
@@ -306,7 +306,10 @@ function Racine() {
   const [verifie, setVerifie] = React.useState(false);
 
   // Connexion invisible : le compte de service, jamais un formulaire.
+  // Sur le web, pas de mot de passe embarque : c'est l'ecran « annee »
+  // qui ouvre la session (Verification.web.tsx, fonction connexion-web).
   React.useEffect(() => {
+    if (Platform.OS === "web") return;
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) { setConnecte(true); return; }
@@ -328,7 +331,7 @@ function Racine() {
   // fait directement via Firebase Cloud Messaging, voir
   // gold_bot/notifiers.py::FirebasePushChannel).
   React.useEffect(() => {
-    if (!connecte) return;
+    if (!connecte || Platform.OS === "web") return;
     (async () => {
       try {
         const { status } = await Notifications.requestPermissionsAsync();
@@ -342,6 +345,9 @@ function Racine() {
     })();
   }, [connecte]);
 
+  if (Platform.OS === "web" && !verifie) {
+    return <EcranVerification surReussite={() => { setConnecte(true); setVerifie(true); }} />;
+  }
   if (erreurConnexion) return <EcranDeLancement erreur={erreurConnexion} />;
   if (!connecte) return <EcranDeLancement />;
   if (!verifie) return <EcranVerification surReussite={() => setVerifie(true)} />;

@@ -19,7 +19,7 @@
  */
 import React from "react";
 import { View } from "react-native";
-import { WebView } from "react-native-webview";
+import { VueWeb as WebView } from "./VueWeb";
 import { Bougie } from "../services/bougies";
 import { useCouleurs, useTheme } from "./base";
 

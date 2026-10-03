@@ -25,7 +25,7 @@
 import React from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { WebView } from "react-native-webview";
+import { VueWeb as WebView } from "../../composants/VueWeb";
 import { api, PositionDirecte } from "../services/api";
 import { nomCrypto } from "../services/format";
 import { espace, palettes, rayon, TRAIT } from "../../theme";
