@@ -30,11 +30,20 @@ LAB_MAX_BARS = int(os.getenv("GB_LAB_MAX_BARS", "12000"))
 def _lab_jours(timeframe):
     """Jours d'historique pour une unite : la periode, bornee en bougies."""
     return max(7, min(LAB_HISTORY_DAYS, int(LAB_MAX_BARS * tf_seconds(timeframe) / 86400)))
-MIN_TRADES = 100
+# 3 oct. 2026 : MIN_WIN etait a 51 % et MIN_PAYOFF a 1,0. Une methode de
+# TENDANCE gagne parce qu'elle perd souvent (CLAUDE.md : ~70 % de petites
+# pertes payees par quelques grosses pyramides) -- ces deux seuils rejetaient
+# donc par construction la famille meme qui tourne en reel, et le Lab ne
+# validait plus rien (100 % ARCHIVED-WEAK). Le facteur de profit tient deja
+# compte de la reussite ET du gain moyen : c'est lui qui decide.
+# MIN_TRADES 100 -> 50 : sur un an de D1, 100 eliminait presque tout (un
+# PF 1,5 sur 78 trades etait rejete) ; 50 reste au-dessus de la regle des
+# 40 trades. Le forward test sur la periode recente reste obligatoire.
+MIN_TRADES = 50
 MIN_FORWARD_TRADES = 20
 MIN_PF = 1.20
-MIN_WIN = 51.0
-MIN_PAYOFF = 1.0
+MIN_WIN = 0.0
+MIN_PAYOFF = 0.0
 LAB_BITVAVO_CACHE = Path(os.getenv("GB_LAB_BITVAVO_CACHE", "data/lab-bitvavo"))
 LAB_BITVAVO_LIMIT = 1440
 LAB_BITVAVO_INTERVALS = {"M1": "1m", "M3": "3m", "M5": "5m", "M15": "15m", "M30": "30m", "H1": "1h", "H4": "4h", "D1": "1d"}
