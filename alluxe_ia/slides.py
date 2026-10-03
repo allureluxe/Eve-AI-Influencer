@@ -135,7 +135,7 @@ def _hauteur(texte: str, police: ImageFont.FreeTypeFont, largeur: int,
 
 def _centre(hauteur: int) -> int:
     """Haut d'un bloc centre entre l'en-tete et le pied de slide."""
-    haut, bas = 250, HAUTEUR - 150
+    haut, bas = 310, HAUTEUR - 150
     return max(haut, haut + (bas - haut - hauteur) // 2)
 
 
@@ -168,9 +168,15 @@ LOGO = os.path.join(ICI, "logo-allure.png")
 
 
 def medaillon(taille: int) -> Image.Image:
-    """Le logo Allure dans un rond : anneau menthe, liseré sombre, disque clair.
+    """Le logo complet ALLUXE dans un rond : UN seul anneau menthe, disque
+    clair, l'illustration et « ALLUXE » dessous, dans l'ecriture serif du logo
+    ALLURE d'origine (Nimbus Roman, jumelle de Times).
 
-    Dessine en 4x puis reduit, sinon le bord du cercle crenele en 88 px.
+    4 oct. 2026, demande de l'operateur : un seul cercle menthe (il y en avait
+    deux), le nom ALLUXE visible, le meme logo que le site alluxe.fr. Le nom
+    occupe ~17 % du diametre pour rester lisible sur un telephone, ou une
+    slide de 1080 px s'affiche environ trois fois plus petite.
+    Dessine en 4x puis reduit, sinon le bord du cercle crenele en petit.
     """
     k = 4
     t = taille * k
@@ -178,21 +184,27 @@ def medaillon(taille: int) -> Image.Image:
     d = ImageDraw.Draw(img)
     d.ellipse([0, 0, t - 1, t - 1], fill=MENTHE)
     a = int(t * 0.045)
-    d.ellipse([a, a, t - 1 - a, t - 1 - a], fill=FOND)
-    b = int(t * 0.085)
-    d.ellipse([b, b, t - 1 - b, t - 1 - b], fill=ENCRE)
+    d.ellipse([a, a, t - 1 - a, t - 1 - a], fill=(236, 241, 239))
 
     logo = Image.open(LOGO).convert("RGBA")
-    w = int(t * 0.80)
+    w = int(t * 0.50)
     h = int(logo.height * w / logo.width)
     logo = logo.resize((w, h), Image.LANCZOS)
-    calque = Image.new("RGBA", (t, t), (0, 0, 0, 0))
-    calque.paste(logo, ((t - w) // 2, (t - h) // 2 + int(t * 0.04)), logo)
-    # Le logo deborde du disque (feuilles) : on le rogne au cercle interieur.
-    disque = Image.new("L", (t, t), 0)
-    ImageDraw.Draw(disque).ellipse([b, b, t - 1 - b, t - 1 - b], fill=255)
-    calque.putalpha(Image.composite(calque.getchannel("A"), Image.new("L", (t, t), 0), disque))
-    img.alpha_composite(calque)
+    # Le plus grand corps qui tient dans 62 % du diametre : le nom est bas
+    # dans le disque, la ou le cercle se resserre.
+    corps = int(t * 0.17)
+    while True:
+        nom = ImageFont.truetype(os.path.join(POLICES, "NimbusRoman-Regular.otf"), corps)
+        bb = d.textbbox((0, 0), "ALLUXE", font=nom)
+        if bb[2] - bb[0] <= t * 0.62 or corps < t * 0.05:
+            break
+        corps -= max(1, k)
+    ecart = int(t * 0.02)
+    total = h + ecart + (bb[3] - bb[1])
+    y0 = (t - total) // 2
+    img.alpha_composite(logo, ((t - w) // 2, y0))
+    d.text(((t - (bb[2] - bb[0])) // 2 - bb[0], y0 + h + ecart - bb[1]),
+           "ALLUXE", font=nom, fill=(17, 17, 17))
     return img.resize((taille, taille), Image.LANCZOS)
 
 
@@ -206,7 +218,8 @@ def _fond_et_entete(numero: int, total: int) -> tuple[Image.Image, ImageDraw.Ima
         d.line([(0, y), (LARGEUR, y)], fill=c)
 
     # En-tete : medaillon + nom + pseudo, identique sur chaque slide.
-    cx, cy, r = MARGE + 44, MARGE + 44, 44
+    # Medaillon 200 px (88 avant le 4 oct.) : le nom ALLUXE doit se lire.
+    cx, cy, r = MARGE + 100, MARGE + 100, 100
     m = medaillon(2 * r)
     img.paste(m, (cx - r, cy - r), m)
     d.text((cx + r + 24, cy - 6), NOM, font=titre_police(38), fill=ENCRE, anchor="ls")
