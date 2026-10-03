@@ -108,6 +108,14 @@ possibles (look-ahead, survivorship, publication, data-snooping).
 Reglages disponibles :
 {reglages}
 
+FORMAT DES VALEURS (sinon le test est fausse -- 3 oct. 2026, un tiers des
+essais rendaient zero trade a cause de ca) :
+- tout reglage *_percentile est une FRACTION entre 0 et 1 (0.60, pas 60) ;
+- donchian_entrees est une LISTE d'horizons en bougies ([10] ou [10, 20]) ;
+- strategie_famille, si tu la donnes, vaut exactement l'une de :
+  tendance, donchian, momentum, reversion. Le champ "famille" ci-dessous
+  n'est qu'une etiquette de classement, pas la methode executee.
+
 Reponds UNIQUEMENT par tableau JSON :
 [
   {{"titre":"...","famille":"momentum|reversion|volatilite|sortie|risque|filtre|macro|intermarket|event|feature_requise",
