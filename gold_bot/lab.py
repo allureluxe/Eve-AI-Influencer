@@ -311,6 +311,16 @@ def reglages_sans_effet(params: dict, famille: str) -> list[str]:
     return sorted(set(inertes))
 
 
+_UNITES = {"1m": "M1", "3m": "M3", "5m": "M5", "15m": "M15", "30m": "M30",
+           "1h": "H1", "60m": "H1", "4h": "H4", "240m": "H4",
+           "1d": "D1", "d": "D1", "d1": "D1", "daily": "D1", "jour": "D1"}
+
+
+def _unite(v):
+    t = str(v).strip()
+    return _UNITES.get(t.lower(), t.upper())
+
+
 def normaliser_reglage(key, value):
     """Remet une valeur proposee par un cerveau dans l'unite du moteur.
 
@@ -320,6 +330,12 @@ def normaliser_reglage(key, value):
     ne passe jamais -- et un canal en nombre seul (55) quand le moteur
     attend une liste d'horizons.
     """
+    if (key.endswith("_tf") or key == "timeframe_ladder") and value:
+        # « 1h », « 4h », « 1d » -> H1, H4, D1 (3 oct. 2026 : un essai sur
+        # deux chargeait 0 crypto sur 426, « unite de temps inconnue: 1h »).
+        if isinstance(value, (list, tuple)):
+            return tuple(_unite(v) for v in value)
+        return _unite(value)
     if key.endswith("_percentile") and isinstance(value, (int, float)) and value > 1:
         return value / 100.0
     if key == "donchian_entrees" and isinstance(value, (int, float)):

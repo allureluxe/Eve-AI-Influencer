@@ -24,3 +24,11 @@ def test_canal_nombre_seul_devient_liste():
 
 def test_autres_reglages_inchanges():
     assert normaliser_reglage("trail_atr_mult", 3.5) == 3.5
+
+
+def test_unites_de_temps_ecrites_a_la_main():
+    assert normaliser_reglage("entry_tf", "1h") == "H1"
+    assert normaliser_reglage("context_tf", "4h") == "H4"
+    assert normaliser_reglage("bias_tf", "1d") == "D1"
+    assert normaliser_reglage("entry_tf", "D1") == "D1"
+    assert normaliser_reglage("entry_tf", "h4") == "H4"
