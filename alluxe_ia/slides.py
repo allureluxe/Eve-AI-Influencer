@@ -187,12 +187,12 @@ def medaillon(taille: int) -> Image.Image:
     d.ellipse([a, a, t - 1 - a, t - 1 - a], fill=(236, 241, 239))
 
     logo = Image.open(LOGO).convert("RGBA")
-    w = int(t * 0.50)
+    w = int(t * 0.68)
     h = int(logo.height * w / logo.width)
     logo = logo.resize((w, h), Image.LANCZOS)
     # Le plus grand corps qui tient dans 62 % du diametre : le nom est bas
     # dans le disque, la ou le cercle se resserre.
-    corps = int(t * 0.17)
+    corps = int(t * 0.22)
     while True:
         nom = ImageFont.truetype(os.path.join(POLICES, "NimbusRoman-Regular.otf"), corps)
         bb = d.textbbox((0, 0), "ALLUXE", font=nom)
