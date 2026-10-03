@@ -266,13 +266,13 @@ def _prompt(d, s: Slide) -> None:
 
 def _appel(d, s: Slide) -> None:
     largeur = LARGEUR - 2 * MARGE
+    # La phrase avant le cartouche : « Commente » (mot-cle a commenter), ou
+    # le titre de la slide quand il est donne (« Le kit gratuit : », depuis
+    # le 4 oct. : le kit est en lien dans la bio, plus en message prive).
+    amorce = s.titre or "Commente"
     h = 92 + 180 + (_hauteur(s.texte, texte_police(42), largeur, 1.35) if s.texte else 0)
-    if s.titre:
-        h += _hauteur(s.titre, titre_police(64), largeur, 1.1) + 40
     y = _centre(h)
-    if s.titre:
-        y = _bloc(d, MARGE, y, s.titre, titre_police(64), ENCRE, largeur, 1.1) + 40
-    d.text((MARGE, y), "Commente", font=titre_police(64), fill=ENCRE)
+    d.text((MARGE, y), amorce, font=titre_police(64), fill=ENCRE)
     y += 92
     # Le mot-cle dans un cartouche ambre : c'est la seule action demandee.
     pm = titre_police(110)

@@ -2,7 +2,7 @@
 
 Un Reel est une suite de « temps » (Temps) : une phrase qui entre en
 glissant, reste affichée, puis laisse la place à la suivante. Le dernier
-temps porte le mot-clé (KIT) dans le cartouche ambre des slides.
+temps porte l'appel (« Lien en bio ») dans le cartouche ambre des slides.
 
     python3 -m alluxe_ia.reel 01-tout-construit   ->  data/alluxe_ia/reels/<id>.mp4
 
@@ -49,6 +49,7 @@ class Temps:
     couleur: tuple = ENCRE
     sous_texte: str = ""
     mot_cle: str = ""
+    amorce: str = "Le kit gratuit :"
 
 
 # Les Reels, par identifiant. Le premier reprend l'accroche du post 1.
@@ -58,7 +59,7 @@ REELS: dict[str, dict] = {
             "Je ne sais pas coder. Tout ça, je l'ai construit en parlant à Claude "
             "et à ChatGPT.\n\n"
             "Ici je montre les coulisses : comment c'est fait, et surtout ce qui casse.\n\n"
-            "💬 Commente KIT : je t'envoie en privé les prompts que j'utilise vraiment.\n\n"
+            "📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n"
             "#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode"),
         "temps": [
             Temps("Je ne sais pas coder.", 2.6, taille=118),
@@ -69,8 +70,8 @@ REELS: dict[str, dict] = {
             Temps("Un agent qui écrit du code à ma place.", 2.8),
             Temps("Et cette page, qui se publie toute seule.", 3.0),
             Temps("Je te montre comment.", 4.5, taille=100, couleur=ENCRE,
-                  sous_texte="pour recevoir les prompts que j'utilise vraiment.",
-                  mot_cle="KIT"),
+                  sous_texte="les prompts que j'utilise vraiment.",
+                  mot_cle="Lien en bio"),
         ],
     },
 }
@@ -99,7 +100,7 @@ def _calque(t: Temps) -> tuple[Image.Image, int]:
     interligne = int(t.taille * 1.1)
     h = interligne * len(lignes)
     if t.mot_cle:
-        h += 70 + 120
+        h += 70 + 80 + 120
     if t.sous_texte:
         h += 30 + 50 * len(couper(t.sous_texte, texte_police(40), LARGEUR_TEXTE))
     img = Image.new("RGBA", (LARGEUR, h + 20), (0, 0, 0, 0))
@@ -110,10 +111,13 @@ def _calque(t: Temps) -> tuple[Image.Image, int]:
         y += interligne
     if t.mot_cle:
         y += 70
-        d.text((GAUCHE, y + 6), "Commente", font=titre_police(56), fill=ENCRE)
+        # L'amorce sur sa ligne, le cartouche dessous : « Lien en bio »
+        # ne tient pas a cote dans la colonne libre.
+        d.text((GAUCHE, y + 6), t.amorce, font=titre_police(56), fill=ENCRE)
+        y += 80
         pm = mono_police(84)
         w = int(d.textlength(t.mot_cle, font=pm))
-        x = GAUCHE + int(d.textlength("Commente ", font=titre_police(56))) + 10
+        x = GAUCHE
         d.rounded_rectangle((x, y - 8, x + w + 44, y + 100), radius=18, fill=AMBRE)
         d.text((x + 22, y), t.mot_cle, font=pm, fill=FOND)
         y += 120

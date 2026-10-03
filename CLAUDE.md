@@ -13,7 +13,10 @@ après une recherche qui manquait : non plus « packs de prompts » (format
 saturé, repris du compte d'exemple sans vérifier), mais **« je construis
 des systèmes réels avec l'IA sans être développeur »** — coulisses du
 labo, de l'appli, de l'agent et de la publication automatique, tutos,
-erreurs racontées. Mot-clé unique `KIT`. Les 8 prompts de @_mind__vision_
+erreurs racontées. **Le kit est en lien dans la bio** (décision du
+4 oct.) : l'envoi en message privé sur le mot-clé KIT est abandonné, Meta
+masquant les commentaires à l'application tant qu'elle est en mode
+Développement (le robot KIT reste dans le dépôt, minuteur arrêté). Les 8 prompts de @_mind__vision_
 exécutés un par un : `docs/alluxe_ia/CONCEPT_8_PROMPTS.md` ; liste ordonnée
 des étapes : `docs/ALLUXE_IA.md`. Ne pas écrire « premier au monde » :
 chaque brique existe ailleurs, c'est l'assemblage par une seule personne

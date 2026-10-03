@@ -49,6 +49,14 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
    et minuteur `alluxe-ia-kit.timer` actif depuis le 3 oct. 19 h. Ancien texte :
    **[toi] La page de téléchargement** (Gumroad ou Lemon Squeezy, gratuit) et
    son lien dans la bio.
+8. ✅ **4 oct. — décision de l'opérateur : le kit est en LIEN DANS LA BIO.**
+   L'envoi en privé sur KIT est abandonné (Meta masque les commentaires à
+   l'app en mode Développement ; invitation testeur restée en attente). Le
+   minuteur `alluxe-ia-kit` est arrêté et désactivé. Posts, légendes et Reel
+   disent « Le kit gratuit : lien en bio ». **[toi]** lien de la bio =
+   `https://jwksajhtvhwktkbkpits.supabase.co/storage/v1/object/public/alluxe-ia-public/kit-constructeur.pdf`.
+   Historique du robot ci-dessous.
+
 8. ⚠ **Robot KIT — 3 oct. au soir : Meta n'envoie RIEN au webhook.**
    Webhook validé par Meta (GET 200 à 11h16 UTC) mais aucun commentaire reçu
    de la journée : l'application Meta est en mode **Développement**, où Meta

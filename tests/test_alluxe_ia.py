@@ -128,10 +128,15 @@ class TestLePackGratuit:
         assert len({p for _, _, p in prompts}) == len(prompts)
         assert all(p.strip() for _, _, p in prompts)
 
-    def test_chaque_post_appelle_le_meme_mot_cle(self):
-        """La sequence ManyChat ne connait qu'un mot-cle : KIT."""
+    def test_chaque_post_renvoie_au_lien_de_la_bio(self):
+        """4 oct. : Meta masque les commentaires a l'application (mode
+        Developpement), le kit ne peut pas partir en prive. Decision de
+        l'operateur : le kit est en lien dans la bio. Aucun post ne doit
+        plus promettre un envoi en message prive."""
         for post in _posts():
-            assert post.slides[-1].mot_cle == "KIT", post.id
+            assert post.slides[-1].mot_cle == "Lien en bio", post.id
+            assert "bio" in post.legende, post.id
+            assert "Commente KIT" not in post.legende and "en privé" not in post.legende, post.id
 
     def test_la_publication_quotidienne_ne_publie_qu_avec_confirmation(self):
         with open(os.path.join(RACINE, "systemd", "alluxe-ia-publication.service"),
@@ -154,9 +159,9 @@ class TestLeReel:
         # Miniature du Reel : le texte doit déjà être là sur la 1re image.
         assert premiere.convert("L").getextrema()[1] > 200
 
-    def test_le_reel_finit_sur_le_mot_cle(self):
+    def test_le_reel_finit_sur_le_lien_en_bio(self):
         from alluxe_ia.reel import REELS
         for r in REELS.values():
-            assert r["temps"][-1].mot_cle == "KIT"
-            assert "KIT" in r["legende"]
+            assert r["temps"][-1].mot_cle == "Lien en bio"
+            assert "bio" in r["legende"] and "en privé" not in r["legende"]
             assert 7 <= sum(t.duree for t in r["temps"]) <= 30
