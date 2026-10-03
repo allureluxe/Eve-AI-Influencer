@@ -167,7 +167,7 @@ def _ajuster(texte: str, fabrique, depart: int, minimum: int,
 LOGO = os.path.join(ICI, "logo-allure.png")
 
 
-def medaillon(taille: int) -> Image.Image:
+def medaillon(taille: int, contenu_taille: int | None = None) -> Image.Image:
     """Le logo complet ALLUXE dans un rond : UN seul anneau menthe, disque
     clair, l'illustration et « ALLUXE » dessous, dans l'ecriture serif du logo
     ALLURE d'origine (Nimbus Roman, jumelle de Times).
@@ -179,7 +179,10 @@ def medaillon(taille: int) -> Image.Image:
     Dessine en 4x puis reduit, sinon le bord du cercle crenele en petit.
     """
     k = 4
+    # Le cercle peut être plus grand que le bloc logo interne (utile pour le Reel).
+    contenu = contenu_taille or taille
     t = taille * k
+    tc = contenu * k
     img = Image.new("RGBA", (t, t), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     d.ellipse([0, 0, t - 1, t - 1], fill=MENTHE)
@@ -187,19 +190,19 @@ def medaillon(taille: int) -> Image.Image:
     d.ellipse([a, a, t - 1 - a, t - 1 - a], fill=(236, 241, 239))
 
     logo = Image.open(LOGO).convert("RGBA")
-    w = int(t * 0.68)
+    w = int(tc * 0.68)
     h = int(logo.height * w / logo.width)
     logo = logo.resize((w, h), Image.LANCZOS)
     # Le plus grand corps qui tient dans 62 % du diametre : le nom est bas
     # dans le disque, la ou le cercle se resserre.
-    corps = int(t * 0.22)
+    corps = int(tc * 0.22)
     while True:
         nom = ImageFont.truetype(os.path.join(POLICES, "NimbusRoman-Regular.otf"), corps)
         bb = d.textbbox((0, 0), "ALLUXE", font=nom)
-        if bb[2] - bb[0] <= t * 0.62 or corps < t * 0.05:
+        if bb[2] - bb[0] <= tc * 0.62 or corps < tc * 0.05:
             break
         corps -= max(1, k)
-    ecart = int(t * 0.02)
+    ecart = int(tc * 0.02)
     total = h + ecart + (bb[3] - bb[1])
     y0 = (t - total) // 2
     img.alpha_composite(logo, ((t - w) // 2, y0))
