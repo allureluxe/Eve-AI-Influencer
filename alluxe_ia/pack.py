@@ -82,12 +82,15 @@ def construire(chemin: str) -> str:
     pdf.add_page()
     pdf.set_fill_color(*FOND)
     pdf.rect(0, 0, 210, 297, "F")
-    pdf.set_fill_color(*MENTHE)
-    pdf.ellipse(20, 22, 18, 18, "F")
+    # Le meme medaillon que les slides, aplati sur le fond (fpdf gere mal
+    # la transparence PNG).
+    from PIL import Image
+    from alluxe_ia.slides import medaillon
+    m = medaillon(400)
+    plat = Image.new("RGB", m.size, FOND)
+    plat.paste(m, (0, 0), m)
+    pdf.image(plat, x=20, y=22, w=18, h=18)
     pdf.set_font("titre", size=15)
-    pdf.set_text_color(*FOND)
-    pdf.set_xy(20, 26)
-    pdf.cell(18, 10, "a.", align="C")
     pdf.set_text_color(*ENCRE_CLAIRE)
     pdf.set_xy(42, 25)
     pdf.cell(0, 8, "alluxe.ia")
