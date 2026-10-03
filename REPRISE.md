@@ -31,7 +31,10 @@ data/alluxe_ia/relecture-11-posts.pdf.
 3 OCT. 19h : PAS DE GUMROAD -- le kit est servi en lien direct depuis Supabase
 (ALLUXE_IA_KIT_URL = storage public alluxe-ia-public/kit-constructeur.pdf, mis a
 jour 19h avec le logo). Webhook Meta branche par une autre session ; minuteur
-alluxe-ia-kit.timer INSTALLE et actif (30 s). Publication 12h30 toujours NON installee.
+alluxe-ia-kit.timer INSTALLE et actif (30 s). 3 OCT. 19h08 : PREMIER POST PUBLIE (01-tout-construit, https://www.instagram.com/p/DeCj0F_EUV-/)
+apres validation des 11 posts par l'operateur ; alluxe-ia-publication.timer INSTALLE
+(1 post/jour 12h30 Paris, a partir du 4 oct.). Le stock (11 posts) s'epuise le 13 oct. :
+ecrire les suivants avant (point 10 de docs/ALLUXE_IA.md).
 EN ATTENTE DE L'OPERATEUR (le reste de la ligne est en partie depasse) : relire et
 tester les 11 posts, page Gumroad du kit puis branchement KIT (point 8).
 AUCUN post n'a ete publie.

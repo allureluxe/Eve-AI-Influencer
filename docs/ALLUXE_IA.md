@@ -74,7 +74,8 @@ Légende : **[toi]** l'opérateur, **[Claude]** une session Claude, ✅ fait.
    7. Activer : `sudo cp systemd/alluxe-ia-kit.{service,timer} /etc/systemd/system/ &&
       sudo systemctl daemon-reload && sudo systemctl enable --now alluxe-ia-kit.timer`.
 9. ✅ **[Claude] Publication automatique** : `systemd/alluxe-ia-publication.timer`
-   lance `suivant --confirmer` chaque jour à 12 h 30. **Prête, pas installée** :
+   lance `suivant --confirmer` chaque jour à 12 h 30. **Installée le 3 oct. 19 h**, post 1 publié à la main le même soir, puis 1 par jour.
+   (texte d'origine : Prête, pas installée)
    à activer seulement après la phase 0 :
 
        sudo cp systemd/alluxe-ia-publication.* /etc/systemd/system/

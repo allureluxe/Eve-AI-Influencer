@@ -128,7 +128,7 @@
       {"type": "texte", "titre": "3. Le contexte", "texte": "Ce que tu sais et qu'elle ne sait pas : ton public, ton objectif, ce que tu as déjà essayé. C'est la case qu'on oublie, et c'est elle qui fait la différence."},
       {"type": "texte", "titre": "4. Le format", "texte": "La forme de la réponse : un tableau, 5 points, 100 mots, un mail prêt à envoyer. Sans format, tu reçois un pavé."},
       {"type": "prompt", "titre": "Les 4 cases ensemble", "prompt": "Tu es un conseiller en recrutement qui aide des petites entreprises.\nRéécris l'annonce ci-dessous.\nContexte : nous sommes une boulangerie de 6 personnes, nous cherchons un vendeur le week-end, et l'ancienne annonce n'a reçu aucune réponse en 3 semaines.\nFormat : 120 mots maximum, un titre accrocheur, 3 puces pour les avantages."},
-      {"type": "appel", "mot_cle": "KIT", "texte": "et je t'envoie le modèle à remplir en privé."}
+      {"type": "appel", "mot_cle": "KIT", "texte": "et je t'envoie le kit du constructeur en privé."}
     ]
   },
   {
