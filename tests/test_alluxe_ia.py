@@ -142,3 +142,21 @@ class TestLePackGratuit:
                   encoding="utf-8") as f:
             assert "Persistent=false" in f.read(), (
                 "un rattrapage publierait deux posts d'affilee")
+
+
+class TestLeReel:
+
+    def test_premiere_image_pleine_et_format_vertical(self):
+        from alluxe_ia.reel import HAUTEUR as H, LARGEUR as L, REELS, images
+        temps = REELS["01-tout-construit"]["temps"]
+        premiere = next(images(temps))
+        assert premiere.size == (L, H) == (1080, 1920)
+        # Miniature du Reel : le texte doit déjà être là sur la 1re image.
+        assert premiere.convert("L").getextrema()[1] > 200
+
+    def test_le_reel_finit_sur_le_mot_cle(self):
+        from alluxe_ia.reel import REELS
+        for r in REELS.values():
+            assert r["temps"][-1].mot_cle == "KIT"
+            assert "KIT" in r["legende"]
+            assert 7 <= sum(t.duree for t in r["temps"]) <= 30
