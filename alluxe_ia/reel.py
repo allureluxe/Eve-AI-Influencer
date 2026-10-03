@@ -69,7 +69,7 @@ REELS: dict[str, dict] = {
             Temps("Une appli sur mon téléphone.", 2.5),
             Temps("Un agent qui écrit du code à ma place.", 2.8),
             Temps("Et cette page, qui se publie toute seule.", 3.0),
-            Temps("Je te montre comment.", 4.5, taille=100, couleur=ENCRE,
+            Temps("Je te montre comment.", 3.0, taille=100, couleur=ENCRE,
                   sous_texte="les prompts que j'utilise vraiment.",
                   mot_cle="Lien en bio"),
         ],
