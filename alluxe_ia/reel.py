@@ -85,8 +85,8 @@ def _fond() -> Image.Image:
         d.line([(0, y), (LARGEUR, y)],
                fill=tuple(int(FOND[i] + (FOND_HAUT[i] - FOND[i]) * t) for i in range(3)))
     # Signature en haut de la zone libre : le même en-tête que les slides.
-    # Logo du Reel : 2x plus grand (80 -> 160 px de diamètre).
-    r = 80
+    # Logo du Reel : cercle légèrement agrandi pour laisser respirer ALLUXE.
+    r = 95
     m = medaillon(2 * r)
     img.paste(m, (GAUCHE, HAUT_LIBRE - r), m)
     d.text((GAUCHE + 2 * r + 22, HAUT_LIBRE - 4), NOM, font=titre_police(36), fill=ENCRE, anchor="ls")
