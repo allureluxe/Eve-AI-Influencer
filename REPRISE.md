@@ -20,8 +20,12 @@ fonction `alluxe-ia-webhook` DEPLOYEES sur Supabase (verify_jwt=false, signature
 HMAC). Inactif tant que l'operateur n'a pas fait les etapes de
 docs/ALLUXE_IA.md point 8 (secrets, webhook Meta, ALLUXE_IA_KIT_URL, timer).
 
-EN ATTENTE DE L'OPERATEUR : couper Luna sur le VPS (luna-planner.timer +
-cron), renommer le compte dans l'appli, relire et tester les 9 posts.
+FAIT 3 OCT. : Luna coupee sur le VPS -- cron executer_luna, luna_reseaux et
+brouillons_luna commentes (sauvegarde data/crontab.avant-coupure-luna-3oct) ;
+luna-planner.timer n'est pas installe. App web Alluxe Bot publiee sur
+GitHub Pages (Actions) : https://allureluxe.github.io/Eve-AI-Influencer/
+EN ATTENTE DE L'OPERATEUR : renommer le compte dans l'appli, relire et
+tester les 11 posts, page Gumroad du kit puis branchement KIT (point 8).
 AUCUN post n'a ete publie.
 
 ---
