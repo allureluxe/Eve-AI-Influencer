@@ -727,6 +727,14 @@ avoir relu ce paragraphe.
 
 ## Le budget de risque monte à 7,5 % sur le réel — 2 octobre, TEMPORAIRE
 
+> **REVENU À 5,0 LE 3 OCTOBRE**, décision de l'opérateur. La condition
+> « redescendre quand le risque engagé repasse sous 5 % » ne pouvait
+> jamais se remplir : le robot réutilisait la place libérée par les
+> positions d'avant le retrait pour en ouvrir de nouvelles (17 positions,
+> 7,14 % engagés le 3 au matin). Leçon : une mesure « temporaire » doit
+> avoir une fin qui se produit d'elle-même, pas une condition que le
+> système lui-même empêche d'arriver.
+
 Décision de l'opérateur, confirmée deux fois (« vas-y monte ») après
 avoir lu les deux garde-fous qu'elle franchit.
 
@@ -795,7 +803,7 @@ chez Bitvavo) et **6 mois** en walk-forward, le classement s'inverse.
 | `risk.pyramide_max` | **99** (illimité) | 9 et 12 sept. : mesuré PAR NOMBRE D'ÉTAGES, pas par présence/absence — voir la section pyramidage | 0 puis 3 |
 | `risk.pyramide_locked_r_min` | **0.01** | un étage ne s'ajoute que si la pyramide est déjà à l'abri (stop au-dessus du prix moyen) | 0,5 N « Turtle » |
 | `risk.pyramide_espacement_atr` | **0.25** | 12 sept., mesuré avec le canal 10 | 0.5 |
-| `risk.max_total_risk_pct` | **7.5** (réel, TEMPORAIRE) — 5.0 en démo | 2 oct. : décision de l'opérateur, voir « Le budget de risque monte à 7,5 % ». Le 5,0 du 10 sept. reste la valeur mesurée | 3.5 puis 5.0 |
+| `risk.max_total_risk_pct` | **5.0** | 10 sept. : seul palier qui améliore l'apprentissage ET le hors-échantillon, et le recul BAISSE (34,0 → 29,7 %). Passé à 7,5 du 2 au 3 oct., puis revenu à 5,0 (voir la section du 2 oct.) | 3.5 |
 | `risk.ticket_min_eur` | **15.0** | 1er oct. : capital réel 596 € (> 250 €), remonté comme prévu ; identique à la démo 1. Le plancher plie tout seul si le capital ne le porte plus (`_ajuster_le_plancher`) | 20.0, 15.0, puis 5.0 (25 sept., dépôt de 120 €) |
 | `risk.base_risk_pct` | **0.6** | palier « preuve » — pas le 1 % du Turtle | — |
 
