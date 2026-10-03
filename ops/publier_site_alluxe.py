@@ -16,7 +16,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[1]
 SOURCE = RACINE / "docs" / "kit"
-FICHIERS = ("index.html", "kit-constructeur.pdf", "alluxe.jpg")
+FICHIERS = ("index.html", "kit-constructeur.pdf", "alluxe.jpg", "logo-alluxe.png")
 
 
 def main() -> int:
