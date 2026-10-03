@@ -24,7 +24,12 @@ FAIT 3 OCT. : Luna coupee sur le VPS -- cron executer_luna, luna_reseaux et
 brouillons_luna commentes (sauvegarde data/crontab.avant-coupure-luna-3oct) ;
 luna-planner.timer n'est pas installe. App web Alluxe Bot publiee sur
 GitHub Pages (Actions) : https://allureluxe.github.io/Eve-AI-Influencer/
-EN ATTENTE DE L'OPERATEUR : renommer le compte dans l'appli, relire et
+CONSTATE 3 OCT. 18h55 (API) : compte renomme @alluxe.ia, 0 post visible
+(Luna archivee), 9 abonnes. RESTE dans l'appli : nom affiche encore « Luna »,
+bio encore l'ANCIENNE niche (« Commente PROMPTS ») -- a remplacer par la bio
+KIT de docs/ALLUXE_IA.md (l'API ne modifie ni nom ni bio). PDF de relecture :
+data/alluxe_ia/relecture-11-posts.pdf.
+EN ATTENTE DE L'OPERATEUR : relire et
 tester les 11 posts, page Gumroad du kit puis branchement KIT (point 8).
 AUCUN post n'a ete publie.
 
