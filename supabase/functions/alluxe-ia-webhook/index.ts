@@ -10,7 +10,8 @@
  * 30 secondes), avec le jeton Instagram de son .env. Ici, seulement
  * deux secrets qui n'expirent jamais :
  *   IG_WEBHOOK_VERIFY_TOKEN  mot choisi par l'operateur, recopie dans Meta
- *   IG_APP_SECRET            secret de l'application Instagram (Meta)
+ *   IG_APP_SECRET            secret(s) de l'application, separes par des
+ *                            virgules (secret Meta et/ou secret Instagram)
  *
  * Deployee SANS verification JWT : Meta n'envoie pas de jeton Supabase.
  * La signature HMAC la remplace.

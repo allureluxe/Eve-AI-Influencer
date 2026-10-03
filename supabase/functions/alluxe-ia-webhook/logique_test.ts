@@ -20,6 +20,14 @@ Deno.test("une signature juste passe, une fausse non", async () => {
   assertEquals(await signatureValide(corps + " ", await signer(corps, "s3cret"), "s3cret"), false);
 });
 
+Deno.test("plusieurs secrets : l'un ou l'autre suffit, aucun autre", async () => {
+  const corps = '{"object":"instagram"}';
+  assertEquals(await signatureValide(corps, await signer(corps, "insta"), "meta, insta"), true);
+  assertEquals(await signatureValide(corps, await signer(corps, "meta"), "meta,insta"), true);
+  assertEquals(await signatureValide(corps, await signer(corps, "pirate"), "meta,insta"), false);
+  assertEquals(await signatureValide(corps, await signer(corps, "x"), " , "), false);
+});
+
 Deno.test("sans secret configure, tout est refuse", async () => {
   const corps = "{}";
   assertEquals(await signatureValide(corps, await signer(corps, "x"), undefined), false);

@@ -27,20 +27,30 @@ function egaux(a: string, b: string): boolean {
  * corps BRUT avec le secret de l'application. Sans secret configure, on
  * refuse tout : un webhook qui ne peut pas verifier ne doit rien croire
  * (n'importe qui pourrait sinon faire envoyer des messages au compte).
+ *
+ * `secrets` peut en porter plusieurs, separes par des virgules : une app
+ * Meta a son secret « Meta » ET un secret « Instagram » distinct, et la
+ * documentation ne dit pas clairement lequel signe les webhooks de la
+ * connexion Instagram. Les deux sont acceptes ; un tiers n'a ni l'un ni
+ * l'autre.
  */
 export async function signatureValide(
   corpsBrut: string,
   entete: string | null,
-  secret: string | undefined,
+  secrets: string | undefined,
 ): Promise<boolean> {
-  if (!secret || !entete || !entete.startsWith("sha256=")) return false;
-  const cle = await crypto.subtle.importKey(
-    "raw", new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", cle, new TextEncoder().encode(corpsBrut));
-  const hex = [...new Uint8Array(sig)].map((o) => o.toString(16).padStart(2, "0")).join("");
-  return egaux(hex, entete.slice("sha256=".length));
+  if (!secrets || !entete || !entete.startsWith("sha256=")) return false;
+  const recu = entete.slice("sha256=".length);
+  for (const secret of secrets.split(",").map((x) => x.trim()).filter(Boolean)) {
+    const cle = await crypto.subtle.importKey(
+      "raw", new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    );
+    const sig = await crypto.subtle.sign("HMAC", cle, new TextEncoder().encode(corpsBrut));
+    const hex = [...new Uint8Array(sig)].map((o) => o.toString(16).padStart(2, "0")).join("");
+    if (egaux(hex, recu)) return true;
+  }
+  return false;
 }
 
 /**
