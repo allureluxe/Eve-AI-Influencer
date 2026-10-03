@@ -25,9 +25,8 @@ brouillons_luna commentes (sauvegarde data/crontab.avant-coupure-luna-3oct) ;
 luna-planner.timer n'est pas installe. App web Alluxe Bot publiee sur
 GitHub Pages (Actions) : https://allureluxe.github.io/Eve-AI-Influencer/
 CONSTATE 3 OCT. 18h55 (API) : compte renomme @alluxe.ia, 0 post visible
-(Luna archivee), 9 abonnes. RESTE dans l'appli : nom affiche encore « Luna »,
-bio encore l'ANCIENNE niche (« Commente PROMPTS ») -- a remplacer par la bio
-KIT de docs/ALLUXE_IA.md (l'API ne modifie ni nom ni bio). PDF de relecture :
+(Luna archivee), 9 abonnes. 19h10 : bio KIT et logo en place (verifies par l'API) ; le
+nom affiche lu par l'API est encore « Luna » (propagation ou non enregistre). PDF de relecture :
 data/alluxe_ia/relecture-11-posts.pdf.
 EN ATTENTE DE L'OPERATEUR : relire et
 tester les 11 posts, page Gumroad du kit puis branchement KIT (point 8).
