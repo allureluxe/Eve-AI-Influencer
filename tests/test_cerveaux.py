@@ -152,3 +152,18 @@ class TestLOutilRappelleQueCeSontDesAvis:
         from ops.agent_alluxe import _outil_demander_avis
 
         assert "erreur" in _outil_demander_avis(None, {"question": "  "})
+
+
+def test_la_recherche_attend_que_la_file_du_lab_soit_vide(monkeypatch, capsys):
+    """Operateur, 3 oct. 2026 : pas de recherche tant qu'il reste a tester."""
+    import sys as _sys
+    from pathlib import Path as _P
+    _sys.path.insert(0, str(_P(__file__).resolve().parents[1] / "ops"))
+    import labo_recherche as lr
+    appels = []
+    monkeypatch.setattr(lr, "hypotheses_en_attente", lambda: 12)
+    monkeypatch.setattr(lr, "consulter", lambda *a, **k: appels.append(1) or {})
+    monkeypatch.setattr(_sys, "argv", ["labo_recherche.py", "--combien", "1"])
+    assert lr.main() == 0
+    assert appels == [], "un cerveau a ete appele alors que la file n'etait pas vide"
+    assert "suspendue" in capsys.readouterr().out

@@ -329,6 +329,24 @@ def deposer(idees: list[dict], mode: str) -> int:
         return 0
 
 
+def hypotheses_en_attente() -> int | None:
+    """Hypotheses du Lab pas encore testees (IDEATED + TESTING), ou None."""
+    url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    cle = os.getenv("SUPABASE_SERVICE_KEY", "")
+    if not url or not cle:
+        return None
+    try:
+        req = urllib.request.Request(
+            f"{url}/rest/v1/lab_research?statut=in.(IDEATED,TESTING)&select=id",
+            headers={"apikey": cle, "authorization": f"Bearer {cle}",
+                     "prefer": "count=exact", "range": "0-0"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            plage = r.headers.get("content-range", "")
+        return int(plage.rsplit("/", 1)[-1])
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def main() -> int:
     a = argparse.ArgumentParser(description=__doc__)
     a.add_argument("--sujet", default="entrees, sorties et gestion du risque")
@@ -337,6 +355,8 @@ def main() -> int:
                    help="demander ce qui existe ailleurs, sans deposer")
     a.add_argument("--cerveaux", default="chatgpt,claude")
     a.add_argument("--local-only", action="store_true", help="n'utiliser que des variables calculables depuis les bougies OHLC et les reglages du moteur")
+    a.add_argument("--forcer", action="store_true",
+                   help="chercher meme si le Lab a encore des hypotheses a tester")
     args = a.parse_args()
 
     lesquels = tuple(x.strip() for x in args.cerveaux.split(",") if x.strip())
@@ -350,6 +370,23 @@ def main() -> int:
             print(f"\n===== {nom.upper()} =====")
             print(res.get("reponse") or f"(injoignable : {res.get('erreur')})")
         return 0
+
+    # LA RECHERCHE NE TOURNE QUE QUAND LE LAB A FAIM (operateur, 3 oct. 2026).
+    #
+    # « Tant qu'il y a des strategies a tester, les recherches sont
+    # stoppees ; des qu'il n'y en a plus, elles se relancent. » Chaque
+    # passage coute (ChatGPT, Claude) ; deposer des idees dans une file que
+    # le Lab ne videra pas avant des jours, c'est payer pour attendre.
+    # Ce controle-ci ne coute rien : une lecture de la base.
+    if not args.forcer:
+        en_attente = hypotheses_en_attente()
+        if en_attente is None:
+            print("  file du Lab illisible : recherche suspendue par prudence")
+            return 0
+        if en_attente > 0:
+            print(f"  {en_attente} hypothese(s) encore a tester : recherche suspendue "
+                  "(elle repartira quand la file sera vide)")
+            return 0
 
     connus = reglages_connus()
     print(f"  {len(connus)} reglages applicables par le labo")

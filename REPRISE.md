@@ -63,8 +63,9 @@ sur son Chromebook (Linux + adb).
 **Lab** : debloque (bornes en bougies GB_LAB_MAX_BARS=12000, 1 an ;
 hypotheses TESTING remises en file au demarrage). ChatGPT repond (delai
 10 min) ; sources elargies. Cout recherche ~5-7 EUR/jour toutes les 30 min
--- 3 oct. : passee a toutes les 2 h (17 */2), la file IDEATED (82)
-  grossissait plus vite que le Lab ne teste (~4-5/h). ~1,5 EUR/jour. Claude : credit vide (a faire
+-- 3 oct. : la recherche ne tourne QUE si la file du Lab est vide
+  (IDEATED+TESTING = 0, decision operateur) ; cron */30 = simple controle
+  gratuit. `--forcer` pour passer outre. Claude : credit vide (a faire
 plus tard, decision operateur).
 
 **Demo 1** : diagnostic memoire actif (GB_DIAG_MEMOIRE=1, drop-in diag.conf)
