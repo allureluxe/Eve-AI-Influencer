@@ -22,7 +22,12 @@ module.exports = () => ({
       ? { enabled: true, url: `https://u.expo.dev/${projetEas}`, checkAutomatically: "ON_LOAD", fallbackToCacheTimeout: 0,
           requestHeaders: { "expo-channel-name": "production" } }
       : { enabled: false },
-    orientation: "portrait",
+    // "default" et non "portrait" (3 oct. 2026, demande de l'operateur) :
+    // verrouillee en portrait, l'appli s'ouvre en fenetre de telephone sur
+    // Chromebook et tablette, le reste de l'ecran vide. Libre, elle prend
+    // tout l'ecran et tourne avec l'appareil. Changement NATIF : il ne
+    // passe pas par OTA, il arrivera avec le prochain APK.
+    orientation: "default",
     // Version web (3 oct. 2026) : servie sous un sous-chemin par GitHub
     // Pages (/Eve-AI-Influencer). Absent pour l'APK.
     ...(process.env.EXPO_BASE_URL ? { experiments: { baseUrl: process.env.EXPO_BASE_URL } } : {}),
