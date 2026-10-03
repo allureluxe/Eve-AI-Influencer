@@ -51,7 +51,8 @@ def positions_sous_le_stop(meta: dict, bids: dict[str, float]) -> list[str]:
 
 def controler(etat_reel: dict, maintenant: float, actif: Callable[[str], bool],
               bids: dict[str, float], memoire_libre_mo: float, disque_pct: float,
-              lab_maj: Optional[float], deja_sous_stop: set[str]) -> tuple[list[Alerte], set[str]]:
+              lab_maj: Optional[float], deja_sous_stop: set[str],
+              sauvegarde_maj: Optional[float] = None) -> tuple[list[Alerte], set[str]]:
     """Tous les controles. Rend les alertes et les positions vues sous le stop.
 
     Une position sous son stop n'alerte qu'au 2e controle consecutif : le
@@ -88,6 +89,10 @@ def controler(etat_reel: dict, maintenant: float, actif: Callable[[str], bool],
     if lab_maj is not None and maintenant - lab_maj > 6 * 3600:
         alertes.append(Alerte("lab-bloque", "warning", "Le Lab ne produit plus",
                               f"Aucun résultat depuis {int((maintenant - lab_maj) / 3600)} h."))
+    if sauvegarde_maj is not None and maintenant - sauvegarde_maj > 30 * 3600:
+        alertes.append(Alerte("sauvegarde", "warning", "Sauvegarde en retard",
+                              f"Dernière sauvegarde il y a {int((maintenant - sauvegarde_maj) / 3600)} h "
+                              "(elle doit tourner chaque nuit à 3h40)."))
     return alertes, sous
 
 
@@ -135,11 +140,12 @@ class Veille:
         except Exception:  # noqa: BLE001
             etat = {}
         lab = RACINE / "data/lab-book.jsonl"
+        sauv = RACINE / "data/sauvegarde_quotidienne.log"
         disque = shutil.disk_usage(str(RACINE))
         alertes, self._sous_stop = controler(
             etat, maintenant, _actif, _bids(), _memoire_libre_mo(),
             disque.used / disque.total * 100, lab.stat().st_mtime if lab.exists() else None,
-            self._sous_stop)
+            self._sous_stop, sauv.stat().st_mtime if sauv.exists() else None)
         nouvelles = []
         for a in alertes:
             if maintenant - self._annonce.get(a.cle, 0.0) >= SILENCE_SECONDES:

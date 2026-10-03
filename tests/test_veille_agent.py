@@ -50,3 +50,9 @@ def test_une_alerte_n_est_repetee_qu_apres_6h(monkeypatch):
     monkeypatch.setattr(va, "_bids", lambda: {})
     v.passer(); v.passer()
     assert len(recus) == 1
+
+
+def test_sauvegarde_en_retard():
+    alertes, _ = va.controler({"last_cycle": T}, T, lambda s: True, {}, 4000, 40, T, set(),
+                              sauvegarde_maj=T - 40 * 3600)
+    assert [a.cle for a in alertes] == ["sauvegarde"]
