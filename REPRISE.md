@@ -1,4 +1,54 @@
-# Ou on en est — alluxe.ia, 2 octobre 2026 (soir)
+# Ou on en est — mis a jour le 4 octobre 2026, 01h05
+
+## 4 OCT. 01h05 — LIRE EN PREMIER (fin de session, contexte plein)
+
+**Reel** : robot-trading seul robot reel (dual-live disabled), ~500 EUR,
+~17 positions. max_total_risk_pct REVENU A 5,0 (3 oct.). Stops chez Bitvavo
+desormais en stopLoss AU MARCHE + filet logiciel prix_sous_le_stop (NOM
+restee sous son stop le 3 oct., vendue -7,15) -- voir CLAUDE.md. Redemarrages
+a 06h = mises a jour de securite Ubuntu (needrestart), normal.
+Periode affichee du reel : PERIODE_REEL_* (ops/battement_comptes.py) ;
+courbe : virements neutralises cote serveur (decaler_courbe_capital).
+
+**Demos** : demo1 (miroir, 5 %), demo2 (Lab promu), demo3 = RETOUR A LA
+MOYENNE (MA20/2,0/0,4, min_rr 1,2, sans pyramide ; sortie codee en direct).
+Quota Bitvavo partage : demos 120/min, Lab 100/min, reel 400.
+
+**Lab** : debloque (bornes en bougies), criteres = PF>=1,2 et >=50 trades
+(plus de seuil de reussite), reglages des cerveaux normalises (percentiles,
+canal, unites 1h/4h/1d), INCUBATION reexaminee chaque semaine. Premier
+candidat : « RSI-reversion encadree par ATR » (PF 1,28/50 tr ; forward 1,57
+sur 10 tr) en INCUBATION. Recherche ChatGPT/Claude UNIQUEMENT si la file est
+vide (cron */30 = controle gratuit). ~250+ hypotheses en file.
+A FAIRE : le Lab passe 6 min sur 7 a recharger l'historique a chaque test
+(chargement D1 342 s, backtest 55 s) -> cache memoire des series.
+
+**Agent** : agit -- veille chiffree toutes les 5 min (ops/veille_agent.py :
+reel arrete/fige, position sous stop, services, memoire, disque, Lab bloque,
+sauvegarde en retard) -> Alertes + notif. Cycle modele (Groq gratuit) toutes
+les 3 h.
+
+**Sauvegarde** : quotidienne 03h40 -> Supabase prive « sauvegardes » (14 j),
+ops/sauvegarde_quotidienne.py.
+
+**alluxe.ia** : kit en LIEN DANS LA BIO (DM abandonne : Meta cache les
+commentaires, app en mode Developpement). alluxe-ia-kit.timer ARRETE.
+Posts corriges (« lien dans ma bio »), publication auto 12h30.
+DOMAINE alluxe.fr ACHETE le 4 oct. (OVH) + hebergement gratuit Start 10M
+(FTP non chiffre, ftp.cluster129.hosting.ovh.net, login alluxev, mdp dans
+.env OVH_FTP_*). Page du kit deposee (docs/kit/ -> www/), visible sur
+http://alluxev.cluster129.hosting.ovh.net/ ; alluxe.fr pas encore propage a
+01h. Verif auto programmee ~02h30. A FAIRE : HTTPS (SSL gratuit OVH) quand le
+domaine repond ; l'operateur met « alluxe.fr » en bio + bio : « Pas dev. J'ai
+quand meme construit un robot, un labo et une appli avec l'IA. / Je te montre
+comment. / 👇 Le kit gratuit ». Mise a jour du site : ops/publier_site_alluxe.py.
+
+**Appli** : OTA en service mais arrive mal sur ses appareils -> pour un
+affichage urgent, corriger cote serveur. Aussi sur Chromebook (Linux+adb).
+La version web (GitHub Pages) = appli privee, sans mot de passe embarque.
+
+**Reste ouvert** : label IA Instagram + stats Meta (lui) ; credit API Claude
+(plus tard, decision operateur).
 
 ## LE COMPTE INSTAGRAM DE LUNA DEVIENT @alluxe.ia
 
