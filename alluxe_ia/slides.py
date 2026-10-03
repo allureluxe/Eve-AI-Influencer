@@ -221,8 +221,8 @@ def _fond_et_entete(numero: int, total: int) -> tuple[Image.Image, ImageDraw.Ima
         d.line([(0, y), (LARGEUR, y)], fill=c)
 
     # En-tete : medaillon + nom + pseudo, identique sur chaque slide.
-    # Medaillon 200 px (88 avant le 4 oct.) : le nom ALLUXE doit se lire.
-    cx, cy, r = MARGE + 100, MARGE + 100, 100
+    # Medaillon 260 px (200 avant le 4 oct.) : le nom ALLUXE doit se lire.
+    cx, cy, r = MARGE + 130, MARGE + 130, 130
     m = medaillon(2 * r)
     img.paste(m, (cx - r, cy - r), m)
     d.text((cx + r + 24, cy - 6), NOM, font=titre_police(38), fill=ENCRE, anchor="ls")
