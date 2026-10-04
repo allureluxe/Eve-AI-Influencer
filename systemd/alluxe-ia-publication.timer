@@ -1,13 +1,18 @@
-# Un carrousel par jour a 12 h 30, heure de Paris (heure de depart du
-# concept, a recaler sur les statistiques Instagram apres 2 semaines).
+# Deux carrousels par jour, 12 h 30 et 19 h, heure de Paris (decision de
+# l'operateur le 4 oct. : on repart de zero, rythme double). A recaler sur
+# les statistiques Instagram apres 2 semaines.
+# PIEGE (4 oct.) : redemarrer ce minuteur APRES 19 h le declenche aussitot
+# (un post de trop a failli partir). Le recharger le matin, ou arreter le
+# service tout de suite apres.
 # Persistent=false : un jour manque (serveur arrete) ne declenche PAS de
 # rattrapage, pour ne jamais publier deux posts coup sur coup.
 
 [Unit]
-Description=alluxe.ia -- un carrousel par jour
+Description=alluxe.ia -- deux carrousels par jour
 
 [Timer]
 OnCalendar=*-*-* 12:30:00 Europe/Paris
+OnCalendar=*-*-* 19:00:00 Europe/Paris
 Persistent=false
 
 [Install]
