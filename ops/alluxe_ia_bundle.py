@@ -76,6 +76,8 @@ SONS_TENDANCE_PREFERES = [
     ("STORM II", "GENER8ION, Yung Lean"),
     # 4 oct., choix de l'opérateur pour le Reel « 5 choses à ne jamais coller ».
     ("They Don't Care About Us (Remastered Version)", "Michael Jackson"),
+    # 4 oct., l'opérateur : MJ ne collait pas, remplacé par LABOUR.
+    ("LABOUR (the cacophony)", "Paris Paloma"),
 ]
 
 

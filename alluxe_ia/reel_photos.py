@@ -47,11 +47,12 @@ class Scene:
 
 REELS = {
     "30-jamais-dans-une-ia": {
-        # They Don't Care About Us : percussions dès la 1re seconde. Tempo pris
-        # à ~88 BPM (non mesuré ici) ; une scène = 4 temps.
-        "son": "334612567771685",
+        # LABOUR (Paris Paloma), choix de l'opérateur après MJ (4 oct.).
+        # Tempo non mesuré ici (~88 BPM). 5 temps par image (3,4 s) : à 4 temps,
+        # l'opérateur trouvait les images un peu trop rapides.
+        "son": "3635531743388988",
         "bpm": 88.0,
-        "temps_par_scene": 4,
+        "temps_par_scene": 5,
         "legende": (
             "5 choses à ne JAMAIS coller dans ChatGPT 🔒\n\n"
             "Tes conversations sont enregistrées. Selon les réglages, elles peuvent servir "
@@ -177,16 +178,7 @@ def image(reel_id: str, t: float) -> Image.Image:
         yb = min(y + 50, BAS - 140)
         d.rounded_rectangle((G - 6, yb, G + wb + 60, yb + 130), radius=65, fill=NOIR)
         d.text((G + 28, yb + 16), texte, font=pb, fill=accent)
-    # Barre de progression : un segment par scène, comme des stories.
-    n = len(cfg["scenes"])
-    larg = (D - G - 8 * (n - 1)) / n
-    for k in range(n):
-        x = G + k * (larg + 8)
-        d.rounded_rectangle((x, BAS + 30, x + larg, BAS + 38), radius=4,
-                            fill=(255, 255, 255) if k < i else (90, 90, 90))
-        if k == i:
-            d.rounded_rectangle((x, BAS + 30, x + larg * min(1, tl / duree_scene), BAS + 38),
-                                radius=4, fill=accent)
+    # Pas de barre de progression (4 oct., opérateur : inutile).
     return img
 
 
