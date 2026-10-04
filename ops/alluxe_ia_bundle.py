@@ -67,6 +67,10 @@ SONS_TENDANCE_PREFERES = [
     ("God's Plan", "Drake"),
     ("MONACO", "Bad Bunny"),
     ("Sexy Nana", "Aya Nakamura"),
+    ("Raindance", "Dave, Tems"),
+    ("Jet Lag", "Tiakola, Jorja Smith"),
+    ("La Nocturne", "Tiakola, Theodora"),
+    ("STORM II", "GENER8ION, Yung Lean"),
 ]
 
 

@@ -113,14 +113,16 @@ REELS: dict[str, dict] = {
             "👉 Abonne-toi : demain, je montre le prompt complet et le test en direct.\n\n"
             "#chatgpt #ia #intelligenceartificielle #prompt #productivite #astuceia #alluxe"),
         "temps": [
-            Temps("Tu utilises ChatGPT comme Google ?", 1.8, taille=108, couleur=ENCRE),
-            Temps("C'est peut-être exactement le problème.", 1.8, taille=92, couleur=AMBRE),
-            Temps("Google cherche.\nChatGPT génère.", 2.0, taille=104),
-            Temps("Alors cadre ta demande avec 3 lignes :", 1.8, taille=92, couleur=MENTHE),
-            Temps("1. « Voici les faits. »", 1.6, taille=98),
-            Temps("2. « N'invente rien. »", 1.6, taille=98),
-            Temps("3. « Si tu doutes, dis-le. »", 1.8, taille=98, couleur=MENTHE),
-            Temps("Enregistre ce Reel.", 1.4, taille=102, couleur=ENCRE,
+            # 107 BPM : chaque changement tombe sur un nombre entier de temps
+            # (4 + 3 + 3 + 3 + 3 + 3 + 3 + 4 = 26 temps).
+            Temps("Tu utilises ChatGPT comme Google ?", 2.24, taille=108, couleur=ENCRE),
+            Temps("C'est peut-être exactement le problème.", 1.68, taille=92, couleur=AMBRE),
+            Temps("Google cherche.\nChatGPT génère.", 1.68, taille=104),
+            Temps("Alors cadre ta demande avec 3 lignes :", 1.68, taille=92, couleur=MENTHE),
+            Temps("1. « Voici les faits. »", 1.68, taille=98),
+            Temps("2. « N'invente rien. »", 1.68, taille=98),
+            Temps("3. « Si tu doutes, dis-le. »", 1.68, taille=98, couleur=MENTHE),
+            Temps("Enregistre ce Reel.", 2.24, taille=102, couleur=ENCRE,
                   sous_texte="Demain : le prompt complet + le test.",
                   mot_cle="S'abonner"),
         ],
@@ -219,7 +221,7 @@ def images(temps: list[Temps], reel_id: str = ""):
     """Rend chaque image du Reel, avec mouvement cohérent au sujet."""
     photo = None
     if reel_id == "03-chatgpt-comme-google":
-        photo = os.path.join("/tmp/apercu-fonds/alluxe_ia/fonds/24-ia-qui-invente.jpg")
+        photo = os.path.join("/tmp/apercu-fonds/alluxe_ia/fonds/23-chatgpt-comme-google.jpg")
     total = sum(t.duree for t in temps)
     debut = 0.0
     for k, t in enumerate(temps):
