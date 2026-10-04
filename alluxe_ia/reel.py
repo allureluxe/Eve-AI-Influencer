@@ -80,6 +80,29 @@ REELS: dict[str, dict] = {
                   mot_cle="Lien en bio"),
         ],
     },
+    # 4 oct. : histoire vraie du jour (l'assistant de alluxe.fr, gpt-oss-20b,
+    # a répondu « à partir de 79 € » pour le kit gratuit). Court : ~18 s.
+    "02-ia-invente-un-prix": {
+        "legende": (
+            "Mon assistant IA a inventé un prix pour un kit… qui est gratuit.\n\n"
+            "Une IA ne dit pas « je ne sais pas » toute seule : sans les faits, elle "
+            "invente la réponse la plus probable. Ces 3 phrases l'en empêchent. "
+            "Garde-les pour tes propres prompts.\n\n"
+            "📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n"
+            "#ia #chatgpt #claude #prompt #intelligenceartificielle #nocode #buildinpublic"),
+        "temps": [
+            Temps("Mon assistant IA a inventé un prix.", 2.4, taille=110),
+            Temps("« Le kit ? À partir de 79 €. »", 2.4, taille=104, couleur=AMBRE),
+            Temps("Le kit est gratuit.", 2.0, taille=118, couleur=MENTHE),
+            Temps("3 phrases l'ont fait arrêter :", 2.2, taille=100),
+            Temps("1. « Voici les faits : […] »", 2.0),
+            Temps("2. « N'invente aucun prix ni lien. »", 2.2),
+            Temps("3. « Si tu ne sais pas, dis-le. »", 2.4, couleur=MENTHE),
+            Temps("Le prompt complet est dans le kit.", 3.0, taille=96, couleur=ENCRE,
+                  sous_texte="12 prompts que j'utilise vraiment.",
+                  mot_cle="Lien en bio"),
+        ],
+    },
 }
 
 
