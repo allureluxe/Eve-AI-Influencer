@@ -14,7 +14,15 @@ l'image (il serait illisible ou faux), aucune marque.
     python3 -m alluxe_ia.fonds                 # génère les fonds manquants
     python3 -m alluxe_ia.fonds 03-108-rejetees --refaire
     python3 -m alluxe_ia.fonds --brouillon     # moins cher, pour choisir
+    python3 -m alluxe_ia.fonds --pixabay       # vraies photos de Pixabay
     python3 -m alluxe_ia.fonds --pexels        # vraies photos de Pexels
+
+PIXABAY (pixabay.com) : photos ET vidéos gratuites, usage commercial
+permis, sans attribution. La clé gratuite s'affiche sur
+pixabay.com/api/docs une fois connecté (.env : PIXABAY_API_KEY). Pixabay
+interdit de lier ses images à distance : on les TÉLÉCHARGE, c'est ce que
+fait ce module. 4 oct. : Pexels a suspendu la délivrance de nouvelles
+clés, Pixabay est donc la banque par défaut.
 
 PEXELS (pexels.com) : banque gratuite de photos ET de vidéos, usage
 commercial permis, sans attribution obligatoire, API gratuite (clé dans
@@ -152,6 +160,47 @@ def chercher_pexels(post_id: str) -> str:
     return chemin(post_id)
 
 
+def chercher_pixabay(post_id: str) -> str:
+    """La première photo verticale de Pixabay pour ce post, téléchargée."""
+    import json
+    import urllib.parse
+    import urllib.request
+    cle = os.environ.get("PIXABAY_API_KEY", "").strip()
+    if not cle:
+        raise RuntimeError("PIXABAY_API_KEY absent du .env (clé gratuite sur pixabay.com/api/docs)")
+    q = urllib.parse.urlencode({"key": cle, "q": RECHERCHE[post_id], "image_type": "photo",
+                                "orientation": "vertical", "safesearch": "true",
+                                "per_page": 5, "order": "popular"})
+    r = urllib.request.Request(f"https://pixabay.com/api/?{q}", headers={"User-Agent": "alluxe-ia"})
+    with urllib.request.urlopen(r, timeout=30) as resp:
+        hits = json.load(resp).get("hits", [])
+    if not hits:
+        raise RuntimeError(f"aucune photo pour « {RECHERCHE[post_id]} »")
+    h = hits[0]
+    r = urllib.request.Request(h["largeImageURL"], headers={"User-Agent": "alluxe-ia"})
+    with urllib.request.urlopen(r, timeout=60) as resp:
+        brut = resp.read()
+    _garder(post_id, brut, {"source": "pixabay", "photographe": h.get("user"),
+                            "page": h.get("pageURL")})
+    return chemin(post_id)
+
+
+def _garder(post_id: str, brut: bytes, credit: dict) -> None:
+    import json
+    from PIL import Image
+    os.makedirs(DOSSIER, exist_ok=True)
+    Image.open(io.BytesIO(brut)).convert("RGB").save(chemin(post_id), quality=90)
+    credits = os.path.join(DOSSIER, "credits.json")
+    try:
+        with open(credits, encoding="utf-8") as f:
+            tout = json.load(f)
+    except (OSError, ValueError):
+        tout = {}
+    tout[post_id] = credit
+    with open(credits, "w", encoding="utf-8") as f:
+        json.dump(tout, f, indent=2, ensure_ascii=False)
+
+
 def chemin(post_id: str) -> str:
     return os.path.join(DOSSIER, f"{post_id}.jpg")
 
@@ -180,6 +229,7 @@ def main() -> int:
     p.add_argument("--refaire", action="store_true")
     p.add_argument("--brouillon", action="store_true")
     p.add_argument("--pexels", action="store_true")
+    p.add_argument("--pixabay", action="store_true")
     a = p.parse_args()
     sys.path.insert(0, os.path.dirname(ICI))
     try:
@@ -192,7 +242,8 @@ def main() -> int:
         if os.path.exists(chemin(pid)) and not a.refaire:
             continue
         try:
-            fait = chercher_pexels(pid) if a.pexels else generer(pid, a.brouillon)
+            fait = (chercher_pixabay(pid) if a.pixabay else
+                    chercher_pexels(pid) if a.pexels else generer(pid, a.brouillon))
             print(f"{pid} -> {fait}")
         except Exception as exc:  # noqa: BLE001 -- un fond raté n'arrête pas les autres
             print(f"{pid} : échec ({str(exc)[:200]})")
