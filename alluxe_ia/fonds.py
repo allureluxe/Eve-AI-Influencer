@@ -160,26 +160,42 @@ def chercher_pexels(post_id: str) -> str:
     return chemin(post_id)
 
 
+def _lire(url: str, entetes: dict | None = None, essais: int = 5) -> bytes:
+    """GET avec patience : Pixabay répond 429 quand on enchaîne trop vite
+    (4 oct. : 15 posts sur 22 refusés d'affilée). On attend ce qu'il
+    demande (Retry-After, sinon 5, 10, 20… s) et on réessaie."""
+    import time
+    import urllib.error
+    import urllib.request
+    h = {"User-Agent": "Mozilla/5.0 (alluxe-ia)", **(entetes or {})}
+    for k in range(essais):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=60) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or k == essais - 1:
+                raise
+            attente = float(e.headers.get("Retry-After") or 5 * 2 ** k)
+            print(f"  Pixabay demande d'attendre {attente:.0f} s…")
+            time.sleep(min(attente, 90))
+    raise RuntimeError("inatteignable")
+
+
 def chercher_pixabay(post_id: str) -> str:
     """La première photo verticale de Pixabay pour ce post, téléchargée."""
     import json
     import urllib.parse
-    import urllib.request
     cle = os.environ.get("PIXABAY_API_KEY", "").strip()
     if not cle:
         raise RuntimeError("PIXABAY_API_KEY absent du .env (clé gratuite sur pixabay.com/api/docs)")
     q = urllib.parse.urlencode({"key": cle, "q": RECHERCHE[post_id], "image_type": "photo",
                                 "orientation": "vertical", "safesearch": "true",
                                 "per_page": 5, "order": "popular"})
-    r = urllib.request.Request(f"https://pixabay.com/api/?{q}", headers={"User-Agent": "alluxe-ia"})
-    with urllib.request.urlopen(r, timeout=30) as resp:
-        hits = json.load(resp).get("hits", [])
+    hits = json.loads(_lire(f"https://pixabay.com/api/?{q}")).get("hits", [])
     if not hits:
         raise RuntimeError(f"aucune photo pour « {RECHERCHE[post_id]} »")
     h = hits[0]
-    r = urllib.request.Request(h["largeImageURL"], headers={"User-Agent": "alluxe-ia"})
-    with urllib.request.urlopen(r, timeout=60) as resp:
-        brut = resp.read()
+    brut = _lire(h["largeImageURL"])
     _garder(post_id, brut, {"source": "pixabay", "photographe": h.get("user"),
                             "page": h.get("pageURL")})
     return chemin(post_id)
@@ -237,6 +253,13 @@ def main() -> int:
         charger_env()
     except Exception:  # noqa: BLE001
         pass
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        print("Pillow absent : lancer avec le Python du robot, "
+              "~/Eve-AI-Influencer/.venv/bin/python -m alluxe_ia.fonds …")
+        return 2
+    import time
     code = 0
     for pid in a.ids or list(SCENES):
         if os.path.exists(chemin(pid)) and not a.refaire:
@@ -245,6 +268,8 @@ def main() -> int:
             fait = (chercher_pixabay(pid) if a.pixabay else
                     chercher_pexels(pid) if a.pexels else generer(pid, a.brouillon))
             print(f"{pid} -> {fait}")
+            if a.pixabay or a.pexels:
+                time.sleep(2)   # une banque gratuite n'aime pas les rafales
         except Exception as exc:  # noqa: BLE001 -- un fond raté n'arrête pas les autres
             print(f"{pid} : échec ({str(exc)[:200]})")
             code = 1
