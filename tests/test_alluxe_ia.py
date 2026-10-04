@@ -267,3 +267,7 @@ class TestLesFondsPhoto:
         assert img.size == (LARGEUR, HAUTEUR)
         # Le bas est assombri : le titre blanc doit s'y lire.
         assert sum(img.getpixel((LARGEUR - 40, HAUTEUR - 300))) < 3 * 90
+
+    def test_chaque_post_a_sa_recherche_pexels(self):
+        from alluxe_ia.fonds import RECHERCHE
+        assert {p.id for p in _posts()} <= set(RECHERCHE)
