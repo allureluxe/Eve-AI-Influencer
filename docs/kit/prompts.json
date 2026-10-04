@@ -1,0 +1,240 @@
+[
+ {
+  "id": "02-le-labo-0",
+  "titre": "Le prompt qui évite les fausses idées",
+  "categorie": "Construire un projet",
+  "sujet": "Mon labo pose des questions à Claude et ChatGPT jour et nuit.",
+  "prompt": "Voici la liste exacte des réglages disponibles : [liste].\nPropose 4 idées à tester. Pour chacune : les réglages modifiés et leur valeur, pourquoi ça pourrait marcher, et comment savoir que c'est raté.\nN'utilise aucun réglage absent de la liste."
+ },
+ {
+  "id": "03-108-rejetees-1",
+  "titre": "Le prompt pour ce genre de bug",
+  "categorie": "Trouver un bug",
+  "sujet": "108 testées. 108 rejetées.",
+  "prompt": "Voici un résultat qui me semble anormal : [résultat].\nAvant de chercher dans ce qui est testé, liste 5 façons dont l'outil de test lui-même pourrait produire ce résultat, de la plus probable à la moins probable, et comment vérifier chacune."
+ },
+ {
+  "id": "23-chatgpt-comme-google-2",
+  "titre": "Tu parles à ChatGPT comme à Google. Voilà le problème",
+  "categorie": "Bien écrire un prompt",
+  "sujet": "Tu parles à ChatGPT comme à Google. Voilà le problème.",
+  "prompt": "Tu es [rôle].\nTa tâche : [verbe + objet].\nContexte : [pour qui, pourquoi, contraintes].\nFormat : [liste, tableau, longueur].\nAvant de répondre, pose-moi les questions qui te manquent."
+ },
+ {
+  "id": "24-ia-qui-invente-3",
+  "titre": "Les 3 phrases, à coller",
+  "categorie": "Bien écrire un prompt",
+  "sujet": "ChatGPT invente quand il ne sait pas. Colle ces 3 phrases.",
+  "prompt": "Réponds uniquement à partir des informations ci-dessous.\nN'invente aucun chiffre, prix, nom, date ou lien.\nSi la réponse n'y est pas, réponds « je ne sais pas ».\n\nInformations :\n[colle ici]"
+ },
+ {
+  "id": "09-methode-4-cases-4",
+  "titre": "Les 4 cases ensemble",
+  "categorie": "Bien écrire un prompt",
+  "sujet": "La méthode en 4 cases pour écrire n'importe quel prompt.",
+  "prompt": "Tu es un conseiller en recrutement qui aide des petites entreprises.\nRéécris l'annonce ci-dessous.\nContexte : nous sommes une boulangerie de 6 personnes, nous cherchons un vendeur le week-end, et l'ancienne annonce n'a reçu aucune réponse en 3 semaines.\nFormat : 120 mots maximum, un titre accrocheur, 3 puces pour les avantages."
+ },
+ {
+  "id": "26-prof-particulier-5",
+  "titre": "Transforme ChatGPT en prof particulier gratuit",
+  "categorie": "Au quotidien",
+  "sujet": "Transforme ChatGPT en prof particulier gratuit.",
+  "prompt": "Tu es mon prof particulier. Je veux apprendre : [sujet].\nMon niveau : [débutant / moyen].\nExplique une seule notion à la fois, en 5 lignes maximum, avec un exemple.\nPuis pose-moi une question pour vérifier que j'ai compris.\nNe passe à la suite que si ma réponse est juste. Sinon, réexplique autrement."
+ },
+ {
+  "id": "27-mail-jamais-mal-pris-6",
+  "titre": "Le prompt pour qu'un mail ne soit plus jamais mal pris",
+  "categorie": "Au quotidien",
+  "sujet": "Le prompt pour qu'un mail ne soit plus jamais mal pris.",
+  "prompt": "Voici un mail que je m'apprête à envoyer à [qui].\nObjectif : [ce que je veux obtenir].\n1. Dis-moi comment il risque d'être perçu, et quelles phrases peuvent froisser.\n2. Propose une version plus claire et plus courtoise, sans perdre la fermeté.\n3. Garde-le court.\n\nMail :\n[colle ici]"
+ },
+ {
+  "id": "28-decision-difficile-7",
+  "titre": "Le prompt pour prendre une décision difficile",
+  "categorie": "Au quotidien",
+  "sujet": "Le prompt pour prendre une décision difficile.",
+  "prompt": "J'hésite entre : [option A] et [option B].\nMon contexte : [situation, budget, contraintes].\nCe qui compte le plus pour moi : [3 critères].\n1. Pose-moi d'abord 5 questions pour mieux comprendre.\n2. Puis fais un tableau : avantages, risques, coût, réversibilité.\n3. Dis-moi ce que je semble déjà préférer, d'après mes réponses."
+ },
+ {
+  "id": "29-apprendre-30-jours-8",
+  "titre": "Apprends n'importe quoi en 30 jours avec ce plan",
+  "categorie": "Au quotidien",
+  "sujet": "Apprends n'importe quoi en 30 jours avec ce plan.",
+  "prompt": "Je veux apprendre [compétence] en 30 jours, 15 minutes par jour.\nMon niveau : [zéro / un peu].\nMon objectif concret au jour 30 : [ex. tenir une conversation de 5 min].\nFais un plan jour par jour : un exercice précis par jour, et un mini-test chaque dimanche.\nCommence par les 20 % qui donnent 80 % du résultat."
+ },
+ {
+  "id": "04-cahier-des-charges-9",
+  "titre": "Transformer l'idée floue",
+  "categorie": "Construire un projet",
+  "sujet": "Le prompt que j'utilise pour démarrer n'importe quel projet.",
+  "prompt": "Je veux construire [ton idée, même floue]. Je ne suis pas développeur.\nPose-moi 10 questions, une à la fois, pour comprendre ce que je veux vraiment.\nN'écris aucun code."
+ },
+ {
+  "id": "04-cahier-des-charges-10",
+  "titre": "Le cahier des charges",
+  "categorie": "Construire un projet",
+  "sujet": "Le prompt que j'utilise pour démarrer n'importe quel projet.",
+  "prompt": "À partir de mes réponses, écris un cahier des charges : ce que ça fait, ce que ça ne fait pas, les données utilisées, les étapes dans l'ordre et ce qui pourrait mal tourner.\nPas de code avant que je valide."
+ },
+ {
+  "id": "04-cahier-des-charges-11",
+  "titre": "Découper",
+  "categorie": "Construire un projet",
+  "sujet": "Le prompt que j'utilise pour démarrer n'importe quel projet.",
+  "prompt": "Découpe ce cahier des charges en étapes que je peux tester une par une.\nPour chaque étape : ce que je dois voir fonctionner avant de passer à la suivante."
+ },
+ {
+  "id": "31-critique-toi-12",
+  "titre": "Ne garde jamais la première réponse de l'IA",
+  "categorie": "Bien écrire un prompt",
+  "sujet": "Ne garde jamais la première réponse de l'IA.",
+  "prompt": "Relis ta réponse comme un expert exigeant.\nListe ses 3 plus gros défauts : oublis, erreurs possibles, passages flous.\nPuis réécris-la en corrigeant ces 3 points."
+ },
+ {
+  "id": "32-assistant-du-quotidien-13",
+  "titre": "Les repas de la semaine",
+  "categorie": "Au quotidien",
+  "sujet": "6 prompts qui allègent ta semaine.",
+  "prompt": "Propose 5 dîners simples pour [nombre] personnes, prêts en 30 minutes, budget [x] €.\nPuis la liste de courses regroupée par rayon."
+ },
+ {
+  "id": "32-assistant-du-quotidien-14",
+  "titre": "Le courrier administratif",
+  "categorie": "Au quotidien",
+  "sujet": "6 prompts qui allègent ta semaine.",
+  "prompt": "Explique-moi ce courrier en 5 lignes simples : ce qu'on me demande, avant quelle date, et ce qui se passe si je ne fais rien.\n[colle le texte, sans tes numéros personnels]"
+ },
+ {
+  "id": "32-assistant-du-quotidien-15",
+  "titre": "La lettre de réclamation",
+  "categorie": "Au quotidien",
+  "sujet": "6 prompts qui allègent ta semaine.",
+  "prompt": "Rédige une réclamation polie et ferme à [entreprise] pour [problème], survenu le [date]. Je demande [remboursement / échange]. 150 mots."
+ },
+ {
+  "id": "32-assistant-du-quotidien-16",
+  "titre": "Le planning",
+  "categorie": "Au quotidien",
+  "sujet": "6 prompts qui allègent ta semaine.",
+  "prompt": "Voici mes tâches de la semaine : [liste]. Classe-les par urgence et importance, et répartis-les sur 5 jours, 2 heures maximum par jour."
+ },
+ {
+  "id": "32-assistant-du-quotidien-17",
+  "titre": "Le résumé express",
+  "categorie": "Au quotidien",
+  "sujet": "6 prompts qui allègent ta semaine.",
+  "prompt": "Résume ce texte en 5 points, puis dis-moi en une phrase ce que je dois faire concrètement.\n[colle ici]"
+ },
+ {
+  "id": "32-assistant-du-quotidien-18",
+  "titre": "Le cadeau",
+  "categorie": "Au quotidien",
+  "sujet": "6 prompts qui allègent ta semaine.",
+  "prompt": "Propose 10 idées de cadeau pour [personne, âge, passions], budget [x] €, en évitant les objets inutiles."
+ },
+ {
+  "id": "14-avant-apres-prompt-19",
+  "titre": "Le même prompt, avant et après",
+  "categorie": "Bien écrire un prompt",
+  "sujet": "Le même prompt, avant et après.",
+  "prompt": "Tu es un manager qui sait ce qui convainc une direction.\nÉcris un mail pour demander une augmentation.\nContexte : [ton poste], [depuis combien de temps], [2 résultats concrets], [le montant visé].\nFormat : 120 mots, ton direct, une demande de rendez-vous à la fin."
+ },
+ {
+  "id": "11-assistant-perso-20",
+  "titre": "Les instructions à coller",
+  "categorie": "Bien écrire un prompt",
+  "sujet": "Crée ton assistant IA perso en 5 minutes.",
+  "prompt": "Qui je suis : [métier, situation, niveau en IA].\nCe que je te demande le plus souvent : [3 usages].\nComment me répondre : en français, direct, sans introduction ni conclusion inutiles, avec des listes quand c'est plus clair.\nSi ma demande est floue, pose-moi une question avant de répondre."
+ },
+ {
+  "id": "11-assistant-perso-21",
+  "titre": "Le faire écrire par l'IA",
+  "categorie": "Bien écrire un prompt",
+  "sujet": "Crée ton assistant IA perso en 5 minutes.",
+  "prompt": "Pose-moi 8 questions sur mon travail, mes habitudes et ce qui m'agace dans tes réponses.\nÀ partir de mes réponses, rédige les instructions personnalisées idéales pour toi, en 150 mots maximum."
+ },
+ {
+  "id": "15-expliquer-un-bug-22",
+  "titre": "Le prompt pour expliquer un bug",
+  "categorie": "Trouver un bug",
+  "sujet": "Comment j'explique un bug à l'IA pour qu'elle le trouve.",
+  "prompt": "Ce que je vois : [symptôme exact].\nCe que j'attendais : [comportement normal].\nCe qui a changé récemment : [modifs].\nAvant de proposer une correction, dis-moi quelle information afficher pour savoir OÙ ça bloque."
+ },
+ {
+  "id": "21-checklist-mise-en-ligne-23",
+  "titre": "La checklist que je fais relire à l'IA avant chaque mise en ligne",
+  "categorie": "Construire un projet",
+  "sujet": "La checklist que je fais relire à l'IA avant chaque mise en ligne.",
+  "prompt": "Je vais mettre en ligne : [ce que c'est].\nAvant, vérifie avec moi :\n1. Testé comme un vrai utilisateur ?\n2. Ce qui doit être refusé l'est-il ?\n3. Un secret visible quelque part ?\n4. Que se passe-t-il si ça tombe en panne ?\nPose-moi une question par point."
+ },
+ {
+  "id": "06-fichier-decisions-24",
+  "titre": "Le prompt de fin de session",
+  "categorie": "Construire un projet",
+  "sujet": "Le fichier qui empêche l'IA d'oublier mes décisions.",
+  "prompt": "Résume chaque décision prise dans cette conversation sous ce format : la décision, pourquoi, ce qu'on a écarté et pourquoi, la date.\nCe texte sera relu par une IA qui ne se souviendra de rien."
+ },
+ {
+  "id": "05-publication-auto-25",
+  "titre": "Pour automatiser ta propre tâche",
+  "categorie": "Construire un projet",
+  "sujet": "Ce compte se publie tout seul. Voici la machine.",
+  "prompt": "Je veux automatiser [tâche répétitive]. Décris la chaîne en étapes.\nPour chacune : l'outil, ce qui entre, ce qui sort, ce qui peut casser.\nAjoute un mode essai qui montre le résultat sans rien envoyer."
+ },
+ {
+  "id": "07-tests-verts-26",
+  "titre": "Le prompt pour le chercher chez toi",
+  "categorie": "Trouver un bug",
+  "sujet": "656 tests verts. Avec le bug dedans.",
+  "prompt": "Voici un réglage : [nom].\nTrouve tous les endroits du code qui le lisent, ET tous ceux qui prennent la même décision sans le lire.\nPour chacun, dis si le réglage peut être contourné."
+ },
+ {
+  "id": "08-agent-garde-fous-27",
+  "titre": "Avant de donner un accès à une IA",
+  "categorie": "Construire un projet",
+  "sujet": "J'ai donné un terminal à mon agent IA.",
+  "prompt": "Je veux donner à une IA l'accès à [outil ou dossier].\nListe le pire qu'elle pourrait casser.\nPuis propose 3 protections qui ne dépendent pas de sa bonne volonté."
+ },
+ {
+  "id": "12-arrete-d-inventer-28",
+  "titre": "La phrase à ajouter à tes prompts",
+  "categorie": "Bien écrire un prompt",
+  "sujet": "Mon assistant IA a inventé un prix. Le kit est gratuit.",
+  "prompt": "Réponds uniquement à partir des informations ci-dessous : [tes faits].\nSi la réponse n'y est pas, dis « je ne sais pas ».\nN'invente aucun chiffre, prix, nom ou lien."
+ },
+ {
+  "id": "16-ecrit-pas-lance-29",
+  "titre": "Le prompt pour tes propres notes",
+  "categorie": "Trouver un bug",
+  "sujet": "La solution était écrite depuis 2 semaines. Personne ne l'avait lancée.",
+  "prompt": "Voici mes notes de projet : [notes].\nRelève chaque consigne qui dépend de ma mémoire (« penser à », « ne pas oublier », « toujours »).\nPour chacune, propose un moyen de la rendre automatique."
+ },
+ {
+  "id": "17-sur-de-lui-et-faux-30",
+  "titre": "Le prompt quand l'IA est trop sûre",
+  "categorie": "Bien écrire un prompt",
+  "sujet": "L'IA m'a proposé de corriger un problème qui n'existait pas.",
+  "prompt": "Avant d'appliquer ta proposition :\n1. Montre-moi que le cas que tu corriges arrive vraiment, avec un exemple réel.\n2. Dis ce qui prouverait que tu as tort.\n3. Compare avec la version actuelle, une seule différence à la fois."
+ },
+ {
+  "id": "19-essai-different-du-vrai-31",
+  "titre": "Le prompt pour comparer",
+  "categorie": "Trouver un bug",
+  "sujet": "Ma version d'essai a testé autre chose que la vraie pendant 5 jours.",
+  "prompt": "Voici deux fichiers de réglages : [essai] et [réel].\nListe chaque différence.\nPour chacune, dis si elle est voulue (c'est ce qu'on teste) ou si c'est un oubli."
+ },
+ {
+  "id": "20-affichage-qui-mentait-32",
+  "titre": "Le prompt pour le chercher chez toi",
+  "categorie": "Trouver un bug",
+  "sujet": "Mon appli affichait un réglage qui n'existait plus.",
+  "prompt": "Trouve dans mon projet chaque texte, écran ou rapport qui affiche une valeur de réglage.\nPour chacun : la valeur est-elle lue en direct, ou écrite à la main ?\nPropose de remplacer chaque copie par une lecture."
+ },
+ {
+  "id": "22-zero-resultat-33",
+  "titre": "Le prompt quand tout est à zéro",
+  "categorie": "Trouver un bug",
+  "sujet": "Zéro résultat partout. Ce n'était pas mon idée, c'était un filtre.",
+  "prompt": "Mon outil rend [zéro / presque rien].\nAvant de conclure que l'idée est mauvaise, liste chaque filtre ou condition qui peut refuser.\nPour chacun, comment compter combien de fois il a refusé ?"
+ }
+]
