@@ -97,15 +97,17 @@ SCENES: dict[str, str] = {
 }
 
 
-# Mots-clés courts pour la recherche Pexels (en anglais : la banque l'est).
+# Mots-clés courts pour la recherche (en anglais : les banques le sont).
+# 4 oct. : 01 et 07 ramenaient une personne (page sans visage), 02, 03 et
+# 05 une photo hors sujet ; leurs mots-clés ont été resserrés.
 RECHERCHE: dict[str, str] = {
-    "01-tout-construit": "desk at night laptop city",
-    "02-le-labo": "laboratory glass night",
-    "03-108-rejetees": "crumpled paper pile",
+    "01-tout-construit": "laptop dark desk night",
+    "02-le-labo": "laboratory flasks",
+    "03-108-rejetees": "crumpled paper balls",
     "04-cahier-des-charges": "blank notebook pen",
-    "05-publication-auto": "printing press",
+    "05-publication-auto": "printing press machine",
     "06-fichier-decisions": "library card catalog",
-    "07-tests-verts": "server room lights",
+    "07-tests-verts": "server rack lights",
     "08-agent-garde-fous": "robotic arm factory",
     "09-methode-4-cases": "minimalist squares shadow",
     "10-cinq-erreurs": "chess king fallen",
