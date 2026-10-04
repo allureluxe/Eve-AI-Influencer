@@ -1105,16 +1105,17 @@ class Strategy:
         # satisfaire le controle de ratio : un systeme de cassure n'a pas
         # de cible fixe, c'est tout son interet.
         risque = max(price - sl, 1e-12)
-        # `tp_actif` doit etre respecte ICI AUSSI. Il ne suffit pas de le
-        # lire dans `initial_levels` : c'est la strategie qui pose la cible
-        # de l'evaluation, et elle la reimposait a 2 R par l'autre bout.
-        # Mesure : le plafond revenait en silence et l'esperance tombait de
-        # +0,130 a +0,044 R. Deux endroits decident du meme reglage — celui
-        # qu'on oublie est celui qui gagne.
+        # Une cassure Turtle n'a pas de TP fixe quand tp_actif est faux.
+        # Le 1000R etait uniquement un artifice de validation qui polluait
+        # les logs (TP a des dizaines de fois le prix reel) et pouvait etre
+        # interprete comme un objectif. Sans TP, RR est simplement N/A.
         tm = self.trade_manager.config
-        cible_r = tm.tp_r_multiple if tm.tp_actif else 1000.0
-        ev.take_profit = round(price + cible_r * risque, instrument.digits)
-        ev.rr = cible_r
+        if not tm.tp_actif:
+            ev.take_profit = 0.0
+            ev.rr = 0.0
+        else:
+            ev.take_profit = round(price + tm.tp_r_multiple * risque, instrument.digits)
+            ev.rr = tm.tp_r_multiple
         return ev
 
     def _finish_momentum(

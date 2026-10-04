@@ -960,9 +960,15 @@ class TradingEngine:
         inst = instrument_crypto(actif, "crypto_alt")
         inst.enabled = False          # gere jusqu'a la sortie, jamais rachete
         self.universe.add(inst)
+        # Une position reprise doit rester gerable par le simulateur meme si
+        # son actif a disparu de l'univers d'achat du jour. Le catalogue
+        # sert a decider quoi ACHETER ; il ne doit jamais effacer le contrat
+        # necessaire pour CLOTURER une position deja ouverte.
+        broker = getattr(self, "broker", None)
+        if broker is not None and hasattr(broker, "register_instrument"):
+            broker.register_instrument(inst)
         # Les regles de marche ne couvrent que le catalogue du demarrage :
         # sans elles, `supports()` refuse encore la crypto (2e verrou DIA).
-        broker = getattr(self, "broker", None)
         rafraichir = getattr(broker, "rafraichir_marches", None)
         if rafraichir is not None and not broker.supports(sym):
             try:
