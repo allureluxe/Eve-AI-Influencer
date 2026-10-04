@@ -242,3 +242,28 @@ class TestLeStyleVif:
         assert _chiffre(p) == "656"
         p.slides[0].titre = "Crée ton assistant en 5 minutes"
         assert _chiffre(p) == ""
+
+
+class TestLesFondsPhoto:
+    """4 oct. : une scène par post, sans visage ni texte. Une couverture
+    sans photo garde sa couleur ; avec photo, elle se rend au même format."""
+
+    def test_chaque_post_a_sa_scene(self):
+        from alluxe_ia.fonds import SCENES
+        assert {p.id for p in _posts()} <= set(SCENES)
+
+    def test_aucune_scene_ne_demande_de_visage(self):
+        from alluxe_ia.fonds import STYLE, prompt
+        assert "No people, no faces" in STYLE
+        assert "no text" in prompt("03-108-rejetees")
+
+    def test_la_couverture_photo_se_rend(self, tmp_path):
+        from PIL import Image
+        from alluxe_ia import slides
+        photo = tmp_path / "fond.jpg"
+        Image.new("RGB", (832, 1216), (90, 120, 160)).save(photo)
+        post = _posts()[2]
+        img = slides._couverture_photo(post, post.slides[0], len(post.slides), str(photo))
+        assert img.size == (LARGEUR, HAUTEUR)
+        # Le bas est assombri : le titre blanc doit s'y lire.
+        assert sum(img.getpixel((LARGEUR - 40, HAUTEUR - 300))) < 3 * 90

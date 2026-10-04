@@ -472,6 +472,64 @@ def _couverture_vive(post: Post, s: Slide, total: int) -> Image.Image:
     return img
 
 
+def _fond_photo(post_id: str) -> str | None:
+    c = os.path.join(ICI, "fonds", f"{post_id}.jpg")
+    return c if os.path.exists(c) else None
+
+
+def _couverture_photo(post: Post, s: Slide, total: int, photo: str) -> Image.Image:
+    """Couverture sur photo (alluxe_ia/fonds.py) : l'image en pleine page,
+    un dégradé noir qui monte du bas pour que le titre blanc se lise
+    toujours, la dernière ligne surlignée dans la couleur du post."""
+    accent, encre_accent = couleur_du_post(post.id)
+    if sum(accent) < 120:
+        accent, encre_accent = SURLIGNEUR, (17, 20, 19)
+    src = Image.open(photo).convert("RGB")
+    k = max(LARGEUR / src.width, HAUTEUR / src.height)
+    src = src.resize((int(src.width * k + 1), int(src.height * k + 1)), Image.LANCZOS)
+    x0, y0 = (src.width - LARGEUR) // 2, (src.height - HAUTEUR) // 2
+    img = src.crop((x0, y0, x0 + LARGEUR, y0 + HAUTEUR))
+    # Voile : léger en haut (l'en-tête), fort en bas (le titre).
+    voile = Image.new("L", (LARGEUR, HAUTEUR))
+    dv = ImageDraw.Draw(voile)
+    for y in range(HAUTEUR):
+        t = y / HAUTEUR
+        a = 70 * max(0.0, 1 - t / 0.22) + 240 * min(1.0, max(0.0, (t - 0.25) / 0.55)) ** 0.9
+        dv.line((0, y, LARGEUR, y), fill=int(min(235, a)))
+    img = Image.composite(Image.new("RGB", img.size, (8, 10, 10)), img, voile)
+    d = ImageDraw.Draw(img)
+    blanc = (255, 255, 255)
+    _entete_vif(img, d, accent, blanc, "")
+    if post.etiquette:
+        _pastille(d, LARGEUR - MARGE, MARGE + 80 - 29, post.etiquette, accent, encre_accent,
+                  28, droite=True)
+
+    largeur = LARGEUR - 2 * MARGE
+    fab = lambda t: _police("BricolageGrotesque.ttf", t, "ExtraBold")  # noqa: E731
+    p = _ajuster(s.titre, fab, 124, 70, largeur, 520, 1.02)
+    pt = texte_police(40, gras=True)
+    lignes = couper(s.titre, p, largeur)
+    pas = int(p.size * 1.02)
+    hs = _hauteur(s.texte, pt, largeur, 1.3) if s.texte else 0
+    bas = HAUTEUR - MARGE - 110
+    y = bas - hs - (36 if s.texte else 0) - pas * len(lignes)
+    for i, ligne in enumerate(lignes):
+        if i == len(lignes) - 1:
+            w = d.textlength(ligne, font=p)
+            d.rounded_rectangle((MARGE - 14, y + p.size * 0.14, MARGE + w + 16,
+                                 y + p.size * 1.04), radius=14, fill=accent)
+            d.text((MARGE, y), ligne, font=p, fill=encre_accent)
+        else:
+            d.text((MARGE, y), ligne, font=p, fill=blanc)
+        y += pas
+    if s.texte:
+        _bloc(d, MARGE, y + 36, s.texte, pt, (235, 235, 230), largeur, 1.3)
+    if total > 1:
+        _pastille(d, LARGEUR - MARGE, HAUTEUR - MARGE - 58, "Glisse", blanc, (17, 20, 19), 32,
+                  droite=True, fleche=True)
+    return img
+
+
 def _entete_interieur(img, d, numero: int, total: int, accent, encre_accent) -> None:
     cx, cy, r = MARGE + 70, MARGE + 70, 70
     m = medaillon(2 * r, contenu_taille=104)
@@ -583,7 +641,9 @@ def _rendre_vif(post: Post) -> list[Image.Image]:
     images = []
     for i, s in enumerate(post.slides, start=1):
         if s.type == "couverture":
-            images.append(_couverture_vive(post, s, total))
+            photo = _fond_photo(post.id)
+            images.append(_couverture_photo(post, s, total, photo) if photo
+                          else _couverture_vive(post, s, total))
             continue
         if s.type == "appel" and i == total:
             images.append(_appel_vif(post, s, i, total))
