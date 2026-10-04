@@ -104,6 +104,7 @@ def main() -> int:
     s = a.add_subparsers(dest="action", required=True)
     s1 = s.add_parser("sons")
     s1.add_argument("recherche", nargs="?", default="")
+    s1.add_argument("--connus", action="store_true", help="exclut instrumentaux et sons génériques")
     s2 = s.add_parser("reel")
     s2.add_argument("reel_id", choices=sorted(REELS))
     s2.add_argument("--son", required=True, help="audio_id donné par « sons »")
@@ -113,7 +114,11 @@ def main() -> int:
     args = a.parse_args()
 
     if args.action == "sons":
-        for x in sons(args.recherche)[:25]:
+        resultats = sons(args.recherche)
+        if args.connus:
+            termes_interdits = ("instrumental", "piano", "lofi", "ambient", "background", "sound effect", "original audio")
+            resultats = [x for x in resultats if not any(t in (x.get("title", "").lower()) for t in termes_interdits)]
+        for x in resultats[:25]:
             print(f"{x['audio_id']:>20}  {x.get('display_artist', x.get('ig_username', '')):<25} "
                   f"{x.get('title', '')}  ({x.get('duration_in_ms', 0) // 1000} s)")
         return 0

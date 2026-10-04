@@ -1,0 +1,24 @@
+{
+  "objectif": "Construire un compte Instagram alluxe.ia qui donne envie de regarder, enregistrer, partager et suivre pour voir la suite.",
+  "priorites": ["retention", "partages", "enregistrements", "abonnements"],
+  "format": "Reels courts, rythme fort, mouvement réel, hook immédiat, payoff avant la fin, CTA suivre pour la suite",
+  "musique": {
+    "source": "bibliotheque officielle Instagram via bundle.social",
+    "interdit": ["musique générée", "instrumental", "musique générique inconnue", "piste composée localement"],
+    "obligatoire": ["vrai morceau connu", "tendance actuelle", "adapté au sujet et au rythme", "durée suffisante"],
+    "regle_selection": "Ne jamais publier avec un son obscur uniquement parce qu'il est disponible. Si un titre connu et tendance n'est pas disponible dans la bibliothèque Instagram accessible au compte, bloquer la publication et demander une nouvelle sélection.",
+    "candidats_octobre_2026": ["Patient Zero — Taylor Swift", "Timeless — The Weeknd ft. Playboi Carti", "God's Plan — Drake", "MONACO — Bad Bunny", "Espresso — Sabrina Carpenter", "Sexy Nana — Aya Nakamura & La Rvfleuze"]
+  },
+  "identite": {
+    "logo": "ALLUXE entièrement contenu dans le cercle menthe, jamais coupé ni dépassé",
+    "style": "premium, jeune, clair, contrasté, lisible sur mobile",
+    "texte": "phrases courtes, une idée par écran, mot-clé visuel, aucune surcharge"
+  },
+  "conversion": {
+    "hook": "promesse ou curiosité dans les 1-2 premières secondes",
+    "fin": "boucle ouverte ou suite annoncée",
+    "cta": "s'abonner pour la partie suivante, enregistrer, partager à une personne concernée",
+    "description": "mot-clé principal + bénéfice + preuve/contexte + CTA + hashtags ciblés"
+  },
+  "persistance": "Cette stratégie est la référence par défaut de toutes les futures générations et publications alluxe.ia."
+}
