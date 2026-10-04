@@ -22,9 +22,9 @@
   /* Barre du haut */
   .barre { position: sticky; top: 0; z-index: 10; background: rgba(250,247,240,.9); backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--trait); }
-  .barre .conteneur { display: flex; align-items: center; gap: 12px; height: 76px; }
-  .barre img { width: 56px; height: 56px; }
-  .barre b { font-family: "Bricolage Grotesque", sans-serif; font-size: 23px; }
+  .barre .conteneur { display: flex; align-items: center; gap: 14px; height: 116px; }
+  .barre img { width: 96px; height: 96px; } /* logo agrandi le 4 oct. (opérateur) */
+  .barre b { font-family: "Bricolage Grotesque", sans-serif; font-size: 34px; }
   .barre nav { margin-left: auto; display: flex; gap: 6px; align-items: center; }
   .barre nav a { text-decoration: none; color: var(--noir); font-weight: 700; font-size: 15px; padding: 8px 12px; border-radius: 999px; }
   .barre nav a:hover { background: var(--jaune); }
@@ -55,7 +55,7 @@
   .eventail img:nth-child(3) { left: 38%; top: 50px; transform: rotate(10deg); }
   .eventail:hover img:nth-child(1) { transform: rotate(-14deg) translateX(-14px); }
   .eventail:hover img:nth-child(3) { transform: rotate(15deg) translateX(14px); }
-  .eventail .logo-flottant { left: auto; right: -8px; top: auto; bottom: -10px; width: 150px; z-index: 3; border: none;
+  .eventail .logo-flottant { left: auto; right: -14px; top: auto; bottom: -24px; width: 230px; z-index: 3; border: none;
     box-shadow: none; animation: flotte 4s ease-in-out infinite; }
   @keyframes flotte { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-10px) rotate(4deg); } }
 
@@ -182,7 +182,7 @@
 .menu { display: none; margin-left: auto; background: none; border: 2px solid var(--noir); border-radius: 12px; padding: 6px 10px; font-size: 20px; cursor: pointer; }
 @media (max-width: 860px) {
   .menu { display: block; }
-  .barre nav { display: none; position: absolute; top: 76px; left: 0; right: 0; flex-direction: column; background: var(--creme);
+  .barre nav { display: none; position: absolute; top: 116px; left: 0; right: 0; flex-direction: column; background: var(--creme);
     border-bottom: 2px solid var(--noir); padding: 10px 22px 16px; align-items: stretch; }
   .barre nav.ouvert { display: flex; }
   .barre nav a, .barre nav a:not(.cadre) { display: block; font-size: 18px; }
@@ -258,3 +258,9 @@ footer .liens a { color: var(--noir); font-weight: 700; text-decoration: none; }
   .deux { grid-template-columns: 1fr; }
 }
 @media (min-width: 861px) and (max-width: 1060px) { .services, .offres { grid-template-columns: repeat(2, 1fr); } }
+
+@media (max-width: 860px) {
+  .barre .conteneur { height: 96px; } .barre img { width: 78px; height: 78px; } .barre b { font-size: 28px; }
+  .barre nav { top: 96px !important; }
+  .eventail .logo-flottant { width: 190px; }
+}
