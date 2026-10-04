@@ -32,7 +32,10 @@ from zoneinfo import ZoneInfo
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-from alluxe_ia.reel import REELS  # noqa: E402  (légendes ; le 02 est rendu par reel_chat)
+from alluxe_ia.reel import REELS as _REELS_TEXTE  # noqa: E402  (le 02 est rendu par reel_chat)
+from alluxe_ia.reel_photos import REELS as _REELS_PHOTOS  # noqa: E402
+
+REELS = {**_REELS_TEXTE, **_REELS_PHOTOS}
 
 API = "https://api.bundle.social/api/v1/"
 EQUIPE = "32828e26-6e40-4411-9361-13077da51aa7"   # « allureluxe's Org »
@@ -71,6 +74,8 @@ SONS_TENDANCE_PREFERES = [
     ("Jet Lag", "Tiakola, Jorja Smith"),
     ("La Nocturne", "Tiakola, Theodora"),
     ("STORM II", "GENER8ION, Yung Lean"),
+    # 4 oct., choix de l'opérateur pour le Reel « 5 choses à ne jamais coller ».
+    ("They Don't Care About Us (Remastered Version)", "Michael Jackson"),
 ]
 
 
@@ -171,7 +176,9 @@ def main() -> int:
     print(f"SON VALIDÉ : {audio.get('title')} — {audio.get('display_artist')} ({audio.get('audio_id')})")
     fichier = os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{args.reel_id}.mp4")
     if not os.path.exists(fichier):
-        if args.reel_id == "02-ia-invente-un-prix":   # version « conversation animée »
+        if args.reel_id in _REELS_PHOTOS:
+            from alluxe_ia.reel_photos import rendre
+        elif args.reel_id == "02-ia-invente-un-prix":   # version « conversation animée »
             from alluxe_ia.reel_chat import rendre
         else:
             from alluxe_ia.reel import rendre
