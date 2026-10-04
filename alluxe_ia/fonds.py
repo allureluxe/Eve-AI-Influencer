@@ -94,6 +94,16 @@ SCENES: dict[str, str] = {
     "21-checklist-mise-en-ligne": "an airplane cockpit at night, glowing instruments, a "
                                   "paper checklist clipped on the side",
     "22-zero-resultat": "an empty fishing net on a wooden dock at dawn, calm misty sea",
+    "23-chatgpt-comme-google": "a glowing computer keyboard in a dark room, neon blue and violet light",
+    "24-ia-qui-invente": "a neon question mark glowing on a dark brick wall",
+    "25-sept-mots": "an open notebook with a pen on a dark wooden desk, warm lamp light",
+    "26-prof-particulier": "an empty classroom chalkboard at golden hour, dust in the light",
+    "27-mail-jamais-mal-pris": "a sealed paper envelope on a dark table, soft side light",
+    "28-decision-difficile": "a fork in a forest road at dawn, mist, two paths",
+    "29-apprendre-30-jours": "a paper calendar on a desk with a small plant, morning light",
+    "30-jamais-dans-une-ia": "a heavy metal padlock on a dark door, dramatic light",
+    "31-critique-toi": "a red pen lying on a printed page full of corrections",
+    "32-assistant-du-quotidien": "a cup of coffee and an open planner on a kitchen table, morning sun",
 }
 
 
@@ -123,6 +133,16 @@ RECHERCHE: dict[str, str] = {
     "20-affichage-qui-mentait": "car dashboard night",
     "21-checklist-mise-en-ligne": "cockpit night",
     "22-zero-resultat": "empty fishing net dock",
+    "23-chatgpt-comme-google": "keyboard neon dark",
+    "24-ia-qui-invente": "question mark neon",
+    "25-sept-mots": "notebook pen dark desk",
+    "26-prof-particulier": "empty classroom chalkboard",
+    "27-mail-jamais-mal-pris": "envelope letter dark",
+    "28-decision-difficile": "fork road forest",
+    "29-apprendre-30-jours": "calendar desk plant",
+    "30-jamais-dans-une-ia": "padlock",
+    "31-critique-toi": "red pen correction",
+    "32-assistant-du-quotidien": "coffee planner morning",
 }
 
 

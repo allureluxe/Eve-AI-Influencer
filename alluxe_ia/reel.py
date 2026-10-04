@@ -22,6 +22,7 @@ Nécessite ffmpeg.
 from __future__ import annotations
 
 import json
+import math
 import os
 import subprocess
 import sys
@@ -62,6 +63,7 @@ class Temps:
 # Les Reels, par identifiant. Le premier reprend l'accroche du post 1.
 REELS: dict[str, dict] = {
     "01-tout-construit": {
+        "ambiance": "motivation",
         "fond": "01-tout-construit", "etiquette": "COULISSES",
         "legende": (
             "Je ne sais pas coder. Tout ça, je l'ai construit en parlant à Claude "
@@ -85,6 +87,7 @@ REELS: dict[str, dict] = {
     # 4 oct. : histoire vraie du jour (l'assistant de alluxe.fr, gpt-oss-20b,
     # a répondu « à partir de 79 € » pour le kit gratuit). Court : ~18 s.
     "02-ia-invente-un-prix": {
+        "ambiance": "mystere",
         "fond": "15-expliquer-un-bug", "etiquette": "HISTOIRE VRAIE",
         "legende": (
             "Mon assistant IA a inventé un prix pour un kit… qui est gratuit.\n\n"
@@ -104,6 +107,76 @@ REELS: dict[str, dict] = {
             Temps("Le prompt complet est dans le kit.", 3.0, taille=96, couleur=ENCRE,
                   sous_texte="12 prompts que j'utilise vraiment.",
                   mot_cle="Lien en bio"),
+        ],
+    },
+    # 4 oct., décision de l'opérateur : des sujets INTEMPORELS, utiles à
+    # celui qui regarde, plus des histoires personnelles. Pensés pour être
+    # enregistrés et partagés : c'est ce qui fait grandir un compte.
+    "03-ia-invente": {
+        "ambiance": "mystere",
+        "fond": "24-ia-qui-invente", "etiquette": "À SAUVEGARDER",
+        "legende": (
+            "Une IA ne dit presque jamais « je ne sais pas » d'elle-même : sans les faits, elle "
+            "invente la réponse la plus probable.\n\n"
+            "Colle ces 3 phrases à la fin de tes prompts.\n\n"
+            "💾 Enregistre-le. 👉 Envoie-le à quelqu'un qui croit tout ce que dit ChatGPT.\n\n"
+            "📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n"
+            "#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #outilsia"),
+        "temps": [
+            Temps("ChatGPT invente quand il ne sait pas.", 2.6, taille=110),
+            Temps("3 phrases l'en empêchent. La dernière change tout.", 2.6, taille=96,
+                  couleur=MENTHE),
+            Temps("1. « Réponds uniquement avec ces informations. »", 2.8),
+            Temps("2. « N'invente aucun chiffre, nom ou lien. »", 2.8),
+            Temps("3. « Si tu ne sais pas, dis-le. »", 2.6, couleur=MENTHE),
+            Temps("Enregistre-le pour ton prochain prompt.", 2.4, taille=96),
+            Temps("12 prompts comme ça, gratuits :", 3.0, taille=96,
+                  sous_texte="abonne-toi pour la suite.", mot_cle="Lien en bio"),
+        ],
+    },
+    "04-sept-phrases": {
+        "ambiance": "energie",
+        "fond": "25-sept-mots", "etiquette": "À SAUVEGARDER",
+        "legende": (
+            "Pas besoin de longs prompts : ajoute une de ces phrases à la fin, et la réponse "
+            "change.\n\n"
+            "💾 Enregistre-le. 👉 Envoie-le à la personne qui utilise ChatGPT tous les jours.\n\n"
+            "📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n"
+            "#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #outilsia"),
+        "temps": [
+            Temps("7 phrases qui changent n'importe quelle réponse d'IA.", 2.8, taille=104),
+            Temps("La n°4 est la plus sous-estimée.", 1.9, taille=100, couleur=MENTHE),
+            Temps("« Étape par étape »", 1.8, taille=104, couleur=MENTHE),
+            Temps("« Pose-moi d'abord des questions »", 2.0, taille=100),
+            Temps("« Donne 3 options différentes »", 1.9, taille=100, couleur=MENTHE),
+            Temps("« Critique ta réponse, puis améliore-la »", 2.2, taille=96),
+            Temps("« Explique-le à un enfant de 10 ans »", 2.1, taille=96, couleur=MENTHE),
+            Temps("« Avec un exemple concret »", 1.9, taille=100),
+            Temps("« En tableau »", 1.8, taille=110, couleur=MENTHE),
+            Temps("Les prompts complets :", 3.0, taille=100,
+                  sous_texte="abonne-toi : un prompt utile par jour.", mot_cle="Lien en bio"),
+        ],
+    },
+    "05-comme-google": {
+        "ambiance": "punch",
+        "fond": "23-chatgpt-comme-google", "etiquette": "MÉTHODE",
+        "legende": (
+            "Tu tapes 4 mots comme sur Google ? L'IA te répond comme Google : vague. "
+            "Donne-lui ces 4 choses.\n\n"
+            "💾 Enregistre-le. 👉 Envoie-le à quelqu'un qui trouve que ChatGPT ne sert à rien.\n\n"
+            "📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n"
+            "#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #outilsia"),
+        "temps": [
+            Temps("Tu parles à ChatGPT comme à Google ?", 2.4, taille=110),
+            Temps("Voilà pourquoi ses réponses sont vagues. Il lui manque 4 choses.", 2.6,
+                  taille=96, couleur=MENTHE),
+            Temps("1. Un rôle : « Tu es prof de maths. »", 2.6),
+            Temps("2. Une tâche : « Rédige, compare, corrige. »", 2.6),
+            Temps("3. Le contexte : pour qui, pourquoi.", 2.6, couleur=MENTHE,
+                  sous_texte="celle que tout le monde oublie."),
+            Temps("4. Le format : « en 5 points ».", 2.4),
+            Temps("Le modèle à copier :", 3.0, taille=100,
+                  sous_texte="+ 11 autres prompts, gratuits.", mot_cle="Lien en bio"),
         ],
     },
 }
@@ -210,6 +283,32 @@ def images(temps: list[Temps]):
 
 ZOOM = 1.14     # la photo avance de 14 % sur toute la durée
 
+# LE RYTHME (4 oct., demande de l'opérateur : « que ça tape, que ça les
+# tienne concentrés »). Chaque ambiance a le tempo typique de ses styles
+# (phonk ~140, funk/jersey ~130, drill ~142, afro ~108, lo-fi ~84). Chaque
+# texte dure un nombre PAIR de temps (arrondi au-dessus : le temps de
+# lecture n'est jamais raccourci), donc chaque changement tombe sur un
+# temps fort ; la photo donne un petit coup de zoom à chaque temps, un plus
+# franc à chaque nouveau texte.
+#
+# Limite honnête : avec notre musique composée, le calage est exact (même
+# tempo, départ à 0). Avec un son Instagram, le tempo est le bon ordre de
+# grandeur mais le départ du morceau n'est pas maîtrisé.
+TEMPOS = {"mystere": 140, "energie": 130, "punch": 142, "motivation": 108, "chill": 84}
+
+
+def tempo(reel_id: str) -> float:
+    return TEMPOS.get(REELS[reel_id].get("ambiance", "chill"), 84)
+
+
+def durees_calees(reel_id: str) -> list[float]:
+    battement = 60.0 / tempo(reel_id)
+    return [2 * math.ceil(t.duree / battement / 2) * battement for t in REELS[reel_id]["temps"]]
+
+
+def _coup(dt: float, force: float, chute: float) -> float:
+    return force * math.exp(-dt / chute) if dt >= 0 else 0.0
+
 
 def _photo_reel(post_id: str) -> Image.Image | None:
     c = os.path.join(ICI, "fonds", f"{post_id}.jpg")
@@ -304,24 +403,30 @@ def images_vif(reel_id: str):
         accent, encre_accent = SURLIGNEUR, (17, 20, 19)
     voile = _voile_vif()
     temps = r["temps"]
-    total = sum(t.duree for t in temps)
+    durees = durees_calees(reel_id)
+    total = sum(durees)
+    battement = 60.0 / tempo(reel_id)
+    entree = min(ENTREE, battement * 0.5)      # le texte claque sur le temps
 
     def gen():
         debut = 0.0
-        for k, t in enumerate(temps):
+        for k, (t, duree) in enumerate(zip(temps, durees)):
             calque, h = _calque_vif(t, accent, encre_accent)
             y0 = max(HAUT_LIBRE + 330, (HAUT_LIBRE + 330 + BAS_LIBRE) // 2 - h // 2)
-            for i in range(round(t.duree * IPS)):
+            for i in range(round(duree * IPS)):
                 s = i / IPS
                 u = (debut + s) / total
-                lg = photo.width - (photo.width - LARGEUR) * u
+                horloge = debut + s
+                coup = (_coup(horloge % battement, 0.012, 0.10)
+                        + (_coup(s, 0.035, 0.16) if k else 0.0))
+                lg = (photo.width - (photo.width - LARGEUR) * u) / (1 + coup)
                 ht = min(lg * HAUTEUR / LARGEUR, photo.height)
                 x0, yb = (photo.width - lg) / 2, max(0.0, (photo.height - ht) / 2)
                 img = photo.resize((LARGEUR, HAUTEUR), Image.BILINEAR,
                                    box=(x0, yb, x0 + lg, yb + ht)).convert("RGBA")
                 img.alpha_composite(voile)
                 _entete_vif(img, accent, encre_accent, r.get("etiquette", ""))
-                p = 1.0 if k == 0 else _adoucir(s / ENTREE)
+                p = 1.0 if k == 0 else _adoucir(s / entree)
                 c = calque
                 if p < 1:
                     c = calque.copy()
@@ -334,7 +439,7 @@ def images_vif(reel_id: str):
                              GAUCHE + int((LARGEUR - 160 - GAUCHE) * u), BAS_LIBRE + 46),
                             fill=accent)
                 yield img.convert("RGB")
-            debut += t.duree
+            debut += duree
     return gen()
 
 
@@ -342,9 +447,13 @@ def rendre(reel_id: str, sortie: str | None = None, style: str = "vif") -> str:
     temps = REELS[reel_id]["temps"]
     sortie = sortie or os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{reel_id}.mp4")
     os.makedirs(os.path.dirname(sortie), exist_ok=True)
-    duree = sum(t.duree for t in temps)
+    flux = images_vif(reel_id) if style == "vif" else None
+    if flux is not None:
+        duree, bpm = sum(durees_calees(reel_id)), tempo(reel_id)
+    else:
+        duree, bpm = sum(t.duree for t in temps), None
     piste = sortie + ".musique.wav"
-    ecrire_wav(piste, duree, graine=reel_id)
+    ecrire_wav(piste, duree, graine=reel_id, bpm=bpm)
     cmd = ["ffmpeg", "-y", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{LARGEUR}x{HAUTEUR}",
            "-r", str(IPS), "-i", "-",
@@ -354,7 +463,6 @@ def rendre(reel_id: str, sortie: str | None = None, style: str = "vif") -> str:
            "-preset", "medium", "-crf", "20", "-movflags", "+faststart",
            "-c:a", "aac", "-b:a", "128k", "-shortest", sortie]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    flux = images_vif(reel_id) if style == "vif" else None
     for img in flux or images(temps):
         p.stdin.write(img.tobytes())
     p.stdin.close()

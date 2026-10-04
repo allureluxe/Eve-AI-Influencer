@@ -4,6 +4,14 @@ via bundle.social (offre gratuite : 20 publications par mois).
     python3 ops/alluxe_ia_bundle.py sons [recherche]          # sons tendance / recherche
     python3 ops/alluxe_ia_bundle.py reel 02-ia-invente-un-prix --son AUDIO_ID \
         --le 2026-10-05T19:00 [--essai] [--confirmer]
+    python3 ops/alluxe_ia_bundle.py choisir 03-ia-invente   # 5 sons tendance adaptés au sujet
+    python3 ops/alluxe_ia_bundle.py reel 03-ia-invente --son auto --le … # le meilleur des 5
+
+LA MUSIQUE SUIT LE SUJET (4 oct., demande de l'opérateur : « musique
+tendance jeune, tout style, adaptée au sujet »). Chaque ambiance a ses
+styles qui tournent chez les jeunes ; on cherche ces styles dans la
+bibliothèque Instagram et on garde en priorité ce qui est AUSSI dans les
+tendances du moment, assez long pour couvrir le Reel.
 
 Pourquoi un intermédiaire : Meta n'ouvre sa musique qu'à des partenaires
 (testé le 4 oct. avec notre propre clé Facebook : aucun point d'accès).
@@ -65,6 +73,37 @@ def sons(recherche: str = "") -> list[dict]:
     return _appel("GET", "misc/instagram/audio?" + urllib.parse.urlencode(p)).get("audio", [])
 
 
+# Ambiance d'un sujet -> styles recherchés, du plus au moins prioritaire.
+AMBIANCES: dict[str, list[str]] = {
+    "mystere": ["phonk", "dark trap", "suspense", "slowed"],      # révélation, piège, « l'IA ment »
+    "energie": ["funk brasileiro", "jersey club", "sped up", "hype"],  # listes rapides, astuces
+    "punch": ["drill", "rap fr", "trap", "bass boosted"],         # « tu fais mal », méthode choc
+    "motivation": ["afro", "afrobeats", "house", "motivation"],   # apprendre, progresser
+    "chill": ["lofi", "chill", "r&b", "acoustic"],                # tuto posé, quotidien
+}
+
+
+def ambiance_du_reel(reel_id: str) -> str:
+    return REELS[reel_id].get("ambiance", "energie")
+
+
+def proposer_sons(reel_id: str, n: int = 5) -> list[dict]:
+    """Les sons candidats, les mieux placés d'abord : style de l'ambiance
+    ET présent dans les tendances, assez long pour tout le Reel."""
+    duree_ms = int(sum(t.duree for t in REELS[reel_id]["temps"]) * 1000)
+    tendance = {x["audio_id"] for x in sons()}
+    vus, cand = set(), []
+    for rang_style, style in enumerate(AMBIANCES[ambiance_du_reel(reel_id)]):
+        for rang, x in enumerate(sons(style)):
+            if x["audio_id"] in vus or int(x.get("duration_in_ms") or 0) < duree_ms:
+                continue
+            vus.add(x["audio_id"])
+            x["_style"] = style
+            x["_score"] = (0 if x["audio_id"] in tendance else 100) + rang_style * 10 + rang
+            cand.append(x)
+    return sorted(cand, key=lambda x: x["_score"])[:n]
+
+
 def televerser(fichier: str) -> str:
     borne = uuid.uuid4().hex
     nom = os.path.basename(fichier)
@@ -104,9 +143,12 @@ def main() -> int:
     s = a.add_subparsers(dest="action", required=True)
     s1 = s.add_parser("sons")
     s1.add_argument("recherche", nargs="?", default="")
+    s3 = s.add_parser("choisir")
+    s3.add_argument("reel_id", choices=sorted(REELS))
     s2 = s.add_parser("reel")
     s2.add_argument("reel_id", choices=sorted(REELS))
-    s2.add_argument("--son", required=True, help="audio_id donné par « sons »")
+    s2.add_argument("--son", required=True,
+                    help="audio_id donné par « sons » ou « choisir », ou « auto »")
     s2.add_argument("--le", required=True, help="heure de Paris, ex. 2026-10-05T19:00")
     s2.add_argument("--essai", action="store_true")
     s2.add_argument("--confirmer", action="store_true")
@@ -117,6 +159,21 @@ def main() -> int:
             print(f"{x['audio_id']:>20}  {x.get('display_artist', x.get('ig_username', '')):<25} "
                   f"{x.get('title', '')}  ({x.get('duration_in_ms', 0) // 1000} s)")
         return 0
+
+    if args.action == "choisir":
+        print(f"ambiance : {ambiance_du_reel(args.reel_id)}")
+        for x in proposer_sons(args.reel_id):
+            marque = "TENDANCE" if x["_score"] < 100 else "        "
+            print(f"{x['audio_id']:>20}  {marque}  [{x['_style']}]  "
+                  f"{x.get('display_artist', x.get('ig_username', ''))} - {x.get('title', '')}")
+        return 0
+
+    if args.son == "auto":
+        choix = proposer_sons(args.reel_id, 1)
+        if not choix:
+            raise SystemExit("aucun son assez long trouvé pour cette ambiance")
+        args.son = choix[0]["audio_id"]
+        print(f"son choisi : {choix[0].get('title', '')} [{choix[0]['_style']}] -> {args.son}")
 
     cle = "reel:" + args.reel_id
     publies = json.load(open(PUBLIES)) if os.path.exists(PUBLIES) else {}

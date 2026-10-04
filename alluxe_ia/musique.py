@@ -94,13 +94,19 @@ def _echo(x: np.ndarray, retard: float, retour: float, fois: int = 4) -> np.ndar
     return y
 
 
-def composer(duree: float, graine: str = "alluxe") -> np.ndarray:
-    """Rend un tableau stéréo (n, 2) en float, entre -1 et 1."""
+def composer(duree: float, graine: str = "alluxe", bpm: float | None = None) -> np.ndarray:
+    """Rend un tableau stéréo (n, 2) en float, entre -1 et 1.
+
+    `bpm` impose le tempo (le Reel cale ses changements de texte dessus,
+    4 oct.) ; au-dessus de 100, on joue en demi-tempo, comme le lo-fi."""
     g = _graine(graine)
     rng = np.random.default_rng(g)
     tonique = 57 + (g % 7) - 3                 # autour de La grave
     grille = GRILLES[(g >> 3) % len(GRILLES)]
-    bpm = 78 + (g >> 6) % 14                    # 78 à 91
+    if bpm is None:
+        bpm = 78 + (g >> 6) % 14                # 78 à 91
+    elif bpm > 100:
+        bpm = bpm / 2                           # demi-tempo : 1 temps = 2 temps du Reel
     temps = 60.0 / bpm
     mesure = 4 * temps
     n = int((duree + 2.5) * TAUX)               # marge pour les queues d'échos
@@ -155,8 +161,9 @@ def composer(duree: float, graine: str = "alluxe") -> np.ndarray:
     return np.tanh(1.2 * st / crete) * 0.85      # légère saturation douce, sans écrêtage
 
 
-def ecrire_wav(chemin: str, duree: float, graine: str = "alluxe") -> str:
-    st = composer(duree, graine)
+def ecrire_wav(chemin: str, duree: float, graine: str = "alluxe",
+               bpm: float | None = None) -> str:
+    st = composer(duree, graine, bpm)
     with wave.open(chemin, "wb") as w:
         w.setnchannels(2)
         w.setsampwidth(2)

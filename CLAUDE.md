@@ -22,6 +22,15 @@ des étapes : `docs/ALLUXE_IA.md`. Ne pas écrire « premier au monde » :
 chaque brique existe ailleurs, c'est l'assemblage par une seule personne
 qui est rare, et c'est vérifiable.
 
+**4 oct. — décision de l'opérateur : des sujets INTEMPORELS pour un
+maximum d'abonnés**, plus « mon histoire ». « Oublie-toi, tout doit être
+fait pour un max d'abonnés. » Les posts 23 à 32 (et les Reels 03 à 05)
+servent celui qui lit — prompts à copier, méthodes, erreurs à éviter — et
+passent en tête de la file ; les histoires personnelles (05, 07, 08, 12,
+13, 16-20, 22) sont en fin de file. Style « vif » (couverture photo ou
+couleur, étiquette, chiffre géant), musique Instagram choisie par ambiance
+du sujet, texte calé sur le tempo : `docs/alluxe_ia/ATTENTION.md`.
+
 Conséquences à ne pas oublier :
 - **La publication automatique de Luna doit rester coupée**
   (`luna-planner.timer` et les tâches cron Luna), sinon des photos de Luna
