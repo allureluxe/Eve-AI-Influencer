@@ -175,7 +175,9 @@ def _lire(url: str, entetes: dict | None = None, essais: int = 5) -> bytes:
         except urllib.error.HTTPError as e:
             if e.code != 429 or k == essais - 1:
                 raise
-            attente = float(e.headers.get("Retry-After") or 5 * 2 ** k)
+            # Pixabay renvoie parfois « Retry-After: 0 » : réessayer tout
+            # de suite échoue à coup sûr (4 oct., 9 posts perdus ainsi).
+            attente = max(float(e.headers.get("Retry-After") or 0), 6 * 2 ** k)
             print(f"  Pixabay demande d'attendre {attente:.0f} s…")
             time.sleep(min(attente, 90))
     raise RuntimeError("inatteignable")
@@ -194,8 +196,26 @@ def chercher_pixabay(post_id: str) -> str:
     hits = json.loads(_lire(f"https://pixabay.com/api/?{q}")).get("hits", [])
     if not hits:
         raise RuntimeError(f"aucune photo pour « {RECHERCHE[post_id]} »")
-    h = hits[0]
-    brut = _lire(h["largeImageURL"])
+    # La grande image d'abord ; si elle reste refusée, la moyenne (1280 px,
+    # suffisante pour 1080), puis la photo suivante de la recherche.
+    derniere = None
+    for h in hits:
+        for cle_url in ("largeImageURL", "webformatURL"):
+            url = h.get(cle_url)
+            if not url:
+                continue
+            if cle_url == "webformatURL":
+                url = url.replace("_640.", "_1280.")
+            try:
+                brut = _lire(url, essais=3)
+                break
+            except Exception as exc:  # noqa: BLE001
+                derniere = exc
+        else:
+            continue
+        break
+    else:
+        raise derniere or RuntimeError("aucune image téléchargeable")
     _garder(post_id, brut, {"source": "pixabay", "photographe": h.get("user"),
                             "page": h.get("pageURL")})
     return chemin(post_id)
