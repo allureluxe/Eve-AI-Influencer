@@ -63,5 +63,50 @@
     "source": "pixabay",
     "photographe": "fill",
     "page": "https://pixabay.com/photos/night-stars-moon-human-universe-913046/"
+  },
+  "01-tout-construit": {
+    "source": "pixabay",
+    "photographe": "StockSnap",
+    "page": "https://pixabay.com/photos/girl-woman-office-work-coffee-2583442/"
+  },
+  "07-tests-verts": {
+    "source": "pixabay",
+    "photographe": "Pexels",
+    "page": "https://pixabay.com/photos/morning-bedroom-bed-door-girl-1850893/"
+  },
+  "08-agent-garde-fous": {
+    "source": "pixabay",
+    "photographe": "Waqas420",
+    "page": "https://pixabay.com/photos/robotics-artificial-intelligence-10237767/"
+  },
+  "11-assistant-perso": {
+    "source": "pixabay",
+    "photographe": "karishea",
+    "page": "https://pixabay.com/photos/table-chair-desk-lamp-room-carpet-2587598/"
+  },
+  "14-avant-apres-prompt": {
+    "source": "pixabay",
+    "photographe": "Phghvvcftyyufj",
+    "page": "https://pixabay.com/photos/mountain-nature-trees-forest-4242391/"
+  },
+  "17-sur-de-lui-et-faux": {
+    "source": "pixabay",
+    "photographe": "LollipopPhotographyUK",
+    "page": "https://pixabay.com/photos/trees-nature-outdoors-woods-path-5385056/"
+  },
+  "18-outils-garde-arrete": {
+    "source": "pixabay",
+    "photographe": "tatlin",
+    "page": "https://pixabay.com/photos/slitter-typography-cutting-machine-106604/"
+  },
+  "21-checklist-mise-en-ligne": {
+    "source": "pixabay",
+    "photographe": "erikviktor2005",
+    "page": "https://pixabay.com/photos/control-panel-flight-instruments-2243184/"
+  },
+  "22-zero-resultat": {
+    "source": "pixabay",
+    "photographe": "sabinevanerp",
+    "page": "https://pixabay.com/photos/fishing-net-fishing-boat-nets-ship-6913029/"
   }
 }
