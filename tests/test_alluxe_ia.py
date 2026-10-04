@@ -271,3 +271,16 @@ class TestLesFondsPhoto:
     def test_chaque_post_a_sa_recherche_pexels(self):
         from alluxe_ia.fonds import RECHERCHE
         assert {p.id for p in _posts()} <= set(RECHERCHE)
+
+
+class TestLeReelSurPhoto:
+
+    def test_premiere_image_du_reel_vif(self):
+        from alluxe_ia.reel import REELS, images_vif
+        for rid, r in REELS.items():
+            flux = images_vif(rid)
+            if flux is None:      # pas encore de photo : l'ancien fond reste
+                continue
+            premiere = next(flux)
+            assert premiere.size == (1080, 1920), rid
+            assert premiere.convert("L").getextrema()[1] > 200, rid

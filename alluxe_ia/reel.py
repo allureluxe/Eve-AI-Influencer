@@ -31,7 +31,8 @@ from PIL import Image, ImageDraw
 
 from alluxe_ia.musique import ecrire_wav
 from alluxe_ia.slides import (AMBRE, DOUX, ENCRE, FOND, FOND_HAUT, MENTHE, NOM, PSEUDO,
-                              couper, medaillon, mono_police, texte_police, titre_police)
+                              SURLIGNEUR, _police, couleur_du_post, couper, medaillon,
+                              mono_police, texte_police, titre_police)
 
 LARGEUR, HAUTEUR = 1080, 1920
 IPS = 30
@@ -61,6 +62,7 @@ class Temps:
 # Les Reels, par identifiant. Le premier reprend l'accroche du post 1.
 REELS: dict[str, dict] = {
     "01-tout-construit": {
+        "fond": "01-tout-construit", "etiquette": "COULISSES",
         "legende": (
             "Je ne sais pas coder. Tout ça, je l'ai construit en parlant à Claude "
             "et à ChatGPT.\n\n"
@@ -83,6 +85,7 @@ REELS: dict[str, dict] = {
     # 4 oct. : histoire vraie du jour (l'assistant de alluxe.fr, gpt-oss-20b,
     # a répondu « à partir de 79 € » pour le kit gratuit). Court : ~18 s.
     "02-ia-invente-un-prix": {
+        "fond": "15-expliquer-un-bug", "etiquette": "HISTOIRE VRAIE",
         "legende": (
             "Mon assistant IA a inventé un prix pour un kit… qui est gratuit.\n\n"
             "Une IA ne dit pas « je ne sais pas » toute seule : sans les faits, elle "
@@ -197,7 +200,145 @@ def images(temps: list[Temps]):
         debut += t.duree
 
 
-def rendre(reel_id: str, sortie: str | None = None) -> str:
+# ---------------------------------------------------------------- style « vif »
+#
+# 4 oct., même demande que pour les carrousels : un Reel qui accroche dès
+# la première image. La photo du post (alluxe_ia/fonds) en plein écran,
+# qui avance lentement (effet « Ken Burns » : l'image vit sans distraire),
+# un voile sombre pour que le blanc se lise, et les phrases fortes
+# surlignées dans la couleur du post. Sans photo, l'ancien fond reste.
+
+ZOOM = 1.14     # la photo avance de 14 % sur toute la durée
+
+
+def _photo_reel(post_id: str) -> Image.Image | None:
+    c = os.path.join(ICI, "fonds", f"{post_id}.jpg")
+    if not os.path.exists(c):
+        return None
+    src = Image.open(c).convert("RGB")
+    lg, ht = int(LARGEUR * ZOOM), int(HAUTEUR * ZOOM)
+    k = max(lg / src.width, ht / src.height)
+    src = src.resize((int(src.width * k + 1), int(src.height * k + 1)), Image.LANCZOS)
+    x0, y0 = (src.width - lg) // 2, (src.height - ht) // 2
+    return src.crop((x0, y0, x0 + lg, y0 + ht))
+
+
+def _voile_vif() -> Image.Image:
+    """Noir translucide : léger en haut, plus dense derrière le texte et
+    sous la légende d'Instagram."""
+    v = Image.new("RGBA", (LARGEUR, HAUTEUR))
+    d = ImageDraw.Draw(v)
+    for y in range(HAUTEUR):
+        t = y / HAUTEUR
+        a = 150 + 60 * min(1.0, max(0.0, (t - 0.25) / 0.35)) - 40 * max(0.0, (t - 0.85) / 0.15)
+        d.line((0, y, LARGEUR, y), fill=(6, 8, 8, int(a)))
+    return v
+
+
+def _entete_vif(img: Image.Image, accent, encre_accent, etiquette: str) -> None:
+    d = ImageDraw.Draw(img)
+    r = 110
+    m = medaillon(2 * r, contenu_taille=160)
+    img.paste(m, (GAUCHE, HAUT_LIBRE - 60), m)
+    cy = HAUT_LIBRE - 60 + r
+    blanc = (255, 255, 255)
+    d.text((GAUCHE + 2 * r + 26, cy - 4), NOM, font=titre_police(42), fill=blanc, anchor="ls")
+    d.text((GAUCHE + 2 * r + 26, cy + 38), PSEUDO, font=texte_police(30), fill=(225, 225, 220),
+           anchor="ls")
+    if etiquette:
+        p = texte_police(30, gras=True)
+        w = int(p.getlength(etiquette)) + 52
+        y = cy + 70
+        x = GAUCHE + 2 * r + 26
+        d.rounded_rectangle((x, y, x + w, y + 56), radius=28, fill=accent)
+        d.text((x + 26, y + 28), etiquette, font=p, fill=encre_accent, anchor="lm")
+
+
+def _calque_vif(t: Temps, accent, encre_accent) -> tuple[Image.Image, int]:
+    """Texte blanc ; un temps en couleur devient une phrase surlignée."""
+    police = _police("BricolageGrotesque.ttf", t.taille, "ExtraBold")
+    lignes = couper(t.texte, police, LARGEUR_TEXTE)
+    interligne = int(t.taille * 1.14)
+    fort = t.couleur != ENCRE
+    h = interligne * len(lignes)
+    if t.mot_cle:
+        h += 70 + 80 + 120
+    if t.sous_texte:
+        h += 30 + 50 * len(couper(t.sous_texte, texte_police(40, gras=True), LARGEUR_TEXTE))
+    img = Image.new("RGBA", (LARGEUR, h + 40), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    y = 0
+    for ligne in lignes:
+        if fort:
+            w = d.textlength(ligne, font=police)
+            d.rounded_rectangle((GAUCHE - 14, y + t.taille * 0.12, GAUCHE + w + 16,
+                                 y + t.taille * 1.06), radius=14, fill=accent)
+        d.text((GAUCHE, y), ligne, font=police, fill=encre_accent if fort else (255, 255, 255))
+        y += interligne
+    if t.mot_cle:
+        y += 70
+        d.text((GAUCHE, y + 6), t.amorce, font=_police("BricolageGrotesque.ttf", 58, "ExtraBold"),
+               fill=(255, 255, 255))
+        y += 80
+        pm = _police("BricolageGrotesque.ttf", 92, "ExtraBold")
+        w = int(d.textlength(t.mot_cle, font=pm))
+        d.rounded_rectangle((GAUCHE, y - 6, GAUCHE + w + 48, y + 110), radius=22, fill=accent)
+        d.text((GAUCHE + 24, y + 52), t.mot_cle, font=pm, fill=encre_accent, anchor="lm")
+        y += 120
+    if t.sous_texte:
+        y += 30
+        for ligne in couper(t.sous_texte, texte_police(40, gras=True), LARGEUR_TEXTE):
+            d.text((GAUCHE, y), ligne, font=texte_police(40, gras=True), fill=(230, 230, 225))
+            y += 50
+    return img, h
+
+
+def images_vif(reel_id: str):
+    """Les images du Reel en style vif, ou None s'il n'a pas de photo."""
+    r = REELS[reel_id]
+    photo = _photo_reel(r.get("fond", ""))
+    if photo is None:
+        return None
+    accent, encre_accent = couleur_du_post(r["fond"])
+    if sum(accent) < 120:
+        accent, encre_accent = SURLIGNEUR, (17, 20, 19)
+    voile = _voile_vif()
+    temps = r["temps"]
+    total = sum(t.duree for t in temps)
+
+    def gen():
+        debut = 0.0
+        for k, t in enumerate(temps):
+            calque, h = _calque_vif(t, accent, encre_accent)
+            y0 = max(HAUT_LIBRE + 330, (HAUT_LIBRE + 330 + BAS_LIBRE) // 2 - h // 2)
+            for i in range(round(t.duree * IPS)):
+                s = i / IPS
+                u = (debut + s) / total
+                lg = photo.width - (photo.width - LARGEUR) * u
+                ht = min(lg * HAUTEUR / LARGEUR, photo.height)
+                x0, yb = (photo.width - lg) / 2, max(0.0, (photo.height - ht) / 2)
+                img = photo.resize((LARGEUR, HAUTEUR), Image.BILINEAR,
+                                   box=(x0, yb, x0 + lg, yb + ht)).convert("RGBA")
+                img.alpha_composite(voile)
+                _entete_vif(img, accent, encre_accent, r.get("etiquette", ""))
+                p = 1.0 if k == 0 else _adoucir(s / ENTREE)
+                c = calque
+                if p < 1:
+                    c = calque.copy()
+                    c.putalpha(c.getchannel("A").point(lambda a, p=p: int(a * p)))
+                img.alpha_composite(c, (0, int(y0 + (1 - p) * 60)))
+                d = ImageDraw.Draw(img)
+                d.rectangle((GAUCHE, BAS_LIBRE + 40, LARGEUR - 160, BAS_LIBRE + 46),
+                            fill=(255, 255, 255, 70))
+                d.rectangle((GAUCHE, BAS_LIBRE + 40,
+                             GAUCHE + int((LARGEUR - 160 - GAUCHE) * u), BAS_LIBRE + 46),
+                            fill=accent)
+                yield img.convert("RGB")
+            debut += t.duree
+    return gen()
+
+
+def rendre(reel_id: str, sortie: str | None = None, style: str = "vif") -> str:
     temps = REELS[reel_id]["temps"]
     sortie = sortie or os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{reel_id}.mp4")
     os.makedirs(os.path.dirname(sortie), exist_ok=True)
@@ -213,7 +354,8 @@ def rendre(reel_id: str, sortie: str | None = None) -> str:
            "-preset", "medium", "-crf", "20", "-movflags", "+faststart",
            "-c:a", "aac", "-b:a", "128k", "-shortest", sortie]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    for img in images(temps):
+    flux = images_vif(reel_id) if style == "vif" else None
+    for img in flux or images(temps):
         p.stdin.write(img.tobytes())
     p.stdin.close()
     code = p.wait()
@@ -226,4 +368,5 @@ def rendre(reel_id: str, sortie: str | None = None) -> str:
 
 
 if __name__ == "__main__":
-    print(rendre(sys.argv[1] if len(sys.argv) > 1 else "01-tout-construit"))
+    print(rendre(sys.argv[1] if len(sys.argv) > 1 else "01-tout-construit",
+                 style=sys.argv[2] if len(sys.argv) > 2 else "vif"))
