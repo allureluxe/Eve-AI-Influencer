@@ -115,14 +115,14 @@ REELS: dict[str, dict] = {
         "temps": [
             # 107 BPM : chaque changement tombe sur un nombre entier de temps
             # (4 + 3 + 3 + 3 + 3 + 3 + 3 + 4 = 26 temps).
-            Temps("Tu utilises ChatGPT comme Google ?", 2.24, taille=108, couleur=ENCRE),
-            Temps("C'est peut-être exactement le problème.", 1.68, taille=92, couleur=AMBRE),
-            Temps("Google cherche.\nChatGPT génère.", 1.68, taille=104),
-            Temps("Alors cadre ta demande avec 3 lignes :", 1.68, taille=92, couleur=MENTHE),
-            Temps("1. « Voici les faits. »", 1.68, taille=98),
-            Temps("2. « N'invente rien. »", 1.68, taille=98),
-            Temps("3. « Si tu doutes, dis-le. »", 1.68, taille=98, couleur=MENTHE),
-            Temps("Enregistre ce Reel.", 2.24, taille=102, couleur=ENCRE,
+            Temps("Tu utilises ChatGPT comme Google ?", 2.80, taille=108, couleur=ENCRE),
+            Temps("C'est peut-être exactement le problème.", 2.24, taille=92, couleur=AMBRE),
+            Temps("Google cherche.\nChatGPT génère.", 2.24, taille=104),
+            Temps("Alors cadre ta demande avec 3 lignes :", 2.24, taille=92, couleur=MENTHE),
+            Temps("1. « Voici les faits. »", 2.24, taille=98),
+            Temps("2. « N'invente rien. »", 2.24, taille=98),
+            Temps("3. « Si tu doutes, dis-le. »", 2.24, taille=98, couleur=MENTHE),
+            Temps("Enregistre ce Reel.", 2.80, taille=102, couleur=ENCRE,
                   sous_texte="Demain : le prompt complet + le test.",
                   mot_cle="S'abonner"),
         ],
