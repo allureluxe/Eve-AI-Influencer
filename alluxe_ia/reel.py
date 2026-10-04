@@ -294,11 +294,14 @@ ZOOM = 1.14     # la photo avance de 14 % sur toute la durée
 # Limite honnête : avec notre musique composée, le calage est exact (même
 # tempo, départ à 0). Avec un son Instagram, le tempo est le bon ordre de
 # grandeur mais le départ du morceau n'est pas maîtrisé.
-TEMPOS = {"mystere": 140, "energie": 130, "punch": 142, "motivation": 108, "chill": 84}
+TEMPOS = {"mystere": 140, "energie": 130, "punch": 142, "motivation": 108, "chill": 140}
+# Le beat composé de chaque ambiance (alluxe_ia/musique.py) : plus de piano.
+STYLE_DE_L_AMBIANCE = {"mystere": "phonk", "energie": "funk", "punch": "drill",
+                       "motivation": "afro", "chill": "trap"}
 
 
 def tempo(reel_id: str) -> float:
-    return TEMPOS.get(REELS[reel_id].get("ambiance", "chill"), 84)
+    return TEMPOS.get(REELS[reel_id].get("ambiance", "chill"), 140)
 
 
 def durees_calees(reel_id: str) -> list[float]:
@@ -453,7 +456,8 @@ def rendre(reel_id: str, sortie: str | None = None, style: str = "vif") -> str:
     else:
         duree, bpm = sum(t.duree for t in temps), None
     piste = sortie + ".musique.wav"
-    ecrire_wav(piste, duree, graine=reel_id, bpm=bpm)
+    style_musique = STYLE_DE_L_AMBIANCE.get(REELS[reel_id].get("ambiance", ""))
+    ecrire_wav(piste, duree, graine=reel_id, bpm=bpm, style=style_musique)
     cmd = ["ffmpeg", "-y", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{LARGEUR}x{HAUTEUR}",
            "-r", str(IPS), "-i", "-",

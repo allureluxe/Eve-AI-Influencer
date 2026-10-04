@@ -10,8 +10,9 @@ programmes que pour les Reels, et seulement aux comptes reliés par
 **Facebook** — le nôtre l'est par la connexion « Instagram ». Jamais pour
 les Stories. Un Reel muet part avec un gros handicap (4 oct. : 5 vues).
 
-Style : lo-fi calme (piano électrique, basse ronde, batterie feutrée), qui
-laisse lire le texte. Chaque `graine` donne une tonalité, une grille
+Style : depuis le 4 oct., des beats « jeunes » (phonk, funk brésilien,
+drill, afro, trap) choisis selon le sujet ; le lo-fi au piano d'origine
+reste disponible (style="lofi") mais n'est plus utilisé par défaut. Chaque `graine` donne une tonalité, une grille
 d'accords et un tempo différents, toujours les mêmes pour la même graine.
 
     python3 -m alluxe_ia.musique 22.5 sortie.wav [graine]
@@ -94,8 +95,9 @@ def _echo(x: np.ndarray, retard: float, retour: float, fois: int = 4) -> np.ndar
     return y
 
 
-def composer(duree: float, graine: str = "alluxe", bpm: float | None = None) -> np.ndarray:
-    """Rend un tableau stéréo (n, 2) en float, entre -1 et 1.
+def _lofi(duree: float, graine: str = "alluxe", bpm: float | None = None) -> np.ndarray:
+    """Le lo-fi au piano d'origine. Plus utilisé par défaut depuis le 4 oct.
+    (« le piano endort ») ; gardé pour un tuto très calme : style="lofi".
 
     `bpm` impose le tempo (le Reel cale ses changements de texte dessus,
     4 oct.) ; au-dessus de 100, on joue en demi-tempo, comme le lo-fi."""
@@ -161,9 +163,210 @@ def composer(duree: float, graine: str = "alluxe", bpm: float | None = None) -> 
     return np.tanh(1.2 * st / crete) * 0.85      # légère saturation douce, sans écrêtage
 
 
+# ---------------------------------------------------------------- beats « jeunes »
+#
+# 4 oct., opérateur : « pas de piano, ça endort ; des musiques tendance jeune
+# qui attirent, adaptées au sujet ». Cinq styles qui tournent sur les
+# Reels, tous synthétisés ici (aucun droit d'auteur) :
+#   phonk   cloche (cowbell) en riff, 808 saturée, charleston en roulements
+#   funk    funk brésilien : rythme « tamborzão », stabs, grosse caisse dense
+#   drill   demi-tempo, 808 qui glisse, charleston en triolets, cloche sombre
+#   afro    log drum, shaker en doubles croches, clap sur 2 et 4, marimba
+#   trap    808, charleston en roulements, cloche aiguë
+# Le style vient du sujet (reel.py, ambiance -> STYLE_DE_L_AMBIANCE).
+
+STYLES = ("phonk", "funk", "drill", "afro", "trap")
+GAMME_MINEURE = (0, 2, 3, 5, 7, 8, 10)
+PHRYGIEN = (0, 1, 3, 5, 7, 8, 10)
+
+
+def _env(n: int, chute: float, attaque: float = 0.002) -> np.ndarray:
+    return _enveloppe(n, attaque, chute)
+
+
+def _kick_dur(force: float = 1.0) -> np.ndarray:
+    n = int(0.45 * TAUX)
+    t = np.arange(n) / TAUX
+    f = 50 + 140 * np.exp(-t / 0.03)
+    ph = 2 * np.pi * np.cumsum(f) / TAUX
+    clic = np.diff(np.random.default_rng(7).standard_normal(n), prepend=0) * _env(n, 0.004)
+    return 0.55 * np.tanh(2.2 * force * np.sin(ph) * _env(n, 0.09)) + 0.15 * clic
+
+
+def _snare(rng, clap: bool = False) -> np.ndarray:
+    n = int(0.25 * TAUX)
+    bruit = rng.standard_normal(n)
+    bruit = np.diff(bruit, prepend=0)              # plus brillant
+    t = np.arange(n) / TAUX
+    corps = 0 if clap else 0.5 * np.sin(2 * np.pi * 190 * t) * _env(n, 0.05)
+    if clap:                                       # trois petites claques rapprochées
+        env = sum(_env(n, 0.012) * (np.arange(n) >= int(d * TAUX)) for d in (0, 0.009, 0.018))
+        env = env + _env(n, 0.09) * 0.6
+    else:
+        env = _env(n, 0.09)
+    return 0.6 * bruit * env + corps
+
+
+def _hat(rng, ouvert: bool = False) -> np.ndarray:
+    n = int((0.2 if ouvert else 0.05) * TAUX)
+    b = np.diff(rng.standard_normal(n), prepend=0)
+    return 0.3 * b * _env(n, 0.07 if ouvert else 0.015)
+
+
+def _808(freq: float, duree: float, vers: float | None = None, sature: float = 4.0) -> np.ndarray:
+    n = int(duree * TAUX)
+    t = np.arange(n) / TAUX
+    f = np.full(n, freq)
+    if vers:                                       # la glissade de la drill
+        g = np.clip((t - duree * 0.55) / 0.08, 0, 1)
+        f = freq + (vers - freq) * g
+    f = f * (1 + 0.6 * np.exp(-t / 0.02))          # attaque qui « claque »
+    ph = 2 * np.pi * np.cumsum(f) / TAUX
+    env = _env(n, max(0.25, duree * 0.8), 0.003)
+    rel = min(n, int(0.03 * TAUX))
+    env[-rel:] *= np.linspace(1, 0, rel)
+    return np.tanh(sature * np.sin(ph) * env) / np.tanh(sature)
+
+
+def _cloche(freq: float, duree: float = 0.22) -> np.ndarray:
+    """La cowbell de la phonk : deux carrés désaccordés, filtrés."""
+    n = int(duree * TAUX)
+    t = np.arange(n) / TAUX
+    x = np.sign(np.sin(2 * np.pi * freq * t)) + np.sign(np.sin(2 * np.pi * freq * 1.48 * t))
+    x = np.diff(x, prepend=0) * 0.5 + 0.15 * x      # passe-haut grossier
+    return 0.35 * x * _env(n, 0.09)
+
+
+def _log_drum(freq: float) -> np.ndarray:
+    n = int(0.35 * TAUX)
+    t = np.arange(n) / TAUX
+    f = freq * (1 + 0.5 * np.exp(-t / 0.03))
+    ph = 2 * np.pi * np.cumsum(f) / TAUX
+    return np.tanh(1.8 * np.sin(ph) * _env(n, 0.12)) * 0.8
+
+
+def _marimba(freq: float) -> np.ndarray:
+    n = int(0.4 * TAUX)
+    t = np.arange(n) / TAUX
+    return (np.sin(2 * np.pi * freq * t) + 0.3 * np.sin(2 * np.pi * freq * 4 * t) * _env(n, 0.02)) \
+        * _env(n, 0.18) * 0.35
+
+
+def _stab(freq: float, duree: float = 0.12) -> np.ndarray:
+    """Petit accord carré court, le « stab » du funk."""
+    n = int(duree * TAUX)
+    t = np.arange(n) / TAUX
+    x = sum(np.sign(np.sin(2 * np.pi * freq * r * t)) for r in (1, 1.189, 1.498))
+    return 0.12 * x * _env(n, 0.05)
+
+
+def _beat(duree: float, style: str, bpm: float, graine: str) -> np.ndarray:
+    g = _graine(graine + style)
+    rng = np.random.default_rng(g)
+    tonique = 33 + g % 7                            # La1 à Ré#2 : la zone de la 808
+    gamme = PHRYGIEN if style == "phonk" else GAMME_MINEURE
+    pas = 60.0 / bpm / 4                            # double croche
+    n = int((duree + 1.0) * TAUX)
+    batt, basse, mel = np.zeros(n), np.zeros(n), np.zeros(n)
+    hz = lambda deg, oct=0: _hz(tonique + 12 * oct + gamme[deg % 7] + 12 * (deg // 7))  # noqa: E731
+    nb_mesures = int(np.ceil((duree + 0.5) / (16 * pas)))
+    progression = [0, 0, 5, 3] if style != "afro" else [0, 3, 5, 4]
+    riff = [rng.integers(0, 7) for _ in range(8)]
+    riff[0] = 0
+    for m in range(nb_mesures):
+        d0 = m * 16 * pas
+        racine = progression[m % 4]
+        for k in range(16):
+            t = d0 + k * pas
+            if style == "phonk":
+                if k in (0, 10) or (k == 7 and m % 2):
+                    _poser(batt, _kick_dur(), t, 0.9)
+                    _poser(basse, _808(hz(racine), 6 * pas), t, 0.55)
+                if k == 8:
+                    _poser(batt, _snare(rng), t, 0.7)
+                if k % 2 == 0 or (m % 2 and k >= 12):
+                    _poser(batt, _hat(rng), t, 0.6)
+                if k % 2 == 0:
+                    deg = riff[(k // 2) % 8] + racine
+                    _poser(mel, _cloche(hz(deg, 3)), t, 0.5)
+            elif style == "funk":
+                if k in (0, 3, 6, 10, 12):
+                    _poser(batt, _kick_dur(1.2), t, 0.9)
+                if k in (4, 12):
+                    _poser(batt, _snare(rng, clap=True), t, 0.7)
+                if k in (2, 7, 14):
+                    _poser(batt, _snare(rng), t, 0.35)     # le « tamborzão »
+                if k % 2 == 1:
+                    _poser(batt, _hat(rng), t, 0.5)
+                if k in (0, 6, 10):
+                    _poser(basse, _808(hz(racine), 3 * pas, sature=3.5), t, 0.5)
+                if k in (3, 11):
+                    _poser(mel, _stab(hz(racine + 2, 2)), t, 0.7)
+            elif style == "drill":
+                if k in (0, 11) or (k == 6 and m % 2):
+                    _poser(batt, _kick_dur(), t, 0.85)
+                if k == 0:
+                    vers = hz(racine + (2 if m % 2 else -1))
+                    _poser(basse, _808(hz(racine), 14 * pas, vers=vers), t, 0.6)
+                if k == 8:
+                    _poser(batt, _snare(rng), t, 0.75)
+                if k in (0, 3, 6, 8, 11, 14) or (k == 12 and m % 2):
+                    _poser(batt, _hat(rng), t, 0.55)
+                    if k == 12:                                 # triolet
+                        for r in (1, 2):
+                            _poser(batt, _hat(rng), t + r * pas * 2 / 3, 0.45)
+                if k in (0, 3, 6):
+                    _poser(mel, _marimba(hz(riff[k % 8] + racine, 2)), t, 0.55)
+            elif style == "afro":
+                if k in (0, 8) or (k == 6 and m % 2):
+                    _poser(batt, _kick_dur(0.8), t, 0.75)
+                if k in (4, 12):
+                    _poser(batt, _snare(rng, clap=True), t, 0.5)
+                _poser(batt, _hat(rng), t, 0.32 if k % 2 else 0.18)   # shaker
+                if k in (3, 6, 10, 14):
+                    _poser(basse, _log_drum(hz(racine + (k // 5), 1)), t, 0.5)
+                if k in (0, 3, 7, 10, 12):
+                    _poser(mel, _marimba(hz(riff[k % 8] + racine, 2)), t, 0.5)
+            else:  # trap
+                if k in (0, 7, 10):
+                    _poser(batt, _kick_dur(), t, 0.85)
+                    _poser(basse, _808(hz(racine), 5 * pas), t, 0.55)
+                if k in (4, 12):
+                    _poser(batt, _snare(rng, clap=True), t, 0.7)
+                _poser(batt, _hat(rng), t, 0.5 if k % 2 == 0 else 0.3)
+                if k == 14 and m % 2:                            # roulement
+                    for r in range(1, 4):
+                        _poser(batt, _hat(rng), t + r * pas / 3, 0.4)
+                if k in (0, 6, 12):
+                    _poser(mel, _marimba(hz(riff[k % 8] + racine, 3)), t, 0.4)
+    # Un téléphone ne rend presque rien sous 150 Hz : la 808 est saturée
+    # (ses harmoniques s'entendent), et la mélodie passe devant.
+    mono = batt + 0.6 * basse + 2.6 * mel
+    gauche = mono + 0.08 * np.roll(mel, int(0.012 * TAUX))
+    droite = mono + 0.08 * np.roll(mel, int(0.019 * TAUX))
+    st = np.stack([gauche, droite], axis=1)[: int(duree * TAUX)]
+    sor = int(min(1.0, duree / 6) * TAUX)
+    st[-sor:] *= np.linspace(1, 0, sor)[:, None]
+    crete = np.max(np.abs(st)) or 1.0
+    return np.tanh(1.4 * st / crete) * 0.9
+
+
+TEMPO_DU_STYLE = {"phonk": 140, "funk": 130, "drill": 142, "afro": 108, "trap": 140}
+
+
+def composer(duree: float, graine: str = "alluxe", bpm: float | None = None,
+             style: str | None = None) -> np.ndarray:
+    """Un beat stéréo (n, 2), entre -1 et 1. Sans style : un des cinq
+    styles jeunes, fixé par la graine (toujours le même pour un Reel)."""
+    if style == "lofi":
+        return _lofi(duree, graine, bpm)
+    style = style or STYLES[_graine(graine) % len(STYLES)]
+    return _beat(duree, style, bpm or TEMPO_DU_STYLE[style], graine)
+
+
 def ecrire_wav(chemin: str, duree: float, graine: str = "alluxe",
-               bpm: float | None = None) -> str:
-    st = composer(duree, graine, bpm)
+               bpm: float | None = None, style: str | None = None) -> str:
+    st = composer(duree, graine, bpm, style)
     with wave.open(chemin, "wb") as w:
         w.setnchannels(2)
         w.setsampwidth(2)

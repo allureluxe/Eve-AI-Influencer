@@ -7,11 +7,10 @@ via bundle.social (offre gratuite : 20 publications par mois).
     python3 ops/alluxe_ia_bundle.py choisir 03-ia-invente   # 5 sons tendance adaptés au sujet
     python3 ops/alluxe_ia_bundle.py reel 03-ia-invente --son auto --le … # le meilleur des 5
 
-LA MUSIQUE SUIT LE SUJET (4 oct., demande de l'opérateur : « musique
-tendance jeune, tout style, adaptée au sujet »). Chaque ambiance a ses
-styles qui tournent chez les jeunes ; on cherche ces styles dans la
-bibliothèque Instagram et on garde en priorité ce qui est AUSSI dans les
-tendances du moment, assez long pour couvrir le Reel.
+LA MUSIQUE SUIT LE SUJET (4 oct., demande de l'opérateur : « des musiques
+que tout le monde connaît, tendance jeune, adaptées au sujet »). Vraies
+chansons de la bibliothèque Instagram : tendances du moment d'abord, puis
+artistes connus de l'ambiance, puis styles (voir AMBIANCES).
 
 Pourquoi un intermédiaire : Meta n'ouvre sa musique qu'à des partenaires
 (testé le 4 oct. avec notre propre clé Facebook : aucun point d'accès).
@@ -73,13 +72,23 @@ def sons(recherche: str = "") -> list[dict]:
     return _appel("GET", "misc/instagram/audio?" + urllib.parse.urlencode(p)).get("audio", [])
 
 
-# Ambiance d'un sujet -> styles recherchés, du plus au moins prioritaire.
-AMBIANCES: dict[str, list[str]] = {
-    "mystere": ["phonk", "dark trap", "suspense", "slowed"],      # révélation, piège, « l'IA ment »
-    "energie": ["funk brasileiro", "jersey club", "sped up", "hype"],  # listes rapides, astuces
-    "punch": ["drill", "rap fr", "trap", "bass boosted"],         # « tu fais mal », méthode choc
-    "motivation": ["afro", "afrobeats", "house", "motivation"],   # apprendre, progresser
-    "chill": ["lofi", "chill", "r&b", "acoustic"],                # tuto posé, quotidien
+# 4 oct., opérateur : « des musiques que tout le monde connaît, tendance
+# jeune, tout style — pas des musiques créées ». Donc on cherche D'ABORD
+# dans les tendances Instagram du moment, PUIS chez des artistes connus
+# des 15-30 ans adaptés au sujet, et seulement en dernier par style.
+# Ce sont des chansons sous licence Instagram : attachées à la
+# publication, jamais copiées dans la vidéo (sinon son coupé ou Reel bloqué).
+AMBIANCES: dict[str, dict[str, list[str]]] = {
+    "mystere": {"artistes": ["Travis Scott", "The Weeknd", "Kordhell", "Gazo"],
+                "styles": ["phonk", "dark trap"]},
+    "energie": {"artistes": ["Aya Nakamura", "Tiakola", "Doja Cat", "Bad Bunny"],
+                "styles": ["funk brasileiro", "sped up"]},
+    "punch": {"artistes": ["Ninho", "Gazo", "Central Cee", "SDM"],
+              "styles": ["drill", "rap fr"]},
+    "motivation": {"artistes": ["Burna Boy", "Rema", "Tayc", "Dadju"],
+                   "styles": ["afrobeats", "afro"]},
+    "chill": {"artistes": ["SZA", "Tayc", "Billie Eilish", "Jul"],
+              "styles": ["r&b", "chill"]},
 }
 
 
@@ -87,19 +96,26 @@ def ambiance_du_reel(reel_id: str) -> str:
     return REELS[reel_id].get("ambiance", "energie")
 
 
-def proposer_sons(reel_id: str, n: int = 5) -> list[dict]:
-    """Les sons candidats, les mieux placés d'abord : style de l'ambiance
-    ET présent dans les tendances, assez long pour tout le Reel."""
+def proposer_sons(reel_id: str, n: int = 8) -> list[dict]:
+    """Les chansons candidates, dans cet ordre : tendances Instagram du
+    moment, artistes connus de l'ambiance, puis styles. Toujours assez
+    longues pour couvrir le Reel."""
     duree_ms = int(sum(t.duree for t in REELS[reel_id]["temps"]) * 1000)
-    tendance = {x["audio_id"] for x in sons()}
+    amb = AMBIANCES[ambiance_du_reel(reel_id)]
+    sources = [("tendance", "")] + [("artiste", a) for a in amb["artistes"]] \
+        + [("style", s) for s in amb["styles"]]
     vus, cand = set(), []
-    for rang_style, style in enumerate(AMBIANCES[ambiance_du_reel(reel_id)]):
-        for rang, x in enumerate(sons(style)):
+    for rang_source, (genre, recherche) in enumerate(sources):
+        try:
+            liste = sons(recherche)
+        except RuntimeError:
+            continue
+        for rang, x in enumerate(liste[:10]):
             if x["audio_id"] in vus or int(x.get("duration_in_ms") or 0) < duree_ms:
                 continue
             vus.add(x["audio_id"])
-            x["_style"] = style
-            x["_score"] = (0 if x["audio_id"] in tendance else 100) + rang_style * 10 + rang
+            x["_source"] = genre if not recherche else f"{genre} : {recherche}"
+            x["_score"] = rang_source * 100 + rang
             cand.append(x)
     return sorted(cand, key=lambda x: x["_score"])[:n]
 
@@ -163,8 +179,7 @@ def main() -> int:
     if args.action == "choisir":
         print(f"ambiance : {ambiance_du_reel(args.reel_id)}")
         for x in proposer_sons(args.reel_id):
-            marque = "TENDANCE" if x["_score"] < 100 else "        "
-            print(f"{x['audio_id']:>20}  {marque}  [{x['_style']}]  "
+            print(f"{x['audio_id']:>20}  [{x['_source']}]  "
                   f"{x.get('display_artist', x.get('ig_username', ''))} - {x.get('title', '')}")
         return 0
 
@@ -173,7 +188,8 @@ def main() -> int:
         if not choix:
             raise SystemExit("aucun son assez long trouvé pour cette ambiance")
         args.son = choix[0]["audio_id"]
-        print(f"son choisi : {choix[0].get('title', '')} [{choix[0]['_style']}] -> {args.son}")
+        print(f"son choisi : {choix[0].get('display_artist', '')} - {choix[0].get('title', '')} "
+              f"[{choix[0]['_source']}] -> {args.son}")
 
     cle = "reel:" + args.reel_id
     publies = json.load(open(PUBLIES)) if os.path.exists(PUBLIES) else {}

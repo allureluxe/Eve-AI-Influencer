@@ -14,7 +14,7 @@ le retirer sans mesure.
 | **Coupes rapides et rythme** | le cerveau suit ce qui change | texte calé sur le tempo de la musique, petit coup de zoom à chaque temps (`reel.py`, `TEMPOS`) |
 | **Fin forte** (pic-fin) | on juge sur le moment le plus fort et la fin | dernier temps : la réponse + « Lien en bio » |
 | **Enregistrer / partager** | ce sont les signaux qui font pousser un post | chaque légende : « Enregistre-le » + « Envoie-le à quelqu'un qui… » |
-| **Musique adaptée** | le son porte l'émotion | ambiance par sujet (`ops/alluxe_ia_bundle.py`, `AMBIANCES`) : mystère → phonk, liste → funk/jersey, méthode → drill/rap, apprendre → afro, tuto → lo-fi |
+| **Musique adaptée** | le son porte l'émotion | VRAIES chansons de la bibliothèque Instagram (`ops/alluxe_ia_bundle.py`, `AMBIANCES`) : tendances du moment, puis artistes connus par ambiance (mystère → Travis Scott, phonk ; liste → Aya Nakamura, funk ; méthode → Ninho, Gazo, drill ; apprendre → Burna Boy, afro). Jamais copiées dans la vidéo : attachées à la publication |
 
 Limite : aucune de ces techniques ne remplace un contenu utile. Une
 promesse non tenue fait fuir au slide 2 et coûte l'abonnement.
