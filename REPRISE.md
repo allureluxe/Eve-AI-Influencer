@@ -1,4 +1,26 @@
-# Ou on en est — mis a jour le 4 octobre 2026, 01h05
+# Ou on en est — mis a jour le 4 octobre 2026, 20h
+
+## 4 OCT. 20h -- alluxe.ia REPART DE ZERO (lire en premier pour Instagram)
+
+- Profil vide par l'operateur, puis : 6 carrousels publies 19h07-19h12 (01, 02, 03,
+  23, 24, 25) en STYLE COMBINE (couverture photo du sujet + pages pop :
+  alluxe_ia/slides_pop.py, branche dans ops/alluxe_ia.py). Puis 2 carrousels/jour
+  12h30 + 19h (timer modifie ; PIEGE : le recharger apres 19h le declenche).
+- Reel « 5 choses a ne jamais coller dans ChatGPT » (alluxe_ia/reel_photos.py,
+  une photo Pixabay par idee, 3,4 s/image, sans barre, logo 270 px) publie 19h59
+  via bundle.social avec le son LABOUR (Paris Paloma). MJ refuse par l'operateur.
+- Stats Instagram : INSTAGRAM_FB_TOKEN (60 j). Musique IG : bundle.social
+  (BUNDLE_SOCIAL_API_KEY, gratuit 20 posts/mois) ; liste blanche de sons dans
+  ops/alluxe_ia_bundle.py ; seuls les sons de la liste TENDANCE (sans recherche)
+  sont de vrais titres.
+- A FAIRE, dans cet ordre (l'operateur insiste sur l'ordre) : 1) logo PLUS
+  GRAND sur les carrousels AVANT 12h30 le 5 oct. ; 2) photos de couverture
+  adaptees pour les posts a venir (12 fromage, 09 herbe, 26, 10, 28, 29, 32,
+  14, 11) ; 3) rythme des Reels (20/mois max en gratuit). Reel 03 de l'autre
+  session programme le 5 oct. 19h.
+- Une autre session travaille en parallele sur reel.py (modifs non commitees,
+  2 tests de reel.py rouges a cause d'elles).
+
 
 ## 4 OCT. 01h05 — LIRE EN PREMIER (fin de session, contexte plein)
 
