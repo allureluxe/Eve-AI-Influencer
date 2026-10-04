@@ -414,11 +414,13 @@ def _pastille(d, x: int, y: int, texte: str, fond, encre, taille: int = 30,
 
 
 def _entete_vif(img, d, fond, encre, etiquette: str) -> None:
-    cx, cy, r = MARGE + 80, MARGE + 80, 80
-    m = medaillon(2 * r, contenu_taille=118)
+    # Logo agrandi le 4 oct. (opérateur : « le logo toujours bien visible, pas
+    # petit comparé à l'écriture ») : 160 -> 240 px, nom 36 -> 60 px.
+    cx, cy, r = MARGE + 120, MARGE + 100, 120
+    m = medaillon(2 * r, contenu_taille=178)
     img.paste(m, (cx - r, cy - r), m)
-    d.text((cx + r + 22, cy - 4), NOM, font=titre_police(36), fill=encre, anchor="ls")
-    d.text((cx + r + 22, cy + 32), PSEUDO, font=texte_police(26), fill=encre, anchor="ls")
+    d.text((cx + r + 26, cy + 4), NOM, font=titre_police(60), fill=encre, anchor="ls")
+    d.text((cx + r + 28, cy + 50), PSEUDO, font=texte_police(34, gras=True), fill=encre, anchor="ls")
     if etiquette:
         _pastille(d, LARGEUR - MARGE, cy - 29, etiquette, encre, fond, 28, droite=True)
 
@@ -506,8 +508,8 @@ def _couverture_photo(post: Post, s: Slide, total: int, photo: str) -> Image.Ima
     blanc = (255, 255, 255)
     _entete_vif(img, d, accent, blanc, "")
     if post.etiquette:
-        _pastille(d, LARGEUR - MARGE, MARGE + 80 - 29, post.etiquette, accent, encre_accent,
-                  28, droite=True)
+        # Sous le logo agrandi, pour ne jamais le chevaucher.
+        _pastille(d, MARGE, MARGE + 250, post.etiquette, accent, encre_accent, 28)
 
     largeur = LARGEUR - 2 * MARGE
     fab = lambda t: _police("BricolageGrotesque.ttf", t, "ExtraBold")  # noqa: E731

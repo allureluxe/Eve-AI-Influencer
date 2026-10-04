@@ -97,9 +97,10 @@ def _pastille(d, x, y, texte, fond, encre, taille=30) -> int:
 
 
 def _entete(img, d, numero, total, sur_couleur: bool) -> None:
-    m = medaillon(96, contenu_taille=72)
-    img.paste(m, (M, 60), m)
-    d.text((M + 112, 92), PSEUDO, font=texte_police(32, gras=True), fill=NOIR)
+    # Logo agrandi le 4 oct. : 96 -> 150 px, pseudo 32 -> 44 px.
+    m = medaillon(150, contenu_taille=112)
+    img.paste(m, (M, 50), m)
+    d.text((M + 168, 104), PSEUDO, font=texte_police(44, gras=True), fill=NOIR)
     if total > 1:
         texte = f"{numero}/{total}"
         p = mono_police(26)
@@ -243,9 +244,9 @@ def rendre(post: Post) -> list[Image.Image]:
         img = Image.new("RGB", (LARGEUR, HAUTEUR), fond)
         d = ImageDraw.Draw(img)
         if lecon:
-            m = medaillon(96, contenu_taille=72)
-            img.paste(m, (M, 60), m)
-            d.text((M + 112, 92), PSEUDO, font=texte_police(32, gras=True), fill=BLANC)
+            m = medaillon(150, contenu_taille=112)
+            img.paste(m, (M, 50), m)
+            d.text((M + 168, 104), PSEUDO, font=texte_police(44, gras=True), fill=BLANC)
         else:
             _entete(img, d, i, total, sur_couleur)
         if s.type == "couverture":
