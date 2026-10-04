@@ -165,3 +165,30 @@ class TestLeReel:
             assert r["temps"][-1].mot_cle == "Lien en bio"
             assert "bio" in r["legende"] and "en privé" not in r["legende"]
             assert 7 <= sum(t.duree for t in r["temps"]) <= 30
+
+
+class TestLaMusiqueDesReels:
+    """4 oct. : le 1er Reel, muet, a fait 5 vues. Plus jamais de Reel silencieux."""
+
+    def test_la_musique_n_est_pas_muette_et_ne_sature_pas(self):
+        import numpy as np
+        from alluxe_ia.musique import TAUX, composer
+        st = composer(8.0, "essai")
+        assert st.shape == (8 * TAUX, 2)
+        rms = float(np.sqrt(np.mean(st ** 2)))
+        assert 0.05 < rms < 0.5, rms
+        assert np.max(np.abs(st)) < 1.0
+        # Le son est là dès la première seconde (pas un long fondu).
+        assert np.sqrt(np.mean(st[TAUX // 2:TAUX] ** 2)) > 0.03
+
+    def test_une_variante_par_reel_toujours_la_meme(self):
+        import numpy as np
+        from alluxe_ia.musique import composer
+        assert np.array_equal(composer(3.0, "a"), composer(3.0, "a"))
+        assert not np.array_equal(composer(3.0, "a"), composer(3.0, "b"))
+
+    def test_le_reel_n_utilise_plus_de_piste_muette(self):
+        import alluxe_ia.reel as r
+        source = open(r.__file__, encoding="utf-8").read()
+        assert "anullsrc" not in source
+        assert "ecrire_wav(" in source

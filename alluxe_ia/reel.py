@@ -11,9 +11,11 @@ ZONES SÛRES. Instagram couvre le haut (~220 px : onglets), le bas
 commentaire, partage) d'un Reel de 1080 x 1920. Tout le texte reste dans
 le rectangle libre ; le reste ne porte que le fond.
 
-SON. Une piste audio muette est ajoutée : publié par l'API, un Reel ne
-peut pas porter une musique de la bibliothèque Instagram. Publié à la
-main depuis l'appli, on lui ajoute un son tendance au moment de poster.
+SON. Une musique composée par programme (`alluxe_ia/musique.py`, une
+variante par Reel). Jusqu'au 4 oct. c'était une piste muette, et le
+premier Reel a fait 5 vues : un Reel silencieux part avec un gros
+handicap. La musique d'Instagram n'est ouverte aux programmes que pour
+les comptes reliés par Facebook, pas par la connexion « Instagram ».
 
 Nécessite ffmpeg.
 """
@@ -27,6 +29,7 @@ from dataclasses import dataclass
 
 from PIL import Image, ImageDraw
 
+from alluxe_ia.musique import ecrire_wav
 from alluxe_ia.slides import (AMBRE, DOUX, ENCRE, FOND, FOND_HAUT, MENTHE, NOM, PSEUDO,
                               couper, medaillon, mono_police, texte_police, titre_police)
 
@@ -35,6 +38,9 @@ IPS = 30
 GAUCHE = 90
 LARGEUR_TEXTE = 1080 - GAUCHE - 160      # la colonne de boutons à droite
 HAUT_LIBRE, BAS_LIBRE = 300, 1450        # entre les onglets et la légende
+RAYON_LOGO = 250                          # logo de 500 px (double le 4 oct.)
+HAUT_LOGO = HAUT_LIBRE - 40               # haut du logo, juste sous les onglets
+BAS_LOGO = HAUT_LOGO + 2 * RAYON_LOGO
 ENTREE = 0.5                             # secondes de glissement à l'arrivée
 
 ICI = os.path.dirname(os.path.abspath(__file__))
@@ -86,12 +92,14 @@ def _fond() -> Image.Image:
                fill=tuple(int(FOND[i] + (FOND_HAUT[i] - FOND[i]) * t) for i in range(3)))
     # Signature en haut de la zone libre : le même en-tête que les slides.
     # Logo du Reel : cercle légèrement agrandi pour laisser respirer ALLUXE.
-    r = 125
-    # Cercle plus grand, contenu ALLUXE conservé à la taille précédente (190 px).
-    m = medaillon(2 * r, contenu_taille=190)
-    img.paste(m, (GAUCHE, HAUT_LIBRE - r), m)
-    d.text((GAUCHE + 2 * r + 22, HAUT_LIBRE - 4), NOM, font=titre_police(36), fill=ENCRE, anchor="ls")
-    d.text((GAUCHE + 2 * r + 22, HAUT_LIBRE + 32), PSEUDO, font=texte_police(26), fill=DOUX, anchor="ls")
+    # 4 oct. 2026, operateur : « le logo du Reel trop petit, double-le » ->
+    # 250 -> 500 px, contenu ALLUXE double aussi (190 -> 380 px).
+    r = RAYON_LOGO
+    m = medaillon(2 * r, contenu_taille=380)
+    img.paste(m, (GAUCHE, HAUT_LOGO), m)
+    cy = HAUT_LOGO + r
+    d.text((GAUCHE + 2 * r + 26, cy - 4), NOM, font=titre_police(40), fill=ENCRE, anchor="ls")
+    d.text((GAUCHE + 2 * r + 26, cy + 36), PSEUDO, font=texte_police(28), fill=DOUX, anchor="ls")
     return img
 
 
@@ -143,7 +151,8 @@ def images(temps: list[Temps]):
     debut = 0.0
     for k, t in enumerate(temps):
         calque, h = _calque(t)
-        y0 = (HAUT_LIBRE + 120 + BAS_LIBRE) // 2 - h // 2
+        # Le texte se centre SOUS le logo agrandi, sans jamais le recouvrir.
+        y0 = max(BAS_LOGO + 40, (BAS_LOGO + 40 + BAS_LIBRE) // 2 - h // 2)
         n = round(t.duree * IPS)
         for i in range(n):
             s = i / IPS
@@ -170,10 +179,12 @@ def rendre(reel_id: str, sortie: str | None = None) -> str:
     sortie = sortie or os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{reel_id}.mp4")
     os.makedirs(os.path.dirname(sortie), exist_ok=True)
     duree = sum(t.duree for t in temps)
+    piste = sortie + ".musique.wav"
+    ecrire_wav(piste, duree, graine=reel_id)
     cmd = ["ffmpeg", "-y", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{LARGEUR}x{HAUTEUR}",
            "-r", str(IPS), "-i", "-",
-           "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+           "-i", piste,
            "-t", f"{duree:.2f}",
            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high",
            "-preset", "medium", "-crf", "20", "-movflags", "+faststart",
@@ -182,7 +193,9 @@ def rendre(reel_id: str, sortie: str | None = None) -> str:
     for img in images(temps):
         p.stdin.write(img.tobytes())
     p.stdin.close()
-    if p.wait() != 0:
+    code = p.wait()
+    os.remove(piste)
+    if code != 0:
         raise RuntimeError("ffmpeg a échoué")
     with open(sortie + ".legende.txt", "w", encoding="utf-8") as f:
         f.write(REELS[reel_id]["legende"])
