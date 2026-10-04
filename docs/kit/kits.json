@@ -1,0 +1,357 @@
+[
+ {
+  "id": "site-vitrine",
+  "nom": "Site vitrine complet",
+  "icone": "🌐",
+  "couleur": "jaune",
+  "categorie": "Sites",
+  "niveau": "Débutant",
+  "temps": "2 à 3 heures",
+  "cout": "0 € (nom de domaine en option, ~10 €/an)",
+  "resultat": "Un site pro de 4 à 5 pages, adapté au téléphone, en ligne avec une vraie adresse.",
+  "outils": [
+   "ChatGPT ou Claude (gratuit)",
+   "Netlify Drop (gratuit, sans compte au départ)",
+   "Un éditeur de texte (Bloc-notes suffit)"
+  ],
+  "etapes": [
+   "Copie le prompt ci-dessous et colle-le dans ChatGPT ou Claude.",
+   "Réponds à ses questions sur ton activité (nom, services, couleurs, contact).",
+   "L'IA te donne le code complet du site : copie-le dans un fichier nommé index.html.",
+   "Ouvre ce fichier sur ton ordinateur pour voir ton site, demande des changements jusqu'à ce qu'il te plaise.",
+   "Va sur app.netlify.com/drop et fais glisser le dossier du site : il est en ligne.",
+   "Option : achète un nom de domaine et relie-le, l'IA t'explique comment."
+  ],
+  "prompt": "Tu es un web designer expert qui crée des sites modernes pour des débutants. Ensemble, on va créer mon site vitrine complet et le mettre en ligne gratuitement.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions : demande-moi une par une : le nom de mon activité, ce que je propose, ma ville ou ma zone, mes clients idéaux, ce qui me différencie, mes coordonnées, 2 sites que j'aime visuellement, les couleurs ou l'ambiance voulues.\nÉTAPE 2 — Plan : propose le plan du site (Accueil, Services, À propos, Avis, Contact) et les textes de chaque page, écrits pour donner envie et bien ressortir sur Google. Attends ma validation.\nÉTAPE 3 — Code : écris tout le site dans UN SEUL fichier index.html (HTML + CSS + un peu de JavaScript), moderne, adapté au téléphone, avec un formulaire de contact qui ouvre l'e-mail, sans dépendance compliquée. Explique-moi comment créer le fichier index.html sur mon ordinateur et l'ouvrir dans mon navigateur.\nÉTAPE 4 — Retouches : propose-moi 3 améliorations possibles et applique celles que je choisis, en me redonnant le fichier complet à chaque fois.\nÉTAPE 5 — Mise en ligne : guide-moi pour publier le site gratuitement avec Netlify Drop (app.netlify.com/drop), clic par clic.\nÉTAPE 6 — Bonus : explique comment acheter un nom de domaine et le relier au site, et donne-moi 5 conseils simples pour que Google trouve mon site.\n\nCommence par la première question de l'étape 1."
+ },
+ {
+  "id": "page-de-vente",
+  "nom": "Page de vente",
+  "icone": "🎯",
+  "couleur": "corail",
+  "categorie": "Sites",
+  "niveau": "Débutant",
+  "temps": "1 à 2 heures",
+  "cout": "0 €",
+  "resultat": "Une page unique qui présente une offre et pousse à l'action (acheter, réserver, s'inscrire).",
+  "outils": [
+   "ChatGPT ou Claude (gratuit)",
+   "Netlify Drop (gratuit)"
+  ],
+  "etapes": [
+   "Colle le prompt dans ton IA et décris ton offre.",
+   "L'IA écrit d'abord les textes (accroche, bénéfices, preuves, appel à l'action) : valide-les.",
+   "Elle te donne le code de la page : copie-le dans index.html.",
+   "Publie-la sur app.netlify.com/drop en glissant le dossier.",
+   "Partage le lien sur tes réseaux ou dans ta bio."
+  ],
+  "prompt": "Tu es un expert en pages de vente qui convertissent, et un développeur web. On va créer ensemble UNE page de vente pour mon offre, puis la mettre en ligne.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : mon offre, son prix, à qui elle s'adresse, le problème qu'elle règle, le résultat obtenu, les objections des clients, mes preuves (avis, chiffres, exemples), l'action voulue (acheter, réserver, s'inscrire) et le lien ou le moyen de le faire.\nÉTAPE 2 — Textes : écris la page dans cet ordre : accroche forte, le problème, la solution, 3 à 5 bénéfices concrets, preuves, ce qui est inclus, prix, réponses aux objections (FAQ), garantie s'il y en a une, appel à l'action répété 3 fois. Pas de fausse promesse ni de faux avis. Attends ma validation.\nÉTAPE 3 — Code : une seule page index.html, moderne, rapide, adaptée au téléphone, avec un gros bouton d'action bien visible. Explique comment créer le fichier et l'ouvrir.\nÉTAPE 4 — Mise en ligne gratuite avec Netlify Drop, clic par clic.\nÉTAPE 5 — Donne-moi 3 idées pour tester une autre accroche et voir laquelle marche le mieux.\n\nCommence par la première question."
+ },
+ {
+  "id": "boutique-shopify",
+  "nom": "Boutique Shopify",
+  "icone": "🛍️",
+  "couleur": "menthe",
+  "categorie": "E-commerce",
+  "niveau": "Débutant",
+  "temps": "1 à 2 jours",
+  "cout": "Essai gratuit Shopify, puis abonnement Shopify",
+  "resultat": "Une boutique en ligne prête à vendre : produits, paiement, livraison, pages légales.",
+  "outils": [
+   "Shopify (essai gratuit)",
+   "ChatGPT ou Claude",
+   "Tes photos de produits"
+  ],
+  "etapes": [
+   "Colle le prompt dans ton IA : elle te guide pour créer ton compte Shopify.",
+   "Elle t'aide à choisir un thème et les couleurs de ta marque.",
+   "Pour chaque produit, elle écrit la fiche (titre, description, prix conseillé de présentation).",
+   "Elle te guide pour régler le paiement, la livraison et les pages légales.",
+   "Tu fais une commande test, puis tu ouvres la boutique."
+  ],
+  "prompt": "Tu es un expert Shopify qui accompagne des débutants complets. On va créer ma boutique Shopify de A à Z jusqu'à la première commande test.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : ce que je vends, mon nom de marque, mon style, mes clients, d'où j'expédie et où je livre, mes prix et mes frais de livraison prévus.\nÉTAPE 2 — Compte : guide-moi pour créer mon compte Shopify et démarrer l'essai, clic par clic.\nÉTAPE 3 — Thème : conseille-moi un thème gratuit adapté et explique comment l'installer et changer couleurs, logo et polices.\nÉTAPE 4 — Produits : pour chaque produit que je te décris, écris un titre accrocheur, une description qui donne envie (bénéfices, détails, entretien), les variantes et un texte alternatif pour les photos. Explique où les coller dans Shopify.\nÉTAPE 5 — Pages : écris À propos, Contact, FAQ, et explique comment générer les pages légales (CGV, remboursement, confidentialité) avec les outils de Shopify.\nÉTAPE 6 — Réglages : paiement, livraison, taxes, e-mails de commande, nom de domaine. Une chose à la fois.\nÉTAPE 7 — Test : guide-moi pour passer une commande test, puis la liste de vérification avant ouverture.\nÉTAPE 8 — Lancement : 5 actions simples pour obtenir mes premières ventes.\n\nCommence par la première question."
+ },
+ {
+  "id": "boutique-simple",
+  "nom": "Boutique simple sans Shopify",
+  "icone": "🧺",
+  "couleur": "lilas",
+  "categorie": "E-commerce",
+  "niveau": "Débutant",
+  "temps": "2 à 4 heures",
+  "cout": "0 € d'abonnement (commission par vente du service de paiement)",
+  "resultat": "Une petite boutique d'une page avec des boutons « Acheter » qui encaissent par carte.",
+  "outils": [
+   "ChatGPT ou Claude",
+   "Stripe ou PayPal (liens de paiement)",
+   "Netlify Drop (gratuit)"
+  ],
+  "etapes": [
+   "Colle le prompt : l'IA te guide pour créer un lien de paiement par produit (Stripe ou PayPal).",
+   "Elle écrit la page boutique avec tes produits et colle tes liens dans les boutons.",
+   "Tu testes un achat, puis tu publies la page sur Netlify Drop.",
+   "Idéal pour vendre moins de 10 produits sans abonnement."
+  ],
+  "prompt": "Tu es un expert e-commerce minimaliste. On va créer une petite boutique d'une seule page, sans abonnement, avec des boutons d'achat qui encaissent par carte grâce à des liens de paiement.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : mes produits (nom, prix, photo), ma marque, ma livraison, et si j'ai déjà un compte Stripe ou PayPal. Rappelle-moi qu'il faut un statut (par exemple micro-entreprise) pour vendre régulièrement.\nÉTAPE 2 — Paiement : guide-moi pour créer un lien de paiement pour chaque produit dans Stripe (ou PayPal si je préfère), clic par clic, et pour tester un paiement.\nÉTAPE 3 — Page : écris une page index.html moderne, adaptée au téléphone : présentation de la marque, une carte par produit (photo, description, prix, bouton Acheter relié à son lien), livraison, FAQ, contact, et un lien vers mes conditions de vente.\nÉTAPE 4 — Textes légaux : rédige un modèle simple de mentions légales et de conditions de vente à compléter avec mes informations, en me signalant ce que je dois vérifier.\nÉTAPE 5 — Mise en ligne avec Netlify Drop, puis vérification de chaque bouton.\n\nCommence par la première question."
+ },
+ {
+  "id": "agent-secretaire",
+  "nom": "Agent IA secrétaire",
+  "icone": "🤖",
+  "couleur": "lilas",
+  "categorie": "Agents IA",
+  "niveau": "Débutant",
+  "temps": "1 à 2 heures",
+  "cout": "Version payante de ChatGPT ou Claude conseillée",
+  "resultat": "Un assistant qui connaît ton activité : il rédige tes réponses clients, tes devis, trie tes mails et prépare ton planning.",
+  "outils": [
+   "ChatGPT (GPT personnalisé) ou Claude (Projet)",
+   "Tes infos : tarifs, horaires, questions fréquentes"
+  ],
+  "etapes": [
+   "Rassemble tes infos dans un document : services, prix, horaires, questions fréquentes.",
+   "Colle le prompt dans ton IA : elle écrit les instructions de ton agent.",
+   "Crée un GPT personnalisé (ChatGPT) ou un Projet (Claude) et colle ces instructions + ton document.",
+   "Teste-le avec 10 vraies questions de clients et corrige ce qui ne va pas.",
+   "Utilise-le chaque jour pour tes réponses, devis et mails."
+  ],
+  "prompt": "Tu es un expert en agents IA pour petites entreprises. On va créer mon agent IA secrétaire, personnalisé à mon activité, dans ChatGPT (GPT personnalisé) ou Claude (Projet).\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : mon activité, mes services et prix, mes horaires, ma zone, mon ton (vouvoiement ou tutoiement), les 10 questions que mes clients posent le plus, les tâches que je veux lui confier (réponses aux clients, devis, relances, tri des mails, planning), et ce qu'il ne doit JAMAIS faire.\nÉTAPE 2 — Fiche de connaissances : rédige un document clair avec toutes mes informations, que je pourrai mettre à jour moi-même.\nÉTAPE 3 — Instructions : écris les instructions complètes de l'agent (rôle, ton, tâches, format des réponses, règles de sécurité : ne jamais inventer un prix, une date ou une disponibilité, dire « je vérifie » si l'info manque, ne jamais demander de données bancaires).\nÉTAPE 4 — Installation : explique clic par clic comment créer un GPT personnalisé dans ChatGPT OU un Projet dans Claude, et où coller les instructions et la fiche.\nÉTAPE 5 — Tests : donne-moi 10 questions pièges à lui poser, et ce qu'une bonne réponse doit contenir. Je te dirai ce qui ne va pas et tu corrigeras les instructions.\nÉTAPE 6 — Routine : propose-moi 5 façons de l'utiliser chaque jour en 10 minutes.\n\nCommence par la première question."
+ },
+ {
+  "id": "chatbot-site",
+  "nom": "Chatbot pour ton site",
+  "icone": "💬",
+  "couleur": "ciel",
+  "categorie": "Agents IA",
+  "niveau": "Intermédiaire",
+  "temps": "2 à 3 heures",
+  "cout": "Offre gratuite de l'outil de chat, payant au-delà",
+  "resultat": "Une bulle de discussion sur ton site qui répond aux visiteurs à partir de TES informations.",
+  "outils": [
+   "Un outil de chat avec IA intégrée (ex. Crisp, Tidio)",
+   "ChatGPT ou Claude pour préparer les réponses",
+   "Ton site"
+  ],
+  "etapes": [
+   "Colle le prompt : l'IA prépare ta base de questions-réponses.",
+   "Crée un compte sur un outil de chat qui propose une IA (offre gratuite pour commencer).",
+   "Importe ta base de connaissances et règle le ton et les limites.",
+   "Colle le petit code fourni par l'outil dans ton site (l'IA t'explique où).",
+   "Teste avec des questions pièges avant de l'ouvrir aux visiteurs."
+  ],
+  "prompt": "Tu es un expert en chatbots pour sites web de petites entreprises. On va installer sur mon site un chatbot qui répond à mes visiteurs à partir de mes informations, sans inventer.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : mon activité, l'adresse de mon site et l'outil qui l'a créé (Shopify, WordPress, Wix, fichier HTML…), ce que le chatbot doit faire (répondre, orienter, prendre un contact), mes horaires, mes prix publics, mes 15 questions fréquentes.\nÉTAPE 2 — Base de connaissances : rédige une base claire de questions-réponses, et la liste de ce que le chatbot ne doit jamais dire (prix inventés, promesses, conseils juridiques ou médicaux).\nÉTAPE 3 — Choix de l'outil : compare honnêtement 2 ou 3 outils de chat avec IA connus qui ont une offre gratuite, en me disant de vérifier leurs prix actuels sur leur site. Aide-moi à choisir selon mon site.\nÉTAPE 4 — Installation : guide-moi pour créer le compte, importer la base, régler le message d'accueil, le ton et le transfert vers moi quand l'IA ne sait pas. Puis explique où coller le code d'installation dans MON type de site.\nÉTAPE 5 — Tests : 10 questions pièges, dont des tentatives de lui faire inventer un prix. Je te dis ce qui cloche, tu me dis quoi corriger.\n\nCommence par la première question."
+ },
+ {
+  "id": "robot-automatisation",
+  "nom": "Robot d'automatisation",
+  "icone": "⚙️",
+  "couleur": "ciel",
+  "categorie": "Robots",
+  "niveau": "Intermédiaire",
+  "temps": "2 à 4 heures",
+  "cout": "Offre gratuite de Make ou Zapier pour commencer",
+  "resultat": "Un robot qui fait seul une tâche répétitive : par exemple, chaque demande reçue est rangée dans un tableau et t'envoie une alerte.",
+  "outils": [
+   "Make ou Zapier (offre gratuite)",
+   "Google Sheets",
+   "Ta boîte mail",
+   "ChatGPT ou Claude"
+  ],
+  "etapes": [
+   "Note la tâche que tu fais à la main tous les jours (ex. recopier les demandes de contact).",
+   "Colle le prompt : l'IA découpe ta tâche en « déclencheur » puis « actions ».",
+   "Elle te guide dans Make ou Zapier, module par module.",
+   "Tu lances un essai avec de fausses données, puis tu actives le robot.",
+   "Il tourne seul : tu vérifies juste le résultat de temps en temps."
+  ],
+  "prompt": "Tu es un expert en automatisation no-code (Make et Zapier) qui forme des débutants. On va construire un robot qui fait à ma place une tâche répétitive.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : la tâche que je fais à la main, à quelle fréquence, d'où viennent les informations (formulaire, e-mail, boutique, tableau…), où elles doivent aller, qui doit être prévenu, et les outils que j'utilise déjà.\nÉTAPE 2 — Plan : décris le robot en langage simple : le déclencheur (« quand… »), puis chaque action (« alors… »). Dis-moi si Make ou Zapier convient le mieux et pourquoi, et rappelle-moi de vérifier les limites de leur offre gratuite.\nÉTAPE 3 — Construction : guide-moi module par module, clic par clic : connexion des comptes, choix des champs, et si utile une étape IA qui résume ou classe le texte.\nÉTAPE 4 — Test : fais-moi lancer un essai avec de fausses données, et dis-moi exactement quoi vérifier.\nÉTAPE 5 — Sécurité : ajoute une alerte si le robot échoue, et explique comment le mettre en pause.\nÉTAPE 6 — Idées : propose 5 autres robots utiles pour mon activité, du plus simple au plus utile.\n\nCommence par la première question."
+ },
+ {
+  "id": "robot-reseaux",
+  "nom": "Robot réseaux sociaux",
+  "icone": "📅",
+  "couleur": "corail",
+  "categorie": "Robots",
+  "niveau": "Débutant",
+  "temps": "3 à 4 heures pour un mois de posts",
+  "cout": "0 € (Meta Business Suite est gratuit)",
+  "resultat": "Un mois de publications Instagram et Facebook écrites, illustrées et programmées à l'avance.",
+  "outils": [
+   "ChatGPT ou Claude",
+   "Canva (gratuit) pour les visuels",
+   "Meta Business Suite (gratuit) pour programmer"
+  ],
+  "etapes": [
+   "Colle le prompt : l'IA crée ta stratégie et 30 idées de posts.",
+   "Pour chaque post, elle écrit le texte, les mots-dièses et la description du visuel.",
+   "Tu crées les visuels dans Canva avec ses consignes.",
+   "Tu programmes tout le mois dans Meta Business Suite, en une séance.",
+   "Chaque semaine, tu lui donnes tes chiffres pour qu'elle ajuste."
+  ],
+  "prompt": "Tu es un community manager expert d'Instagram et Facebook. On va créer et programmer un mois complet de publications pour mon compte.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : mon activité, mes clients idéaux, mon objectif (abonnés, ventes, réservations), mon ton, ce que font les comptes que j'admire, combien de posts par semaine je peux tenir.\nÉTAPE 2 — Stratégie : 3 à 4 thèmes réguliers (piliers), le meilleur rythme et les meilleurs formats pour moi (carrousel, Reel, photo, story), expliqués simplement.\nÉTAPE 3 — Calendrier : un tableau de 30 publications : date, format, accroche, texte complet, appel à l'action, mots-dièses, et description précise du visuel à créer.\nÉTAPE 4 — Visuels : explique comment créer ces visuels dans Canva gratuitement, avec un modèle cohérent (mêmes couleurs, mêmes polices).\nÉTAPE 5 — Programmation : guide-moi clic par clic pour tout programmer dans Meta Business Suite.\nÉTAPE 6 — Suivi : dis-moi quels 3 chiffres regarder chaque semaine et comment te les donner pour ajuster le mois suivant.\n\nCommence par la première question."
+ },
+ {
+  "id": "appli-mobile",
+  "nom": "Application mobile simple",
+  "icone": "📱",
+  "couleur": "menthe",
+  "categorie": "Applications",
+  "niveau": "Intermédiaire",
+  "temps": "3 à 5 heures",
+  "cout": "0 €",
+  "resultat": "Une petite appli qui s'installe sur l'écran d'accueil du téléphone (liste de tâches, carnet de clients, calculateur…).",
+  "outils": [
+   "ChatGPT ou Claude",
+   "Netlify Drop (gratuit)",
+   "Ton téléphone"
+  ],
+  "etapes": [
+   "Décris l'appli dont tu rêves en une phrase.",
+   "Colle le prompt : l'IA réduit l'idée à une première version simple et utile.",
+   "Elle écrit l'appli complète (une « appli web installable ») dans quelques fichiers.",
+   "Tu la publies sur Netlify Drop, tu l'ouvres sur ton téléphone et tu l'ajoutes à l'écran d'accueil.",
+   "Tes données restent sur ton téléphone, sans compte ni serveur."
+  ],
+  "prompt": "Tu es un développeur d'applications mobiles qui accompagne des débutants. On va créer une application simple qui s'installe sur l'écran d'accueil de mon téléphone (une appli web installable, ou PWA), sans serveur et sans compte.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : ce que l'appli doit m'aider à faire, qui l'utilise, les 3 écrans indispensables, les informations à enregistrer, et le style voulu.\nÉTAPE 2 — Version 1 : réduis mon idée à l'essentiel qui sera utile dès le premier jour. Écris-moi ce qu'elle fera et ne fera pas encore. Attends ma validation.\nÉTAPE 3 — Code : écris l'application complète, fichier par fichier (index.html, manifest.json, service-worker.js, et l'icône à préparer), moderne, adaptée au téléphone, qui enregistre les données dans le téléphone (localStorage) et marche hors connexion. Explique comment créer chaque fichier dans un même dossier.\nÉTAPE 4 — Essai : comment l'ouvrir sur l'ordinateur pour tester.\nÉTAPE 5 — Mise en ligne avec Netlify Drop, puis installation sur l'écran d'accueil d'un iPhone ET d'un Android, clic par clic.\nÉTAPE 6 — Explique comment exporter mes données pour ne rien perdre, puis propose 3 améliorations pour la version 2.\n\nCommence par la première question."
+ },
+ {
+  "id": "logo-identite",
+  "nom": "Logo et identité visuelle",
+  "icone": "🎨",
+  "couleur": "jaune",
+  "categorie": "Marque",
+  "niveau": "Débutant",
+  "temps": "1 à 2 heures",
+  "cout": "0 € (Canva gratuit), IA d'image selon ton abonnement",
+  "resultat": "Un nom, un logo, une palette de couleurs, des polices et une mini charte pour rester cohérent partout.",
+  "outils": [
+   "ChatGPT ou Claude (avec génération d'image si possible)",
+   "Canva (gratuit)"
+  ],
+  "etapes": [
+   "Colle le prompt et décris ton activité et ton style.",
+   "L'IA te propose des noms (si besoin), des pistes de logo et une palette.",
+   "Tu génères le logo avec l'IA d'image, ou tu le refais dans Canva avec ses consignes.",
+   "Elle rédige ta mini charte : couleurs (codes), polices, usages.",
+   "Tu déclines tout : photo de profil, bannière, carte de visite."
+  ],
+  "prompt": "Tu es un directeur artistique spécialisé dans les marques de petites entreprises. On va créer mon identité visuelle complète.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : mon activité, mes clients, 3 mots qui décrivent l'ambiance voulue, des marques que j'aime, les couleurs que j'aime ou que je déteste, et si j'ai déjà un nom.\nÉTAPE 2 — Nom (si besoin) : 10 propositions de noms courts et mémorables, avec ce qu'ils évoquent. Rappelle-moi de vérifier qu'ils sont libres (INPI, nom de domaine, réseaux).\nÉTAPE 3 — Logo : 3 pistes de logo décrites précisément, puis pour la piste choisie, un prompt complet pour une IA d'image, ET les instructions pour le refaire dans Canva si l'image ne convient pas.\nÉTAPE 4 — Palette et polices : 4 à 5 couleurs avec leurs codes, 2 polices gratuites, et à quoi sert chacune.\nÉTAPE 5 — Mini charte : une page claire avec les règles d'usage du logo, des couleurs et des polices.\nÉTAPE 6 — Déclinaisons : guide-moi pour créer ma photo de profil, une bannière et une carte de visite cohérentes dans Canva.\n\nCommence par la première question."
+ },
+ {
+  "id": "newsletter",
+  "nom": "Newsletter + cadeau d'inscription",
+  "icone": "📬",
+  "couleur": "menthe",
+  "categorie": "Marketing",
+  "niveau": "Débutant",
+  "temps": "3 à 4 heures",
+  "cout": "0 € (offre gratuite de Brevo ou équivalent)",
+  "resultat": "Un cadeau gratuit (guide PDF) qui donne envie de s'inscrire, un formulaire, et une série de 5 e-mails envoyés automatiquement.",
+  "outils": [
+   "Brevo ou un autre outil d'e-mailing (offre gratuite)",
+   "ChatGPT ou Claude",
+   "Canva ou Google Docs pour le PDF"
+  ],
+  "etapes": [
+   "Colle le prompt : l'IA trouve le cadeau qui attire tes clients idéaux.",
+   "Elle l'écrit en entier : tu le mets en page en PDF.",
+   "Elle te guide pour créer le formulaire d'inscription et la liste dans l'outil d'e-mailing.",
+   "Elle écrit les 5 e-mails de bienvenue que tu programmes une fois pour toutes.",
+   "Tu mets le lien du formulaire dans ta bio et sur ton site."
+  ],
+  "prompt": "Tu es un expert en e-mail marketing pour petites entreprises. On va créer un cadeau d'inscription, un formulaire et une série d'e-mails automatiques.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : mon activité, mes clients idéaux, leur plus gros problème, ce que je vends, mon ton.\nÉTAPE 2 — Cadeau : 5 idées de cadeau gratuit rapide à consommer (guide, liste, modèle, mini-formation), puis je choisis.\nÉTAPE 3 — Rédaction : écris le cadeau en entier, prêt à mettre en page, et explique comment en faire un joli PDF dans Canva ou Google Docs.\nÉTAPE 4 — Outil : guide-moi pour créer un compte sur un outil d'e-mailing avec offre gratuite (par exemple Brevo), créer ma liste, et un formulaire d'inscription conforme au RGPD (case de consentement, lien de désinscription).\nÉTAPE 5 — Série automatique : écris 5 e-mails : J0 (envoi du cadeau), J2 (une astuce), J4 (mon histoire), J6 (une preuve ou un exemple), J8 (mon offre, sans pression). Puis guide-moi pour les programmer.\nÉTAPE 6 — Diffusion : où mettre le lien (bio, site, signature) et 3 idées de publications pour le faire connaître.\n\nCommence par la première question."
+ },
+ {
+  "id": "rendez-vous",
+  "nom": "Prise de rendez-vous en ligne",
+  "icone": "🗓️",
+  "couleur": "lilas",
+  "categorie": "Outils pro",
+  "niveau": "Débutant",
+  "temps": "1 heure",
+  "cout": "0 € (offre gratuite de l'outil choisi)",
+  "resultat": "Un lien où tes clients réservent seuls un créneau libre, avec confirmation et rappel automatiques.",
+  "outils": [
+   "Un outil de réservation (ex. Calendly, ou la page de réservation de Google Agenda)",
+   "ChatGPT ou Claude"
+  ],
+  "etapes": [
+   "Colle le prompt et décris tes prestations, durées et horaires.",
+   "L'IA t'aide à choisir l'outil et à le régler (durées, pauses, délai minimum).",
+   "Elle écrit les textes de confirmation et de rappel.",
+   "Tu testes en réservant toi-même un faux rendez-vous.",
+   "Tu partages le lien dans ta bio, sur ton site et dans ta signature."
+  ],
+  "prompt": "Tu es un expert en organisation pour indépendants. On va mettre en place la prise de rendez-vous en ligne pour mon activité.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : mes prestations, leur durée et leur prix, mes jours et horaires, mes pauses, le délai minimum avant un rendez-vous, l'adresse ou le lien de visio, et l'agenda que j'utilise déjà.\nÉTAPE 2 — Outil : compare honnêtement 2 ou 3 outils connus avec offre gratuite (par exemple Calendly ou la page de réservation de Google Agenda), en me disant de vérifier leurs conditions actuelles, et aide-moi à choisir.\nÉTAPE 3 — Réglages : guide-moi clic par clic pour créer chaque type de rendez-vous, relier mon agenda, bloquer mes pauses et éviter les doubles réservations.\nÉTAPE 4 — Textes : écris la description de chaque prestation, le message de confirmation, le rappel la veille, et ma politique d'annulation.\nÉTAPE 5 — Test : fais-moi réserver un faux rendez-vous et vérifier chaque e-mail.\nÉTAPE 6 — Diffusion : où mettre le lien et un message à envoyer à mes clients actuels.\n\nCommence par la première question."
+ },
+ {
+  "id": "ebook",
+  "nom": "Ebook ou guide PDF à vendre",
+  "icone": "📘",
+  "couleur": "jaune",
+  "categorie": "Marketing",
+  "niveau": "Débutant",
+  "temps": "1 à 3 jours",
+  "cout": "0 € pour le créer",
+  "resultat": "Un guide PDF complet et bien mis en page, avec sa couverture et sa page de vente.",
+  "outils": [
+   "ChatGPT ou Claude",
+   "Canva ou Google Docs",
+   "Le kit « Page de vente » pour le vendre"
+  ],
+  "etapes": [
+   "Colle le prompt : l'IA t'aide à trouver le sujet qui se vend.",
+   "Elle construit le plan, puis écrit chapitre par chapitre avec toi.",
+   "Tu ajoutes tes exemples personnels : c'est ce qui fait sa valeur.",
+   "Tu mets en page dans Canva ou Google Docs et tu crées la couverture.",
+   "Tu le vends avec le kit « Page de vente »."
+  ],
+  "prompt": "Tu es un éditeur et auteur de guides pratiques qui se vendent. On va écrire et mettre en page mon guide PDF, chapitre par chapitre.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : ce que je sais faire, à qui ça servirait, le problème précis que le guide règle, le résultat promis, mon ton.\nÉTAPE 2 — Sujet et titre : 5 angles de sujet et 10 titres, avec pour chacun pourquoi quelqu'un paierait. Je choisis.\nÉTAPE 3 — Plan : un plan détaillé de 6 à 10 chapitres. Attends ma validation.\nÉTAPE 4 — Écriture : écris un chapitre à la fois, concret, avec des exemples et une action à faire à la fin. Après chaque chapitre, demande-moi un exemple personnel à intégrer, puis attends « fait ».\nÉTAPE 5 — Finitions : introduction, conclusion, sommaire, page « à propos de l'auteur ».\nÉTAPE 6 — Mise en page : explique comment le mettre en page proprement dans Canva ou Google Docs et l'exporter en PDF, et décris une couverture accrocheuse.\nÉTAPE 7 — Prix et vente : propose une fourchette de prix réaliste et les arguments de vente. Rappelle-moi qu'il faut un statut pour vendre régulièrement.\n\nCommence par la première question."
+ },
+ {
+  "id": "assistant-perso",
+  "nom": "Assistant personnel IA",
+  "icone": "🧠",
+  "couleur": "menthe",
+  "categorie": "Agents IA",
+  "niveau": "Débutant",
+  "temps": "30 minutes",
+  "cout": "0 €",
+  "resultat": "Une IA qui te connaît et te répond toujours dans le format que tu aimes, sans que tu te répètes.",
+  "outils": [
+   "ChatGPT (Personnalisation), Claude (Projets) ou Gemini (Gems)"
+  ],
+  "etapes": [
+   "Colle le prompt : l'IA te pose 8 questions sur toi et tes habitudes.",
+   "Elle écrit tes instructions personnalisées.",
+   "Tu les colles dans les réglages de ton IA (elle t'explique où).",
+   "Tu testes avec 3 demandes de ta vie de tous les jours, et tu ajustes.",
+   "Ne mets jamais de mot de passe ni de données sensibles dans ces instructions."
+  ],
+  "prompt": "Tu es un expert en personnalisation d'assistants IA. On va créer mes instructions permanentes pour que tu me répondes toujours comme j'aime.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Pose-moi 8 questions, une par une : mon métier et ma situation, mon niveau en IA, mes 3 usages les plus fréquents, la longueur de réponse que je préfère, mon ton préféré, ce qui m'agace dans les réponses des IA, ma langue, et un objectif que j'ai en ce moment.\nÉTAPE 2 — Instructions : écris mes instructions personnalisées en 150 mots maximum, claires et directes, en deux parties : « Qui je suis » et « Comment me répondre ». Ajoute la règle : « Si ma demande est floue, pose-moi une question avant de répondre. »\nÉTAPE 3 — Installation : explique où les coller dans ChatGPT (Personnalisation), Claude (Projets) et Gemini (Gems), clic par clic.\nÉTAPE 4 — Test : propose 3 demandes de test tirées de ma vie, et ce qu'une bonne réponse doit faire. Puis ajuste les instructions selon mes retours.\nÉTAPE 5 — Rappelle-moi ce qu'il ne faut jamais mettre dans ces instructions (mots de passe, données bancaires, santé).\n\nCommence par la première question."
+ },
+ {
+  "id": "cv-portfolio",
+  "nom": "CV et portfolio en ligne",
+  "icone": "🪪",
+  "couleur": "corail",
+  "categorie": "Sites",
+  "niveau": "Débutant",
+  "temps": "2 heures",
+  "cout": "0 €",
+  "resultat": "Un CV percutant en PDF et une page en ligne qui présente ton parcours et tes réalisations.",
+  "outils": [
+   "ChatGPT ou Claude",
+   "Canva ou Google Docs pour le PDF",
+   "Netlify Drop pour la page en ligne"
+  ],
+  "etapes": [
+   "Colle le prompt et donne ton parcours (même en vrac).",
+   "L'IA réécrit ton CV pour le poste visé, avec des résultats concrets.",
+   "Elle te donne une page portfolio complète en un fichier.",
+   "Tu mets le CV en page en PDF et la page en ligne sur Netlify Drop.",
+   "Tu ajoutes le lien dans ta signature et sur LinkedIn."
+  ],
+  "prompt": "Tu es un expert en recrutement et un web designer. On va créer mon CV et ma page portfolio en ligne.\n\nRègles pour toute notre conversation :\n1. Je suis complètement débutant en informatique : explique chaque action comme à quelqu'un qui ne l'a jamais faite (où cliquer, quoi taper, à quoi ça doit ressembler).\n2. Pose-moi tes questions UNE PAR UNE et attends ma réponse.\n3. Avance étape par étape. À la fin de chaque étape, attends que j'écrive « fait » avant de continuer.\n4. Quand tu me donnes du texte ou du code, donne-le en entier, prêt à copier, jamais en morceaux à assembler.\n5. Si je te colle un message d'erreur, explique-le simplement et donne la correction complète.\n6. Ne m'invente aucun chiffre, prix ou fonctionnalité : si tu ne sais pas, dis-le.\n\nDéroulé :\nÉTAPE 1 — Questions une par une : le poste ou les clients visés, mon parcours (je peux te le donner en vrac), mes réalisations dont je suis fier, mes compétences, mes langues, mes coordonnées publiques.\nÉTAPE 2 — CV : réécris mon CV pour le poste visé : accroche de 3 lignes, expériences formulées en résultats concrets (sans rien inventer : demande-moi les chiffres), compétences, formation. Une page. Puis explique comment le mettre en page dans Canva ou Google Docs.\nÉTAPE 3 — Portfolio : écris une page index.html moderne et adaptée au téléphone : présentation, réalisations (avec une courte histoire pour chacune), compétences, contact. Explique comment créer le fichier et l'ouvrir.\nÉTAPE 4 — Mise en ligne avec Netlify Drop, clic par clic.\nÉTAPE 5 — Bonus : une lettre de motivation type à adapter, et 3 conseils pour mon profil LinkedIn.\n\nCommence par la première question."
+ }
+]

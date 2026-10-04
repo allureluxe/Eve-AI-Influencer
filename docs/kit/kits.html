@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kits de construction IA — alluxe.ia</title>
+<meta name="description" content="15 kits pour construire avec l'IA sans rien connaître à l'informatique : site, boutique, agent, robot, appli. Mode d'emploi simple et prompt complet à copier.">
+<meta name="theme-color" content="#faf7f0">
+<link rel="icon" href="logo-alluxe.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .kits { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .kit { background: var(--blanc); border: 2px solid var(--noir); border-radius: 20px; padding: 22px; cursor: pointer; text-align: left;
+    font: inherit; color: inherit; display: flex; flex-direction: column; gap: 8px; transition: transform .2s, box-shadow .2s; }
+  .kit:hover { transform: translateY(-4px); box-shadow: 7px 7px 0 var(--c, var(--jaune)); }
+  .kit .icone { width: 54px; height: 54px; border-radius: 14px; border: 2px solid var(--noir); background: var(--c); display: grid; place-items: center; font-size: 26px; }
+  .kit h3 { font-size: 22px; } .kit p { color: var(--gris); font-size: 15px; }
+  .infos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+  .infos span { border: 1.5px solid var(--noir); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 3px 10px; background: var(--creme); }
+  dialog { border: 3px solid var(--noir); border-radius: 24px; padding: 0; width: min(860px, calc(100vw - 24px)); max-height: calc(100vh - 40px);
+    box-shadow: 10px 10px 0 var(--noir); background: var(--creme); }
+  dialog::backdrop { background: rgba(17,20,19,.55); }
+  .fiche-tete { background: var(--c, var(--jaune)); border-bottom: 2px solid var(--noir); padding: 22px 24px; position: sticky; top: 0; z-index: 2; }
+  .fiche-tete h2 { font-size: clamp(26px, 4vw, 38px); margin: 6px 0 4px; }
+  .fiche-tete .fermer { position: absolute; right: 16px; top: 14px; background: var(--blanc); border: 2px solid var(--noir); border-radius: 50%;
+    width: 40px; height: 40px; font-size: 22px; cursor: pointer; }
+  .fiche-corps { padding: 22px 24px 28px; display: grid; gap: 22px; }
+  .fiche-corps h3 { font-size: 21px; margin-bottom: 8px; }
+  .etapes-kit { list-style: none; counter-reset: e; display: grid; gap: 10px; }
+  .etapes-kit li { counter-increment: e; background: var(--blanc); border: 2px solid var(--noir); border-radius: 14px; padding: 12px 14px 12px 58px; position: relative; }
+  .etapes-kit li::before { content: counter(e); position: absolute; left: 12px; top: 10px; width: 32px; height: 32px; border-radius: 50%;
+    background: var(--c, var(--jaune)); border: 2px solid var(--noir); font-weight: 800; display: grid; place-items: center; }
+  .bloc-prompt { background: var(--noir); border-radius: 18px; overflow: hidden; }
+  .bloc-prompt .barre-p { display: flex; align-items: center; gap: 8px; padding: 10px 14px; }
+  .bloc-prompt .barre-p i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .bloc-prompt .barre-p b { color: var(--jaune); margin-left: 8px; font-size: 13px; letter-spacing: .06em; }
+  .bloc-prompt pre { font-family: "JetBrains Mono", monospace; font-size: 13.5px; white-space: pre-wrap; color: #f2efe6; padding: 4px 18px 18px;
+    max-height: 360px; overflow: auto; }
+  .bloc-prompt .copier { margin: 0 18px 18px; background: var(--jaune); color: var(--noir); }
+  .liste-outils { display: grid; gap: 6px; padding-left: 0; list-style: none; }
+  .liste-outils li::before { content: "🔧 "; }
+  @media (max-width: 860px) { .kits { grid-template-columns: 1fr; } }
+  @media (min-width: 861px) and (max-width: 1060px) { .kits { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+
+<header class="page-titre"><div class="conteneur">
+  <span class="pastille">15 KITS · GRATUITS · ZÉRO CONNAISSANCE REQUISE</span>
+  <h1>Construis-le toi-même <mark>avec l'IA.</mark></h1>
+  <p class="accroche">Site, boutique, agent, robot, appli… Chaque kit tient en un mode d'emploi de quelques étapes et <b>un seul prompt</b> à copier : l'IA te guide ensuite du début à la fin, clic par clic.</p>
+</div></header>
+
+<section style="padding-top:20px">
+  <div class="conteneur">
+    <div class="outils" id="filtres"></div>
+    <div class="kits" id="kits"></div>
+  </div>
+</section>
+
+<section class="jour">
+  <div class="conteneur">
+    <h2 class="apparait">Comment utiliser <mark>un kit.</mark></h2>
+    <div class="etapes">
+      <div class="etape apparait"><div class="num">1</div><h3>Ouvre le kit</h3><p>Lis le résultat, les outils et les étapes : tu sais exactement où tu vas avant de commencer.</p></div>
+      <div class="etape apparait"><div class="num">2</div><h3>Copie le prompt</h3><p>Un seul bouton. Colle-le dans ChatGPT ou Claude, en version gratuite pour la plupart des kits.</p></div>
+      <div class="etape apparait"><div class="num">3</div><h3>Réponds et avance</h3><p>L'IA pose ses questions une par une et attend que tu écrives « fait » avant chaque étape suivante.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="conteneur">
+    <div class="boite apparait">
+      <h2>Pas le temps ? <mark>Je le fais pour toi.</mark></h2>
+      <p>Chaque kit existe aussi en version « clé en main », à prix accessible.</p>
+      <a class="bouton" href="offres.html">Voir les offres <span class="fleche">→</span></a>
+    </div>
+  </div>
+</section>
+
+<dialog id="fiche"></dialog>
+
+<script src="commun.js"></script>
+<script>
+// Kit -> offre « clé en main » correspondante (offres.json).
+const OFFRE_DU_KIT = { "site-vitrine": "vitrine", "page-de-vente": "vitrine", "boutique-shopify": "shopify", "boutique-simple": "ecommerce",
+  "agent-secretaire": "agent", "chatbot-site": "agent", "robot-automatisation": "robot", "robot-reseaux": "robot",
+  "appli-mobile": "robot", "logo-identite": "ecommerce", "newsletter": "robot", "rendez-vous": "agent",
+  "ebook": "vitrine", "assistant-perso": "agent", "cv-portfolio": "vitrine" };
+const echapper = (t) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+fetch("kits.json").then((r) => r.json()).then((kits) => {
+  const zone = document.getElementById("kits"), filtres = document.getElementById("filtres"), fiche = document.getElementById("fiche");
+  const cats = ["Tous", ...new Set(kits.map((k) => k.categorie))];
+  let cat = "Tous";
+  cats.forEach((c) => {
+    const b = document.createElement("button");
+    b.className = "filtre" + (c === "Tous" ? " actif" : ""); b.textContent = c;
+    b.onclick = () => { cat = c; filtres.querySelectorAll(".filtre").forEach((x) => x.classList.toggle("actif", x === b)); afficher(); };
+    filtres.appendChild(b);
+  });
+
+  function ouvrir(k) {
+    fiche.style.setProperty("--c", `var(--${k.couleur})`);
+    fiche.innerHTML = `
+      <div class="fiche-tete"><button class="fermer" aria-label="Fermer">×</button>
+        <span class="pastille">${echapper(k.categorie.toUpperCase())} · ${echapper(k.niveau.toUpperCase())}</span>
+        <h2>${k.icone} ${echapper(k.nom)}</h2><p><b>Résultat :</b> ${echapper(k.resultat)}</p></div>
+      <div class="fiche-corps">
+        <div class="infos"><span>⏱ ${echapper(k.temps)}</span><span>💶 ${echapper(k.cout)}</span></div>
+        <div><h3>Ce qu'il te faut</h3><ul class="liste-outils">${k.outils.map((o) => `<li>${echapper(o)}</li>`).join("")}</ul></div>
+        <div><h3>Le mode d'emploi</h3><ol class="etapes-kit">${k.etapes.map((e) => `<li>${echapper(e)}</li>`).join("")}</ol></div>
+        <div><h3>Le prompt complet, à copier en entier</h3>
+          <div class="bloc-prompt"><div class="barre-p"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><b>COPIE-MOI</b></div>
+          <pre></pre><button class="copier">Copier le prompt complet</button></div>
+          <p class="petit" style="margin-top:8px">Colle-le dans ChatGPT ou Claude, puis réponds à ses questions. Écris « fait » pour passer à l'étape suivante.</p></div>
+        <div class="boutons"><a class="bouton clair" href="commander.html?offre=${OFFRE_DU_KIT[k.id] || "vitrine"}">Je préfère qu'on le fasse pour moi</a></div>
+      </div>`;
+    fiche.querySelector("pre").textContent = k.prompt;
+    fiche.querySelector(".fermer").onclick = () => fiche.close();
+    const bouton = fiche.querySelector(".copier");
+    bouton.onclick = async () => {
+      try { await navigator.clipboard.writeText(k.prompt); }
+      catch { const z = document.createElement("textarea"); z.value = k.prompt; document.body.appendChild(z); z.select(); document.execCommand("copy"); z.remove(); }
+      bouton.textContent = "Copié ✓ colle-le dans ton IA"; bouton.classList.add("ok");
+      setTimeout(() => { bouton.textContent = "Copier le prompt complet"; bouton.classList.remove("ok"); }, 2500);
+    };
+    fiche.showModal(); fiche.scrollTop = 0;
+    history.replaceState(null, "", "#" + k.id);
+  }
+  fiche.addEventListener("close", () => history.replaceState(null, "", location.pathname));
+  fiche.addEventListener("click", (e) => { if (e.target === fiche) fiche.close(); });
+
+  function afficher() {
+    zone.replaceChildren(...kits.filter((k) => cat === "Tous" || k.categorie === cat).map((k) => {
+      const b = document.createElement("button");
+      b.className = "kit"; b.style.setProperty("--c", `var(--${k.couleur})`);
+      b.innerHTML = `<span class="icone">${k.icone}</span><h3>${echapper(k.nom)}</h3><p>${echapper(k.resultat)}</p>
+        <div class="infos"><span>${echapper(k.niveau)}</span><span>⏱ ${echapper(k.temps)}</span></div>`;
+      b.onclick = () => ouvrir(k);
+      return b;
+    }));
+  }
+  afficher();
+  const demande = kits.find((k) => "#" + k.id === location.hash);
+  if (demande) ouvrir(demande);
+});
+</script>
+</body>
+</html>

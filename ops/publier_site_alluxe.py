@@ -19,7 +19,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[1]
 SOURCE = RACINE / "docs" / "kit"
-FICHIERS = ["index.html", "offres.html", "realisations.html", "prompts.html", "commander.html",
+FICHIERS = ["index.html", "offres.html", "kits.html", "kits.json", "realisations.html", "prompts.html", "commander.html",
             "mentions-legales.html", "cgv.html", "style.css", "commun.js", "offres.json",
             "kit-constructeur.pdf", "alluxe.jpg", "logo-alluxe.png"]
 

@@ -61,6 +61,8 @@ def construire() -> list[str]:
     from alluxe_ia.slides_pop import rendre
     with open(os.path.join(ICI, "posts.json"), encoding="utf-8") as f:
         posts = {x["id"]: Post.depuis(x) for x in json.load(f)}
+    from alluxe_ia.kits import construire as construire_kits
+    construire_kits()
     fichiers = ["prompts.json"]
     for i, pid in enumerate(APERCUS, 1):
         rendre(posts[pid])[0].convert("RGB").resize((540, 675)).save(
