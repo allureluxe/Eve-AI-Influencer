@@ -26,8 +26,9 @@ import os
 import subprocess
 import sys
 from dataclasses import dataclass
+from functools import lru_cache
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 from alluxe_ia.musique import ecrire_wav
 from alluxe_ia.slides import (AMBRE, DOUX, ENCRE, FOND, FOND_HAUT, MENTHE, NOM, PSEUDO,
@@ -103,10 +104,57 @@ REELS: dict[str, dict] = {
                   mot_cle="Lien en bio"),
         ],
     },
+    "03-chatgpt-comme-google": {
+        "legende": (
+            "Tu utilises ChatGPT comme Google ? C'est peut-être exactement le problème.\n\n"
+            "Google cherche des pages. ChatGPT génère une réponse. Si tu ne cadres pas "
+            "la demande, il peut répondre avec assurance alors qu'il devrait dire « je ne sais pas ».\n\n"
+            "💾 Enregistre ces 3 lignes et teste-les sur ton prochain prompt.\n"
+            "👉 Abonne-toi : demain, je montre le prompt complet et le test en direct.\n\n"
+            "#chatgpt #ia #intelligenceartificielle #prompt #productivite #astuceia #alluxe"),
+        "temps": [
+            Temps("Tu utilises ChatGPT comme Google ?", 1.8, taille=108, couleur=ENCRE),
+            Temps("C'est peut-être exactement le problème.", 1.8, taille=92, couleur=AMBRE),
+            Temps("Google cherche.\nChatGPT génère.", 2.0, taille=104),
+            Temps("Alors cadre ta demande avec 3 lignes :", 1.8, taille=92, couleur=MENTHE),
+            Temps("1. « Voici les faits. »", 1.6, taille=98),
+            Temps("2. « N'invente rien. »", 1.6, taille=98),
+            Temps("3. « Si tu doutes, dis-le. »", 1.8, taille=98, couleur=MENTHE),
+            Temps("Enregistre ce Reel.", 1.4, taille=102, couleur=ENCRE,
+                  sous_texte="Demain : le prompt complet + le test.",
+                  mot_cle="S'abonner"),
+        ],
+    },
 }
 
 
-def _fond() -> Image.Image:
+@lru_cache(maxsize=8)
+def _photo_source(photo: str) -> Image.Image:
+    return Image.open(photo).convert("RGB")
+
+
+def _fond(photo: str | None = None, zoom: float = 1.0, pan: float = 0.0) -> Image.Image:
+    if photo and os.path.exists(photo):
+        src = _photo_source(photo)
+        ratio = max(LARGEUR / src.width, HAUTEUR / src.height) * zoom
+        size = (int(src.width * ratio), int(src.height * ratio))
+        src = src.resize(size, Image.Resampling.LANCZOS)
+        max_x = max(0, src.width - LARGEUR)
+        max_y = max(0, src.height - HAUTEUR)
+        x = int(max_x * (0.5 + 0.35 * pan))
+        y = int(max_y * 0.42)
+        img = src.crop((x, y, x + LARGEUR, y + HAUTEUR))
+        # Contraste lisible pour le texte, sans effet artificiel : léger voile.
+        voile = Image.new("RGBA", (LARGEUR, HAUTEUR), (0, 0, 0, 78))
+        img = Image.alpha_composite(img.convert("RGBA"), voile).convert("RGB")
+        d = ImageDraw.Draw(img)
+        r = RAYON_LOGO
+        m = medaillon(2 * r, contenu_taille=380)
+        img.paste(m, (GAUCHE, HAUT_LOGO), m)
+        cy = HAUT_LOGO + r
+        d.text((GAUCHE + 2 * r + 26, cy - 4), NOM, font=titre_police(40), fill="white", anchor="ls")
+        d.text((GAUCHE + 2 * r + 26, cy + 36), PSEUDO, font=texte_police(28), fill=(235, 235, 235), anchor="ls")
+        return img
     img = Image.new("RGB", (LARGEUR, HAUTEUR), FOND)
     d = ImageDraw.Draw(img)
     for y in range(HAUTEUR // 2):
@@ -167,9 +215,11 @@ def _adoucir(x: float) -> float:
     return 1 - (1 - x) ** 3
 
 
-def images(temps: list[Temps]):
-    """Rend chaque image du Reel, dans l'ordre."""
-    fond = _fond()
+def images(temps: list[Temps], reel_id: str = ""):
+    """Rend chaque image du Reel, avec mouvement cohérent au sujet."""
+    photo = None
+    if reel_id == "03-chatgpt-comme-google":
+        photo = os.path.join("/tmp/apercu-fonds/alluxe_ia/fonds/24-ia-qui-invente.jpg")
     total = sum(t.duree for t in temps)
     debut = 0.0
     for k, t in enumerate(temps):
@@ -182,7 +232,11 @@ def images(temps: list[Temps]):
             # Le premier temps est déjà en place : la première image sert
             # de miniature au Reel, elle ne doit pas être vide.
             p = 1.0 if k == 0 else _adoucir(s / ENTREE)
-            img = fond.copy()
+            if photo:
+                beat = (k + s / max(t.duree, 0.1)) / max(len(temps), 1)
+                img = _fond(photo, zoom=1.02 + 0.08 * beat, pan=(beat * 2 - 1))
+            else:
+                img = _fond()
             c = calque.copy()
             if p < 1:
                 c.putalpha(c.getchannel("A").point(lambda a, p=p: int(a * p)))
@@ -202,22 +256,19 @@ def rendre(reel_id: str, sortie: str | None = None) -> str:
     sortie = sortie or os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{reel_id}.mp4")
     os.makedirs(os.path.dirname(sortie), exist_ok=True)
     duree = sum(t.duree for t in temps)
-    piste = sortie + ".musique.wav"
-    ecrire_wav(piste, duree, graine=reel_id)
+    # Le master ne fabrique PLUS de musique. Le son final est ajouté par
+    # Instagram/bundle.social avec un vrai morceau tendance validé.
     cmd = ["ffmpeg", "-y", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{LARGEUR}x{HAUTEUR}",
            "-r", str(IPS), "-i", "-",
-           "-i", piste,
            "-t", f"{duree:.2f}",
            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high",
-           "-preset", "medium", "-crf", "20", "-movflags", "+faststart",
-           "-c:a", "aac", "-b:a", "128k", "-shortest", sortie]
+           "-preset", "medium", "-crf", "20", "-movflags", "+faststart", "-an", sortie]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    for img in images(temps):
+    for img in images(temps, reel_id):
         p.stdin.write(img.tobytes())
     p.stdin.close()
     code = p.wait()
-    os.remove(piste)
     if code != 0:
         raise RuntimeError("ffmpeg a échoué")
     with open(sortie + ".legende.txt", "w", encoding="utf-8") as f:

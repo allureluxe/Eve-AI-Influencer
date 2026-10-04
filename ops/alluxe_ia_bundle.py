@@ -58,11 +58,43 @@ def _appel(methode: str, chemin: str, corps: bytes | None = None,
         raise RuntimeError(f"bundle.social {e.code} sur {chemin} : {e.read().decode()[:400]}")
 
 
+SONS_TENDANCE_PREFERES = [
+    ("Patient Zero", "Taylor Swift"),
+    ("Nicole Kidman", "ADÉLA"),
+    ("Funkytown", "Lipps Inc."),
+    ("Upside Down", "Diana Ross"),
+    ("Espresso", "Sabrina Carpenter"),
+    ("God's Plan", "Drake"),
+    ("MONACO", "Bad Bunny"),
+    ("Sexy Nana", "Aya Nakamura"),
+]
+
+
 def sons(recherche: str = "") -> list[dict]:
     p = {"teamId": EQUIPE, "audioType": "music"}
     if recherche:
         p["searchQuery"] = recherche
     return _appel("GET", "misc/instagram/audio?" + urllib.parse.urlencode(p)).get("audio", [])
+
+
+def son_connu(audio_id: str) -> dict:
+    """Valide qu'un audio choisi correspond réellement à un titre/artiste connu."""
+    tous = sons("")
+    for x in tous:
+        if str(x.get("audio_id")) == str(audio_id):
+            titre = (x.get("title") or "").strip().lower()
+            artiste = (x.get("display_artist") or x.get("ig_username") or "").strip().lower()
+            for wanted_title, wanted_artist in SONS_TENDANCE_PREFERES:
+                if titre == wanted_title.lower() and wanted_artist.lower() in artiste:
+                    return x
+            raise RuntimeError(
+                f"Audio {audio_id} trouvé mais refusé : {x.get('title')} — {x.get('display_artist')}. "
+                "ALLUXE n'accepte pas les sons génériques/inconnus."
+            )
+    raise RuntimeError(
+        f"Audio {audio_id} introuvable dans la bibliothèque Instagram accessible. "
+        "Publication bloquée plutôt que de choisir un morceau au hasard."
+    )
 
 
 def televerser(fichier: str) -> str:
@@ -129,6 +161,10 @@ def main() -> int:
         print(f"{args.reel_id} déjà programmé/publié le {publies[cle]['le']} : rien à faire")
         return 0
     quand = _heure_utc(args.le)
+    # Garde-fou : le morceau doit être un vrai titre connu de notre liste,
+    # jamais un son obscur renvoyé par le catalogue par défaut.
+    audio = son_connu(args.son)
+    print(f"SON VALIDÉ : {audio.get('title')} — {audio.get('display_artist')} ({audio.get('audio_id')})")
     fichier = os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{args.reel_id}.mp4")
     if not os.path.exists(fichier):
         if args.reel_id == "02-ia-invente-un-prix":   # version « conversation animée »
