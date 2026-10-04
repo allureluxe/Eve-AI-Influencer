@@ -32,7 +32,11 @@ import urllib.request
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-from alluxe_ia.slides import Post, photo_profil, rendre  # noqa: E402
+from alluxe_ia.slides import Post, photo_profil, rendre, utiliser_theme  # noqa: E402
+
+# 4 oct. : style « vif » (couverture pleine couleur, étiquette, chiffre
+# géant, fenêtre de conversation). Les posts déjà publiés ne bougent pas.
+STYLE = os.environ.get("ALLUXE_IA_STYLE", "vif")
 
 POSTS = os.path.join(RACINE, "alluxe_ia", "posts.json")
 SORTIE = os.path.join(RACINE, "data", "alluxe_ia")
@@ -66,6 +70,7 @@ def rendre_post(post: Post) -> list[str]:
     dossier = os.path.join(SORTIE, post.id)
     os.makedirs(dossier, exist_ok=True)
     chemins = []
+    utiliser_theme(STYLE)
     for i, img in enumerate(rendre(post), start=1):
         chemin = os.path.join(dossier, f"{i:02d}.jpg")
         img.save(chemin, quality=92)

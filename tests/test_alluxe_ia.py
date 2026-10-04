@@ -209,3 +209,36 @@ class TestLeReelConversation:
         from alluxe_ia.reel_chat import image
         # Même entre deux étapes de la scène, le fond dérive : jamais d'image figée.
         assert ImageChops.difference(image(7.0), image(7.5)).getbbox() is not None
+
+
+class TestLeStyleVif:
+    """4 oct. : couvertures pleine couleur, une par post, pour une grille de
+    profil multicolore. Deux posts qui se suivent n'ont jamais la même."""
+
+    def test_chaque_post_se_rend_en_vif(self):
+        from alluxe_ia import slides
+        ancien = slides.THEME
+        try:
+            slides.utiliser_theme("vif")
+            for post in _posts():
+                for img in rendre(post):
+                    assert img.size == (LARGEUR, HAUTEUR), post.id
+        finally:
+            slides.utiliser_theme(ancien)
+
+    def test_deux_posts_voisins_n_ont_jamais_la_meme_couleur(self):
+        from alluxe_ia.slides import couleur_du_post
+        ids = [p.id for p in _posts()]
+        for a, b in zip(ids, ids[1:]):
+            assert couleur_du_post(a) != couleur_du_post(b), (a, b)
+
+    def test_chaque_post_a_une_etiquette(self):
+        for post in _posts():
+            assert post.etiquette, post.id
+
+    def test_le_chiffre_vient_du_titre(self):
+        from alluxe_ia.slides import Slide, _chiffre
+        p = Post(id="99-x", legende="", slides=[Slide("couverture", titre="656 tests verts.")])
+        assert _chiffre(p) == "656"
+        p.slides[0].titre = "Crée ton assistant en 5 minutes"
+        assert _chiffre(p) == ""

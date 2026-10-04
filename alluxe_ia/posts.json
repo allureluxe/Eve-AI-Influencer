@@ -1,6 +1,6 @@
 [
   {
-    "id": "01-tout-construit",
+    "id": "01-tout-construit", "etiquette": "COULISSES",
     "legende": "Je ne suis pas développeur. Tout ce qui suit a été construit en parlant à Claude et à ChatGPT.\n\nIci, je montre comment c'est fait : les coulisses, les tutos, et surtout ce qui casse.\n\nLe robot de trading n'est qu'une histoire technique : je ne parle jamais de gains.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Tout ce que j'ai construit seul avec l'IA, sans être développeur.", "texte": "Un labo, une appli, un agent, une page qui se publie seule."},
@@ -15,7 +15,7 @@
     ]
   },
   {
-    "id": "02-le-labo",
+    "id": "02-le-labo", "etiquette": "COULISSES",
     "legende": "Mon labo pose la même question à Claude et à ChatGPT, séparément, puis teste leurs idées une par une.\n\nTout se passe en simulation. Et la plupart des idées sont rejetées : c'est exactement ce qu'on attend d'un labo.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Mon labo pose des questions à Claude et ChatGPT jour et nuit.", "texte": "Voici comment il fonctionne, étape par étape."},
@@ -30,7 +30,7 @@
     ]
   },
   {
-    "id": "03-108-rejetees",
+    "id": "03-108-rejetees", "etiquette": "HISTOIRE VRAIE",
     "legende": "Un soir, mon labo affichait 108 idées testées, 108 rejetées. Le programme tournait parfaitement.\n\nLe problème n'était pas dans les idées. Il était dans le labo lui-même.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "108 testées. 108 rejetées.", "texte": "Le bug n'était pas où je cherchais."},
@@ -45,7 +45,7 @@
     ]
   },
   {
-    "id": "04-cahier-des-charges",
+    "id": "04-cahier-des-charges", "etiquette": "PROMPT À VOLER",
     "legende": "Le prompt que je lance avant toute nouvelle idée. Il m'a fait gagner plus de temps que tous les autres réunis.\n\nRègle d'or : pas une ligne de code avant d'avoir validé le plan.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Le prompt que j'utilise pour démarrer n'importe quel projet.", "texte": "Avant une seule ligne de code."},
@@ -59,7 +59,7 @@
     ]
   },
   {
-    "id": "05-publication-auto",
+    "id": "05-publication-auto", "etiquette": "COULISSES",
     "legende": "Ce post n'a pas été dessiné à la main. Ni publié à la main.\n\nVoici la chaîne complète, et la règle qui l'empêche de publier n'importe quoi.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Ce compte se publie tout seul. Voici la machine.", "texte": "5 étapes, et un frein de sécurité."},
@@ -75,7 +75,7 @@
     ]
   },
   {
-    "id": "06-fichier-decisions",
+    "id": "06-fichier-decisions", "etiquette": "PROMPT À VOLER",
     "legende": "Le plus gros problème quand on construit avec l'IA : elle oublie. Chaque nouvelle conversation repart de zéro.\n\nMa solution tient dans un fichier texte que l'IA relit à chaque début de session.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Le fichier qui empêche l'IA d'oublier mes décisions.", "texte": "La meilleure habitude que j'ai prise en construisant avec Claude."},
@@ -89,7 +89,7 @@
     ]
   },
   {
-    "id": "07-tests-verts",
+    "id": "07-tests-verts", "etiquette": "HISTOIRE VRAIE",
     "legende": "Tous mes tests passaient au vert. Le programme, lui, ne faisait plus ce que je croyais.\n\nC'est l'erreur la plus traître que j'ai rencontrée en construisant avec l'IA.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "656 tests verts. Avec le bug dedans.", "texte": "La leçon qui a changé ma façon de vérifier."},
@@ -104,7 +104,7 @@
     ]
   },
   {
-    "id": "08-agent-garde-fous",
+    "id": "08-agent-garde-fous", "etiquette": "HISTOIRE VRAIE",
     "legende": "Mon agent IA peut écrire du code, lancer des commandes et aller sur internet. Ça fait peur, et ça doit faire peur.\n\nVoici les trois protections, de la plus solide à la plus faible.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "J'ai donné un terminal à mon agent IA.", "texte": "Voici ses 3 garde-fous, du plus solide au plus fragile."},
@@ -119,7 +119,7 @@
     ]
   },
   {
-    "id": "09-methode-4-cases",
+    "id": "09-methode-4-cases", "etiquette": "MÉTHODE",
     "legende": "La méthode que j'utilise pour écrire n'importe quel prompt : 4 cases, toujours dans le même ordre.\n\nRôle · Tâche · Contexte · Format.\n\nSi ta réponse est décevante, c'est presque toujours la case Contexte qui est vide.\n\n💾 Sauvegarde : c'est le post à garder.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "La méthode en 4 cases pour écrire n'importe quel prompt.", "texte": "Rôle, tâche, contexte, format. Dans cet ordre."},
@@ -132,7 +132,7 @@
     ]
   },
   {
-    "id": "10-cinq-erreurs",
+    "id": "10-cinq-erreurs", "etiquette": "À ÉVITER",
     "legende": "Si l'IA te donne des réponses fades, c'est rarement l'IA. Ce sont presque toujours ces 5 erreurs.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "5 erreurs qui rendent tes réponses d'IA nulles.", "texte": "Et la phrase à ajouter pour corriger chacune."},
@@ -145,7 +145,7 @@
     ]
   },
   {
-    "id": "11-assistant-perso",
+    "id": "11-assistant-perso", "etiquette": "TUTO 5 MIN", "chiffre": "5",
     "legende": "Arrête de réexpliquer qui tu es à chaque conversation : ChatGPT, Claude et Gemini peuvent garder des instructions permanentes. Voici comment bien les écrire.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Crée ton assistant IA perso en 5 minutes.", "texte": "Des instructions permanentes pour ne plus jamais te répéter."},
@@ -157,7 +157,7 @@
     ]
   },
   {
-    "id": "12-arrete-d-inventer",
+    "id": "12-arrete-d-inventer", "etiquette": "HISTOIRE VRAIE",
     "legende": "J'ai mis un assistant IA sur mon site. Au premier essai, il a inventé un prix pour un kit qui est gratuit.\n\nVoici ce qui l'a fait arrêter, et que tu peux réutiliser partout.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Mon assistant IA a inventé un prix. Le kit est gratuit.", "texte": "La consigne qui l'a fait arrêter d'inventer."},
@@ -173,7 +173,7 @@
     ]
   },
   {
-    "id": "13-casse-cette-semaine",
+    "id": "13-casse-cette-semaine", "etiquette": "HISTOIRE VRAIE",
     "legende": "Nouvelle série : chaque semaine, ce qui a cassé en construisant avec l'IA. Pas les réussites, les vrais problèmes, et ce qu'ils m'ont appris.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Ce que l'IA m'a fait casser cette semaine.", "texte": "Semaine 1. Trois problèmes, trois leçons."},
@@ -189,7 +189,7 @@
     ]
   },
   {
-    "id": "14-avant-apres-prompt",
+    "id": "14-avant-apres-prompt", "etiquette": "AVANT / APRÈS",
     "legende": "Même demande, deux prompts. Le premier, c'est ce que tout le monde écrit. Le second, c'est la méthode des 4 cases appliquée.\n\nGarde-le, il marche pour n'importe quel mail.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Le même prompt, avant et après.", "texte": "Même IA, même demande. Pas du tout la même réponse."},
@@ -203,7 +203,7 @@
     ]
   },
   {
-    "id": "15-expliquer-un-bug",
+    "id": "15-expliquer-un-bug", "etiquette": "PROMPT À VOLER",
     "legende": "Mon simulateur prenait 11 décisions là où il aurait dû en prendre 563. L'erreur n'était pas là où je la cherchais.\n\nVoici comment j'explique un bug à l'IA pour qu'elle le trouve.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Comment j'explique un bug à l'IA pour qu'elle le trouve.", "texte": "La méthode qui m'a fait trouver un bug caché depuis des semaines."},
@@ -218,7 +218,7 @@
     ]
   },
   {
-    "id": "16-ecrit-pas-lance",
+    "id": "16-ecrit-pas-lance", "etiquette": "HISTOIRE VRAIE", "chiffre": "2",
     "legende": "Pendant deux semaines, mes conversations avec l'IA se coupaient toutes seules. La solution était écrite dans mon propre fichier. Personne ne l'avait lancée.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "La solution était écrite depuis 2 semaines. Personne ne l'avait lancée.", "texte": "Pourquoi mes conversations avec l'IA se coupaient."},
@@ -233,7 +233,7 @@
     ]
   },
   {
-    "id": "17-sur-de-lui-et-faux",
+    "id": "17-sur-de-lui-et-faux", "etiquette": "HISTOIRE VRAIE",
     "legende": "L'IA m'a proposé une amélioration très bien argumentée. Il a suffi d'une question pour voir qu'elle corrigeait un cas qui n'arrivait jamais.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "L'IA m'a proposé de corriger un problème qui n'existait pas.", "texte": "Ce que je fais quand l'IA se trompe avec assurance."},
@@ -248,7 +248,7 @@
     ]
   },
   {
-    "id": "18-outils-garde-arrete",
+    "id": "18-outils-garde-arrete", "etiquette": "MES OUTILS",
     "legende": "Les outils que j'utilise vraiment pour construire avec l'IA, et ceux que j'ai arrêtés. Aucun lien sponsorisé, aucune affiliation.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Les outils que je garde, et ceux que j'ai arrêtés.", "texte": "Après plusieurs mois à construire avec l'IA. Aucun partenariat."},
@@ -263,7 +263,7 @@
     ]
   },
   {
-    "id": "19-essai-different-du-vrai",
+    "id": "19-essai-different-du-vrai", "etiquette": "HISTOIRE VRAIE", "chiffre": "5",
     "legende": "Pendant cinq jours, ma version d'essai ne testait pas la même chose que la vraie. Tous les résultats de ces cinq jours mesuraient autre chose que ce que je croyais.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Ma version d'essai a testé autre chose que la vraie pendant 5 jours.", "texte": "Et aucun test ne pouvait le voir."},
@@ -278,7 +278,7 @@
     ]
   },
   {
-    "id": "20-affichage-qui-mentait",
+    "id": "20-affichage-qui-mentait", "etiquette": "HISTOIRE VRAIE",
     "legende": "Mon appli affichait un réglage que le système n'utilisait plus depuis une semaine. Ce n'est pas un test qui l'a vu. C'est moi, en lisant l'écran.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Mon appli affichait un réglage qui n'existait plus.", "texte": "Pendant une semaine. Aucun test ne l'a vu."},
@@ -293,7 +293,7 @@
     ]
   },
   {
-    "id": "21-checklist-mise-en-ligne",
+    "id": "21-checklist-mise-en-ligne", "etiquette": "CHECKLIST",
     "legende": "Avant de mettre quoi que ce soit en ligne, je fais relire cette liste à l'IA. Elle a encore attrapé un bug cette semaine, juste avant la mise en ligne.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "La checklist que je fais relire à l'IA avant chaque mise en ligne.", "texte": "Elle a encore attrapé un bug cette semaine."},
@@ -308,7 +308,7 @@
     ]
   },
   {
-    "id": "22-zero-resultat",
+    "id": "22-zero-resultat", "etiquette": "HISTOIRE VRAIE", "chiffre": "0",
     "legende": "Mon outil d'essai rendait zéro résultat partout. J'ai cru que mon idée ne valait rien. C'était un filtre qui refusait tout, en silence.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Zéro résultat partout. Ce n'était pas mon idée, c'était un filtre.", "texte": "Le piège qui ressemble à un échec."},
