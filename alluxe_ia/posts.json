@@ -1,6 +1,6 @@
 [
   {
-    "id": "01-tout-construit",
+    "id": "01-tout-construit", "etiquette": "COULISSES",
     "legende": "Je ne suis pas développeur. Tout ce qui suit a été construit en parlant à Claude et à ChatGPT.\n\nIci, je montre comment c'est fait : les coulisses, les tutos, et surtout ce qui casse.\n\nLe robot de trading n'est qu'une histoire technique : je ne parle jamais de gains.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Tout ce que j'ai construit seul avec l'IA, sans être développeur.", "texte": "Un labo, une appli, un agent, une page qui se publie seule."},
@@ -15,7 +15,7 @@
     ]
   },
   {
-    "id": "02-le-labo",
+    "id": "02-le-labo", "etiquette": "COULISSES",
     "legende": "Mon labo pose la même question à Claude et à ChatGPT, séparément, puis teste leurs idées une par une.\n\nTout se passe en simulation. Et la plupart des idées sont rejetées : c'est exactement ce qu'on attend d'un labo.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Mon labo pose des questions à Claude et ChatGPT jour et nuit.", "texte": "Voici comment il fonctionne, étape par étape."},
@@ -30,7 +30,7 @@
     ]
   },
   {
-    "id": "03-108-rejetees",
+    "id": "03-108-rejetees", "etiquette": "HISTOIRE VRAIE",
     "legende": "Un soir, mon labo affichait 108 idées testées, 108 rejetées. Le programme tournait parfaitement.\n\nLe problème n'était pas dans les idées. Il était dans le labo lui-même.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "108 testées. 108 rejetées.", "texte": "Le bug n'était pas où je cherchais."},
@@ -45,7 +45,131 @@
     ]
   },
   {
-    "id": "04-cahier-des-charges",
+    "id": "23-chatgpt-comme-google", "etiquette": "À SAUVEGARDER",
+    "legende": "Tu tapes 4 mots comme sur Google, l'IA te répond comme Google : vague. Il lui faut 4 choses.\n\n💾 Enregistre-le pour l'avoir sous la main.\n👉 Envoie-le à quelqu'un qui trouve que « ChatGPT ne sert à rien ».\n\n📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #claude #outilsia",
+    "slides": [
+      {"type": "couverture", "titre": "Tu parles à ChatGPT comme à Google. Voilà le problème.", "texte": "La case n°3 est celle que tout le monde oublie."},
+      {"type": "texte", "titre": "Google cherche. L'IA rédige.", "texte": "Google a besoin de mots-clés. Une IA a besoin d'un brief, comme un stagiaire le premier jour : sans contexte, elle devine."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "12 prompts prêts à copier, dans l'ordre où t'en servir."},
+      {"type": "texte", "titre": "1. Le rôle", "texte": "« Tu es un conseiller bancaire », « tu es prof de maths ». Elle adopte le vocabulaire et le niveau d'exigence du métier."},
+      {"type": "texte", "titre": "2. La tâche", "texte": "Un verbe précis : rédige, compare, résume, corrige. Pas « parle-moi de »."},
+      {"type": "texte", "titre": "3. Le contexte", "texte": "Pour qui, pourquoi, avec quelles contraintes. C'est la case que tout le monde oublie, et celle qui compte le plus."},
+      {"type": "texte", "titre": "4. Le format", "texte": "« En 5 points », « en tableau », « 150 mots max ». Sinon tu reçois un pavé."},
+      {"type": "prompt", "titre": "Le modèle à copier", "prompt": "Tu es [rôle].\nTa tâche : [verbe + objet].\nContexte : [pour qui, pourquoi, contraintes].\nFormat : [liste, tableau, longueur].\nAvant de répondre, pose-moi les questions qui te manquent."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "Abonne-toi : un prompt utile par jour, zéro blabla."}
+    ]
+  },
+  {
+    "id": "24-ia-qui-invente", "etiquette": "PROMPT À VOLER",
+    "legende": "Une IA ne dit presque jamais « je ne sais pas » d'elle-même : elle produit la réponse la plus probable, vraie ou non. Ces 3 phrases changent ça.\n\n💾 Enregistre-le pour l'avoir sous la main.\n👉 Partage-le à quelqu'un qui copie les réponses de l'IA sans vérifier.\n\n📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #claude #outilsia",
+    "slides": [
+      {"type": "couverture", "titre": "ChatGPT invente quand il ne sait pas. Colle ces 3 phrases.", "texte": "La 3e phrase est celle qui change tout."},
+      {"type": "texte", "titre": "Pourquoi elle invente", "texte": "Une IA prédit la suite la plus probable d'un texte. Si l'info lui manque, la suite la plus probable… ressemble à une vraie réponse."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "12 prompts prêts à copier, dans l'ordre où t'en servir."},
+      {"type": "texte", "titre": "Phrase 1 : les faits", "texte": "« Réponds uniquement à partir des informations ci-dessous. » Puis colle tes infos. Elle n'a plus besoin d'inventer."},
+      {"type": "texte", "titre": "Phrase 2 : l'interdit", "texte": "« N'invente aucun chiffre, prix, nom, date ou lien. » Écrit noir sur blanc, pas sous-entendu."},
+      {"type": "texte", "titre": "Phrase 3 : la sortie", "texte": "« Si la réponse n'y est pas, dis « je ne sais pas ». » Tu lui donnes le droit de ne pas savoir."},
+      {"type": "prompt", "titre": "Les 3 phrases, à coller", "prompt": "Réponds uniquement à partir des informations ci-dessous.\nN'invente aucun chiffre, prix, nom, date ou lien.\nSi la réponse n'y est pas, réponds « je ne sais pas ».\n\nInformations :\n[colle ici]"},
+      {"type": "texte", "titre": "Et vérifie quand même", "texte": "Pour une loi, un médicament, de l'argent : demande la source, puis va la lire. L'IA aide à chercher, pas à trancher."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "Abonne-toi : un prompt utile par jour, zéro blabla."}
+    ]
+  },
+  {
+    "id": "25-sept-mots", "etiquette": "À SAUVEGARDER",
+    "legende": "Pas besoin de longs prompts. Ces 7 petites phrases, ajoutées à la fin, suffisent souvent à transformer une réponse.\n\n💾 Enregistre-le pour l'avoir sous la main.\n👉 Envoie-le à la personne qui utilise ChatGPT tous les jours.\n\n📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #claude #outilsia",
+    "slides": [
+      {"type": "couverture", "titre": "7 phrases qui changent n'importe quelle réponse d'IA.", "texte": "À ajouter à la fin de ton prompt. La n°4 est la plus sous-estimée."},
+      {"type": "texte", "titre": "1. « Étape par étape »", "texte": "Elle détaille son raisonnement au lieu de sauter à la conclusion. Utile pour les calculs et les problèmes."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "12 prompts prêts à copier, dans l'ordre où t'en servir."},
+      {"type": "texte", "titre": "2. « Pose-moi d'abord des questions »", "texte": "Elle arrête de deviner ce que tu veux."},
+      {"type": "texte", "titre": "3. « Donne 3 options différentes »", "texte": "Tu choisis au lieu de subir la première idée."},
+      {"type": "texte", "titre": "4. « Critique ta réponse, puis améliore-la »", "texte": "La deuxième version est souvent nettement meilleure."},
+      {"type": "texte", "titre": "5. « Explique-le à un enfant de 10 ans »", "texte": "Le jargon disparaît. Idéal pour comprendre un contrat ou une notion."},
+      {"type": "texte", "titre": "6. « Avec un exemple concret »", "texte": "Une règle abstraite devient applicable tout de suite."},
+      {"type": "texte", "titre": "7. « En tableau »", "texte": "Comparer des offres, des options, des prix : tout devient lisible d'un coup d'œil."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "Abonne-toi : un prompt utile par jour, zéro blabla."}
+    ]
+  },
+  {
+    "id": "09-methode-4-cases", "etiquette": "MÉTHODE",
+    "legende": "La méthode que j'utilise pour écrire n'importe quel prompt : 4 cases, toujours dans le même ordre.\n\nRôle · Tâche · Contexte · Format.\n\nSi ta réponse est décevante, c'est presque toujours la case Contexte qui est vide.\n\n💾 Sauvegarde : c'est le post à garder.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
+    "slides": [
+      {"type": "couverture", "titre": "La méthode en 4 cases pour écrire n'importe quel prompt.", "texte": "Rôle, tâche, contexte, format. Dans cet ordre."},
+      {"type": "texte", "titre": "1. Le rôle", "texte": "Dis à l'IA qui elle est. « Tu es un comptable qui explique à un artisan » ne donne pas la même réponse que « Tu es un expert-comptable »."},
+      {"type": "texte", "titre": "2. La tâche", "texte": "Un verbe précis : compare, réécris, classe, critique. « Aide-moi avec » ne veut rien dire pour une IA."},
+      {"type": "texte", "titre": "3. Le contexte", "texte": "Ce que tu sais et qu'elle ne sait pas : ton public, ton objectif, ce que tu as déjà essayé. C'est la case qu'on oublie, et c'est elle qui fait la différence."},
+      {"type": "texte", "titre": "4. Le format", "texte": "La forme de la réponse : un tableau, 5 points, 100 mots, un mail prêt à envoyer. Sans format, tu reçois un pavé."},
+      {"type": "prompt", "titre": "Les 4 cases ensemble", "prompt": "Tu es un conseiller en recrutement qui aide des petites entreprises.\nRéécris l'annonce ci-dessous.\nContexte : nous sommes une boulangerie de 6 personnes, nous cherchons un vendeur le week-end, et l'ancienne annonce n'a reçu aucune réponse en 3 semaines.\nFormat : 120 mots maximum, un titre accrocheur, 3 puces pour les avantages."},
+      {"type": "appel", "mot_cle": "Lien en bio", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA.", "titre": "Le kit gratuit :"}
+    ]
+  },
+  {
+    "id": "26-prof-particulier", "etiquette": "TUTO",
+    "legende": "Une IA peut faire un excellent prof : patiente, dispo à 2 h du matin, et elle s'adapte à ton niveau. À condition de lui demander de te faire travailler, pas de te donner les réponses.\n\n💾 Enregistre-le pour l'avoir sous la main.\n👉 Partage-le à un étudiant, ou à quelqu'un qui veut apprendre un truc nouveau.\n\n📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #claude #outilsia",
+    "slides": [
+      {"type": "couverture", "titre": "Transforme ChatGPT en prof particulier gratuit.", "texte": "Le prompt qui te fait vraiment apprendre."},
+      {"type": "texte", "titre": "L'erreur classique", "texte": "Demander l'explication, la lire, hocher la tête. Trois jours après, tout est oublié. On retient ce qu'on fait, pas ce qu'on lit."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "12 prompts prêts à copier, dans l'ordre où t'en servir."},
+      {"type": "texte", "titre": "Le principe", "texte": "L'IA explique un petit morceau, puis te pose une question. Tu réponds. Elle corrige. Et seulement ensuite, la suite."},
+      {"type": "prompt", "titre": "Le prompt", "prompt": "Tu es mon prof particulier. Je veux apprendre : [sujet].\nMon niveau : [débutant / moyen].\nExplique une seule notion à la fois, en 5 lignes maximum, avec un exemple.\nPuis pose-moi une question pour vérifier que j'ai compris.\nNe passe à la suite que si ma réponse est juste. Sinon, réexplique autrement."},
+      {"type": "texte", "titre": "Le bonus qui fait retenir", "texte": "En fin de séance : « Fais-moi un quiz de 5 questions sur tout ce qu'on a vu. » Refais-le le lendemain."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "Abonne-toi : un prompt utile par jour, zéro blabla."}
+    ]
+  },
+  {
+    "id": "27-mail-jamais-mal-pris", "etiquette": "PROMPT À VOLER",
+    "legende": "Un mail sec part en 10 secondes et se répare en 10 jours. Ce prompt relit le ton avant toi.\n\n💾 Enregistre-le pour l'avoir sous la main.\n👉 Envoie-le à un collègue qui écrit des mails un peu trop directs 😅\n\n📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #claude #outilsia",
+    "slides": [
+      {"type": "couverture", "titre": "Le prompt pour qu'un mail ne soit plus jamais mal pris.", "texte": "Réclamation, relance, refus : le ton juste."},
+      {"type": "texte", "titre": "Le vrai problème", "texte": "À l'écrit, il n'y a ni sourire ni intonation. Une phrase neutre peut se lire comme un reproche."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "12 prompts prêts à copier, dans l'ordre où t'en servir."},
+      {"type": "prompt", "titre": "Le prompt", "prompt": "Voici un mail que je m'apprête à envoyer à [qui].\nObjectif : [ce que je veux obtenir].\n1. Dis-moi comment il risque d'être perçu, et quelles phrases peuvent froisser.\n2. Propose une version plus claire et plus courtoise, sans perdre la fermeté.\n3. Garde-le court.\n\nMail :\n[colle ici]"},
+      {"type": "texte", "titre": "Pourquoi ça marche", "texte": "Tu ne lui demandes pas d'écrire à ta place : tu lui demandes un avis extérieur. C'est exactement ce que ferait un collègue de confiance."},
+      {"type": "texte", "titre": "Pour aller plus vite", "texte": "Ajoute : « Donne 2 versions, une chaleureuse et une très professionnelle. » Tu choisis."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "Abonne-toi : un prompt utile par jour, zéro blabla."}
+    ]
+  },
+  {
+    "id": "10-cinq-erreurs", "etiquette": "À ÉVITER",
+    "legende": "Si l'IA te donne des réponses fades, c'est rarement l'IA. Ce sont presque toujours ces 5 erreurs.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
+    "slides": [
+      {"type": "couverture", "titre": "5 erreurs qui rendent tes réponses d'IA nulles.", "texte": "Et la phrase à ajouter pour corriger chacune."},
+      {"type": "texte", "titre": "1. Trop court", "texte": "« Écris un mail à mon patron » ne dit rien. Qui est-il, qu'est-ce que tu veux obtenir, quel ton ? Trois lignes de contexte changent tout."},
+      {"type": "texte", "titre": "2. Pas de format", "texte": "Dis comment tu veux la réponse : « en 5 points », « en tableau », « 100 mots maximum ». Sinon tu reçois un pavé."},
+      {"type": "texte", "titre": "3. Accepter la 1re réponse", "texte": "La première version est un brouillon. Réponds « plus court », « plus concret », « avec un exemple ». La troisième est souvent la bonne."},
+      {"type": "texte", "titre": "4. Croire tout ce qu'elle dit", "texte": "Chiffres, dates, lois, citations : l'IA peut se tromper avec assurance. Demande-lui ses sources et vérifie ce qui compte."},
+      {"type": "texte", "titre": "5. Ne pas la laisser poser de questions", "texte": "Ajoute : « Avant de répondre, pose-moi les questions qui te manquent. » Elle arrête de deviner."},
+      {"type": "appel", "mot_cle": "Lien en bio", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA.", "titre": "Le kit gratuit :"}
+    ]
+  },
+  {
+    "id": "28-decision-difficile", "etiquette": "PROMPT À VOLER",
+    "legende": "Quand on hésite, on tourne en rond dans sa tête. L'IA ne décide pas à ta place, mais elle t'oblige à poser le problème à plat.\n\n💾 Enregistre-le pour l'avoir sous la main.\n👉 Partage-le à quelqu'un qui hésite en ce moment.\n\n📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #claude #outilsia",
+    "slides": [
+      {"type": "couverture", "titre": "Le prompt pour prendre une décision difficile.", "texte": "Changer de job, déménager, acheter : y voir clair."},
+      {"type": "texte", "titre": "Ce que l'IA fait bien ici", "texte": "Elle n'a pas d'émotion dans ta décision. Elle te pose les questions que tes proches n'osent pas poser."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "12 prompts prêts à copier, dans l'ordre où t'en servir."},
+      {"type": "prompt", "titre": "Le prompt", "prompt": "J'hésite entre : [option A] et [option B].\nMon contexte : [situation, budget, contraintes].\nCe qui compte le plus pour moi : [3 critères].\n1. Pose-moi d'abord 5 questions pour mieux comprendre.\n2. Puis fais un tableau : avantages, risques, coût, réversibilité.\n3. Dis-moi ce que je semble déjà préférer, d'après mes réponses."},
+      {"type": "texte", "titre": "La question qui débloque", "texte": "« Qu'est-ce que je regretterais le plus dans 5 ans ? » Demande-lui de te la poser à la fin."},
+      {"type": "texte", "titre": "La limite", "texte": "Santé, droit, argent : l'IA aide à réfléchir, un professionnel aide à décider."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "Abonne-toi : un prompt utile par jour, zéro blabla."}
+    ]
+  },
+  {
+    "id": "29-apprendre-30-jours", "etiquette": "MÉTHODE",
+    "legende": "Anglais, Excel, guitare, code : demande à l'IA un plan, pas un cours. Un plan te dit quoi faire demain matin.\n\n💾 Enregistre-le pour l'avoir sous la main.\n👉 Envoie-le à quelqu'un qui dit « un jour j'apprendrai… ».\n\n📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #claude #outilsia",
+    "slides": [
+      {"type": "couverture", "titre": "Apprends n'importe quoi en 30 jours avec ce plan.", "texte": "15 minutes par jour, construit par l'IA pour toi."},
+      {"type": "texte", "titre": "Pourquoi on abandonne", "texte": "Pas par manque de motivation : par manque de plan. Le soir, on ne sait pas quoi faire, alors on ne fait rien."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "12 prompts prêts à copier, dans l'ordre où t'en servir."},
+      {"type": "prompt", "titre": "Le prompt", "prompt": "Je veux apprendre [compétence] en 30 jours, 15 minutes par jour.\nMon niveau : [zéro / un peu].\nMon objectif concret au jour 30 : [ex. tenir une conversation de 5 min].\nFais un plan jour par jour : un exercice précis par jour, et un mini-test chaque dimanche.\nCommence par les 20 % qui donnent 80 % du résultat."},
+      {"type": "texte", "titre": "Chaque jour", "texte": "Ouvre la conversation : « Jour 7, je suis prêt. » L'IA te donne l'exercice et corrige."},
+      {"type": "texte", "titre": "Chaque dimanche", "texte": "« Fais-moi le test de la semaine. » Ce que tu rates devient le programme de la semaine suivante."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "Abonne-toi : un prompt utile par jour, zéro blabla."}
+    ]
+  },
+  {
+    "id": "04-cahier-des-charges", "etiquette": "PROMPT À VOLER",
     "legende": "Le prompt que je lance avant toute nouvelle idée. Il m'a fait gagner plus de temps que tous les autres réunis.\n\nRègle d'or : pas une ligne de code avant d'avoir validé le plan.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Le prompt que j'utilise pour démarrer n'importe quel projet.", "texte": "Avant une seule ligne de code."},
@@ -59,7 +183,121 @@
     ]
   },
   {
-    "id": "05-publication-auto",
+    "id": "30-jamais-dans-une-ia", "etiquette": "À ÉVITER",
+    "legende": "Ce que tu écris dans une IA peut être conservé, et selon les réglages, servir à l'entraîner. 5 choses à ne jamais y coller.\n\n💾 Enregistre-le pour l'avoir sous la main.\n👉 Partage-le : tout le monde colle des documents dans ChatGPT sans y penser.\n\n📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #claude #outilsia",
+    "slides": [
+      {"type": "couverture", "titre": "5 choses à ne jamais coller dans ChatGPT.", "texte": "Et le réglage à vérifier dès aujourd'hui."},
+      {"type": "texte", "titre": "Ce qu'il faut savoir", "texte": "Tes conversations sont enregistrées sur les serveurs du service. Selon les réglages, elles peuvent servir à améliorer les modèles."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "12 prompts prêts à copier, dans l'ordre où t'en servir."},
+      {"type": "texte", "titre": "1. Mots de passe et codes", "texte": "Aucune raison d'en donner un à une IA. Jamais."},
+      {"type": "texte", "titre": "2. Numéros de carte et IBAN", "texte": "Même pour « vérifier un calcul ». Remplace par XXXX."},
+      {"type": "texte", "titre": "3. Les données des autres", "texte": "Dossiers clients, infos de santé d'un proche, mails de collègues : ce n'est pas à toi de les partager."},
+      {"type": "texte", "titre": "4. Les documents confidentiels", "texte": "Contrats, projets internes, chiffres de ton entreprise : vérifie d'abord ce que ton employeur autorise."},
+      {"type": "texte", "titre": "5. Tes papiers d'identité", "texte": "Carte d'identité, fiche de paie, avis d'impôt : anonymise avant (nom, adresse, numéros)."},
+      {"type": "texte", "titre": "Le réglage à vérifier", "texte": "Dans les paramètres de ton IA, cherche la rubrique « Données » ou « Confidentialité » et désactive l'utilisation de tes conversations pour l'entraînement si tu le souhaites."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "Abonne-toi : un prompt utile par jour, zéro blabla."}
+    ]
+  },
+  {
+    "id": "31-critique-toi", "etiquette": "TUTO",
+    "legende": "La première réponse d'une IA est un brouillon. Une seule phrase la fait se relire comme un expert exigeant.\n\n💾 Enregistre-le pour l'avoir sous la main.\n👉 Envoie-le à quelqu'un qui s'arrête toujours à la première réponse.\n\n📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #claude #outilsia",
+    "slides": [
+      {"type": "couverture", "titre": "Ne garde jamais la première réponse de l'IA.", "texte": "La phrase qui la fait se corriger toute seule."},
+      {"type": "texte", "titre": "Le réflexe à prendre", "texte": "Après chaque réponse importante, demande-lui de jouer le critique. Elle trouve souvent seule ses oublis et ses approximations."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "12 prompts prêts à copier, dans l'ordre où t'en servir."},
+      {"type": "prompt", "titre": "La phrase", "prompt": "Relis ta réponse comme un expert exigeant.\nListe ses 3 plus gros défauts : oublis, erreurs possibles, passages flous.\nPuis réécris-la en corrigeant ces 3 points."},
+      {"type": "texte", "titre": "Encore plus fort", "texte": "« Quelles questions un sceptique poserait ? Réponds-y. » Parfait avant de présenter un projet ou un devis."},
+      {"type": "texte", "titre": "Ce que ça ne remplace pas", "texte": "Une IA qui se relit reste une IA : pour un chiffre ou une loi, la vérification finale, c'est toi."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "Abonne-toi : un prompt utile par jour, zéro blabla."}
+    ]
+  },
+  {
+    "id": "32-assistant-du-quotidien", "etiquette": "À SAUVEGARDER",
+    "legende": "Courses, rendez-vous, papiers, repas : 6 prompts simples pour alléger ta semaine.\n\n💾 Enregistre-le pour l'avoir sous la main.\n👉 Partage-le à quelqu'un qui a une semaine chargée.\n\n📎 Le kit gratuit (12 prompts) : lien dans ma bio.\n\n#chatgpt #ia #intelligenceartificielle #prompt #astuce #productivite #claude #outilsia",
+    "slides": [
+      {"type": "couverture", "titre": "6 prompts qui allègent ta semaine.", "texte": "Courses, repas, papiers, rendez-vous."},
+      {"type": "prompt", "titre": "1. Les repas de la semaine", "prompt": "Propose 5 dîners simples pour [nombre] personnes, prêts en 30 minutes, budget [x] €.\nPuis la liste de courses regroupée par rayon."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "12 prompts prêts à copier, dans l'ordre où t'en servir."},
+      {"type": "prompt", "titre": "2. Le courrier administratif", "prompt": "Explique-moi ce courrier en 5 lignes simples : ce qu'on me demande, avant quelle date, et ce qui se passe si je ne fais rien.\n[colle le texte, sans tes numéros personnels]"},
+      {"type": "prompt", "titre": "3. La lettre de réclamation", "prompt": "Rédige une réclamation polie et ferme à [entreprise] pour [problème], survenu le [date]. Je demande [remboursement / échange]. 150 mots."},
+      {"type": "prompt", "titre": "4. Le planning", "prompt": "Voici mes tâches de la semaine : [liste]. Classe-les par urgence et importance, et répartis-les sur 5 jours, 2 heures maximum par jour."},
+      {"type": "prompt", "titre": "5. Le résumé express", "prompt": "Résume ce texte en 5 points, puis dis-moi en une phrase ce que je dois faire concrètement.\n[colle ici]"},
+      {"type": "prompt", "titre": "6. Le cadeau", "prompt": "Propose 10 idées de cadeau pour [personne, âge, passions], budget [x] €, en évitant les objets inutiles."},
+      {"type": "appel", "titre": "Le kit gratuit :", "mot_cle": "Lien en bio", "texte": "Abonne-toi : un prompt utile par jour, zéro blabla."}
+    ]
+  },
+  {
+    "id": "14-avant-apres-prompt", "etiquette": "AVANT / APRÈS",
+    "legende": "Même demande, deux prompts. Le premier, c'est ce que tout le monde écrit. Le second, c'est la méthode des 4 cases appliquée.\n\nGarde-le, il marche pour n'importe quel mail.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
+    "slides": [
+      {"type": "couverture", "titre": "Le même prompt, avant et après.", "texte": "Même IA, même demande. Pas du tout la même réponse."},
+      {"type": "prompt", "titre": "Avant", "prompt": "Écris un mail pour demander une augmentation."},
+      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "les prompts que j'utilise vraiment, dans l'ordre où je m'en sers."},
+      {"type": "texte", "titre": "Ce qu'on reçoit", "texte": "Un mail générique, trop long, trop poli, qui pourrait venir de n'importe qui. Inutilisable sans tout réécrire."},
+      {"type": "prompt", "titre": "Après", "prompt": "Tu es un manager qui sait ce qui convainc une direction.\nÉcris un mail pour demander une augmentation.\nContexte : [ton poste], [depuis combien de temps], [2 résultats concrets], [le montant visé].\nFormat : 120 mots, ton direct, une demande de rendez-vous à la fin."},
+      {"type": "texte", "titre": "Ce qui a changé", "texte": "Un rôle, une tâche précise, un contexte que l'IA ne pouvait pas deviner, un format. Les 4 cases."},
+      {"type": "texte", "titre": "La case qui compte le plus", "texte": "Le contexte. L'IA écrit bien, mais elle ne connaît ni ta vie ni ton patron. Tout ce que tu ne lui dis pas, elle l'invente."},
+      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA."}
+    ]
+  },
+  {
+    "id": "11-assistant-perso", "etiquette": "TUTO 5 MIN", "chiffre": "5",
+    "legende": "Arrête de réexpliquer qui tu es à chaque conversation : ChatGPT, Claude et Gemini peuvent garder des instructions permanentes. Voici comment bien les écrire.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
+    "slides": [
+      {"type": "couverture", "titre": "Crée ton assistant IA perso en 5 minutes.", "texte": "Des instructions permanentes pour ne plus jamais te répéter."},
+      {"type": "texte", "titre": "Où ça se trouve", "texte": "ChatGPT : « Personnalisation ». Claude : les « Projets ». Gemini : les « Gems ». Ce que tu y écris s'applique à toutes tes conversations."},
+      {"type": "prompt", "titre": "Les instructions à coller", "prompt": "Qui je suis : [métier, situation, niveau en IA].\nCe que je te demande le plus souvent : [3 usages].\nComment me répondre : en français, direct, sans introduction ni conclusion inutiles, avec des listes quand c'est plus clair.\nSi ma demande est floue, pose-moi une question avant de répondre."},
+      {"type": "prompt", "titre": "Le faire écrire par l'IA", "prompt": "Pose-moi 8 questions sur mon travail, mes habitudes et ce qui m'agace dans tes réponses.\nÀ partir de mes réponses, rédige les instructions personnalisées idéales pour toi, en 150 mots maximum."},
+      {"type": "texte", "titre": "Ce qu'il ne faut pas y mettre", "texte": "Ni mot de passe, ni adresse, ni données de santé. Ces instructions sont stockées avec ton compte."},
+      {"type": "appel", "mot_cle": "Lien en bio", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA.", "titre": "Le kit gratuit :"}
+    ]
+  },
+  {
+    "id": "15-expliquer-un-bug", "etiquette": "PROMPT À VOLER",
+    "legende": "Mon simulateur prenait 11 décisions là où il aurait dû en prendre 563. L'erreur n'était pas là où je la cherchais.\n\nVoici comment j'explique un bug à l'IA pour qu'elle le trouve.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
+    "slides": [
+      {"type": "couverture", "titre": "Comment j'explique un bug à l'IA pour qu'elle le trouve.", "texte": "La méthode qui m'a fait trouver un bug caché depuis des semaines."},
+      {"type": "texte", "titre": "Le symptôme", "texte": "Mon simulateur ne prenait presque aucune décision : 11 en deux ans d'historique. J'ai cru que la méthode testée était mauvaise."},
+      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "les prompts que j'utilise vraiment, dans l'ordre où je m'en sers."},
+      {"type": "texte", "titre": "Ce que j'ai demandé à l'IA", "texte": "Pas « pourquoi ça ne marche pas ? ». J'ai demandé d'afficher la raison de chaque refus. Une colonne de plus."},
+      {"type": "texte", "titre": "La réponse", "texte": "Plus de 21 000 refus pour « pause », 150 pour la méthode elle-même. Le simulateur était bloqué par sa propre pause."},
+      {"type": "texte", "titre": "La cause", "texte": "La pause se calculait avec l'heure d'aujourd'hui, alors que le simulateur rejouait des dates passées. Elle ne se levait jamais."},
+      {"type": "prompt", "titre": "Le prompt pour expliquer un bug", "prompt": "Ce que je vois : [symptôme exact].\nCe que j'attendais : [comportement normal].\nCe qui a changé récemment : [modifs].\nAvant de proposer une correction, dis-moi quelle information afficher pour savoir OÙ ça bloque."},
+      {"type": "texte", "titre": "La leçon", "texte": "Quand un résultat est trop faible, demande d'abord pourquoi il l'est. Sinon tu juges l'outil de mesure en croyant juger ton idée."},
+      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA."}
+    ]
+  },
+  {
+    "id": "21-checklist-mise-en-ligne", "etiquette": "CHECKLIST",
+    "legende": "Avant de mettre quoi que ce soit en ligne, je fais relire cette liste à l'IA. Elle a encore attrapé un bug cette semaine, juste avant la mise en ligne.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
+    "slides": [
+      {"type": "couverture", "titre": "La checklist que je fais relire à l'IA avant chaque mise en ligne.", "texte": "Elle a encore attrapé un bug cette semaine."},
+      {"type": "texte", "titre": "Pourquoi une liste", "texte": "« Ça marche chez moi » est la phrase la plus chère du métier. La liste force à tester ce qu'on n'a pas envie de tester."},
+      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "les prompts que j'utilise vraiment, dans l'ordre où je m'en sers."},
+      {"type": "texte", "titre": "1. Tester comme l'utilisateur", "texte": "Depuis son appareil, son navigateur, sans être connecté. Pas depuis l'ordinateur où tout a été construit."},
+      {"type": "texte", "titre": "2. Tester les refus", "texte": "La question piège, le message trop long, le visiteur qui abuse. Ce qui doit être refusé l'est-il vraiment ?"},
+      {"type": "texte", "titre": "3. Chercher les secrets", "texte": "Aucune clé, aucun mot de passe dans ce qui est publié. Les clés restent sur le serveur."},
+      {"type": "texte", "titre": "4. Prévoir la panne", "texte": "Si le service tombe, que voit l'utilisateur ? Un message clair, ou une page blanche ?"},
+      {"type": "prompt", "titre": "Le prompt à coller", "prompt": "Je vais mettre en ligne : [ce que c'est].\nAvant, vérifie avec moi :\n1. Testé comme un vrai utilisateur ?\n2. Ce qui doit être refusé l'est-il ?\n3. Un secret visible quelque part ?\n4. Que se passe-t-il si ça tombe en panne ?\nPose-moi une question par point."},
+      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA."}
+    ]
+  },
+  {
+    "id": "06-fichier-decisions", "etiquette": "PROMPT À VOLER",
+    "legende": "Le plus gros problème quand on construit avec l'IA : elle oublie. Chaque nouvelle conversation repart de zéro.\n\nMa solution tient dans un fichier texte que l'IA relit à chaque début de session.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
+    "slides": [
+      {"type": "couverture", "titre": "Le fichier qui empêche l'IA d'oublier mes décisions.", "texte": "La meilleure habitude que j'ai prise en construisant avec Claude."},
+      {"type": "texte", "titre": "Le problème", "texte": "Nouvelle conversation, l'IA a tout oublié. Elle repropose une idée écartée la veille, ou défait un réglage choisi exprès."},
+      {"type": "appel", "mot_cle": "Lien en bio", "texte": "les prompts que j'utilise vraiment, dans l'ordre où je m'en sers.", "titre": "Le kit gratuit :"},
+      {"type": "texte", "titre": "La solution", "texte": "Un fichier où chaque décision est écrite : ce qui a été décidé, pourquoi, ce qui a été mesuré, ce qui a été écarté. Claude Code le lit tout seul au démarrage."},
+      {"type": "texte", "titre": "Ce que j'ai appris à mes dépens", "texte": "Une décision appliquée mais pas écrite continue de tourner pendant que le fichier raconte autre chose. Mon appli a affiché un faux réglage pendant une semaine."},
+      {"type": "prompt", "titre": "Le prompt de fin de session", "prompt": "Résume chaque décision prise dans cette conversation sous ce format : la décision, pourquoi, ce qu'on a écarté et pourquoi, la date.\nCe texte sera relu par une IA qui ne se souviendra de rien."},
+      {"type": "texte", "titre": "Sans Claude Code", "texte": "Colle ce résumé dans les « Projets » de ChatGPT ou de Claude : il sera lu dans chaque conversation du projet."},
+      {"type": "appel", "mot_cle": "Lien en bio", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA.", "titre": "Le kit gratuit :"}
+    ]
+  },
+  {
+    "id": "05-publication-auto", "etiquette": "COULISSES",
     "legende": "Ce post n'a pas été dessiné à la main. Ni publié à la main.\n\nVoici la chaîne complète, et la règle qui l'empêche de publier n'importe quoi.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Ce compte se publie tout seul. Voici la machine.", "texte": "5 étapes, et un frein de sécurité."},
@@ -75,21 +313,7 @@
     ]
   },
   {
-    "id": "06-fichier-decisions",
-    "legende": "Le plus gros problème quand on construit avec l'IA : elle oublie. Chaque nouvelle conversation repart de zéro.\n\nMa solution tient dans un fichier texte que l'IA relit à chaque début de session.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
-    "slides": [
-      {"type": "couverture", "titre": "Le fichier qui empêche l'IA d'oublier mes décisions.", "texte": "La meilleure habitude que j'ai prise en construisant avec Claude."},
-      {"type": "texte", "titre": "Le problème", "texte": "Nouvelle conversation, l'IA a tout oublié. Elle repropose une idée écartée la veille, ou défait un réglage choisi exprès."},
-      {"type": "appel", "mot_cle": "Lien en bio", "texte": "les prompts que j'utilise vraiment, dans l'ordre où je m'en sers.", "titre": "Le kit gratuit :"},
-      {"type": "texte", "titre": "La solution", "texte": "Un fichier où chaque décision est écrite : ce qui a été décidé, pourquoi, ce qui a été mesuré, ce qui a été écarté. Claude Code le lit tout seul au démarrage."},
-      {"type": "texte", "titre": "Ce que j'ai appris à mes dépens", "texte": "Une décision appliquée mais pas écrite continue de tourner pendant que le fichier raconte autre chose. Mon appli a affiché un faux réglage pendant une semaine."},
-      {"type": "prompt", "titre": "Le prompt de fin de session", "prompt": "Résume chaque décision prise dans cette conversation sous ce format : la décision, pourquoi, ce qu'on a écarté et pourquoi, la date.\nCe texte sera relu par une IA qui ne se souviendra de rien."},
-      {"type": "texte", "titre": "Sans Claude Code", "texte": "Colle ce résumé dans les « Projets » de ChatGPT ou de Claude : il sera lu dans chaque conversation du projet."},
-      {"type": "appel", "mot_cle": "Lien en bio", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA.", "titre": "Le kit gratuit :"}
-    ]
-  },
-  {
-    "id": "07-tests-verts",
+    "id": "07-tests-verts", "etiquette": "HISTOIRE VRAIE",
     "legende": "Tous mes tests passaient au vert. Le programme, lui, ne faisait plus ce que je croyais.\n\nC'est l'erreur la plus traître que j'ai rencontrée en construisant avec l'IA.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "656 tests verts. Avec le bug dedans.", "texte": "La leçon qui a changé ma façon de vérifier."},
@@ -104,7 +328,7 @@
     ]
   },
   {
-    "id": "08-agent-garde-fous",
+    "id": "08-agent-garde-fous", "etiquette": "HISTOIRE VRAIE",
     "legende": "Mon agent IA peut écrire du code, lancer des commandes et aller sur internet. Ça fait peur, et ça doit faire peur.\n\nVoici les trois protections, de la plus solide à la plus faible.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "J'ai donné un terminal à mon agent IA.", "texte": "Voici ses 3 garde-fous, du plus solide au plus fragile."},
@@ -119,45 +343,7 @@
     ]
   },
   {
-    "id": "09-methode-4-cases",
-    "legende": "La méthode que j'utilise pour écrire n'importe quel prompt : 4 cases, toujours dans le même ordre.\n\nRôle · Tâche · Contexte · Format.\n\nSi ta réponse est décevante, c'est presque toujours la case Contexte qui est vide.\n\n💾 Sauvegarde : c'est le post à garder.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
-    "slides": [
-      {"type": "couverture", "titre": "La méthode en 4 cases pour écrire n'importe quel prompt.", "texte": "Rôle, tâche, contexte, format. Dans cet ordre."},
-      {"type": "texte", "titre": "1. Le rôle", "texte": "Dis à l'IA qui elle est. « Tu es un comptable qui explique à un artisan » ne donne pas la même réponse que « Tu es un expert-comptable »."},
-      {"type": "texte", "titre": "2. La tâche", "texte": "Un verbe précis : compare, réécris, classe, critique. « Aide-moi avec » ne veut rien dire pour une IA."},
-      {"type": "texte", "titre": "3. Le contexte", "texte": "Ce que tu sais et qu'elle ne sait pas : ton public, ton objectif, ce que tu as déjà essayé. C'est la case qu'on oublie, et c'est elle qui fait la différence."},
-      {"type": "texte", "titre": "4. Le format", "texte": "La forme de la réponse : un tableau, 5 points, 100 mots, un mail prêt à envoyer. Sans format, tu reçois un pavé."},
-      {"type": "prompt", "titre": "Les 4 cases ensemble", "prompt": "Tu es un conseiller en recrutement qui aide des petites entreprises.\nRéécris l'annonce ci-dessous.\nContexte : nous sommes une boulangerie de 6 personnes, nous cherchons un vendeur le week-end, et l'ancienne annonce n'a reçu aucune réponse en 3 semaines.\nFormat : 120 mots maximum, un titre accrocheur, 3 puces pour les avantages."},
-      {"type": "appel", "mot_cle": "Lien en bio", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA.", "titre": "Le kit gratuit :"}
-    ]
-  },
-  {
-    "id": "10-cinq-erreurs",
-    "legende": "Si l'IA te donne des réponses fades, c'est rarement l'IA. Ce sont presque toujours ces 5 erreurs.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
-    "slides": [
-      {"type": "couverture", "titre": "5 erreurs qui rendent tes réponses d'IA nulles.", "texte": "Et la phrase à ajouter pour corriger chacune."},
-      {"type": "texte", "titre": "1. Trop court", "texte": "« Écris un mail à mon patron » ne dit rien. Qui est-il, qu'est-ce que tu veux obtenir, quel ton ? Trois lignes de contexte changent tout."},
-      {"type": "texte", "titre": "2. Pas de format", "texte": "Dis comment tu veux la réponse : « en 5 points », « en tableau », « 100 mots maximum ». Sinon tu reçois un pavé."},
-      {"type": "texte", "titre": "3. Accepter la 1re réponse", "texte": "La première version est un brouillon. Réponds « plus court », « plus concret », « avec un exemple ». La troisième est souvent la bonne."},
-      {"type": "texte", "titre": "4. Croire tout ce qu'elle dit", "texte": "Chiffres, dates, lois, citations : l'IA peut se tromper avec assurance. Demande-lui ses sources et vérifie ce qui compte."},
-      {"type": "texte", "titre": "5. Ne pas la laisser poser de questions", "texte": "Ajoute : « Avant de répondre, pose-moi les questions qui te manquent. » Elle arrête de deviner."},
-      {"type": "appel", "mot_cle": "Lien en bio", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA.", "titre": "Le kit gratuit :"}
-    ]
-  },
-  {
-    "id": "11-assistant-perso",
-    "legende": "Arrête de réexpliquer qui tu es à chaque conversation : ChatGPT, Claude et Gemini peuvent garder des instructions permanentes. Voici comment bien les écrire.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
-    "slides": [
-      {"type": "couverture", "titre": "Crée ton assistant IA perso en 5 minutes.", "texte": "Des instructions permanentes pour ne plus jamais te répéter."},
-      {"type": "texte", "titre": "Où ça se trouve", "texte": "ChatGPT : « Personnalisation ». Claude : les « Projets ». Gemini : les « Gems ». Ce que tu y écris s'applique à toutes tes conversations."},
-      {"type": "prompt", "titre": "Les instructions à coller", "prompt": "Qui je suis : [métier, situation, niveau en IA].\nCe que je te demande le plus souvent : [3 usages].\nComment me répondre : en français, direct, sans introduction ni conclusion inutiles, avec des listes quand c'est plus clair.\nSi ma demande est floue, pose-moi une question avant de répondre."},
-      {"type": "prompt", "titre": "Le faire écrire par l'IA", "prompt": "Pose-moi 8 questions sur mon travail, mes habitudes et ce qui m'agace dans tes réponses.\nÀ partir de mes réponses, rédige les instructions personnalisées idéales pour toi, en 150 mots maximum."},
-      {"type": "texte", "titre": "Ce qu'il ne faut pas y mettre", "texte": "Ni mot de passe, ni adresse, ni données de santé. Ces instructions sont stockées avec ton compte."},
-      {"type": "appel", "mot_cle": "Lien en bio", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA.", "titre": "Le kit gratuit :"}
-    ]
-  },
-  {
-    "id": "12-arrete-d-inventer",
+    "id": "12-arrete-d-inventer", "etiquette": "HISTOIRE VRAIE",
     "legende": "J'ai mis un assistant IA sur mon site. Au premier essai, il a inventé un prix pour un kit qui est gratuit.\n\nVoici ce qui l'a fait arrêter, et que tu peux réutiliser partout.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Mon assistant IA a inventé un prix. Le kit est gratuit.", "texte": "La consigne qui l'a fait arrêter d'inventer."},
@@ -173,7 +359,7 @@
     ]
   },
   {
-    "id": "13-casse-cette-semaine",
+    "id": "13-casse-cette-semaine", "etiquette": "HISTOIRE VRAIE",
     "legende": "Nouvelle série : chaque semaine, ce qui a cassé en construisant avec l'IA. Pas les réussites, les vrais problèmes, et ce qu'ils m'ont appris.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Ce que l'IA m'a fait casser cette semaine.", "texte": "Semaine 1. Trois problèmes, trois leçons."},
@@ -189,36 +375,7 @@
     ]
   },
   {
-    "id": "14-avant-apres-prompt",
-    "legende": "Même demande, deux prompts. Le premier, c'est ce que tout le monde écrit. Le second, c'est la méthode des 4 cases appliquée.\n\nGarde-le, il marche pour n'importe quel mail.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
-    "slides": [
-      {"type": "couverture", "titre": "Le même prompt, avant et après.", "texte": "Même IA, même demande. Pas du tout la même réponse."},
-      {"type": "prompt", "titre": "Avant", "prompt": "Écris un mail pour demander une augmentation."},
-      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "les prompts que j'utilise vraiment, dans l'ordre où je m'en sers."},
-      {"type": "texte", "titre": "Ce qu'on reçoit", "texte": "Un mail générique, trop long, trop poli, qui pourrait venir de n'importe qui. Inutilisable sans tout réécrire."},
-      {"type": "prompt", "titre": "Après", "prompt": "Tu es un manager qui sait ce qui convainc une direction.\nÉcris un mail pour demander une augmentation.\nContexte : [ton poste], [depuis combien de temps], [2 résultats concrets], [le montant visé].\nFormat : 120 mots, ton direct, une demande de rendez-vous à la fin."},
-      {"type": "texte", "titre": "Ce qui a changé", "texte": "Un rôle, une tâche précise, un contexte que l'IA ne pouvait pas deviner, un format. Les 4 cases."},
-      {"type": "texte", "titre": "La case qui compte le plus", "texte": "Le contexte. L'IA écrit bien, mais elle ne connaît ni ta vie ni ton patron. Tout ce que tu ne lui dis pas, elle l'invente."},
-      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA."}
-    ]
-  },
-  {
-    "id": "15-expliquer-un-bug",
-    "legende": "Mon simulateur prenait 11 décisions là où il aurait dû en prendre 563. L'erreur n'était pas là où je la cherchais.\n\nVoici comment j'explique un bug à l'IA pour qu'elle le trouve.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
-    "slides": [
-      {"type": "couverture", "titre": "Comment j'explique un bug à l'IA pour qu'elle le trouve.", "texte": "La méthode qui m'a fait trouver un bug caché depuis des semaines."},
-      {"type": "texte", "titre": "Le symptôme", "texte": "Mon simulateur ne prenait presque aucune décision : 11 en deux ans d'historique. J'ai cru que la méthode testée était mauvaise."},
-      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "les prompts que j'utilise vraiment, dans l'ordre où je m'en sers."},
-      {"type": "texte", "titre": "Ce que j'ai demandé à l'IA", "texte": "Pas « pourquoi ça ne marche pas ? ». J'ai demandé d'afficher la raison de chaque refus. Une colonne de plus."},
-      {"type": "texte", "titre": "La réponse", "texte": "Plus de 21 000 refus pour « pause », 150 pour la méthode elle-même. Le simulateur était bloqué par sa propre pause."},
-      {"type": "texte", "titre": "La cause", "texte": "La pause se calculait avec l'heure d'aujourd'hui, alors que le simulateur rejouait des dates passées. Elle ne se levait jamais."},
-      {"type": "prompt", "titre": "Le prompt pour expliquer un bug", "prompt": "Ce que je vois : [symptôme exact].\nCe que j'attendais : [comportement normal].\nCe qui a changé récemment : [modifs].\nAvant de proposer une correction, dis-moi quelle information afficher pour savoir OÙ ça bloque."},
-      {"type": "texte", "titre": "La leçon", "texte": "Quand un résultat est trop faible, demande d'abord pourquoi il l'est. Sinon tu juges l'outil de mesure en croyant juger ton idée."},
-      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA."}
-    ]
-  },
-  {
-    "id": "16-ecrit-pas-lance",
+    "id": "16-ecrit-pas-lance", "etiquette": "HISTOIRE VRAIE", "chiffre": "2",
     "legende": "Pendant deux semaines, mes conversations avec l'IA se coupaient toutes seules. La solution était écrite dans mon propre fichier. Personne ne l'avait lancée.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "La solution était écrite depuis 2 semaines. Personne ne l'avait lancée.", "texte": "Pourquoi mes conversations avec l'IA se coupaient."},
@@ -233,7 +390,7 @@
     ]
   },
   {
-    "id": "17-sur-de-lui-et-faux",
+    "id": "17-sur-de-lui-et-faux", "etiquette": "HISTOIRE VRAIE",
     "legende": "L'IA m'a proposé une amélioration très bien argumentée. Il a suffi d'une question pour voir qu'elle corrigeait un cas qui n'arrivait jamais.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "L'IA m'a proposé de corriger un problème qui n'existait pas.", "texte": "Ce que je fais quand l'IA se trompe avec assurance."},
@@ -248,7 +405,7 @@
     ]
   },
   {
-    "id": "18-outils-garde-arrete",
+    "id": "18-outils-garde-arrete", "etiquette": "MES OUTILS",
     "legende": "Les outils que j'utilise vraiment pour construire avec l'IA, et ceux que j'ai arrêtés. Aucun lien sponsorisé, aucune affiliation.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Les outils que je garde, et ceux que j'ai arrêtés.", "texte": "Après plusieurs mois à construire avec l'IA. Aucun partenariat."},
@@ -263,7 +420,7 @@
     ]
   },
   {
-    "id": "19-essai-different-du-vrai",
+    "id": "19-essai-different-du-vrai", "etiquette": "HISTOIRE VRAIE", "chiffre": "5",
     "legende": "Pendant cinq jours, ma version d'essai ne testait pas la même chose que la vraie. Tous les résultats de ces cinq jours mesuraient autre chose que ce que je croyais.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Ma version d'essai a testé autre chose que la vraie pendant 5 jours.", "texte": "Et aucun test ne pouvait le voir."},
@@ -278,7 +435,7 @@
     ]
   },
   {
-    "id": "20-affichage-qui-mentait",
+    "id": "20-affichage-qui-mentait", "etiquette": "HISTOIRE VRAIE",
     "legende": "Mon appli affichait un réglage que le système n'utilisait plus depuis une semaine. Ce n'est pas un test qui l'a vu. C'est moi, en lisant l'écran.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Mon appli affichait un réglage qui n'existait plus.", "texte": "Pendant une semaine. Aucun test ne l'a vu."},
@@ -293,22 +450,7 @@
     ]
   },
   {
-    "id": "21-checklist-mise-en-ligne",
-    "legende": "Avant de mettre quoi que ce soit en ligne, je fais relire cette liste à l'IA. Elle a encore attrapé un bug cette semaine, juste avant la mise en ligne.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
-    "slides": [
-      {"type": "couverture", "titre": "La checklist que je fais relire à l'IA avant chaque mise en ligne.", "texte": "Elle a encore attrapé un bug cette semaine."},
-      {"type": "texte", "titre": "Pourquoi une liste", "texte": "« Ça marche chez moi » est la phrase la plus chère du métier. La liste force à tester ce qu'on n'a pas envie de tester."},
-      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "les prompts que j'utilise vraiment, dans l'ordre où je m'en sers."},
-      {"type": "texte", "titre": "1. Tester comme l'utilisateur", "texte": "Depuis son appareil, son navigateur, sans être connecté. Pas depuis l'ordinateur où tout a été construit."},
-      {"type": "texte", "titre": "2. Tester les refus", "texte": "La question piège, le message trop long, le visiteur qui abuse. Ce qui doit être refusé l'est-il vraiment ?"},
-      {"type": "texte", "titre": "3. Chercher les secrets", "texte": "Aucune clé, aucun mot de passe dans ce qui est publié. Les clés restent sur le serveur."},
-      {"type": "texte", "titre": "4. Prévoir la panne", "texte": "Si le service tombe, que voit l'utilisateur ? Un message clair, ou une page blanche ?"},
-      {"type": "prompt", "titre": "Le prompt à coller", "prompt": "Je vais mettre en ligne : [ce que c'est].\nAvant, vérifie avec moi :\n1. Testé comme un vrai utilisateur ?\n2. Ce qui doit être refusé l'est-il ?\n3. Un secret visible quelque part ?\n4. Que se passe-t-il si ça tombe en panne ?\nPose-moi une question par point."},
-      {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit gratuit :", "texte": "12 prompts que j'utilise vraiment pour construire avec l'IA."}
-    ]
-  },
-  {
-    "id": "22-zero-resultat",
+    "id": "22-zero-resultat", "etiquette": "HISTOIRE VRAIE", "chiffre": "0",
     "legende": "Mon outil d'essai rendait zéro résultat partout. J'ai cru que mon idée ne valait rien. C'était un filtre qui refusait tout, en silence.\n\n📎 Le kit du constructeur (gratuit) : lien dans ma bio.\n\n#ia #claude #chatgpt #vibecoding #buildinpublic #automatisation #nocode",
     "slides": [
       {"type": "couverture", "titre": "Zéro résultat partout. Ce n'était pas mon idée, c'était un filtre.", "texte": "Le piège qui ressemble à un échec."},

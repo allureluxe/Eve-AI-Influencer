@@ -4,7 +4,8 @@ UN SEUL GABARIT, ET C'EST VOULU. Le post qui a servi de modele
 (@_mind__vision_) se reconnait avant d'etre lu : meme fond, meme en-tete,
 meme place pour chaque element sur toutes les slides. C'est ce qui fait
 qu'un abonne s'arrete sur le post suivant sans avoir lu le nom du compte.
-Changer de couleurs ou de polices d'un post a l'autre detruirait ca.
+Depuis le 4 oct. (style « vif »), seule la COULEUR change d'un post a
+l'autre, en rotation fixe : les places, les polices et l'en-tete restent.
 
 Quatre types de slides, et un post n'en utilise pas d'autres :
 
@@ -19,6 +20,7 @@ ne depend pas de ce qui est installe sur le serveur.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field
 
 from PIL import Image, ImageDraw, ImageFont
@@ -43,7 +45,7 @@ BORD = (48, 66, 60)
 # texte foncé sur crème, surligneur jaune sur la couverture. Les comptes IA
 # qui marchent sont clairs et contrastés ; le sombre est encore assombri par
 # la compression d'Instagram. `utiliser_theme("clair")` l'active.
-THEME = "sombre"
+THEME = "vif"
 THEMES = {
     "sombre": dict(FOND=FOND, FOND_HAUT=FOND_HAUT, ENCRE=ENCRE, DOUX=DOUX, MENTHE=MENTHE,
                    FENETRE=FENETRE, BORD=BORD),
@@ -51,6 +53,7 @@ THEMES = {
                   DOUX=(80, 88, 84), MENTHE=(18, 150, 128), FENETRE=(255, 255, 255),
                   BORD=(226, 222, 212)),
 }
+THEMES["vif"] = dict(THEMES["clair"])
 SURLIGNEUR = (255, 214, 64)
 
 
@@ -59,6 +62,9 @@ def utiliser_theme(nom: str) -> None:
     THEME = nom
     globals().update(THEMES[nom])
 
+
+# Le compte utilise désormais le gabarit vif de Claude : couleurs pleines + cartes + fenêtres de conversation.
+utiliser_theme("vif")
 
 PSEUDO = "@alluxe.ia"
 NOM = "alluxe.ia"
@@ -101,11 +107,14 @@ class Post:
     id: str
     legende: str
     slides: list[Slide] = field(default_factory=list)
+    etiquette: str = ""            # « HISTOIRE VRAIE », « PROMPT À VOLER »…
+    chiffre: str | None = None     # None : tiré du titre ; "" : aucun
 
     @classmethod
     def depuis(cls, d: dict) -> "Post":
         return cls(id=d["id"], legende=d["legende"],
-                   slides=[Slide(**s) for s in d["slides"]])
+                   slides=[Slide(**s) for s in d["slides"]],
+                   etiquette=d.get("etiquette", ""), chiffre=d.get("chiffre"))
 
 
 # ---------------------------------------------------------------- texte
@@ -330,8 +339,295 @@ def _appel(d, s: Slide) -> None:
         _bloc(d, MARGE, y, s.texte, texte_police(42), DOUX, largeur, 1.35)
 
 
+# ---------------------------------------------------------------- style « vif »
+#
+# 4 oct., demande de l'opérateur : « je veux que mon compte Instagram il
+# claque, que dès que les gens tombent dessus ils soient pris ». Ce qui
+# change par rapport au gabarit unique d'origine :
+#   - la couverture et l'appel prennent une COULEUR VIVE pleine page, une
+#     par post, en rotation : la grille du profil devient multicolore ;
+#   - une étiquette qui intrigue (« HISTOIRE VRAIE », « PROMPT À VOLER ») ;
+#   - le chiffre du titre (108, 656…) en géant, en filigrane derrière ;
+#   - les prompts dans une vraie fenêtre de conversation.
+# Ce qui ne change pas : l'en-tête, les polices, la place de chaque
+# élément. On reconnaît toujours le compte avant de lire son nom.
+
+# (fond, encre) : l'encre est choisie pour le contraste sur ce fond.
+PALETTE_VIVE = [
+    ((255, 214, 64), (17, 20, 19)),     # jaune
+    ((47, 92, 255), (255, 255, 255)),   # bleu électrique
+    ((255, 94, 77), (17, 20, 19)),      # corail
+    ((17, 20, 19), (255, 255, 255)),    # noir (le surligneur jaune y ressort)
+    ((0, 200, 150), (17, 20, 19)),      # menthe vive
+    ((124, 77, 255), (255, 255, 255)),  # violet
+    ((255, 122, 184), (17, 20, 19)),    # rose
+]
+
+
+def couleur_du_post(post_id: str) -> tuple[tuple, tuple]:
+    """La couleur d'un post, fixée par son numéro : un post garde sa couleur
+    à chaque rendu, et des posts voisins n'ont jamais la même."""
+    try:
+        n = int(post_id.split("-")[0]) - 1
+    except ValueError:
+        n = sum(map(ord, post_id))
+    return PALETTE_VIVE[n % len(PALETTE_VIVE)]
+
+
+def _chiffre(post: Post) -> str:
+    """Le chiffre à mettre en géant : donné par le post, sinon le premier
+    nombre du titre s'il arrive dans les quatre premiers mots."""
+    if post.chiffre is not None:
+        return post.chiffre
+    titre = post.slides[0].titre if post.slides else ""
+    for mot in titre.split()[:4]:
+        m = re.match(r"^(\d[\d\s]*)", mot)
+        if m:
+            return m.group(1).strip()
+    return ""
+
+
+def _ombre(c: tuple, k: float = 0.86) -> tuple:
+    """Un ton plus sombre de la même couleur (ou plus clair sur le noir)."""
+    if sum(c) < 120:
+        return tuple(min(255, v + 34) for v in c)
+    return tuple(int(v * k) for v in c)
+
+
+def _pastille(d, x: int, y: int, texte: str, fond, encre, taille: int = 30,
+              droite: bool = False, fleche: bool = False) -> int:
+    """Étiquette arrondie ; rend sa largeur. La flèche vient de la police
+    mono : Atkinson n'a pas ce glyphe."""
+    p = texte_police(taille, gras=True)
+    pf = mono_police(taille)
+    wf = int(pf.getlength(" →")) if fleche else 0
+    w = int(p.getlength(texte)) + wf + 2 * 26
+    h = int(taille * 1.9)
+    x0 = x - w if droite else x
+    d.rounded_rectangle((x0, y, x0 + w, y + h), radius=h // 2, fill=fond)
+    d.text((x0 + 26, y + h // 2), texte, font=p, fill=encre, anchor="lm")
+    if fleche:
+        d.text((x0 + w - 26, y + h // 2), "→", font=pf, fill=encre, anchor="rm")
+    return w
+
+
+def _entete_vif(img, d, fond, encre, etiquette: str) -> None:
+    cx, cy, r = MARGE + 80, MARGE + 80, 80
+    m = medaillon(2 * r, contenu_taille=118)
+    img.paste(m, (cx - r, cy - r), m)
+    d.text((cx + r + 22, cy - 4), NOM, font=titre_police(36), fill=encre, anchor="ls")
+    d.text((cx + r + 22, cy + 32), PSEUDO, font=texte_police(26), fill=encre, anchor="ls")
+    if etiquette:
+        _pastille(d, LARGEUR - MARGE, cy - 29, etiquette, encre, fond, 28, droite=True)
+
+
+def _pleine_page(post: Post, numero: int, total: int):
+    fond, encre = couleur_du_post(post.id)
+    img = Image.new("RGB", (LARGEUR, HAUTEUR), fond)
+    d = ImageDraw.Draw(img)
+    return img, d, fond, encre
+
+
+def _couverture_vive(post: Post, s: Slide, total: int) -> Image.Image:
+    img, d, fond, encre = _pleine_page(post, 1, total)
+    chiffre = _chiffre(post)
+    if chiffre:
+        # Le chiffre en filigrane, coupé par le bord : il se voit de loin
+        # dans la grille, sans répéter le titre au premier plan.
+        pg = _police("BricolageGrotesque.ttf", 760 if len(chiffre) <= 2 else 560, "ExtraBold")
+        d.text((LARGEUR + 40, HAUTEUR - 70), chiffre, font=pg, fill=_ombre(fond), anchor="rs")
+    _entete_vif(img, d, fond, encre, post.etiquette)
+
+    largeur = LARGEUR - 2 * MARGE
+    fab = lambda t: _police("BricolageGrotesque.ttf", t, "ExtraBold")  # noqa: E731
+    p = _ajuster(s.titre, fab, 132, 72, largeur, 640, 1.02)
+    pt = texte_police(42, gras=True)
+    h = _hauteur(s.titre, p, largeur, 1.02)
+    if s.texte:
+        h += 48 + _hauteur(s.texte, pt, largeur - 40, 1.3) + 40
+    y0 = max(330, 330 + (HAUTEUR - 300 - 330 - h) // 2)
+    # Surligneur sous la dernière ligne : la chute de l'accroche.
+    lignes = couper(s.titre, p, largeur)
+    yl = y0 + int(p.size * 1.02) * (len(lignes) - 1)
+    w = d.textlength(lignes[-1], font=p)
+    # Jaune sur tous les fonds, blanc sur le jaune ; la ligne surlignée
+    # passe toujours en encre foncée.
+    marque = (255, 255, 255) if fond == SURLIGNEUR else SURLIGNEUR
+    coul_derniere = (17, 20, 19)
+    d.rounded_rectangle((MARGE - 14, yl + p.size * 0.14, MARGE + w + 16, yl + p.size * 1.04),
+                        radius=14, fill=marque)
+    y = y0
+    pas = int(p.size * 1.02)
+    for k, ligne in enumerate(lignes):
+        d.text((MARGE, y), ligne, font=p, fill=coul_derniere if k == len(lignes) - 1 else encre)
+        y += pas
+    if s.texte:
+        # La promesse dans une carte blanche : elle se détache du fond.
+        hc = _hauteur(s.texte, pt, largeur - 40, 1.3) + 40
+        wc = max(pt.getlength(l) for l in couper(s.texte, pt, largeur - 40)) + 40
+        y += 48
+        d.rounded_rectangle((MARGE - 6, y, MARGE + wc, y + hc), radius=22,
+                            fill=(255, 255, 255))
+        _bloc(d, MARGE + 20, y + 20, s.texte, pt, (17, 20, 19), largeur - 40, 1.3)
+    if total > 1:
+        _pastille(d, LARGEUR - MARGE, HAUTEUR - MARGE - 58, "Glisse", encre, fond, 32,
+                  droite=True, fleche=True)
+    return img
+
+
+def _entete_interieur(img, d, numero: int, total: int, accent, encre_accent) -> None:
+    cx, cy, r = MARGE + 70, MARGE + 70, 70
+    m = medaillon(2 * r, contenu_taille=104)
+    img.paste(m, (cx - r, cy - r), m)
+    d.text((cx + r + 20, cy - 4), NOM, font=titre_police(34), fill=ENCRE, anchor="ls")
+    d.text((cx + r + 20, cy + 30), PSEUDO, font=texte_police(26), fill=DOUX, anchor="ls")
+    _pastille(d, LARGEUR - MARGE, cy - 27, f"{numero}/{total}", accent, encre_accent, 26,
+              droite=True)
+
+
+def _texte_vif(img, d, s: Slide, accent) -> None:
+    largeur = LARGEUR - 2 * MARGE - 34
+    x = MARGE + 34
+    fab = lambda t: _police("BricolageGrotesque.ttf", t, "ExtraBold")  # noqa: E731
+    p = _ajuster(s.titre, fab, 80, 50, largeur, 340, 1.08)
+    hp = _hauteur(s.titre, p, largeur, 1.08)
+    pt = _ajuster(s.texte, texte_police, 46, 30, largeur, 760 - hp, 1.4)
+    h = hp + 44 + _hauteur(s.texte, pt, largeur, 1.4)
+    y0 = max(290, 290 + (HAUTEUR - 150 - 290 - h) // 2)
+    # La barre de couleur du post : on sait sur quel post on est, même au milieu.
+    d.rounded_rectangle((MARGE, y0 + 6, MARGE + 12, y0 + hp - 6), radius=6, fill=accent)
+    y = _bloc(d, x, y0, s.titre, p, ENCRE, largeur, 1.08)
+    _bloc(d, x, y + 44, s.texte, pt, DOUX, largeur, 1.4)
+
+
+def _prompt_vif(img, d, s: Slide, accent, encre_accent) -> None:
+    """Le prompt dans une fenêtre de conversation : barre de titre, bulle
+    « Toi », champ de saisie. Générique : aucune marque d'outil imitée."""
+    largeur = LARGEUR - 2 * MARGE
+    p = _ajuster(s.titre, lambda t: _police("BricolageGrotesque.ttf", t, "ExtraBold"),
+                 70, 44, largeur, 260, 1.08)
+    hp = _hauteur(s.titre, p, largeur, 1.08)
+    bulle = largeur - 2 * 34 - 60
+    interieur = bulle - 2 * 30
+    pm = _ajuster(s.prompt, mono_police, 30, 20, interieur, 900 - hp - 300, 1.42)
+    hb = int(len(couper(s.prompt, pm, interieur)) * pm.size * 1.42) + 2 * 28
+    barre, saisie = 74, 104
+    hf = barre + 40 + 36 + hb + 34 + saisie
+    y0 = max(280, 280 + (HAUTEUR - 140 - 280 - (hp + 40 + hf)) // 2)
+    y = _bloc(d, MARGE, y0, s.titre, p, ENCRE, largeur, 1.08) + 40
+
+    # Ombre portée douce, puis la fenêtre.
+    for k in range(10, 0, -2):
+        d.rounded_rectangle((MARGE + 4, y + k + 4, LARGEUR - MARGE + 4, y + hf + k + 4),
+                            radius=30, fill=tuple(v - 3 * (12 - k) // 2 for v in FOND))
+    d.rounded_rectangle((MARGE, y, LARGEUR - MARGE, y + hf), radius=30,
+                        fill=(255, 255, 255), outline=BORD, width=2)
+    d.rounded_rectangle((MARGE, y, LARGEUR - MARGE, y + barre), radius=30, fill=(242, 240, 234))
+    d.rectangle((MARGE, y + barre - 30, LARGEUR - MARGE, y + barre), fill=(242, 240, 234))
+    d.line((MARGE, y + barre, LARGEUR - MARGE, y + barre), fill=BORD, width=2)
+    for i, c in enumerate([(255, 95, 86), (255, 189, 46), (39, 201, 63)]):
+        cx = MARGE + 40 + i * 32
+        d.ellipse((cx - 10, y + barre // 2 - 10, cx + 10, y + barre // 2 + 10), fill=c)
+    d.text((LARGEUR // 2, y + barre // 2), "Nouvelle conversation",
+           font=texte_police(26, gras=True), fill=DOUX, anchor="mm")
+
+    yb = y + barre + 40
+    xd = LARGEUR - MARGE - 34
+    d.text((xd, yb), "Toi", font=texte_police(26, gras=True), fill=DOUX, anchor="rt")
+    yb += 36
+    d.rounded_rectangle((xd - bulle, yb, xd, yb + hb), radius=28, fill=accent)
+    # Coin « queue » de la bulle, en haut à droite.
+    d.rectangle((xd - 28, yb, xd, yb + 28), fill=accent)
+    _bloc(d, xd - bulle + 30, yb + 28, s.prompt, pm, encre_accent, interieur, 1.42)
+
+    ys = y + hf - saisie + 18
+    d.rounded_rectangle((MARGE + 28, ys, LARGEUR - MARGE - 28, ys + saisie - 36),
+                        radius=(saisie - 36) // 2, fill=(246, 244, 239), outline=BORD, width=2)
+    d.text((MARGE + 60, ys + (saisie - 36) // 2), "Écris ton message…",
+           font=texte_police(28), fill=(150, 150, 145), anchor="lm")
+    r = (saisie - 36) // 2 - 8
+    cx, cy = LARGEUR - MARGE - 28 - r - 10, ys + (saisie - 36) // 2
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(17, 20, 19))
+    d.text((cx, cy), "↑", font=mono_police(32), fill=(255, 255, 255), anchor="mm")
+
+    _pastille(d, MARGE, HAUTEUR - MARGE - 52, "PROMPT À VOLER", (17, 20, 19),
+              (255, 255, 255), 26)
+    d.text((LARGEUR - MARGE, HAUTEUR - MARGE - 26), "Sauvegarde ce post",
+           font=texte_police(30, gras=True), fill=DOUX, anchor="rm")
+
+
+def _appel_vif(post: Post, s: Slide, numero: int, total: int) -> Image.Image:
+    img, d, fond, encre = _pleine_page(post, numero, total)
+    _entete_vif(img, d, fond, encre, "")
+    largeur = LARGEUR - 2 * MARGE
+    amorce = s.titre or "Commente"
+    pa = _police("BricolageGrotesque.ttf", 78, "ExtraBold")
+    pt = texte_police(44, gras=True)
+    h = int(78 * 1.1) + 40 + 170 + (40 + _hauteur(s.texte, pt, largeur, 1.35) if s.texte else 0)
+    y = max(330, 330 + (HAUTEUR - 150 - 330 - h) // 2)
+    d.text((MARGE, y), amorce, font=pa, fill=encre)
+    y += int(78 * 1.1) + 40
+    pm = _police("BricolageGrotesque.ttf", 116, "ExtraBold")
+    w = int(pm.getlength(s.mot_cle))
+    # Le cartouche à l'inverse du fond : la seule action demandée.
+    d.rounded_rectangle((MARGE - 10, y, MARGE + w + 50, y + 150), radius=26, fill=encre)
+    d.text((MARGE + 20, y + 75), s.mot_cle, font=pm, fill=fond, anchor="lm")
+    y += 170
+    if s.texte:
+        _bloc(d, MARGE, y + 40, s.texte, pt, encre, largeur, 1.35)
+    return img
+
+
+def _rendre_vif(post: Post) -> list[Image.Image]:
+    total = len(post.slides)
+    accent, encre_accent = couleur_du_post(post.id)
+    if sum(accent) < 120:            # le noir : la bulle prend le jaune
+        accent, encre_accent = SURLIGNEUR, (17, 20, 19)
+    images = []
+    for i, s in enumerate(post.slides, start=1):
+        if s.type == "couverture":
+            images.append(_couverture_vive(post, s, total))
+            continue
+        if s.type == "appel" and i == total:
+            images.append(_appel_vif(post, s, i, total))
+            continue
+        img = Image.new("RGB", (LARGEUR, HAUTEUR), FOND)
+        d = ImageDraw.Draw(img)
+        _entete_interieur(img, d, i, total, accent, encre_accent)
+        if s.type == "texte":
+            _texte_vif(img, d, s, accent)
+        elif s.type == "prompt":
+            _prompt_vif(img, d, s, accent, encre_accent)
+        elif s.type == "appel":
+            _appel_milieu_vif(d, s, accent, encre_accent)
+        else:
+            raise ValueError(f"type de slide inconnu : {s.type!r}")
+        images.append(img)
+    return images
+
+
+def _appel_milieu_vif(d, s: Slide, accent, encre_accent) -> None:
+    """Le rappel du kit au milieu du post, dans la couleur du post."""
+    largeur = LARGEUR - 2 * MARGE
+    pt = texte_police(42)
+    h = 92 + 180 + (_hauteur(s.texte, pt, largeur, 1.35) if s.texte else 0)
+    y = max(290, 290 + (HAUTEUR - 150 - 290 - h) // 2)
+    d.text((MARGE, y), s.titre or "Commente",
+           font=_police("BricolageGrotesque.ttf", 64, "ExtraBold"), fill=ENCRE)
+    y += 92
+    pm = _police("BricolageGrotesque.ttf", 110, "ExtraBold")
+    w = int(pm.getlength(s.mot_cle))
+    d.rounded_rectangle((MARGE - 8, y - 6, MARGE + w + 40, y + 136), radius=24, fill=accent)
+    d.text((MARGE + 16, y + 65), s.mot_cle, font=pm, fill=encre_accent, anchor="lm")
+    y += 180
+    if s.texte:
+        _bloc(d, MARGE, y, s.texte, pt, DOUX, largeur, 1.35)
+
+
 def rendre(post: Post) -> list[Image.Image]:
     """Toutes les slides d'un post, dans l'ordre."""
+    if THEME == "vif":
+        return _rendre_vif(post)
     total = len(post.slides)
     images = []
     for i, s in enumerate(post.slides, start=1):
