@@ -100,6 +100,7 @@ class Slide:
     texte: str = ""
     prompt: str = ""
     mot_cle: str = ""
+    etiquette: str = ""            # style pop : la pastille de la couverture
 
 
 @dataclass
@@ -149,7 +150,8 @@ _COLLES_AVANT = {":", ";", "?", "!", "»", "—"}
 def _insecables(mots: list[str]) -> list[str]:
     sortie: list[str] = []
     for mot in mots:
-        if sortie and mot in _COLLES_AVANT:
+        # « ». » ou « », » : le guillemet suivi d'une ponctuation reste collé aussi.
+        if sortie and (mot in _COLLES_AVANT or mot[:1] == "»"):
             sortie[-1] = f"{sortie[-1]} {mot}"
         elif sortie and sortie[-1].endswith("«"):
             sortie[-1] = f"{sortie[-1]} {mot}"

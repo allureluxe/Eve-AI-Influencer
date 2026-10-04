@@ -209,3 +209,28 @@ class TestLeReelConversation:
         from alluxe_ia.reel_chat import image
         # Même entre deux étapes de la scène, le fond dérive : jamais d'image figée.
         assert ImageChops.difference(image(7.0), image(7.5)).getbbox() is not None
+
+
+class TestLeStylePop:
+    """4 oct. : la publication passe au style pop (clair, couleurs vives)."""
+
+    def test_tous_les_posts_se_rendent_en_pop(self):
+        from alluxe_ia.slides_pop import rendre
+        for post in _posts():
+            images = rendre(post)
+            assert 2 <= len(images) <= 10
+            assert all(i.size == (1080, 1350) for i in images)
+
+    def test_la_publication_utilise_le_style_combine(self):
+        import ops.alluxe_ia as pub
+        import alluxe_ia.slides_pop as pop
+        assert pub.rendre is pop.rendre
+
+    def test_la_couverture_sans_photo_est_en_couleur_vive(self):
+        from alluxe_ia.slides_pop import rendre
+        from alluxe_ia.slides import Post
+        p = Post.depuis({"id": "99-sans-photo", "legende": "x bio", "slides": [
+            {"type": "couverture", "titre": "Un titre", "texte": "x"},
+            {"type": "appel", "mot_cle": "Lien en bio", "titre": "Le kit :", "texte": "x"}]})
+        couverture = rendre(p)[0].convert("L")
+        assert sum(couverture.getdata()) / (1080 * 1350) > 120

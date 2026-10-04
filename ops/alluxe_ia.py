@@ -32,7 +32,11 @@ import urllib.request
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-from alluxe_ia.slides import Post, photo_profil, rendre  # noqa: E402
+from alluxe_ia.slides import Post, photo_profil  # noqa: E402
+# Style combiné (4 oct., décision opérateur) : couverture photo du sujet
+# (slides._couverture_photo) + pages intérieures « pop » (gros chiffres,
+# leçon sur noir, fenêtre COPIE-MOI, couleur propre au post).
+from alluxe_ia.slides_pop import rendre  # noqa: E402
 
 POSTS = os.path.join(RACINE, "alluxe_ia", "posts.json")
 SORTIE = os.path.join(RACINE, "data", "alluxe_ia")
