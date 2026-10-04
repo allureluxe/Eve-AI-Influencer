@@ -21,13 +21,24 @@ import subprocess
 from PIL import Image, ImageDraw, ImageFilter
 
 from alluxe_ia.musique import ecrire_wav
-from alluxe_ia.slides import (AMBRE, BORD, DOUX, ENCRE, FENETRE, FOND, MENTHE,
-                              couper, mono_police, texte_police, titre_police)
+from alluxe_ia.slides import AMBRE, MENTHE, couper, mono_police, texte_police, titre_police
+
+# VERSION CLAIRE (4 oct., demande opérateur) : un texte foncé sur fond clair se lit le
+# mieux, et le sombre est assombri encore par la compression d'Instagram.
+FOND = (250, 247, 240)          # crème
+ENCRE = (17, 20, 19)            # presque noir
+DOUX = (112, 120, 116)
+FENETRE = (255, 255, 255)
+BORD = (226, 222, 212)
+BULLE_IA = (238, 240, 238)
+BULLE_MOI = (18, 150, 128)       # menthe foncée : texte blanc lisible
+SURLIGNEUR = (255, 214, 64)
+ROSE = (255, 150, 170)
 
 L, H, IPS = 1080, 1920, 30
 G, D = 80, 940                        # bords gauche / droit (boutons Instagram à droite)
-ROUGE = (232, 84, 84)
-VERT = (88, 200, 130)
+ROUGE = (226, 52, 52)
+VERT = (30, 170, 95)
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # --- la scène, en secondes -------------------------------------------------
@@ -54,13 +65,14 @@ def _rebond(x: float) -> float:
 def _halo(rayon: int, couleur: tuple) -> Image.Image:
     img = Image.new("RGBA", (rayon * 2, rayon * 2), (0, 0, 0, 0))
     ImageDraw.Draw(img).ellipse((rayon // 2, rayon // 2, rayon * 3 // 2, rayon * 3 // 2),
-                                fill=couleur + (120,))
+                                fill=couleur + (95,))
     return img.filter(ImageFilter.GaussianBlur(rayon // 4))
 
 
 HALO_MENTHE = _halo(520, MENTHE)
 HALO_AMBRE = _halo(460, AMBRE)
 HALO_ROUGE = _halo(600, ROUGE)
+HALO_ROSE = _halo(420, ROSE)
 
 
 def _fond(t: float, alerte: float) -> Image.Image:
@@ -70,6 +82,8 @@ def _fond(t: float, alerte: float) -> Image.Image:
     x2 = int(520 + 240 * math.cos(t * 0.5)); y2 = int(1050 + 260 * math.sin(t * 0.45))
     img.paste(HALO_MENTHE, (x1, y1), HALO_MENTHE)
     img.paste(HALO_AMBRE, (x2, y2), HALO_AMBRE)
+    x3 = int(600 + 200 * math.sin(t * 0.7 + 1)); y3 = int(-150 + 160 * math.cos(t * 0.6))
+    img.paste(HALO_ROSE, (x3, y3), HALO_ROSE)
     if alerte > 0:
         h = HALO_ROUGE.copy()
         h.putalpha(h.getchannel("A").point(lambda a: int(a * alerte)))
@@ -91,11 +105,11 @@ def _bulle(d: ImageDraw.ImageDraw, texte: str, y: int, de_moi: bool, police, ech
     w2, h2 = w * echelle, h * echelle
     box = (cx - w2 / 2, cy - h2 / 2, cx + w2 / 2, cy + h2 / 2)
     d.rounded_rectangle(box, radius=int(30 * echelle),
-                        fill=MENTHE if de_moi else (38, 54, 49))
+                        fill=BULLE_MOI if de_moi else BULLE_IA)
     if echelle > 0.85:
         yy = y + 20
         for li in lignes:
-            d.text((x0 + 28, yy), li, font=police, fill=(10, 20, 18) if de_moi else ENCRE)
+            d.text((x0 + 28, yy), li, font=police, fill=(255, 255, 255) if de_moi else ENCRE)
             if barre:
                 lw = d.textlength(li, font=police)
                 d.line((x0 + 24, yy + police.size * 0.6, x0 + 32 + lw, yy + police.size * 0.6),
@@ -105,7 +119,7 @@ def _bulle(d: ImageDraw.ImageDraw, texte: str, y: int, de_moi: bool, police, ech
 
 
 def _points(d: ImageDraw.ImageDraw, y: int, t: float) -> int:
-    d.rounded_rectangle((G + 60, y, G + 60 + 150, y + 80), radius=30, fill=(38, 54, 49))
+    d.rounded_rectangle((G + 60, y, G + 60 + 150, y + 80), radius=30, fill=BULLE_IA)
     for i in range(3):
         a = 0.5 + 0.5 * math.sin(t * 9 - i * 0.9)
         c = tuple(int(DOUX[k] * (0.5 + 0.5 * a)) for k in range(3))
@@ -118,13 +132,21 @@ def _tape(texte: str, t: float, debut: float, vitesse: float = 26.0) -> str:
     return texte[:n]
 
 
-def _accroche(d: ImageDraw.ImageDraw, texte: str, t_local: float, couleur: tuple) -> None:
-    p = titre_police(int(96 * (0.7 + 0.3 * _rebond(t_local / 0.35))))
+def _accroche(d: ImageDraw.ImageDraw, texte: str, t_local: float, couleur: tuple,
+              surligne: str = "") -> None:
+    """Accroche en gros, avec un coup de surligneur jaune sur les mots clés."""
+    p = titre_police(int(100 * (0.7 + 0.3 * _rebond(t_local / 0.35))))
     lignes = couper(texte, p, D - G)
     y = 290
+    trace = _lisse((t_local - 0.3) / 0.35)          # le surligneur se pose après le texte
     for li in lignes:
+        if surligne and surligne in li and trace > 0:
+            x0 = G + d.textlength(li[: li.index(surligne)], font=p)
+            w = d.textlength(surligne, font=p)
+            d.rounded_rectangle((x0 - 10, y + p.size * 0.18, x0 - 10 + (w + 20) * trace,
+                                 y + p.size * 1.08), radius=10, fill=SURLIGNEUR)
         d.text((G, y), li, font=p, fill=couleur)
-        y += int(p.size * 1.08)
+        y += int(p.size * 1.1)
 
 
 def image(t: float) -> Image.Image:
@@ -137,15 +159,16 @@ def image(t: float) -> Image.Image:
 
     # Accroche : 6 à 8 mots, elle change au moment du tampon puis pour la chute.
     if t < 4.3:
-        _accroche(d, "Mon IA a inventé un prix.", t, ENCRE)
+        _accroche(d, "Mon IA a inventé un prix.", t, ENCRE, "un prix.")
     elif t < 13.6:
-        _accroche(d, "Le kit est GRATUIT.", t - 4.3, MENTHE)
+        _accroche(d, "Le kit est GRATUIT.", t - 4.3, ENCRE, "GRATUIT.")
     else:
-        _accroche(d, "Elle n'invente plus.", t - 13.6, MENTHE)
+        _accroche(d, "Elle n'invente plus.", t - 13.6, ENCRE, "plus.")
 
     # La fenêtre de discussion, qui monte au début.
     monte = _lisse(t / 0.5)
     haut = int(560 + (1 - monte) * 300)
+    d.rounded_rectangle((G + 8, haut + 14, D + 8, 1434), radius=44, fill=(232, 227, 216))
     d.rounded_rectangle((G, haut, D, 1420), radius=44, fill=FENETRE, outline=BORD, width=3)
     d.text((G + 40, haut + 30), "Assistant alluxe.fr", font=texte_police(32, gras=True), fill=DOUX)
     d.ellipse((D - 70, haut + 38, D - 46, haut + 62), fill=VERT)
@@ -176,7 +199,7 @@ def image(t: float) -> Image.Image:
         # Le correctif, ligne par ligne, dans une fenêtre de prompt.
         if t > 5.0:
             yc = max(y + 20, 1000)
-            d.rounded_rectangle((G + 40, yc, D - 40, yc + 330), radius=24, fill=(12, 18, 16),
+            d.rounded_rectangle((G + 40, yc, D - 40, yc + 330), radius=24, fill=(255, 250, 235),
                                 outline=AMBRE, width=3)
             d.text((G + 70, yc + 24), "Ajouté à sa consigne :", font=texte_police(32, gras=True),
                    fill=AMBRE)
@@ -197,7 +220,7 @@ def image(t: float) -> Image.Image:
                 cx, cy = G + 100, y + 50
                 d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=VERT)
                 if r > 30:
-                    d.line((cx - 20, cy, cx - 5, cy + 16, cx + 22, cy - 16), fill=(10, 20, 18), width=9)
+                    d.line((cx - 20, cy, cx - 5, cy + 16, cx + 22, cy - 16), fill=(255, 255, 255), width=9)
         # La chute : l'appel, qui pulse.
         if t > 14.0:
             p = _rebond((t - 14.0) / 0.35) * (1 + 0.03 * math.sin(t * 6))
@@ -208,10 +231,10 @@ def image(t: float) -> Image.Image:
             d.text((G + 60, yc - 60), "Les 12 prompts du kit :", font=texte_police(36, gras=True),
                    fill=ENCRE)
             d.rounded_rectangle((G + 50, yc, G + 90 + tw, yc + pc.size + 34), radius=16, fill=AMBRE)
-            d.text((G + 70, yc + 14), texte, font=pc, fill=(20, 17, 11))
+            d.text((G + 70, yc + 14), texte, font=pc, fill=ENCRE)
 
     # Barre de progression fine sous la fenêtre.
-    d.rectangle((G, 1450, D, 1456), fill=(40, 56, 51))
+    d.rectangle((G, 1450, D, 1456), fill=BORD)
     d.rectangle((G, 1450, G + int((D - G) * t / DUREE), 1456), fill=MENTHE)
     return img
 

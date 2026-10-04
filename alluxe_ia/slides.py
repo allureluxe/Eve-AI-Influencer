@@ -39,6 +39,27 @@ AMBRE = (227, 162, 74)
 FENETRE = (24, 35, 32)
 BORD = (48, 66, 60)
 
+# Deux thèmes. « clair » (4 oct., demande opérateur après le Reel à 5 vues) :
+# texte foncé sur crème, surligneur jaune sur la couverture. Les comptes IA
+# qui marchent sont clairs et contrastés ; le sombre est encore assombri par
+# la compression d'Instagram. `utiliser_theme("clair")` l'active.
+THEME = "sombre"
+THEMES = {
+    "sombre": dict(FOND=FOND, FOND_HAUT=FOND_HAUT, ENCRE=ENCRE, DOUX=DOUX, MENTHE=MENTHE,
+                   FENETRE=FENETRE, BORD=BORD),
+    "clair": dict(FOND=(250, 247, 240), FOND_HAUT=(255, 252, 246), ENCRE=(17, 20, 19),
+                  DOUX=(80, 88, 84), MENTHE=(18, 150, 128), FENETRE=(255, 255, 255),
+                  BORD=(226, 222, 212)),
+}
+SURLIGNEUR = (255, 214, 64)
+
+
+def utiliser_theme(nom: str) -> None:
+    global THEME
+    THEME = nom
+    globals().update(THEMES[nom])
+
+
 PSEUDO = "@alluxe.ia"
 NOM = "alluxe.ia"
 
@@ -240,7 +261,15 @@ def _couverture(d, s: Slide, total: int) -> None:
     h = _hauteur(s.titre, p, largeur, 1.08)
     if s.texte:
         h += 40 + _hauteur(s.texte, pt, largeur, 1.3)
-    y = _bloc(d, MARGE, _centre(h), s.titre, p, ENCRE, largeur, 1.08)
+    y0 = _centre(h)
+    if THEME == "clair":
+        # Surligneur sous la dernière ligne du titre : c'est la chute de l'accroche.
+        lignes = couper(s.titre, p, largeur)
+        yl = y0 + int(p.size * 1.08) * (len(lignes) - 1)
+        w = d.textlength(lignes[-1], font=p)
+        d.rounded_rectangle((MARGE - 12, yl + p.size * 0.16, MARGE + w + 14, yl + p.size * 1.06),
+                            radius=12, fill=SURLIGNEUR)
+    y = _bloc(d, MARGE, y0, s.titre, p, ENCRE, largeur, 1.08)
     if s.texte:
         _bloc(d, MARGE, y + 40, s.texte, pt, DOUX, largeur, 1.3)
     if total > 1:
@@ -295,7 +324,7 @@ def _appel(d, s: Slide) -> None:
     w = int(pm.getlength(s.mot_cle))
     d.rounded_rectangle([MARGE - 8, y - 6, MARGE + w + 40, y + 132],
                         radius=22, fill=AMBRE)
-    d.text((MARGE + 16, y + 8), s.mot_cle, font=pm, fill=FOND)
+    d.text((MARGE + 16, y + 8), s.mot_cle, font=pm, fill=ENCRE if THEME == "clair" else FOND)
     y += 180
     if s.texte:
         _bloc(d, MARGE, y, s.texte, texte_police(42), DOUX, largeur, 1.35)
