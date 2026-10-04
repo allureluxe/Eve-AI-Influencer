@@ -49,14 +49,17 @@ de l'ecran de lancement « ALLURE »), 200 px centre (demande operateur, 4 oct.)
 affichage urgent, corriger cote serveur. Aussi sur Chromebook (Linux+adb).
 La version web (GitHub Pages) = appli privee, sans mot de passe embarque.
 
-**PROCHAINE TACHE DEMANDEE (4 oct. 01h10)** : un AGENT IA sur alluxe.fr --
-bulle ronde avec le logo en bas a droite de la page du kit, clic -> fenetre
-de discussion. Architecture proposee : widget JS dans docs/kit/index.html ->
-fonction Edge Supabase (cle cachee, limite de messages par visiteur/jour,
-CORS limite a alluxe.fr) -> modele. Garde-fous : ne parle que d'IA et du kit,
-AUCUN conseil financier ni promesse de gains. Choix du cerveau A FAIRE AVEC
-LUI : Groq gratuit (quota partage avec l'agent) ou ChatGPT (~1-5 EUR/mois,
-plafond). Penser HTTPS sur alluxe.fr avant (multisite OVH en cours).
+**ASSISTANT alluxe.fr EN LIGNE (4 oct. 14h)** : bulle logo en bas a droite
+de docs/kit/index.html -> fonction Edge `alluxe-site-assistant` (sans JWT,
+CORS alluxe.fr seulement) -> Groq gratuit (choix operateur), modele
+qwen/qwen3.8-27b (quota separe de l'agent ; gpt-oss-20b inventait un prix)
+puis repli gpt-oss-20b. Plafonds : 20 messages/visiteur/jour, 300/jour au
+total (table alluxe_site_quota, IP hachee, rien d'autre garde). Secrets
+Supabase GROQ_API_KEY + ASSISTANT_SEL. Garde-fous testes en reel (crypto,
+injection, formation payante). Tests : deno test
+supabase/functions/alluxe-site-assistant/. Le connecteur MCP Supabase
+annule apply_migration dans ces sessions : passer par l'API de gestion
+(SUPABASE_ACCESS_TOKEN) + `notify pgrst, 'reload schema'`.
 
 **Reste ouvert** : label IA Instagram + stats Meta (lui) ; credit API Claude
 (plus tard, decision operateur).

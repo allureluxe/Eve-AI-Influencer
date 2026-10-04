@@ -53,6 +53,39 @@
   .suite { margin-top: 44px; padding: 20px; border-radius: 14px; background: var(--carte); border: 1px solid var(--trait); }
   .suite a { color: var(--eau); font-weight: 700; text-decoration: none; }
   footer { margin-top: 32px; color: var(--doux); font-size: 12px; }
+
+  /* Assistant : bulle en bas a droite -> fenetre de discussion */
+  #bulle {
+    position: fixed; right: 18px; bottom: 18px; width: 64px; height: 64px;
+    border-radius: 50%; border: 2px solid var(--eau); background: var(--fond);
+    padding: 4px; cursor: pointer; box-shadow: 0 6px 24px rgba(0,0,0,.45); z-index: 20;
+  }
+  #bulle img { width: 100%; height: 100%; border-radius: 50%; display: block; }
+  #fenetre {
+    position: fixed; right: 18px; bottom: 94px; width: min(370px, calc(100vw - 36px));
+    height: min(520px, calc(100vh - 120px)); background: var(--carte);
+    border: 1px solid var(--trait); border-radius: 16px; display: none;
+    flex-direction: column; overflow: hidden; z-index: 20;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  }
+  #fenetre.ouverte { display: flex; }
+  #fenetre header {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    border-bottom: 1px solid var(--trait); font-weight: 700;
+  }
+  #fenetre header img { width: 30px; height: 30px; border-radius: 50%; }
+  #fenetre header button { margin-left: auto; background: none; border: 0; color: var(--doux); font-size: 22px; cursor: pointer; }
+  #fil { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: 85%; padding: 9px 12px; border-radius: 12px; font-size: 15px; white-space: pre-wrap; }
+  .msg.ia { background: var(--trait); align-self: flex-start; }
+  .msg.moi { background: var(--eau); color: #0b1412; align-self: flex-end; }
+  #saisie { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--trait); }
+  #saisie input {
+    flex: 1; background: var(--fond); color: var(--texte); border: 1px solid var(--trait);
+    border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 16px;
+  }
+  #saisie button { background: var(--orange); border: 0; border-radius: 10px; padding: 0 14px; font-weight: 700; cursor: pointer; }
+  #fenetre small { color: var(--doux); font-size: 11px; padding: 0 12px 8px; }
 </style>
 </head>
 <body>
@@ -91,5 +124,54 @@
 
   <footer>Ce kit est gratuit et ne contient aucun lien sponsorisé. Les réponses de l'IA sont à vérifier : il ne remplace pas un conseil juridique, médical ou financier.</footer>
 </main>
+
+<button id="bulle" aria-label="Poser une question"><img src="logo-alluxe.png" alt=""></button>
+<section id="fenetre" aria-label="Assistant alluxe.ia">
+  <header><img src="logo-alluxe.png" alt="">Assistant alluxe.ia<button id="fermer" aria-label="Fermer">×</button></header>
+  <div id="fil"></div>
+  <form id="saisie"><input id="texte" maxlength="600" placeholder="Ta question sur l'IA ou le kit…" autocomplete="off"><button>➤</button></form>
+  <small>Réponses générées par une IA, à vérifier. Aucun conseil financier.</small>
+</section>
+<script>
+(() => {
+  const ADRESSE = "https://jwksajhtvhwktkbkpits.supabase.co/functions/v1/alluxe-site-assistant";
+  const bulle = document.getElementById("bulle"), fenetre = document.getElementById("fenetre");
+  const fil = document.getElementById("fil"), form = document.getElementById("saisie");
+  const champ = document.getElementById("texte");
+  const historique = [];
+  const ajouter = (texte, qui) => {
+    const d = document.createElement("div");
+    d.className = "msg " + qui; d.textContent = texte;
+    fil.appendChild(d); fil.scrollTop = fil.scrollHeight; return d;
+  };
+  let accueilli = false;
+  bulle.onclick = () => {
+    fenetre.classList.toggle("ouverte");
+    if (!accueilli) { accueilli = true; ajouter("Salut ! Une question sur le kit, les prompts, ou comment construire avec l'IA sans être développeur ?", "ia"); }
+    champ.focus();
+  };
+  document.getElementById("fermer").onclick = () => fenetre.classList.remove("ouverte");
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const q = champ.value.trim();
+    if (!q) return;
+    champ.value = ""; ajouter(q, "moi");
+    historique.push({ role: "user", content: q });
+    const attente = ajouter("…", "ia");
+    try {
+      const r = await fetch(ADRESSE, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ messages: historique.slice(-8) }) });
+      const d = await r.json();
+      const rep = d.reponse || "Je n'arrive pas à répondre pour l'instant, réessaie plus tard.";
+      attente.textContent = rep;
+      if (d.reponse) historique.push({ role: "assistant", content: rep }); else historique.pop();
+    } catch {
+      attente.textContent = "Connexion impossible, réessaie dans un instant.";
+      historique.pop();
+    }
+    fil.scrollTop = fil.scrollHeight;
+  };
+})();
+</script>
 </body>
 </html>
