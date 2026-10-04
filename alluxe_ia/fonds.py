@@ -101,18 +101,18 @@ SCENES: dict[str, str] = {
 # 4 oct. : 01 et 07 ramenaient une personne (page sans visage), 02, 03 et
 # 05 une photo hors sujet ; leurs mots-clés ont été resserrés.
 RECHERCHE: dict[str, str] = {
-    "01-tout-construit": "laptop dark desk night",
+    "01-tout-construit": "laptop code screen dark",
     "02-le-labo": "laboratory flasks",
     "03-108-rejetees": "crumpled paper balls",
     "04-cahier-des-charges": "blank notebook pen",
     "05-publication-auto": "printing press machine",
     "06-fichier-decisions": "library card catalog",
-    "07-tests-verts": "server rack lights",
+    "07-tests-verts": "green led lights dark",
     "08-agent-garde-fous": "robotic arm factory",
     "09-methode-4-cases": "minimalist squares shadow",
     "10-cinq-erreurs": "chess king fallen",
     "11-assistant-perso": "cozy desk lamp evening",
-    "12-arrete-d-inventer": "price tag dark",
+    "12-arrete-d-inventer": "robot artificial intelligence",
     "13-casse-cette-semaine": "broken glass",
     "14-avant-apres-prompt": "foggy window mountains",
     "15-expliquer-un-bug": "magnifying glass circuit board",
