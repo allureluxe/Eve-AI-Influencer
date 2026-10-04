@@ -1,0 +1,109 @@
+{
+ "_note": "SEULE source des prix du site (decision operateur du 4 oct. : prix accessibles, ere de l'IA). Changer ici, puis ops/publier_site_alluxe.py. Formule mensuelle : sans frais de depart, engagement 12 mois (protection contre le client qui part au 2e mois).",
+ "paiement_en_ligne": false,
+ "offres": [
+  {
+   "id": "vitrine",
+   "nom": "Site vitrine",
+   "accroche": "Ta présence pro en ligne, en 5 jours.",
+   "unique": 149,
+   "mensuel": 19,
+   "delai": "5 jours",
+   "couleur": "jaune",
+   "inclus": [
+    "Jusqu'à 5 pages",
+    "Design sur mesure, adapté au téléphone",
+    "Formulaire de contact",
+    "Nom de domaine + hébergement la 1re année",
+    "Référencement Google de base"
+   ]
+  },
+  {
+   "id": "shopify",
+   "nom": "Boutique Shopify",
+   "accroche": "Ta boutique prête à vendre, clé en main.",
+   "unique": 249,
+   "mensuel": 29,
+   "delai": "7 jours",
+   "couleur": "menthe",
+   "populaire": true,
+   "inclus": [
+    "Thème Shopify configuré à ton image",
+    "Jusqu'à 20 produits ajoutés",
+    "Paiement et livraison réglés",
+    "Pages légales prêtes",
+    "Formation vidéo pour gérer ta boutique"
+   ],
+   "note": "Abonnement Shopify à la charge du client (dès 27 €/mois chez Shopify)."
+  },
+  {
+   "id": "ecommerce",
+   "nom": "E-commerce de A à Z",
+   "accroche": "Ta marque complète, de zéro à la première vente.",
+   "unique": 399,
+   "mensuel": 49,
+   "delai": "10 jours",
+   "couleur": "corail",
+   "inclus": [
+    "Logo et identité visuelle",
+    "Boutique complète (jusqu'à 50 produits)",
+    "Fiches produits rédigées par l'IA",
+    "Paiement, livraison, e-mails automatiques",
+    "Comptes Instagram et Facebook prêts",
+    "1 mois de suivi"
+   ]
+  },
+  {
+   "id": "agent",
+   "nom": "Agent IA secrétaire",
+   "accroche": "Il répond, trie et prend les rendez-vous à ta place.",
+   "unique": 99,
+   "mensuel": 19,
+   "abonnement_obligatoire": true,
+   "delai": "5 jours",
+   "couleur": "lilas",
+   "inclus": [
+    "Répond aux questions de tes clients 24 h/24",
+    "Prise de rendez-vous dans ton agenda",
+    "Tri et résumé de tes e-mails",
+    "Sur ton site, WhatsApp ou Messenger",
+    "Entraîné sur TES infos, rien d'inventé"
+   ]
+  },
+  {
+   "id": "robot",
+   "nom": "Robot d'automatisation",
+   "accroche": "Une tâche répétitive ? Le robot la fait pour toi.",
+   "unique": 99,
+   "mensuel": 19,
+   "a_partir": true,
+   "delai": "3 à 7 jours",
+   "couleur": "ciel",
+   "inclus": [
+    "Publication automatique sur les réseaux",
+    "Relances clients et factures",
+    "Commandes copiées vers ton tableau",
+    "Alertes par e-mail ou SMS",
+    "Mode essai avant mise en route"
+   ]
+  },
+  {
+   "id": "complet",
+   "nom": "Pack business IA",
+   "accroche": "Boutique + agent + robot : tout ton business en ligne.",
+   "unique": 590,
+   "mensuel": 69,
+   "delai": "14 jours",
+   "couleur": "jaune",
+   "meilleur": true,
+   "inclus": [
+    "Tout le pack E-commerce de A à Z",
+    "Agent IA secrétaire (3 mois offerts)",
+    "1 robot d'automatisation au choix",
+    "2 mois de suivi",
+    "Appel de lancement en visio"
+   ]
+  }
+ ],
+ "engagement_mois": 12
+}

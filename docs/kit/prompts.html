@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompts gratuits — alluxe.ia</title>
+<meta name="description" content="34 prompts à copier en un clic, un kit gratuit et un assistant IA. Pour construire avec Claude et ChatGPT sans savoir coder.">
+<meta property="og:title" content="alluxe.ia — Construire avec l'IA, sans être développeur">
+<meta property="og:description" content="34 prompts à copier en un clic, un kit gratuit, un assistant IA.">
+<meta property="og:image" content="apercus/1.jpg">
+<meta name="theme-color" content="#faf7f0">
+<link rel="icon" href="logo-alluxe.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="page-titre"><div class="conteneur">
+  <span class="pastille">GRATUIT · COPIE EN 1 CLIC</span>
+  <h1>Les prompts que j'utilise <mark>vraiment.</mark></h1>
+  <p class="accroche">Remplis les cases jaunes, copie, colle dans ChatGPT, Claude ou Gemini. <a href="kit-constructeur.pdf" download>Le kit PDF gratuit</a> en bonus.</p>
+</div></header>
+<section class="jour" id="jour">
+  <div class="conteneur">
+    <h2 class="apparait">Le prompt <mark>du jour.</mark></h2>
+    <p class="sous-titre apparait">Il change chaque jour. Remplis les cases jaunes, puis copie.</p>
+    <div id="carte-jour" class="apparait"></div>
+  </div>
+</section>
+
+<section id="prompts">
+  <div class="conteneur">
+    <h2 class="apparait">La bibliothèque <mark>de prompts.</mark></h2>
+    <p class="sous-titre apparait">Cherche un mot, choisis une catégorie. Les cases jaunes se remplissent dans le prompt pendant que tu écris.</p>
+    <div class="outils">
+      <input class="recherche" id="recherche" type="search" placeholder="Rechercher : mail, bug, décision, apprendre…" aria-label="Rechercher un prompt">
+    </div>
+    <div class="outils" id="filtres"></div>
+    <p class="compte" id="compte"></p>
+    <div class="biblio" id="biblio"></div>
+    <div class="boutons" style="justify-content:center"><button class="bouton clair" id="plus" hidden></button></div>
+  </div>
+</section>
+
+<section class="duel" id="avant-apres">
+  <div class="conteneur">
+    <h2 class="apparait">Même IA. <mark>Pas la même réponse.</mark></h2>
+    <p class="sous-titre apparait">La différence entre ce que tout le monde écrit et un prompt qui marche. Bascule pour voir.</p>
+    <div class="bascule" role="tablist">
+      <button class="actif" data-cote="avant" role="tab">Avant</button>
+      <button data-cote="apres" role="tab">Après</button>
+    </div>
+    <div class="panneau apparait" id="panneau"></div>
+  </div>
+</section>
+
+<script>
+// La bibliothèque : prompts.json est construit depuis les publications (alluxe_ia/site.py).
+(() => {
+  const COULEURS = { "Bien écrire un prompt": "var(--jaune)", "Au quotidien": "var(--menthe)",
+    "Construire un projet": "var(--lilas)", "Trouver un bug": "var(--corail)" };
+  const echapper = (t) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const trous = (p) => [...new Set([...p.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]))];
+
+  function carte(p, ouvert = false) {
+    const el = document.createElement("article");
+    el.className = "carte";
+    el.style.setProperty("--c", COULEURS[p.categorie] || "var(--jaune)");
+    const champs = trous(p.prompt);
+    el.innerHTML = `<span class="cat">${echapper(p.categorie)}</span><h3>${echapper(p.titre)}</h3><pre></pre>` +
+      (champs.length ? `<div class="champs"${ouvert ? "" : " hidden"}>${champs.map((c, i) =>
+        `<label>${echapper(c)}<input data-i="${i}" placeholder="${echapper(c)}"></label>`).join("")}</div>` : "") +
+      `<div class="actions"><button class="copier">Copier le prompt</button>` +
+      (champs.length && !ouvert ? `<button class="remplir">✎ Remplir les cases (${champs.length})</button>` : "") + `</div>`;
+    const pre = el.querySelector("pre"), entrees = [...el.querySelectorAll("input")];
+    const texte = () => p.prompt.replace(/\[([^\]]+)\]/g, (m, c) => {
+      const v = entrees[champs.indexOf(c)]?.value.trim(); return v || m;
+    });
+    const dessiner = () => {
+      pre.innerHTML = echapper(p.prompt).replace(/\[([^\]]+)\]/g, (m, c) => {
+        const v = entrees[champs.indexOf(c.replace(/&amp;/g, "&"))]?.value.trim();
+        return v ? `<span class="rempli">${echapper(v)}</span>` : `<span class="trou">${m}</span>`;
+      });
+    };
+    entrees.forEach((e) => e.addEventListener("input", dessiner));
+    const remplir = el.querySelector(".remplir");
+    if (remplir) remplir.onclick = () => {
+      el.querySelector(".champs").hidden = false; remplir.remove(); entrees[0].focus();
+    };
+    dessiner();
+    const bouton = el.querySelector(".copier");
+    bouton.onclick = async () => {
+      try { await navigator.clipboard.writeText(texte()); }
+      catch { const z = document.createElement("textarea"); z.value = texte(); document.body.appendChild(z); z.select(); document.execCommand("copy"); z.remove(); }
+      bouton.textContent = "Copié ✓ colle-le dans ton IA"; bouton.classList.add("ok");
+      setTimeout(() => { bouton.textContent = "Copier le prompt"; bouton.classList.remove("ok"); }, 2200);
+    };
+    return el;
+  }
+
+  fetch("prompts.json").then((r) => r.json()).then((tous) => {
+    const nb = document.getElementById("nb-prompts"); if (nb) nb.textContent = tous.length;
+    // Prompt du jour : change à minuit, le même pour tout le monde.
+    const jour = Math.floor(Date.now() / 86400000);
+    document.getElementById("carte-jour").appendChild(carte(tous[jour % tous.length], true));
+
+    const biblio = document.getElementById("biblio"), compte = document.getElementById("compte");
+    const recherche = document.getElementById("recherche"), filtres = document.getElementById("filtres");
+    let cat = "Tout", tout_voir = false;
+    const plus = document.getElementById("plus");
+    ["Tout", ...Object.keys(COULEURS)].forEach((c) => {
+      const b = document.createElement("button");
+      b.className = "filtre" + (c === "Tout" ? " actif" : ""); b.textContent = c;
+      b.onclick = () => { cat = c; tout_voir = false; filtres.querySelectorAll(".filtre").forEach((x) => x.classList.toggle("actif", x === b)); afficher(); };
+      filtres.appendChild(b);
+    });
+    const sansAccent = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    function afficher() {
+      const q = sansAccent(recherche.value.trim());
+      const liste = tous.filter((p) => (cat === "Tout" || p.categorie === cat) &&
+        (!q || sansAccent(p.titre + " " + p.sujet + " " + p.prompt).includes(q)));
+      const montres = (tout_voir || q) ? liste : liste.slice(0, 9);
+      biblio.replaceChildren(...montres.map((p) => carte(p)));
+      plus.hidden = montres.length >= liste.length;
+      plus.textContent = `Voir les ${liste.length - montres.length} autres prompts ↓`;
+      compte.textContent = `${liste.length} prompt${liste.length > 1 ? "s" : ""}`;
+      if (!liste.length) biblio.innerHTML = `<p class="vide">Rien pour « ${echapper(recherche.value)} ». Essaie « mail », « bug » ou « apprendre », ou demande à l'assistant en bas à droite.</p>`;
+    }
+    recherche.addEventListener("input", afficher);
+    plus.onclick = () => { tout_voir = true; afficher(); };
+    afficher();
+  }).catch(() => {
+    document.getElementById("biblio").innerHTML = '<p class="vide">La bibliothèque n\'a pas pu se charger. Le kit PDF reste disponible plus bas.</p>';
+  });
+})();
+
+// Avant / après.
+(() => {
+  const COTES = {
+    avant: { prompt: "Écris un mail pour demander une augmentation.",
+      verdict: "Résultat : un mail générique, trop long, trop poli, qui pourrait venir de n'importe qui. À réécrire entièrement." },
+    apres: { prompt: "Tu es un manager qui sait ce qui convainc une direction.\nÉcris un mail pour demander une augmentation.\nContexte : [ton poste], [depuis combien de temps], [2 résultats concrets], [le montant visé].\nFormat : 120 mots, ton direct, une demande de rendez-vous à la fin.",
+      verdict: "Résultat : un mail court, précis, à ton nom, prêt à envoyer. Rôle, tâche, contexte, format : les 4 cases." },
+  };
+  const panneau = document.getElementById("panneau");
+  const montrer = (c) => {
+    panneau.innerHTML = `<pre></pre><p class="verdict"></p>`;
+    panneau.querySelector("pre").textContent = COTES[c].prompt;
+    panneau.querySelector(".verdict").textContent = COTES[c].verdict;
+  };
+  document.querySelectorAll(".bascule button").forEach((b) => b.onclick = () => {
+    document.querySelectorAll(".bascule button").forEach((x) => x.classList.toggle("actif", x === b));
+    montrer(b.dataset.cote);
+  });
+  montrer("avant");
+})();
+
+</script>
+<script src="commun.js"></script>
+</body>
+</html>

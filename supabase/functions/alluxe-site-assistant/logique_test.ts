@@ -48,5 +48,6 @@ Deno.test("l'IP n'est jamais gardee en clair", async () => {
 Deno.test("la consigne interdit le conseil financier et les prix inventes", () => {
   assertEquals(CONSIGNE.includes("AUCUN conseil financier"), true);
   assertEquals(CONSIGNE.includes("N'invente jamais de prix"), true);
-  assertEquals(CONSIGNE.includes("GRATUIT"), true);
+  assertEquals(CONSIGNE.includes("149 EUR"), true);
+  assertEquals(CONSIGNE.includes("Pas de robot de trading"), true);
 });

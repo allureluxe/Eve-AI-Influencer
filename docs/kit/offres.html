@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offres et prix — alluxe.ia</title>
+<meta name="description" content="Site vitrine dès 149 €, boutique Shopify 249 €, e-commerce de A à Z 399 €, agent IA secrétaire 99 € + 19 €/mois. Ou en abonnement sans frais de départ.">
+<meta name="theme-color" content="#faf7f0">
+<link rel="icon" href="logo-alluxe.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="page-titre"><div class="conteneur">
+  <span class="pastille">PRIX AFFICHÉS · SANS DEVIS CACHÉ</span>
+  <h1>Des prix de 2026, <mark>pas de 2015.</mark></h1>
+  <p class="accroche">Paie une fois et c'est à toi, ou démarre sans frais avec l'abonnement mensuel (hébergement, mises à jour et suivi inclus).</p>
+</div></header>
+
+<section style="padding-top:24px">
+  <div class="conteneur">
+    <div class="formule" role="tablist">
+      <button class="actif" data-f="unique" role="tab">Paiement unique</button>
+      <button data-f="mensuel" role="tab">Au mois, 0 € au départ</button>
+    </div>
+    <div class="offres" id="offres"></div>
+    <p class="petit" id="note-engagement" style="margin-top:16px"></p>
+  </div>
+</section>
+
+<section class="jour">
+  <div class="conteneur">
+    <h2 class="apparait">Toujours inclus, <mark>quelle que soit l'offre.</mark></h2>
+    <div class="etapes">
+      <div class="etape apparait"><div class="num">✓</div><h3>Tu valides tout</h3><p>Chaque étape t'est montrée avant la suivante. Deux séries de retouches incluses.</p></div>
+      <div class="etape apparait"><div class="num">✓</div><h3>Adapté au téléphone</h3><p>Tout est pensé d'abord pour le téléphone, là où sont tes clients.</p></div>
+      <div class="etape apparait"><div class="num">✓</div><h3>Tu restes propriétaire</h3><p>Ton nom de domaine, tes textes, tes produits et tes clients sont à toi.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="conteneur">
+    <h2 class="apparait">Questions <mark>sur les prix.</mark></h2>
+    <details class="apparait"><summary>Pourquoi 10 fois moins cher qu'une agence ?</summary><p>L'IA écrit le code, les textes et prépare les visuels en quelques heures. Je facture ce temps-là, pas celui d'avant l'IA. La qualité est vérifiée à la main à chaque étape.</p></details>
+    <details class="apparait"><summary>Que comprend l'abonnement ?</summary><p>La création sans frais de départ, l'hébergement, le nom de domaine, les mises à jour, les petites modifications et le suivi. Engagement de 12 mois, puis sans engagement.</p></details>
+    <details class="apparait"><summary>Y a-t-il des frais en plus ?</summary><p>Seulement ceux des plateformes que tu choisis, payés directement à elles : l'abonnement Shopify pour une boutique Shopify, et les commissions de paiement de ta banque ou de Stripe sur tes ventes.</p></details>
+    <details class="apparait"><summary>Mon projet ne rentre dans aucune case.</summary><p>Commande l'offre la plus proche et décris ton besoin dans le formulaire : je te réponds avec un prix précis avant tout paiement.</p></details>
+  </div>
+</section>
+
+<script src="commun.js"></script>
+<script>
+chargerOffres().then(({ offres, engagement_mois }) => {
+  const zone = document.getElementById("offres");
+  let formule = "unique";
+  function afficher() {
+    zone.replaceChildren(...offres.map((o) => {
+      const c = document.createElement("article");
+      c.className = "offre" + (o.populaire || o.meilleur ? " vedette" : ""); c.id = o.id;
+      c.style.setProperty("--c", `var(--${o.couleur})`);
+      const ruban = o.populaire ? "LE PLUS DEMANDÉ" : o.meilleur ? "MEILLEUR RAPPORT" : "";
+      let montant, detail;
+      if (o.abonnement_obligatoire) {
+        montant = `${euros(o.unique)}<small> + ${euros(o.mensuel)}/mois</small>`;
+        detail = "Installation, puis abonnement (le service tourne en continu).";
+      } else if (formule === "unique") {
+        montant = `${o.a_partir ? "<small>dès </small>" : ""}${euros(o.unique)}`;
+        detail = "Paiement unique · c'est à toi.";
+      } else {
+        montant = `${o.a_partir ? "<small>dès </small>" : ""}${euros(o.mensuel)}<small>/mois</small>`;
+        detail = `0 € au départ · engagement ${engagement_mois} mois · hébergement et suivi inclus.`;
+      }
+      c.innerHTML = (ruban ? `<span class="ruban">${ruban}</span>` : "") +
+        `<div class="entete"><h3></h3><p></p></div><div class="montant">${montant}</div>
+         <div class="detail">${detail} Délai : ${o.delai}.</div><ul></ul>` +
+        (o.note ? `<p class="detail"></p>` : "") +
+        `<a class="bouton" href="commander.html?offre=${o.id}&formule=${o.abonnement_obligatoire ? "mensuel" : formule}">Commander <span class="fleche">→</span></a>`;
+      c.querySelector("h3").textContent = o.nom;
+      c.querySelector(".entete p").textContent = o.accroche;
+      o.inclus.forEach((t) => { const li = document.createElement("li"); li.textContent = t; c.querySelector("ul").appendChild(li); });
+      if (o.note) c.querySelectorAll(".detail")[1].textContent = o.note;
+      return c;
+    }));
+    document.getElementById("note-engagement").textContent = formule === "mensuel"
+      ? `Formule au mois : engagement ${engagement_mois} mois, puis résiliable à tout moment.` : "";
+    if (location.hash) document.querySelector(location.hash)?.scrollIntoView({ block: "center" });
+  }
+  document.querySelectorAll(".formule button").forEach((b) => b.onclick = () => {
+    formule = b.dataset.f;
+    document.querySelectorAll(".formule button").forEach((x) => x.classList.toggle("actif", x === b));
+    afficher();
+  });
+  afficher();
+});
+</script>
+</body>
+</html>

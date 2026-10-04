@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commander — alluxe.ia</title>
+<meta name="description" content="Commande ton site, ta boutique, ton agent IA ou ton robot. Réponse sous 24 h.">
+<meta name="theme-color" content="#faf7f0">
+<link rel="icon" href="logo-alluxe.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="page-titre"><div class="conteneur">
+  <span class="pastille">RÉPONSE SOUS 24 H</span>
+  <h1>Lance ton projet <mark>maintenant.</mark></h1>
+  <p class="accroche">Choisis ton offre, décris ton idée en quelques lignes. Je te recontacte sous 24 h pour caler les détails avant tout paiement.</p>
+</div></header>
+
+<section style="padding-top:20px">
+  <div class="conteneur">
+    <form class="formulaire" id="commande" novalidate>
+      <div class="deux">
+        <label>Offre<select name="offre" id="offre" required></select></label>
+        <label>Formule<select name="formule" id="formule">
+          <option value="unique">Paiement unique</option><option value="mensuel">Au mois, 0 € au départ</option></select></label>
+      </div>
+      <div class="recap" id="recap">…</div>
+      <div class="deux">
+        <label>Ton nom<input name="nom" required autocomplete="name"></label>
+        <label>Ton e-mail<input name="email" type="email" required autocomplete="email"></label>
+      </div>
+      <div class="deux">
+        <label>Téléphone (facultatif)<input name="telephone" type="tel" autocomplete="tel"></label>
+        <label>Ton activité<input name="activite" placeholder="ex. coiffeuse à Lyon, vente de bougies…"></label>
+      </div>
+      <label>Ton projet en quelques lignes<textarea name="message" placeholder="Ce que tu vends, ce que tu veux sur le site, un exemple de site que tu aimes…"></textarea></label>
+      <label style="position:absolute;left:-9999px" aria-hidden="true">Site web<input name="site_web" tabindex="-1" autocomplete="off"></label>
+      <label class="case"><input type="checkbox" name="consentement" required> J'accepte d'être recontacté au sujet de ma demande. Mes informations ne servent qu'à ça et ne sont jamais revendues.</label>
+      <p class="avis" id="avis-paiement"></p>
+      <button class="bouton" type="submit" id="envoyer">Envoyer ma commande <span class="fleche">→</span></button>
+      <p id="retour" role="status"></p>
+    </form>
+  </div>
+</section>
+
+<script src="commun.js"></script>
+<script>
+chargerOffres().then(({ offres, engagement_mois, paiement_en_ligne }) => {
+  const q = new URLSearchParams(location.search);
+  const choixOffre = document.getElementById("offre"), choixFormule = document.getElementById("formule");
+  offres.forEach((o) => choixOffre.add(new Option(o.nom, o.id)));
+  if (q.get("offre")) choixOffre.value = q.get("offre");
+  if (q.get("formule")) choixFormule.value = q.get("formule");
+  document.getElementById("avis-paiement").textContent = paiement_en_ligne
+    ? "Après validation des détails, tu reçois un lien pour régler l'acompte en ligne."
+    : "Aucun paiement maintenant : je te recontacte pour valider ton projet, puis je t'envoie le récapitulatif et le moyen de paiement.";
+  function recap() {
+    const o = offres.find((x) => x.id === choixOffre.value);
+    const mensuel = o.abonnement_obligatoire || choixFormule.value === "mensuel";
+    choixFormule.disabled = !!o.abonnement_obligatoire;
+    if (o.abonnement_obligatoire) choixFormule.value = "mensuel";
+    const prix = o.abonnement_obligatoire ? `${euros(o.unique)} puis ${euros(o.mensuel)}/mois`
+      : mensuel ? `${o.a_partir ? "dès " : ""}${euros(o.mensuel)}/mois, 0 € au départ (engagement ${engagement_mois} mois)`
+      : `${o.a_partir ? "dès " : ""}${euros(o.unique)} en une fois`;
+    document.getElementById("recap").textContent = `${o.nom} : ${prix} · délai ${o.delai}`;
+  }
+  choixOffre.onchange = recap; choixFormule.onchange = recap; recap();
+
+  const form = document.getElementById("commande"), retour = document.getElementById("retour"), bouton = document.getElementById("envoyer");
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const f = new FormData(form);
+    const corps = Object.fromEntries(f.entries());
+    corps.consentement = form.consentement.checked;
+    corps.formule = choixFormule.value;
+    if (!corps.nom || !corps.email) { retour.textContent = "Indique ton nom et ton e-mail."; return; }
+    if (!corps.consentement) { retour.textContent = "Coche la case pour accepter d'être recontacté."; return; }
+    bouton.disabled = true; retour.textContent = "Envoi…";
+    try {
+      const r = await fetch("https://jwksajhtvhwktkbkpits.supabase.co/functions/v1/alluxe-site-demande",
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(corps) });
+      const d = await r.json();
+      if (d.ok) {
+        form.innerHTML = `<div class="message-ok">C'est reçu ! Je te recontacte sous 24 h à l'adresse indiquée.
+          En attendant, jette un œil aux <a href="prompts.html">prompts gratuits</a> ou suis <a href="https://www.instagram.com/alluxe.ia/">@alluxe.ia</a>.</div>`;
+      } else { retour.textContent = d.erreur || "Une erreur est survenue, réessaie."; bouton.disabled = false; }
+    } catch { retour.textContent = "Connexion impossible, réessaie dans un instant."; bouton.disabled = false; }
+  };
+});
+</script>
+</body>
+</html>
