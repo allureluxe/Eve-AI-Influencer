@@ -48,7 +48,10 @@ VRAIE = "Il est gratuit : 6 pages, 12 prompts, sans inscription."
 CORRECTIFS = ["1. Voici les faits : […]",
               "2. N'invente aucun prix ni lien.",
               "3. Si tu ne sais pas, dis-le."]
-DUREE = 17.0
+SCENE = 17.0                     # la conversation
+OUVERTURE = 1.8                  # la photo du sujet, comme la couverture des carrousels
+DUREE = OUVERTURE + SCENE
+PHOTO = "24-ia-qui-invente"       # alluxe_ia/fonds/<id>.jpg
 
 
 def _lisse(x: float) -> float:
@@ -150,6 +153,52 @@ def _accroche(d: ImageDraw.ImageDraw, texte: str, t_local: float, couleur: tuple
 
 
 def image(t: float) -> Image.Image:
+    if t < OUVERTURE:
+        return _ouverture(t)
+    return _scene(t - OUVERTURE)
+
+
+_PHOTO_CACHE: dict = {}
+
+
+def _ouverture(t: float) -> Image.Image:
+    """La photo du sujet en plein écran, qui zoome doucement, avec le titre
+    surligné : la même signature que la couverture des carrousels."""
+    from alluxe_ia import slides as base
+    if "src" not in _PHOTO_CACHE:
+        src = Image.open(base._fond_photo(PHOTO)).convert("RGB")
+        k = max(L * 1.15 / src.width, H * 1.15 / src.height)
+        _PHOTO_CACHE["src"] = src.resize((int(src.width * k) + 1, int(src.height * k) + 1), Image.LANCZOS)
+        _PHOTO_CACHE["accent"] = base.couleur_du_post(PHOTO)
+    src = _PHOTO_CACHE["src"]
+    accent, encre_accent = _PHOTO_CACHE["accent"]
+    z = 1.15 - 0.15 * (t / OUVERTURE)              # zoom arrière lent
+    w, h = int(L * z), int(H * z)
+    x0, y0 = (src.width - w) // 2, (src.height - h) // 2
+    img = src.crop((x0, y0, x0 + w, y0 + h)).resize((L, H), Image.BILINEAR)
+    voile = Image.new("L", (L, H))
+    dv = ImageDraw.Draw(voile)
+    for y in range(0, H, 4):
+        a = int(min(225, 250 * max(0.0, (y / H - 0.3) / 0.6)))
+        dv.rectangle((0, y, L, y + 4), fill=a)
+    img = Image.composite(Image.new("RGB", (L, H), (8, 10, 10)), img, voile)
+    d = ImageDraw.Draw(img)
+    p = titre_police(int(118 * (0.75 + 0.25 * _rebond(t / 0.4))))
+    lignes = couper("Mon IA a inventé un prix.", p, D - G)
+    y = 1000
+    for i, li in enumerate(lignes):
+        if i == len(lignes) - 1:
+            w2 = d.textlength(li, font=p) * _lisse((t - 0.4) / 0.4)
+            d.rounded_rectangle((G - 12, y + p.size * 0.12, G + w2 + 14, y + p.size * 1.06),
+                                radius=14, fill=accent)
+            d.text((G, y), li, font=p, fill=encre_accent if w2 > 10 else (255, 255, 255))
+        else:
+            d.text((G, y), li, font=p, fill=(255, 255, 255))
+        y += int(p.size * 1.04)
+    return img
+
+
+def _scene(t: float) -> Image.Image:
     tampon = _lisse((t - 3.9) / 0.25)
     alerte = max(0.0, 1 - abs(t - 4.2) / 0.9) if 3.9 <= t <= 5.1 else 0.0
     img = _fond(t, alerte)
@@ -235,7 +284,7 @@ def image(t: float) -> Image.Image:
 
     # Barre de progression fine sous la fenêtre.
     d.rectangle((G, 1450, D, 1456), fill=BORD)
-    d.rectangle((G, 1450, G + int((D - G) * t / DUREE), 1456), fill=MENTHE)
+    d.rectangle((G, 1450, G + int((D - G) * t / SCENE), 1456), fill=MENTHE)
     return img
 
 
