@@ -192,3 +192,20 @@ class TestLaMusiqueDesReels:
         source = open(r.__file__, encoding="utf-8").read()
         assert "anullsrc" not in source
         assert "ecrire_wav(" in source
+
+
+class TestLeReelConversation:
+    """4 oct. : le Reel « conversation animée » remplace le texte sur fond fixe."""
+
+    def test_chaque_instant_se_dessine_au_bon_format(self):
+        from alluxe_ia.reel_chat import DUREE, image
+        t = 0.0
+        while t <= DUREE:
+            assert image(t).size == (1080, 1920)
+            t += 0.1
+
+    def test_l_image_bouge_d_un_instant_a_l_autre(self):
+        from PIL import ImageChops
+        from alluxe_ia.reel_chat import image
+        # Même entre deux étapes de la scène, le fond dérive : jamais d'image figée.
+        assert ImageChops.difference(image(7.0), image(7.5)).getbbox() is not None

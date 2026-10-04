@@ -32,7 +32,7 @@ from zoneinfo import ZoneInfo
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-from alluxe_ia.reel import REELS  # noqa: E402
+from alluxe_ia.reel import REELS  # noqa: E402  (légendes ; le 02 est rendu par reel_chat)
 
 API = "https://api.bundle.social/api/v1/"
 EQUIPE = "32828e26-6e40-4411-9361-13077da51aa7"   # « allureluxe's Org »
@@ -126,7 +126,10 @@ def main() -> int:
     quand = _heure_utc(args.le)
     fichier = os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{args.reel_id}.mp4")
     if not os.path.exists(fichier):
-        from alluxe_ia.reel import rendre
+        if args.reel_id == "02-ia-invente-un-prix":   # version « conversation animée »
+            from alluxe_ia.reel_chat import rendre
+        else:
+            from alluxe_ia.reel import rendre
         rendre(args.reel_id)
     apercu = corps_du_post(args.reel_id, "<televersement>", args.son, quand, args.essai)
     print(json.dumps(apercu, ensure_ascii=False, indent=1))
