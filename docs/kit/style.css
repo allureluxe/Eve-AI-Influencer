@@ -264,3 +264,13 @@ footer .liens a { color: var(--noir); font-weight: 700; text-decoration: none; }
   .barre nav { top: 96px !important; }
   .eventail .logo-flottant { width: 190px; }
 }
+
+/* Bandeau du kit gratuit : la bio Instagram promet le kit, il doit se voir tout de suite. */
+.bandeau-kit { display: block; text-align: center; background: var(--jaune); color: var(--noir); text-decoration: none;
+  border-bottom: 3px solid var(--noir); padding: 12px 16px; font-size: 15px; font-weight: 500; }
+.bandeau-kit b { text-decoration: underline; text-underline-offset: 3px; }
+.bandeau-kit span { display: inline-block; margin-left: 6px; transition: transform .15s; }
+.bandeau-kit:hover span { transform: translateX(4px); }
+/* `hidden` doit gagner sur les display des boutons et des champs (page Paiement). */
+[hidden] { display: none !important; }
+.formulaire a { color: var(--noir); font-weight: 700; }

@@ -19,7 +19,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[1]
 SOURCE = RACINE / "docs" / "kit"
-FICHIERS = ["index.html", "offres.html", "kits.html", "kits.json", "realisations.html", "prompts.html", "commander.html",
+FICHIERS = [".htaccess", "index.html", "kit.html", "payer.html", "merci.html", "offres.html", "kits.html", "kits.json", "realisations.html", "prompts.html", "commander.html",
             "mentions-legales.html", "cgv.html", "style.css", "commun.js", "offres.json",
             "kit-constructeur.pdf", "alluxe.jpg", "logo-alluxe.png"]
 
@@ -37,6 +37,8 @@ def main() -> int:
     from alluxe_ia.site import construire
     charger_env()
     fichiers = FICHIERS + construire()
+    if (SOURCE / "paiements.json").exists():          # n'existe qu'une fois Stripe/PayPal branchés
+        fichiers.append("paiements.json")
     apercu = "--apercu" in sys.argv
     ftp = ftplib.FTP(os.environ["OVH_FTP_HOST"], timeout=60)
     ftp.login(os.environ["OVH_FTP_USER"], os.environ["OVH_FTP_PASSWORD"])

@@ -1,0 +1,32 @@
+# alluxe.fr -- hebergement OVH (Apache). Depose par ops/publier_site_alluxe.py.
+Options -MultiViews
+RewriteEngine On
+
+# Toujours en https (le cadenas), et sans « www ».
+# OVH mutualise : %{HTTPS} n'est pas fiable derriere leur proxy, le port l'est (doc OVH).
+RewriteCond %{SERVER_PORT} 80
+RewriteRule ^ https://alluxe.fr%{REQUEST_URI} [L,R=301]
+RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
+
+# Adresses courtes : alluxe.fr/kit (lien de la bio Instagram), /offres, /commander...
+# (sans tester le nom nu : avec offres.json a cote, Apache servait le JSON pour /offres)
+RewriteCond %{DOCUMENT_ROOT}/%{REQUEST_URI}.html -f [OR]
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^([a-z-]+)/?$ $1.html [L]
+
+ErrorDocument 404 /index.html
+
+# Images et polices en cache une semaine ; pages et prix toujours frais.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg "access plus 7 days"
+  ExpiresByType image/png "access plus 7 days"
+  ExpiresByType text/css "access plus 1 hour"
+  ExpiresByType application/javascript "access plus 1 hour"
+  ExpiresByType application/json "access plus 0 seconds"
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>

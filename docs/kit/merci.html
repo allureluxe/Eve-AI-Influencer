@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Merci ! — alluxe.ia</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#faf7f0">
+<link rel="icon" href="logo-alluxe.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="page-titre"><div class="conteneur">
+  <span class="pastille">PAIEMENT REÇU</span>
+  <h1>Merci, c'est <mark>parti !</mark></h1>
+  <p class="accroche" id="message">Ton paiement est bien reçu. Tu vas recevoir la confirmation par e-mail, et je te recontacte sous 24 h pour la suite.</p>
+  <div class="boutons">
+    <a class="bouton" href="kits.html">En attendant : les kits gratuits <span class="fleche">→</span></a>
+    <a class="bouton clair" href="https://www.instagram.com/alluxe.ia/">Suivre @alluxe.ia</a>
+  </div>
+</div></header>
+
+<script src="commun.js"></script>
+<script>
+const q = new URLSearchParams(location.search);
+if (q.get("etape") === "solde")
+  document.getElementById("message").textContent = "Solde reçu : ton projet est entièrement réglé. La facture arrive par e-mail. Merci pour ta confiance !";
+</script>
+</body>
+</html>

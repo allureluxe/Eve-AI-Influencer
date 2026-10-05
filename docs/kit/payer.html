@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paiement — alluxe.ia</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#faf7f0">
+<link rel="icon" href="logo-alluxe.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="page-titre"><div class="conteneur">
+  <span class="pastille">PAIEMENT SÉCURISÉ</span>
+  <h1>Régler ton <mark>projet.</mark></h1>
+  <p class="accroche">Carte bancaire, Apple Pay, Google Pay ou PayPal. Tes données bancaires ne passent jamais par ce site.</p>
+</div></header>
+
+<section style="padding-top:20px">
+  <div class="conteneur">
+    <div class="formulaire" id="paiement">
+      <div class="deux">
+        <label>Offre<select id="offre"></select></label>
+        <label>Formule<select id="formule">
+          <option value="unique">Paiement unique</option><option value="mensuel">Au mois</option></select></label>
+      </div>
+      <label id="choix-etape">Étape<select id="etape">
+        <option value="acompte">Acompte de 30 % (au lancement)</option><option value="solde">Solde (à la livraison)</option></select></label>
+      <div class="recap" id="recap">…</div>
+      <p class="petit" id="detail"></p>
+      <div id="moyens">
+        <a class="bouton" id="stripe" href="#" rel="noopener">Payer par carte <span class="fleche">→</span></a>
+        <div id="paypal" style="margin-top:18px;max-width:360px"></div>
+      </div>
+      <p class="avis" id="ferme" hidden></p>
+      <p class="petit">En payant, tu acceptes les <a href="cgv.html">conditions générales de vente</a>.
+        Un doute sur le montant ? <a href="commander.html">Écris-moi d'abord</a>.</p>
+    </div>
+  </div>
+</section>
+
+<script src="commun.js"></script>
+<script>
+// Montants : offres.json (seule source des prix) ; liens : paiements.json,
+// généré par ops/creer_paiements_stripe.py. Le découpage suit les CGV :
+// acompte 30 % / solde en paiement unique, abonnement au mois.
+Promise.all([chargerOffres(), fetch("paiements.json").then((r) => r.ok ? r.json() : {}).catch(() => ({}))])
+.then(([{ offres, paiement_en_ligne, engagement_mois }, paiements]) => {
+  const q = new URLSearchParams(location.search);
+  const $ = (id) => document.getElementById(id);
+  offres.forEach((o) => $("offre").add(new Option(o.nom, o.id)));
+  if (q.get("offre")) $("offre").value = q.get("offre");
+  if (q.get("formule")) $("formule").value = q.get("formule");
+  if (q.get("etape")) $("etape").value = q.get("etape");
+
+  if (!paiement_en_ligne) {
+    $("moyens").hidden = true; $("ferme").hidden = false;
+    $("ferme").textContent = "Le paiement en ligne ouvre très bientôt. En attendant, passe par la page Commander : je te recontacte sous 24 h.";
+  }
+
+  const cents = (n) => Math.round(n * 100);
+  const affiche = (c) => (c / 100).toLocaleString("fr-FR", { minimumFractionDigits: c % 100 ? 2 : 0 }) + " €";
+  let paypalRendu = null;
+
+  function etat() {
+    const o = offres.find((x) => x.id === $("offre").value);
+    if (o.abonnement_obligatoire) $("formule").value = "mensuel";
+    $("formule").disabled = !!o.abonnement_obligatoire;
+    const mensuel = $("formule").value === "mensuel";
+    const etape = mensuel ? "mensuel" : $("etape").value;
+    const acompte = Math.round(cents(o.unique) * 0.30);
+    const m = o.abonnement_obligatoire ? { unique: cents(o.unique), mensuel: cents(o.mensuel) }
+      : mensuel ? { mensuel: cents(o.mensuel) }
+      : etape === "acompte" ? { unique: acompte } : { unique: cents(o.unique) - acompte };
+    return { o, etape, m, lien: ((paiements.stripe || {})[o.id] || {})[etape] };
+  }
+
+  function rendre() {
+    const { o, etape, m, lien } = etat();
+    $("choix-etape").hidden = etape === "mensuel";
+    $("recap").textContent = o.abonnement_obligatoire
+      ? `${o.nom} : ${affiche(m.unique)} d'installation + ${affiche(m.mensuel)}/mois`
+      : etape === "mensuel" ? `${o.nom} : ${affiche(m.mensuel)}/mois`
+      : `${o.nom} : ${etape === "acompte" ? "acompte" : "solde"} de ${affiche(m.unique)} (total ${affiche(cents(o.unique))})`;
+    $("detail").textContent = (etape === "mensuel"
+      ? `Prélevé chaque mois, engagement ${engagement_mois} mois puis résiliable avec un mois de préavis. Abonnement par carte uniquement.`
+      : "Une facture t'est envoyée par e-mail après le paiement.")
+      + (o.a_partir ? " Prix de base : si ton projet a été chiffré autrement, attends le lien personnalisé que je t'envoie." : "");
+    // Le lien Stripe est figé sur son montant : on vérifie qu'il correspond
+    // encore au prix affiché, sinon on ne le propose pas.
+    const accord = lien && JSON.stringify(lien.montants) === JSON.stringify(m);
+    $("stripe").hidden = !accord; if (accord) $("stripe").href = lien.url;
+    rendrePaypal(etape === "mensuel" ? 0 : m.unique, o, etape);
+    if (paiement_en_ligne) {
+      const aucun = $("stripe").hidden && $("paypal").hidden;
+      $("ferme").hidden = !aucun;
+      if (aucun) $("ferme").textContent = "Ce paiement n'est pas encore disponible en ligne : écris-moi depuis la page Commander, je t'envoie un lien.";
+    }
+  }
+
+  function rendrePaypal(montant, o, etape) {
+    const zone = $("paypal"); zone.hidden = !montant || !paiements.paypal_client_id;
+    if (zone.hidden || !window.paypal) return;
+    if (paypalRendu) paypalRendu.close();
+    paypalRendu = paypal.Buttons({
+      style: { layout: "horizontal", tagline: false, height: 48 },
+      createOrder: (d, actions) => actions.order.create({ purchase_units: [{
+        description: `alluxe.ia — ${o.nom} (${etape})`.slice(0, 127),
+        custom_id: `${o.id}:${etape}`,
+        amount: { currency_code: "EUR", value: (montant / 100).toFixed(2) } }] }),
+      onApprove: (d, actions) => actions.order.capture().then(() => {
+        location.href = `merci.html?offre=${o.id}&etape=${etape}&via=paypal`; }),
+      onError: () => { $("ferme").hidden = false; $("ferme").textContent = "PayPal n'a pas abouti. Réessaie, ou paie par carte."; },
+    });
+    paypalRendu.render(zone);
+  }
+
+  ["offre", "formule", "etape"].forEach((id) => $(id).onchange = rendre);
+  if (paiement_en_ligne && paiements.paypal_client_id) {
+    const s = document.createElement("script");
+    s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(paiements.paypal_client_id)}&currency=EUR&intent=capture`;
+    s.onload = rendre; document.head.appendChild(s);
+  }
+  rendre();
+});
+</script>
+</body>
+</html>

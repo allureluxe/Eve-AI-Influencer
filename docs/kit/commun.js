@@ -1,7 +1,7 @@
 // Éléments communs à toutes les pages d'alluxe.fr : barre, pied de page,
 // assistant, apparition au défilement. Une seule copie, jamais recopiée.
 (() => {
-  const PAGES = [["index.html", "Accueil"], ["offres.html", "Offres & prix"], ["kits.html", "Kits à faire soi-même"],
+  const PAGES = [["index.html", "Accueil"], ["kit.html", "Kit gratuit"], ["offres.html", "Offres & prix"], ["kits.html", "Kits à faire soi-même"],
     ["realisations.html", "Réalisations"], ["prompts.html", "Prompts gratuits"]];
   const ici = location.pathname.split("/").pop() || "index.html";
   const barre = document.createElement("div");
@@ -15,7 +15,7 @@
   barre.querySelector(".menu").onclick = () => barre.querySelector("nav").classList.toggle("ouvert");
 
   const pied = document.createElement("footer");
-  pied.innerHTML = `<div class="conteneur"><div class="liens"><a href="offres.html">Offres</a><a href="commander.html">Commander</a>
+  pied.innerHTML = `<div class="conteneur"><div class="liens"><a href="kit.html">Kit gratuit</a><a href="offres.html">Offres</a><a href="commander.html">Commander</a>
     <a href="https://www.instagram.com/alluxe.ia/">Instagram</a><a href="mentions-legales.html">Mentions légales</a><a href="cgv.html">CGV</a></div>
     Les réponses de l'IA sont à vérifier : elles ne remplacent pas un conseil juridique, médical ou financier.<br>© alluxe.ia</div>`;
   document.body.appendChild(pied);
