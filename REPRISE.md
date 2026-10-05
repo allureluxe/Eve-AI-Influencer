@@ -1,4 +1,12 @@
-# Ou on en est — mis a jour le 4 octobre 2026, 20h
+# Ou on en est — mis a jour le 5 octobre 2026, soir
+
+## 5 OCT. soir
+- REEL : robot-dual-live avait ete relance le 4 a 22h31 -> 2 robots reels sur le
+  meme state.json, app fausse (3 positions sur 8). Arrete le 5 a 17h04. robot-trading
+  seul, ~297 EUR (retrait 650 le 4, depot 300 le 5), 8 positions. NE PAS relancer dual-live.
+- alluxe.ia etape 1 (logo) FAITE ; etape 2 FAITE : couvertures 10, 11, 12, 14, 28
+  remplacees (commit bf62606). 27, 29, 32 gardees. Prochaine : etape 3, rythme des Reels.
+
 
 ## 4 OCT. 20h -- alluxe.ia REPART DE ZERO (lire en premier pour Instagram)
 
