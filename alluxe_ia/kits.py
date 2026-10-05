@@ -261,6 +261,39 @@ Déroulé :
 Commence par la première question."""
   },
   {
+    "id": "influenceuse-ia", "nom": "Influenceuse IA Instagram & TikTok", "icone": "🌟", "couleur": "corail",
+    "categorie": "Réseaux sociaux", "niveau": "Intermédiaire", "temps": "1 à 2 jours pour lancer, puis 1 h par semaine",
+    "cout": "0 à 30 €/mois selon les outils d'image et de vidéo choisis",
+    "resultat": "Un personnage virtuel complet (histoire, style, visage constant), ses comptes Instagram et TikTok, et un mois de publications et de vidéos.",
+    "outils": ["ChatGPT ou Claude (personnalité, textes, génération d'images)", "Un outil d'image vers vidéo (ex. Kling, Runway), souvent payant",
+               "CapCut (gratuit) pour le montage", "Instagram et TikTok, Meta Business Suite pour programmer"],
+    "etapes": [
+      "Colle le prompt : l'IA crée la personnalité, l'histoire et le style de ton influenceuse.",
+      "Elle écrit la « fiche visage » qui garde le même visage sur toutes les images : c'est le point le plus difficile.",
+      "Tu génères une photo de référence, puis toutes les autres à partir d'elle.",
+      "Elle prépare un mois de posts, de Reels et de TikToks (textes, scènes, sons, légendes).",
+      "Tu animes les meilleures photos en vidéo, tu montes dans CapCut, et tu programmes.",
+      "Toujours l'étiquette IA sur les plateformes, et « Image virtuelle » sur les contenus commerciaux."
+    ],
+    "prompt": """Tu es un directeur de création spécialisé dans les influenceurs virtuels sur Instagram et TikTok. On va créer ensemble une influenceuse IA complète et lancer ses comptes.
+
+{REGLES}
+7. Règles légales et de sécurité, à respecter et à me rappeler : le personnage est fictif et ne ressemble à aucune personne réelle ; aucun contenu suggestif, ni d'apparence mineure ; étiquette « contenu IA » activée sur Instagram et TikTok ; mention « Image virtuelle » sur toute publication commerciale (loi française du 9 juin 2023) ; « Publicité » ou « Collaboration commerciale » sur tout partenariat payé.
+
+Déroulé :
+ÉTAPE 1 — Questions une par une : la niche (mode, voyage, sport, beauté, tech, cuisine…), le public visé, le but (abonnés, vente de mes produits, partenariats), la langue, et le temps que je peux y consacrer par semaine.
+ÉTAPE 2 — Personnage : prénom, âge adulte, ville, histoire, personnalité, valeurs, façon de parler, centres d'intérêt, ce qu'elle ne fera jamais. Le tout cohérent et crédible. Attends ma validation.
+ÉTAPE 3 — Fiche visage : une description ultra précise et fixe de son visage et de sa silhouette (forme du visage, yeux, nez, bouche, cheveux, teint, signes distinctifs), plus 5 tenues et 5 lieux récurrents. Puis le prompt d'image de la photo de référence. Explique-moi comment réutiliser cette photo de référence pour garder le MÊME visage sur chaque nouvelle image, et comment repérer et jeter les images ratées.
+ÉTAPE 4 — Profils : nom de compte (vérifie avec moi qu'il est libre), bio Instagram et bio TikTok, et la liste des réglages (compte professionnel, étiquette IA). Guide-moi pour créer les deux comptes.
+ÉTAPE 5 — Stratégie : 3 à 4 thèmes réguliers, le rythme réaliste pour moi, et ce qui marche en ce moment sur chaque plateforme (accroche dans la 1re seconde, durée, sons tendance), expliqué simplement.
+ÉTAPE 6 — Un mois de contenu : un tableau de 30 publications réparties entre Instagram et TikTok : format, scène à générer (avec le prompt d'image complet qui reprend la fiche visage), texte à l'écran, légende, mots-dièses, son conseillé.
+ÉTAPE 7 — Vidéos : comment transformer une photo en vidéo de 5 à 10 secondes avec un outil d'image vers vidéo, comment écrire le prompt de mouvement, puis comment monter et ajouter le son dans CapCut, clic par clic.
+ÉTAPE 8 — Publication et suivi : programmer avec Meta Business Suite (Instagram) et l'outil de TikTok, les 3 chiffres à suivre chaque semaine, et comment répondre aux commentaires en restant dans le personnage.
+ÉTAPE 9 — Revenus, honnêtement : les façons possibles de gagner de l'argent (mes produits, affiliation, partenariats) et le temps réaliste avant d'y arriver, sans promesse.
+
+Commence par la première question de l'étape 1."""
+  },
+  {
     "id": "logo-identite", "nom": "Logo et identité visuelle", "icone": "🎨", "couleur": "jaune",
     "categorie": "Marque", "niveau": "Débutant", "temps": "1 à 2 heures", "cout": "0 € (Canva gratuit), IA d'image selon ton abonnement",
     "resultat": "Un nom, un logo, une palette de couleurs, des polices et une mini charte pour rester cohérent partout.",
@@ -418,11 +451,23 @@ Commence par la première question."""
 ]
 
 
+# Ordre d'affichage = la demande réelle (4 oct., recherches 2026 : site vitrine
+# n°1 des TPE, e-commerce +130 %, intégration IA +178 %, automatisation en forte
+# croissance, réseaux sociaux 67 % des TPE). Les 4 premiers portent « très demandé ».
+ORDRE = ["site-vitrine", "boutique-shopify", "agent-secretaire", "chatbot-site", "robot-automatisation",
+         "robot-reseaux", "page-de-vente", "boutique-simple", "influenceuse-ia", "logo-identite",
+         "rendez-vous", "newsletter", "appli-mobile", "ebook", "assistant-perso", "cv-portfolio"]
+TRES_DEMANDES = 4
+
+
 def construire() -> str:
     sortie = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "kit", "kits.json")
     kits = []
-    for k in KITS:
-        k = dict(k)
+    par_id = {k["id"]: k for k in KITS}
+    assert set(ORDRE) == set(par_id), "ORDRE doit lister chaque kit une fois"
+    for rang, kid in enumerate(ORDRE):
+        k = dict(par_id[kid])
+        k["tres_demande"] = rang < TRES_DEMANDES
         k["prompt"] = k["prompt"].replace("{REGLES}", REGLES)
         kits.append(k)
     with open(sortie, "w", encoding="utf-8") as f:

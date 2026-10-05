@@ -48,7 +48,7 @@
 <section>
   <div class="conteneur">
     <h2 class="apparait">Ce que je construis <mark>pour toi.</mark></h2>
-    <p class="sous-titre apparait">Six offres claires, prix affichés, sans devis caché. Touche une offre pour voir le détail.</p>
+    <p class="sous-titre apparait">Sept offres claires, prix affichés, sans devis caché. Touche une offre pour voir le détail.</p>
     <div class="services" id="services"></div>
   </div>
 </section>
@@ -101,8 +101,8 @@
 <section class="duel">
   <div class="conteneur">
     <h2 class="apparait">Tu veux le faire <mark>toi-même ?</mark></h2>
-    <p class="sous-titre apparait" style="color:var(--noir)">15 kits gratuits — site, boutique, agent, robot, appli — avec un mode d'emploi simple et un prompt complet qui te guide de A à Z. Plus 34 prompts à copier en un clic.</p>
-    <div class="boutons apparait"><a class="bouton" href="kits.html">Voir les 15 kits <span class="fleche">→</span></a>
+    <p class="sous-titre apparait" style="color:var(--noir)">16 kits gratuits — site, boutique, agent, robot, appli — avec un mode d'emploi simple et un prompt complet qui te guide de A à Z. Plus 34 prompts à copier en un clic.</p>
+    <div class="boutons apparait"><a class="bouton" href="kits.html">Voir les 16 kits <span class="fleche">→</span></a>
     <a class="bouton clair" href="prompts.html">Les prompts gratuits</a></div>
   </div>
 </section>
@@ -131,7 +131,7 @@
 <script src="commun.js"></script>
 <script>
 chargerOffres().then(({ offres }) => {
-  const ICONES = { vitrine: "🌐", shopify: "🛍️", ecommerce: "🚀", agent: "🤖", robot: "⚙️", complet: "⭐" };
+  const ICONES = { vitrine: "🌐", shopify: "🛍️", ecommerce: "🚀", agent: "🤖", robot: "⚙️", influenceuse: "🌟", complet: "⭐" };
   const el = document.getElementById("services");
   offres.forEach((o) => {
     const a = document.createElement("a");

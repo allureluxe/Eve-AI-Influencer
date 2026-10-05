@@ -88,6 +88,23 @@
    ]
   },
   {
+   "id": "influenceuse",
+   "nom": "Influenceuse IA",
+   "accroche": "Un personnage virtuel qui publie sur Instagram et TikTok.",
+   "unique": 249,
+   "mensuel": 49,
+   "delai": "10 jours",
+   "couleur": "corail",
+   "inclus": [
+    "Personnage complet : histoire, style, personnalité",
+    "Visage constant d'une image à l'autre",
+    "Comptes Instagram et TikTok configurés",
+    "30 publications et vidéos prêtes (au mois : 30 nouvelles chaque mois)",
+    "Étiquettes IA et mentions légales en règle"
+   ],
+   "note": "Au mois : création incluse, puis 30 nouvelles publications chaque mois. Outils de vidéo IA inclus."
+  },
+  {
    "id": "complet",
    "nom": "Pack business IA",
    "accroche": "Boutique + agent + robot : tout ton business en ligne.",

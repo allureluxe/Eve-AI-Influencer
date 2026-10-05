@@ -1,6 +1,6 @@
 /** Validation d'une commande passée sur alluxe.fr. Pure : testable sans réseau. */
 
-export const OFFRES = ["vitrine", "shopify", "ecommerce", "agent", "robot", "complet"];
+export const OFFRES = ["vitrine", "shopify", "ecommerce", "agent", "robot", "influenceuse", "complet"];
 export const FORMULES = ["unique", "mensuel"];
 export const MAX_PAR_VISITEUR = 5;   // par jour
 export const MAX_PAR_JOUR = 60;
