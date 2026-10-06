@@ -81,6 +81,10 @@ SONS_TENDANCE_PREFERES = [
     ("LABOUR (the cacophony)", "Paris Paloma"),
     # 6 oct., choix de l'opérateur pour le Reel 04 « captures », calé sur le refrain.
     ("Unstoppable", "Sia"),
+    # 6 oct., l'opérateur : « une autre musique, style deep house ». Les titres de
+    # grands artistes ne sortent PAS pour ce compte pro (recherche Purple Disco
+    # Machine, Robin Schulz, Kungs... -> seulement la bibliothèque libre de droits).
+    ("Deep Blue", "Giulio Cercato"),
 ]
 
 
@@ -91,9 +95,9 @@ def sons(recherche: str = "") -> list[dict]:
     return _appel("GET", "misc/instagram/audio?" + urllib.parse.urlencode(p)).get("audio", [])
 
 
-def son_connu(audio_id: str) -> dict:
+def son_connu(audio_id: str, recherche: str = "") -> dict:
     """Valide qu'un audio choisi correspond réellement à un titre/artiste connu."""
-    tous = sons("")
+    tous = sons("") + (sons(recherche) if recherche else [])
     for x in tous:
         if str(x.get("audio_id")) == str(audio_id):
             titre = (x.get("title") or "").strip().lower()
@@ -167,6 +171,7 @@ def main() -> int:
     s2.add_argument("--son", required=True, help="audio_id donné par « sons »")
     s2.add_argument("--le", required=True, help="heure de Paris, ex. 2026-10-05T19:00")
     s2.add_argument("--essai", action="store_true")
+    s2.add_argument("--recherche", default="", help="si le son n'est pas dans les tendances : la recherche qui le trouve")
     s2.add_argument("--debut", help="début du passage dans le morceau, ex. 0:44.3 (le refrain, pas l'intro)")
     s2.add_argument("--confirmer", action="store_true")
     args = a.parse_args()
@@ -189,7 +194,7 @@ def main() -> int:
     quand = _heure_utc(args.le)
     # Garde-fou : le morceau doit être un vrai titre connu de notre liste,
     # jamais un son obscur renvoyé par le catalogue par défaut.
-    audio = son_connu(args.son)
+    audio = son_connu(args.son, args.recherche)
     print(f"SON VALIDÉ : {audio.get('title')} — {audio.get('display_artist')} ({audio.get('audio_id')})")
     fichier = os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{args.reel_id}.mp4")
     if not os.path.exists(fichier):
