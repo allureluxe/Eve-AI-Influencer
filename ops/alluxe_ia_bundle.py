@@ -135,6 +135,10 @@ def corps_du_post(reel_id: str, upload_id: str, son: str, quand_utc: str, essai:
     }
     # Le passage du morceau (6 oct., l'opérateur : « pas le début des musiques,
     # un passage qui accroche ») : sans --debut, Instagram part du début.
+    # ATTENTION, CONSTATÉ LE 6 OCT. : avec --debut 0:44.3 (Sia, Unstoppable) le Reel
+    # est parti SANS AUCUNE MUSIQUE, sans erreur côté bundle.social (qui n'a pas
+    # gardé musicSoundStart/End). Cause non tranchée : ces champs, ou un titre
+    # refusé aux comptes pro. Ne pas réutiliser --debut sans un essai (--essai).
     if debut_ms is not None:
         ig["musicSoundInfo"]["musicSoundStart"] = debut_ms
         if duree_ms:
