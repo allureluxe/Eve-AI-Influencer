@@ -34,8 +34,9 @@ sys.path.insert(0, RACINE)
 
 from alluxe_ia.reel import REELS as _REELS_TEXTE  # noqa: E402  (le 02 est rendu par reel_chat)
 from alluxe_ia.reel_photos import REELS as _REELS_PHOTOS  # noqa: E402
+from alluxe_ia.reel_captures import REELS as _REELS_CAPTURES  # noqa: E402
 
-REELS = {**_REELS_TEXTE, **_REELS_PHOTOS}
+REELS = {**_REELS_TEXTE, **_REELS_PHOTOS, **_REELS_CAPTURES}
 
 API = "https://api.bundle.social/api/v1/"
 EQUIPE = "32828e26-6e40-4411-9361-13077da51aa7"   # « allureluxe's Org »
@@ -178,7 +179,9 @@ def main() -> int:
     print(f"SON VALIDÉ : {audio.get('title')} — {audio.get('display_artist')} ({audio.get('audio_id')})")
     fichier = os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{args.reel_id}.mp4")
     if not os.path.exists(fichier):
-        if args.reel_id in _REELS_PHOTOS:
+        if args.reel_id in _REELS_CAPTURES:
+            from alluxe_ia.reel_captures import rendre
+        elif args.reel_id in _REELS_PHOTOS:
             from alluxe_ia.reel_photos import rendre
         elif args.reel_id == "02-ia-invente-un-prix":   # version « conversation animée »
             from alluxe_ia.reel_chat import rendre
