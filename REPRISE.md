@@ -1,5 +1,9 @@
 # Ou on en est — mis a jour le 5 octobre 2026, soir
 
+## 7 OCT. — ROBOT REEL ARRETE (demande de l'operateur)
+- 9 positions vendues au marche (vendre_orphelins.py), robot-trading STOPPE ET DESACTIVE,
+  dual-live aussi. Compte = 269,52 EUR en euros, 0 ordre ouvert. NE PAS relancer sans lui.
+
 ## 5 OCT. soir
 - REEL : robot-dual-live avait ete relance le 4 a 22h31 -> 2 robots reels sur le
   meme state.json, app fausse (3 positions sur 8). Arrete le 5 a 17h04. robot-trading
