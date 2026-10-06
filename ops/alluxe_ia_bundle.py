@@ -79,6 +79,8 @@ SONS_TENDANCE_PREFERES = [
     ("They Don't Care About Us (Remastered Version)", "Michael Jackson"),
     # 4 oct., l'opérateur : MJ ne collait pas, remplacé par LABOUR.
     ("LABOUR (the cacophony)", "Paris Paloma"),
+    # 6 oct., choix de l'opérateur pour le Reel 04 « captures », calé sur le refrain.
+    ("Unstoppable", "Sia"),
 ]
 
 
@@ -121,7 +123,8 @@ def televerser(fichier: str) -> str:
     return r["id"]
 
 
-def corps_du_post(reel_id: str, upload_id: str, son: str, quand_utc: str, essai: bool) -> dict:
+def corps_du_post(reel_id: str, upload_id: str, son: str, quand_utc: str, essai: bool,
+                  debut_ms: int | None = None, duree_ms: int | None = None) -> dict:
     ig = {
         "type": "REEL",
         "text": REELS[reel_id]["legende"],
@@ -130,6 +133,12 @@ def corps_du_post(reel_id: str, upload_id: str, son: str, quand_utc: str, essai:
         "musicSoundInfo": {"musicSoundId": son, "musicSoundVolume": 100,
                            "videoOriginalSoundVolume": 0},
     }
+    # Le passage du morceau (6 oct., l'opérateur : « pas le début des musiques,
+    # un passage qui accroche ») : sans --debut, Instagram part du début.
+    if debut_ms is not None:
+        ig["musicSoundInfo"]["musicSoundStart"] = debut_ms
+        if duree_ms:
+            ig["musicSoundInfo"]["musicSoundEnd"] = debut_ms + duree_ms
     if essai:
         ig["trialParams"] = {"graduationStrategy": "SS_PERFORMANCE"}
     return {"teamId": EQUIPE, "title": f"alluxe.ia {reel_id}", "postDate": quand_utc,
@@ -154,6 +163,7 @@ def main() -> int:
     s2.add_argument("--son", required=True, help="audio_id donné par « sons »")
     s2.add_argument("--le", required=True, help="heure de Paris, ex. 2026-10-05T19:00")
     s2.add_argument("--essai", action="store_true")
+    s2.add_argument("--debut", help="début du passage dans le morceau, ex. 0:44.3 (le refrain, pas l'intro)")
     s2.add_argument("--confirmer", action="store_true")
     args = a.parse_args()
 
@@ -188,15 +198,27 @@ def main() -> int:
         else:
             from alluxe_ia.reel import rendre
         rendre(args.reel_id)
-    apercu = corps_du_post(args.reel_id, "<televersement>", args.son, quand, args.essai)
+    debut_ms = duree_ms = None
+    if args.debut:
+        m, s = (args.debut.split(":") + ["0"])[:2] if ":" in args.debut else ("0", args.debut)
+        debut_ms = int((int(m) * 60 + float(s)) * 1000)
+        try:
+            import re
+            import subprocess
+            sortie = subprocess.run(["ffmpeg", "-i", fichier], capture_output=True, text=True).stderr
+            h, mi, se = re.search(r"Duration: (\d+):(\d+):([\d.]+)", sortie).groups()
+            duree_ms = int((int(h) * 3600 + int(mi) * 60 + float(se)) * 1000)
+        except Exception:  # noqa: BLE001 -- sans durée, Instagram coupe à la fin de la vidéo
+            duree_ms = None
+    apercu = corps_du_post(args.reel_id, "<televersement>", args.son, quand, args.essai, debut_ms, duree_ms)
     print(json.dumps(apercu, ensure_ascii=False, indent=1))
     if not args.confirmer:
         print("\nESSAI À BLANC : rien n'est envoyé. Ajouter --confirmer pour programmer.")
         return 0
     upload = televerser(fichier)
     r = _appel("POST", "post/", json.dumps(corps_du_post(args.reel_id, upload, args.son, quand,
-                                                           args.essai)).encode())
-    publies[cle] = {"bundle_post_id": r.get("id"), "le": quand, "son": args.son}
+                                                           args.essai, debut_ms, duree_ms)).encode())
+    publies[cle] = {"bundle_post_id": r.get("id"), "le": quand, "son": args.son, "debut_ms": debut_ms}
     with open(PUBLIES, "w") as f:
         json.dump(publies, f, ensure_ascii=False, indent=2)
     print(f"PROGRAMMÉ : {args.reel_id} -> {r.get('id')} pour {args.le} (Paris)")
