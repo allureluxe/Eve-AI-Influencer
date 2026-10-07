@@ -130,8 +130,24 @@ def televerser(fichier: str) -> str:
     return r["id"]
 
 
+def version_facebook(fichier: str, reel_id: str) -> str:
+    """La vidéo avec la musique INTÉGRÉE (7 oct.) : sur Facebook, bundle.social ne pose
+    pas la musique de la bibliothèque Instagram, la page diffusait notre lo-fi de secours.
+    On remplace la piste son par un morceau « adrénaline » composé (alluxe_ia.musique)."""
+    import subprocess
+    from alluxe_ia.musique import ecrire_wav
+    sortie = fichier.replace(".mp4", "-facebook.mp4")
+    duree = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", fichier],
+                                 capture_output=True, text=True).stdout.strip() or 16)
+    wav = ecrire_wav(fichier.replace(".mp4", "-phonk.wav"), duree, reel_id, "phonk")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", fichier, "-i", wav, "-map", "0:v", "-map", "1:a",
+                    "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-shortest", sortie], check=True)
+    return sortie
+
+
 def corps_du_post(reel_id: str, upload_id: str, son: str, quand_utc: str, essai: bool,
-                  debut_ms: int | None = None, duree_ms: int | None = None) -> dict:
+                  debut_ms: int | None = None, duree_ms: int | None = None,
+                  upload_facebook: str | None = None, reseaux: tuple = ("INSTAGRAM", "FACEBOOK")) -> dict:
     ig = {
         "type": "REEL",
         "text": REELS[reel_id]["legende"],
@@ -155,10 +171,11 @@ def corps_du_post(reel_id: str, upload_id: str, son: str, quand_utc: str, essai:
     # 7 oct., l'opérateur : publier aussi sur Facebook. Le Reel republié à la main
     # (partagé sur Facebook) y a fait 204 vues contre 23 sur Instagram. La page
     # « Allure luxe » est branchée sur bundle.social ; même légende, même vidéo.
-    fb = {"type": "REEL", "text": REELS[reel_id]["legende"], "uploadIds": [upload_id]}
+    fb = {"type": "REEL", "text": REELS[reel_id]["legende"], "uploadIds": [upload_facebook or upload_id]}
+    data = {"INSTAGRAM": ig, "FACEBOOK": fb}
     return {"teamId": EQUIPE, "title": f"alluxe.ia {reel_id}", "postDate": quand_utc,
-            "status": "SCHEDULED", "socialAccountTypes": ["INSTAGRAM", "FACEBOOK"],
-            "data": {"INSTAGRAM": ig, "FACEBOOK": fb}}
+            "status": "SCHEDULED", "socialAccountTypes": list(reseaux),
+            "data": {k: v for k, v in data.items() if k in reseaux}}
 
 
 def _heure_utc(le: str) -> str:
@@ -179,6 +196,8 @@ def main() -> int:
     s2.add_argument("--son", required=True, help="audio_id donné par « sons »")
     s2.add_argument("--le", required=True, help="heure de Paris, ex. 2026-10-05T19:00")
     s2.add_argument("--essai", action="store_true")
+    s2.add_argument("--facebook-seul", action="store_true",
+                    help="republier sur la page Facebook seulement (version avec musique intégrée)")
     s2.add_argument("--recherche", default="", help="si le son n'est pas dans les tendances : la recherche qui le trouve")
     s2.add_argument("--debut", help="début du passage dans le morceau, ex. 0:44.3 (le refrain, pas l'intro)")
     s2.add_argument("--confirmer", action="store_true")
@@ -194,7 +213,8 @@ def main() -> int:
                   f"{x.get('title', '')}  ({x.get('duration_in_ms', 0) // 1000} s)")
         return 0
 
-    cle = "reel:" + args.reel_id
+    cle = "reel:" + args.reel_id + (":facebook" if args.facebook_seul else "")
+    reseaux = ("FACEBOOK",) if args.facebook_seul else ("INSTAGRAM", "FACEBOOK")
     publies = json.load(open(PUBLIES)) if os.path.exists(PUBLIES) else {}
     if cle in publies:
         print(f"{args.reel_id} déjà programmé/publié le {publies[cle]['le']} : rien à faire")
@@ -229,14 +249,18 @@ def main() -> int:
             duree_ms = int((int(h) * 3600 + int(mi) * 60 + float(se)) * 1000)
         except Exception:  # noqa: BLE001 -- sans durée, Instagram coupe à la fin de la vidéo
             duree_ms = None
-    apercu = corps_du_post(args.reel_id, "<televersement>", args.son, quand, args.essai, debut_ms, duree_ms)
+    fichier_fb = version_facebook(fichier, args.reel_id)
+    print(f"version Facebook (musique intégrée) : {fichier_fb}")
+    apercu = corps_du_post(args.reel_id, "<televersement>", args.son, quand, args.essai, debut_ms, duree_ms,
+                           "<televersement facebook>", reseaux)
     print(json.dumps(apercu, ensure_ascii=False, indent=1))
     if not args.confirmer:
         print("\nESSAI À BLANC : rien n'est envoyé. Ajouter --confirmer pour programmer.")
         return 0
     upload = televerser(fichier)
+    upload_fb = televerser(fichier_fb)
     r = _appel("POST", "post/", json.dumps(corps_du_post(args.reel_id, upload, args.son, quand,
-                                                           args.essai, debut_ms, duree_ms)).encode())
+                                                           args.essai, debut_ms, duree_ms, upload_fb, reseaux)).encode())
     publies[cle] = {"bundle_post_id": r.get("id"), "le": quand, "son": args.son, "debut_ms": debut_ms}
     with open(PUBLIES, "w") as f:
         json.dump(publies, f, ensure_ascii=False, indent=2)

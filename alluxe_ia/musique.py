@@ -155,8 +155,71 @@ def composer(duree: float, graine: str = "alluxe") -> np.ndarray:
     return np.tanh(1.2 * st / crete) * 0.85      # légère saturation douce, sans écrêtage
 
 
-def ecrire_wav(chemin: str, duree: float, graine: str = "alluxe") -> str:
-    st = composer(duree, graine)
+# --- Style « adrénaline » (drift phonk), 7 oct. -------------------------------
+# L'opérateur : « musique adrénaline, un passage persistant, pas le début ».
+# Pour Facebook, la musique de la bibliothèque Instagram n'est pas disponible
+# (bundle.social ne la pose que sur Instagram) : la vidéo doit PORTER sa musique.
+# Ce morceau démarre à pleine énergie dès la première seconde, sans intro.
+
+def _cloche(freq: float, duree: float) -> np.ndarray:
+    """La « cowbell » du phonk : deux carrés désaccordés, attaque sèche, saturés."""
+    n = int(duree * TAUX)
+    t = np.arange(n) / TAUX
+    s = np.sign(np.sin(2 * np.pi * freq * t)) + 0.8 * np.sign(np.sin(2 * np.pi * freq * 1.48 * t))
+    s = np.convolve(s, np.ones(6) / 6, mode="same")          # adoucit les arêtes
+    return np.tanh(2.5 * s) * _enveloppe(n, 0.001, 0.09)
+
+
+def _basse808(freq: float, duree: float) -> np.ndarray:
+    n = int(duree * TAUX)
+    t = np.arange(n) / TAUX
+    f = freq * (1 + 1.5 * np.exp(-t / 0.03))                  # petit « pitch drop » d'attaque
+    s = np.sin(2 * np.pi * np.cumsum(f) / TAUX)
+    return np.tanh(3.5 * s) * _enveloppe(n, 0.003, max(0.25, duree * 0.8))
+
+
+def composer_phonk(duree: float, graine: str = "alluxe") -> np.ndarray:
+    g = _graine(graine)
+    rng = np.random.default_rng(g)
+    bpm = 138 + (g % 8)
+    croche = 60 / bpm / 2                     # une double-croche = un quart de temps
+    dc = croche / 2
+    tonique = 50 + (g % 5)                    # ré à fa#, en mineur
+    n = int(duree * TAUX) + TAUX
+    batt, basse, cloche = (np.zeros(n) for _ in range(3))
+    # Riff de cloche sur 2 mesures (32 doubles-croches), degrés du mineur phrygien.
+    riff = [0, None, 0, None, 3, None, 0, 7, None, 5, None, 3, None, 5, 3, None,
+            0, None, 0, None, 3, None, 0, 8, None, 7, None, 5, 3, None, 1, None]
+    ligne_basse = [0, 0, 0, 0, -2, -2, 1, 1]  # une note par demi-mesure
+    k = 0
+    while k * dc < duree + 1:
+        pos = k % 32
+        tps = k * dc
+        if riff[pos] is not None:
+            _poser(cloche, _cloche(_hz(tonique + 24 + riff[pos]), dc * 1.6), tps, 0.32)
+        if pos % 8 == 0 or pos in (6, 11, 22, 27):               # kick sec et syncopé
+            _poser(batt, _kick(int(0.25 * TAUX)), tps, 0.95)
+        if pos % 16 == 8:                                        # clap en demi-tempo
+            _poser(batt, _bruit(int(0.2 * TAUX), 0.09, rng, 3), tps, 0.55)
+        ch = 0.16 if pos % 2 == 0 else 0.09                      # charleston serré
+        _poser(batt, np.diff(_bruit(int(0.04 * TAUX), 0.012, rng, 1), prepend=0), tps, ch)
+        if pos in (29, 30, 31) and (k // 32) % 2 == 1:           # roulement de triolets
+            for r in range(3):
+                _poser(batt, np.diff(_bruit(int(0.03 * TAUX), 0.01, rng, 1), prepend=0), tps + r * dc / 3, 0.1)
+        if pos % 4 == 0:
+            note = ligne_basse[(k // 4) % 8]
+            _poser(basse, _basse808(_hz(tonique - 12 + note), dc * 4), tps, 0.6)
+        k += 1
+    mix = batt + basse * 0.9 + _echo(cloche, croche * 1.5, 0.25, 2)
+    mix = mix[: int(duree * TAUX)]
+    st = np.stack([mix + 0.15 * np.roll(cloche[: len(mix)], 300), mix + 0.15 * np.roll(cloche[: len(mix)], -300)], axis=1)
+    fondu = int(0.25 * TAUX); st[-fondu:] *= np.linspace(1, 0, fondu)[:, None]
+    crete = np.max(np.abs(st)) or 1.0
+    return np.tanh(1.6 * st / crete) * 0.9
+
+
+def ecrire_wav(chemin: str, duree: float, graine: str = "alluxe", style: str = "lofi") -> str:
+    st = composer_phonk(duree, graine) if style == "phonk" else composer(duree, graine)
     with wave.open(chemin, "wb") as w:
         w.setnchannels(2)
         w.setsampwidth(2)
