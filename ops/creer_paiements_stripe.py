@@ -34,6 +34,7 @@ OFFRES = RACINE / "docs" / "kit" / "offres.json"
 SORTIE = RACINE / "docs" / "kit" / "paiements.json"
 SITE = "https://alluxe.fr"
 ACOMPTE = 0.30
+SEUIL_ACOMPTE = 50          # en euros : en dessous, tout se paie à la commande (CGV, art. 3)
 
 
 def montants(offre: dict) -> dict[str, dict]:
@@ -44,10 +45,13 @@ def montants(offre: dict) -> dict[str, dict]:
         return {"mensuel": {"unique": unique, "mensuel": mensuel,
                             "libelle": f"{offre['nom']} — installation + abonnement"}}
     acompte = round(unique * ACOMPTE)
-    etapes = {
-        "acompte": {"unique": acompte, "libelle": f"{offre['nom']} — acompte 30 %"},
-        "solde": {"unique": unique - acompte, "libelle": f"{offre['nom']} — solde à la livraison"},
-    }
+    if offre["unique"] < SEUIL_ACOMPTE:              # 8 oct. : 9 EUR en 2,70 + 6,30 n'a pas de sens
+        etapes = {"total": {"unique": unique, "libelle": f"{offre['nom']} — paiement à la commande"}}
+    else:
+        etapes = {
+            "acompte": {"unique": acompte, "libelle": f"{offre['nom']} — acompte 30 %"},
+            "solde": {"unique": unique - acompte, "libelle": f"{offre['nom']} — solde à la livraison"},
+        }
     if not offre.get("unique_seulement"):              # packs de Noël, kit UGC, clip : pas de formule au mois
         etapes["mensuel"] = {"mensuel": mensuel, "libelle": f"{offre['nom']} — abonnement mensuel"}
     return etapes

@@ -71,20 +71,23 @@ Promise.all([chargerOffres(), fetch("paiements.json").then((r) => r.ok ? r.json(
     if (o.unique_seulement) $("formule").value = "unique";
     $("formule").disabled = !!(o.abonnement_obligatoire || o.unique_seulement);
     const mensuel = $("formule").value === "mensuel";
-    const etape = mensuel ? "mensuel" : $("etape").value;
+    const enUneFois = !mensuel && o.unique < 50;          // CGV art. 3 : sous 50 €, tout à la commande
+    const etape = mensuel ? "mensuel" : enUneFois ? "total" : $("etape").value;
     const acompte = Math.round(cents(o.unique) * 0.30);
     const m = o.abonnement_obligatoire ? { unique: cents(o.unique), mensuel: cents(o.mensuel) }
       : mensuel ? { mensuel: cents(o.mensuel) }
+      : etape === "total" ? { unique: cents(o.unique) }
       : etape === "acompte" ? { unique: acompte } : { unique: cents(o.unique) - acompte };
     return { o, etape, m, lien: ((paiements.stripe || {})[o.id] || {})[etape] };
   }
 
   function rendre() {
     const { o, etape, m, lien } = etat();
-    $("choix-etape").hidden = etape === "mensuel";
+    $("choix-etape").hidden = etape === "mensuel" || etape === "total";
     $("recap").textContent = o.abonnement_obligatoire
       ? `${o.nom} : ${affiche(m.unique)} d'installation + ${affiche(m.mensuel)}/mois`
       : etape === "mensuel" ? `${o.nom} : ${affiche(m.mensuel)}/mois`
+      : etape === "total" ? `${o.nom} : ${affiche(m.unique)}, payé à la commande`
       : `${o.nom} : ${etape === "acompte" ? "acompte" : "solde"} de ${affiche(m.unique)} (total ${affiche(cents(o.unique))})`;
     $("detail").textContent = (etape === "mensuel"
       ? `Prélevé chaque mois, engagement ${engagement_mois} mois puis résiliable avec un mois de préavis. Abonnement par carte uniquement.`
