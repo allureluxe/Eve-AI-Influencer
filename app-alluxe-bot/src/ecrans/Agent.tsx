@@ -80,7 +80,7 @@ const RYTHME_MS = 800;
  * sans changer de moteur.
  */
 const VOCABULAIRE = [
-  "Alluxe", "Luna", "Allure", "Bitvavo",
+  "Alluxe", "alluxe.ia", "Allure", "Bitvavo",
   "Bitcoin", "Ethereum", "Solana", "Cardano", "Dogecoin", "Chainlink",
   "crypto", "cryptos", "trading", "robot", "démo", "position", "positions",
   "stop", "bénéfice", "perte", "capital", "pyramide", "étage", "renfort",

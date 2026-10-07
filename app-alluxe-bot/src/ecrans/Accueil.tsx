@@ -17,7 +17,7 @@ import { Logo, T, useCouleurs, useReglageTheme, Preference } from "../composants
 import { versionAffichee } from "../services/miseAJour";
 
 interface Section {
-  cle: "Alluxbot" | "Allure" | "Luna" | "Laboratoire" | "Agent";
+  cle: "Alluxbot" | "Allure" | "AlluxeIa" | "Laboratoire" | "Agent";
   titre: string;
   detail: string;
   icone: keyof typeof Ionicons.glyphMap;
@@ -36,9 +36,9 @@ const SECTIONS: Section[] = [
     icone: "list-outline", disponible: true,
   },
   {
-    cle: "Luna", titre: "Luna",
-    detail: "L'influenceuse IA : son personnage, ses posts generes.",
-    icone: "sparkles-outline", disponible: true,
+    cle: "AlluxeIa", titre: "alluxe.ia",
+    detail: "Instagram et TikTok : chiffres, posts à commenter, Reels à publier.",
+    icone: "logo-instagram", disponible: true,
   },
   {
     cle: "Laboratoire", titre: "Laboratoire",
@@ -47,7 +47,7 @@ const SECTIONS: Section[] = [
   },
   {
     cle: "Agent", titre: "Agent",
-    detail: "Alluxe : demande-lui l'etat du robot, des alertes, de Luna.",
+    detail: "Alluxe : demande-lui l'etat du robot, des alertes, d'alluxe.ia.",
     icone: "mic-outline", disponible: true,
   },
 ];

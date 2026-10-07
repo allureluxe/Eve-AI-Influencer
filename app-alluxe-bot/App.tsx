@@ -47,7 +47,7 @@ import { EcranHistorique } from "./src/ecrans/Historique";
 import { EcranObjectifs } from "./src/ecrans/Objectifs";
 import { EcranAlertes } from "./src/ecrans/Alertes";
 import { EcranDiscussion } from "./src/ecrans/Discussion";
-import { EcranLuna } from "./src/ecrans/Luna";
+import { EcranAlluxeIa } from "./src/ecrans/AlluxeIa";
 import { EcranAgent } from "./src/ecrans/Agent";
 import { EcranLaboratoire } from "./src/ecrans/Laboratoire";
 import { espace, polices, TRAIT } from "./src/theme";
@@ -271,7 +271,7 @@ function Navigation() {
           }}>
           {() => <NavigationAllure email={email} />}
         </Pile.Screen>
-        <Pile.Screen name="Luna" component={EcranLuna}
+        <Pile.Screen name="AlluxeIa" component={EcranAlluxeIa}
           options={{
             headerShown: true, headerTransparent: true, headerTitle: "",
             headerTintColor: c.encre, headerShadowVisible: false,
