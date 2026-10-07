@@ -180,16 +180,21 @@ def image(t):
         d.text(((W - f2.getlength(s)) / 2, 1145), s, font=f2, fill=JAUNE)
     return img
 
-DUREE = 16.6
-os.makedirs(H + 'images', exist_ok=True)
-for i in range(int(DUREE * FPS)):
-    image(i / FPS).save(H + f'images/{i:04d}.jpg', quality=90)
-from alluxe_ia.musique import ecrire_wav
-ecrire_wav(H + 'musique.wav', DUREE, graine='captures')
-try:
-    import imageio_ffmpeg; ff = imageio_ffmpeg.get_ffmpeg_exe()
-except Exception: ff = 'ffmpeg'
-subprocess.run([ff, '-y', '-loglevel', 'error', '-framerate', str(FPS), '-i', H + 'images/%04d.jpg', '-i', H + 'musique.wav',
-                '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-c:a', 'aac', '-b:a', '128k', '-shortest',
-                '-movflags', '+faststart', os.path.join(RACINE, 'data', 'alluxe_ia', 'reels', '04-construit-par-ia.mp4')], check=True)
-print('ok', os.path.join(RACINE, 'data', 'alluxe_ia', 'reels', '04-construit-par-ia.mp4'))
+def produire(image_fn, duree, sortie, graine="captures"):
+    """Rend chaque image, compose la musique de secours, assemble la vidéo."""
+    import shutil
+    dossier = H + 'images/'
+    shutil.rmtree(dossier, ignore_errors=True); os.makedirs(dossier)
+    for i in range(int(duree * FPS)):
+        image_fn(i / FPS).save(dossier + f'{i:04d}.jpg', quality=90)
+    from alluxe_ia.musique import ecrire_wav
+    ecrire_wav(H + 'musique.wav', duree, graine=graine)
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(FPS), '-i', dossier + '%04d.jpg', '-i', H + 'musique.wav',
+                    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-c:a', 'aac', '-b:a', '128k', '-shortest',
+                    '-movflags', '+faststart', sortie], check=True)
+    shutil.rmtree(dossier, ignore_errors=True)
+    print('ok', sortie)
+
+
+if __name__ == "__main__":
+    produire(image, 16.6, os.path.join(RACINE, 'data', 'alluxe_ia', 'reels', '04-construit-par-ia.mp4'))

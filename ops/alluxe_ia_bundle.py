@@ -35,8 +35,9 @@ sys.path.insert(0, RACINE)
 from alluxe_ia.reel import REELS as _REELS_TEXTE  # noqa: E402  (le 02 est rendu par reel_chat)
 from alluxe_ia.reel_photos import REELS as _REELS_PHOTOS  # noqa: E402
 from alluxe_ia.reel_captures import REELS as _REELS_CAPTURES  # noqa: E402
+from alluxe_ia.reel_doublon import REELS as _REELS_DOUBLON  # noqa: E402
 
-REELS = {**_REELS_TEXTE, **_REELS_PHOTOS, **_REELS_CAPTURES}
+REELS = {**_REELS_TEXTE, **_REELS_PHOTOS, **_REELS_CAPTURES, **_REELS_DOUBLON}
 
 API = "https://api.bundle.social/api/v1/"
 EQUIPE = "32828e26-6e40-4411-9361-13077da51aa7"   # « allureluxe's Org »
@@ -85,6 +86,8 @@ SONS_TENDANCE_PREFERES = [
     # grands artistes ne sortent PAS pour ce compte pro (recherche Purple Disco
     # Machine, Robin Schulz, Kungs... -> seulement la bibliothèque libre de droits).
     ("Deep Blue", "Giulio Cercato"),
+    # 7 oct., l'opérateur : « musique adrénaline » pour le Reel 05 (bibliothèque libre).
+    ("Power Drift", "Adam Griffith"),
 ]
 
 
@@ -203,7 +206,9 @@ def main() -> int:
     print(f"SON VALIDÉ : {audio.get('title')} — {audio.get('display_artist')} ({audio.get('audio_id')})")
     fichier = os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{args.reel_id}.mp4")
     if not os.path.exists(fichier):
-        if args.reel_id in _REELS_CAPTURES:
+        if args.reel_id in _REELS_DOUBLON:
+            from alluxe_ia.reel_doublon import rendre
+        elif args.reel_id in _REELS_CAPTURES:
             from alluxe_ia.reel_captures import rendre
         elif args.reel_id in _REELS_PHOTOS:
             from alluxe_ia.reel_photos import rendre
