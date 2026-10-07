@@ -16,7 +16,8 @@
     "Formulaire de contact",
     "Nom de domaine + hébergement la 1re année",
     "Référencement Google de base"
-   ]
+   ],
+   "categorie": "sites"
   },
   {
    "id": "shopify",
@@ -34,7 +35,8 @@
     "Pages légales prêtes",
     "Formation vidéo pour gérer ta boutique"
    ],
-   "note": "Abonnement Shopify à la charge du client (dès 27 €/mois chez Shopify)."
+   "note": "Abonnement Shopify à la charge du client (dès 27 €/mois chez Shopify).",
+   "categorie": "business"
   },
   {
    "id": "ecommerce",
@@ -51,7 +53,8 @@
     "Paiement, livraison, e-mails automatiques",
     "Comptes Instagram et Facebook prêts",
     "1 mois de suivi"
-   ]
+   ],
+   "categorie": "business"
   },
   {
    "id": "agent",
@@ -68,7 +71,8 @@
     "Tri et résumé de tes e-mails",
     "Sur ton site, WhatsApp ou Messenger",
     "Entraîné sur TES infos, rien d'inventé"
-   ]
+   ],
+   "categorie": "temps"
   },
   {
    "id": "robot",
@@ -85,7 +89,8 @@
     "Commandes copiées vers ton tableau",
     "Alertes par e-mail ou SMS",
     "Mode essai avant mise en route"
-   ]
+   ],
+   "categorie": "temps"
   },
   {
    "id": "influenceuse",
@@ -102,7 +107,8 @@
     "30 publications et vidéos prêtes (au mois : 30 nouvelles chaque mois)",
     "Étiquettes IA et mentions légales en règle"
    ],
-   "note": "Au mois : création incluse, puis 30 nouvelles publications chaque mois. Outils de vidéo IA inclus."
+   "note": "Au mois : création incluse, puis 30 nouvelles publications chaque mois. Outils de vidéo IA inclus.",
+   "categorie": "visible"
   },
   {
    "id": "complet",
@@ -119,8 +125,182 @@
     "1 robot d'automatisation au choix",
     "2 mois de suivi",
     "Appel de lancement en visio"
+   ],
+   "categorie": "business"
+  },
+  {
+   "id": "noel_boutique",
+   "nom": "Boutique de Noël numérique",
+   "accroche": "Des produits de Noël à télécharger, prêts à vendre sur Etsy.",
+   "unique": 79,
+   "mensuel": 0,
+   "unique_seulement": true,
+   "delai": "4 jours",
+   "couleur": "corail",
+   "categorie": "noel",
+   "ruban": "SPÉCIAL NOËL",
+   "inclus": [
+    "20 produits imprimables : calendriers de l'Avent, coloriages, étiquettes, cartes",
+    "Annonces Etsy rédigées et optimisées",
+    "Images de présentation",
+    "10 Reels pour les faire connaître",
+    "Mode d'emploi pour ouvrir ta boutique"
+   ]
+  },
+  {
+   "id": "noel_campagne",
+   "nom": "Campagne de Noël clé en main",
+   "accroche": "Black Friday et Noël : tout ton contenu, prêt à publier.",
+   "unique": 99,
+   "mensuel": 0,
+   "unique_seulement": true,
+   "delai": "5 jours",
+   "couleur": "jaune",
+   "categorie": "noel",
+   "ruban": "SPÉCIAL NOËL",
+   "inclus": [
+    "10 Reels et 10 posts à tes couleurs",
+    "Visuels promo Black Friday et Noël",
+    "Textes d'e-mails et de SMS promo",
+    "Calendrier du 15 novembre au 31 décembre",
+    "Pour commerces, artisans et e-commerçants"
+   ]
+  },
+  {
+   "id": "faceless",
+   "nom": "Compte faceless clé en main",
+   "accroche": "Ton compte Instagram et TikTok prêt à publier, sans montrer ton visage.",
+   "unique": 149,
+   "mensuel": 39,
+   "delai": "5 jours",
+   "couleur": "menthe",
+   "categorie": "visible",
+   "ruban": "NOUVEAU",
+   "inclus": [
+    "Niche, nom, bio et logo choisis avec toi",
+    "30 Reels montés, prêts à publier",
+    "Accroches, légendes et hashtags",
+    "Calendrier de publication jour par jour",
+    "Au mois : 30 nouveaux Reels chaque mois"
+   ],
+   "note": "Le même système que celui qui fait tourner @alluxe.ia."
+  },
+  {
+   "id": "autopost",
+   "nom": "Agent de publication auto",
+   "accroche": "Il publie sur Instagram, Facebook et TikTok à ta place, tous les jours.",
+   "unique": 99,
+   "mensuel": 29,
+   "abonnement_obligatoire": true,
+   "delai": "3 jours",
+   "couleur": "ciel",
+   "categorie": "visible",
+   "inclus": [
+    "Branché sur tes comptes Instagram, Facebook et TikTok",
+    "Publie aux heures où ton public est là",
+    "File d'attente : tu valides, il publie",
+    "Statistiques chaque semaine",
+    "Ne commente et ne like jamais à ta place (règles des réseaux)"
+   ]
+  },
+  {
+   "id": "ugc",
+   "nom": "Kit créateur UGC",
+   "accroche": "Tout pour décrocher tes premières collaborations avec des marques.",
+   "unique": 49,
+   "mensuel": 0,
+   "unique_seulement": true,
+   "delai": "48 h",
+   "couleur": "lilas",
+   "categorie": "visible",
+   "inclus": [
+    "Portfolio en ligne : une page à ton nom",
+    "10 scripts de vidéos UGC prêts à tourner",
+    "Message d'approche des marques",
+    "Grille de tarifs pour débuter",
+    "Liste de 50 marques qui travaillent avec des créateurs"
+   ]
+  },
+  {
+   "id": "clip",
+   "nom": "Clip vidéo IA pour ton son",
+   "accroche": "Ton morceau mérite un clip. L'IA le fabrique.",
+   "unique": 79,
+   "mensuel": 0,
+   "unique_seulement": true,
+   "delai": "5 jours",
+   "couleur": "corail",
+   "categorie": "visible",
+   "inclus": [
+    "Clip vertical prêt pour Reels et TikTok",
+    "Images créées selon l'univers de ton son",
+    "Paroles animées à l'écran",
+    "3 extraits courts pour la promo",
+    "Ton son reste à toi"
+   ]
+  },
+  {
+   "id": "marque",
+   "nom": "Ta marque de vêtements",
+   "accroche": "Designs, boutique et fabrication à la demande : zéro stock.",
+   "unique": 199,
+   "mensuel": 29,
+   "delai": "7 jours",
+   "couleur": "jaune",
+   "categorie": "business",
+   "inclus": [
+    "Nom, logo et univers de ta marque",
+    "10 designs créés avec l'IA",
+    "Photos de présentation sur vêtements",
+    "Boutique en ligne reliée à l'impression à la demande",
+    "Tu ne stockes rien : chaque pièce est fabriquée à la commande"
+   ]
+  },
+  {
+   "id": "appli",
+   "nom": "Création d'application",
+   "accroche": "Ton appli mobile ou web, de l'idée à la mise en ligne.",
+   "unique": 499,
+   "mensuel": 59,
+   "a_partir": true,
+   "delai": "2 à 4 semaines",
+   "couleur": "lilas",
+   "categorie": "sites",
+   "inclus": [
+    "Cahier des charges construit avec toi",
+    "Appli Android et web (iPhone en option)",
+    "Comptes utilisateurs et notifications",
+    "Mises à jour sans repasser par le store",
+    "Le même système que mon appli de pilotage"
    ]
   }
  ],
- "engagement_mois": 12
+ "engagement_mois": 12,
+ "categories": [
+  {
+   "id": "noel",
+   "nom": "Spécial Noël",
+   "accroche": "Black Friday le 28 novembre, Noël dans la foulée : c'est maintenant."
+  },
+  {
+   "id": "visible",
+   "nom": "Être vu sur les réseaux",
+   "accroche": "Comptes, contenus et publication automatique."
+  },
+  {
+   "id": "business",
+   "nom": "Lancer ton business",
+   "accroche": "De zéro à la première vente."
+  },
+  {
+   "id": "sites",
+   "nom": "Sites et applications",
+   "accroche": "Ta présence en ligne, construite avec l'IA."
+  },
+  {
+   "id": "temps",
+   "nom": "Gagner du temps",
+   "accroche": "Des agents et robots qui travaillent pour toi."
+  }
+ ]
 }

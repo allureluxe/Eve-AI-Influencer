@@ -44,11 +44,13 @@ def montants(offre: dict) -> dict[str, dict]:
         return {"mensuel": {"unique": unique, "mensuel": mensuel,
                             "libelle": f"{offre['nom']} — installation + abonnement"}}
     acompte = round(unique * ACOMPTE)
-    return {
+    etapes = {
         "acompte": {"unique": acompte, "libelle": f"{offre['nom']} — acompte 30 %"},
         "solde": {"unique": unique - acompte, "libelle": f"{offre['nom']} — solde à la livraison"},
-        "mensuel": {"mensuel": mensuel, "libelle": f"{offre['nom']} — abonnement mensuel"},
     }
+    if not offre.get("unique_seulement"):              # packs de Noël, kit UGC, clip : pas de formule au mois
+        etapes["mensuel"] = {"mensuel": mensuel, "libelle": f"{offre['nom']} — abonnement mensuel"}
+    return etapes
 
 
 def _stripe(methode: str, chemin: str, donnees: dict | None = None) -> dict:

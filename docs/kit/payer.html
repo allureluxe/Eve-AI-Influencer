@@ -68,7 +68,8 @@ Promise.all([chargerOffres(), fetch("paiements.json").then((r) => r.ok ? r.json(
   function etat() {
     const o = offres.find((x) => x.id === $("offre").value);
     if (o.abonnement_obligatoire) $("formule").value = "mensuel";
-    $("formule").disabled = !!o.abonnement_obligatoire;
+    if (o.unique_seulement) $("formule").value = "unique";
+    $("formule").disabled = !!(o.abonnement_obligatoire || o.unique_seulement);
     const mensuel = $("formule").value === "mensuel";
     const etape = mensuel ? "mensuel" : $("etape").value;
     const acompte = Math.round(cents(o.unique) * 0.30);

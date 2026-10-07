@@ -59,9 +59,10 @@ chargerOffres().then(({ offres, engagement_mois, paiement_en_ligne }) => {
     : "Aucun paiement maintenant : je te recontacte pour valider ton projet, puis je t'envoie le récapitulatif et le moyen de paiement.";
   function recap() {
     const o = offres.find((x) => x.id === choixOffre.value);
-    const mensuel = o.abonnement_obligatoire || choixFormule.value === "mensuel";
-    choixFormule.disabled = !!o.abonnement_obligatoire;
+    choixFormule.disabled = !!(o.abonnement_obligatoire || o.unique_seulement);
     if (o.abonnement_obligatoire) choixFormule.value = "mensuel";
+    if (o.unique_seulement) choixFormule.value = "unique";
+    const mensuel = o.abonnement_obligatoire || choixFormule.value === "mensuel";
     const prix = o.abonnement_obligatoire ? `${euros(o.unique)} puis ${euros(o.mensuel)}/mois`
       : mensuel ? `${o.a_partir ? "dès " : ""}${euros(o.mensuel)}/mois, 0 € au départ (engagement ${engagement_mois} mois)`
       : `${o.a_partir ? "dès " : ""}${euros(o.unique)} en une fois`;

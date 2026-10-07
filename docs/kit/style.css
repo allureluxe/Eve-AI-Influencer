@@ -274,3 +274,8 @@ footer .liens a { color: var(--noir); font-weight: 700; text-decoration: none; }
 /* `hidden` doit gagner sur les display des boutons et des champs (page Paiement). */
 [hidden] { display: none !important; }
 .formulaire a { color: var(--noir); font-weight: 700; }
+
+/* Offres rangées par catégorie (8 oct.). */
+.categorie { margin: 34px 0 10px; } .categorie:first-child { margin-top: 10px; }
+.titre-categorie { font-size: clamp(28px, 4vw, 40px); margin-bottom: 4px; }
+.categorie .sous-titre { margin-bottom: 22px; }

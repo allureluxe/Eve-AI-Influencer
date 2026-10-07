@@ -21,9 +21,9 @@
 <header class="ouverture">
   <div class="conteneur">
     <div>
-      <span class="pastille">SITES · BOUTIQUES · AGENTS IA · ROBOTS</span>
-      <h1>Ton business en ligne, construit avec l'IA. <mark>En jours, pas en mois.</mark></h1>
-      <p class="accroche">Site vitrine, boutique Shopify, agent qui répond à tes clients, robots qui font les tâches répétitives. L'IA fait le gros du travail, tu paies le prix juste.</p>
+      <span class="pastille">COMPTES · SITES · APPLIS · AGENTS IA</span>
+      <h1>Sois vu. Lance ton business. <mark>Avec l'IA, en quelques jours.</mark></h1>
+      <p class="accroche">Compte faceless qui publie pour toi, marque de vêtements sans stock, site, appli, agent IA, packs de Noël. L'IA fait le gros du travail, tu paies le prix juste.</p>
       <div class="boutons">
         <a class="bouton" href="offres.html">Voir les offres <span class="fleche">→</span></a>
         <a class="bouton clair" href="commander.html">Commander</a>
@@ -50,7 +50,7 @@
 <section>
   <div class="conteneur">
     <h2 class="apparait">Ce que je construis <mark>pour toi.</mark></h2>
-    <p class="sous-titre apparait">Sept offres claires, prix affichés, sans devis caché. Touche une offre pour voir le détail.</p>
+    <p class="sous-titre apparait"><span id="nb-offres">Des</span> offres claires, prix affichés, sans devis caché. Touche une offre pour voir le détail.</p>
     <div class="services" id="services"></div>
   </div>
 </section>
@@ -133,7 +133,9 @@
 <script src="commun.js"></script>
 <script>
 chargerOffres().then(({ offres }) => {
-  const ICONES = { vitrine: "🌐", shopify: "🛍️", ecommerce: "🚀", agent: "🤖", robot: "⚙️", influenceuse: "🌟", complet: "⭐" };
+  document.getElementById("nb-offres").textContent = offres.length;
+  const ICONES = { vitrine: "🌐", shopify: "🛍️", ecommerce: "🚀", agent: "🤖", robot: "⚙️", influenceuse: "🌟", complet: "⭐",
+    noel_boutique: "🎄", noel_campagne: "🎁", faceless: "🎬", autopost: "📲", ugc: "🤝", clip: "🎵", marque: "👕", appli: "📱" };
   const el = document.getElementById("services");
   offres.forEach((o) => {
     const a = document.createElement("a");
@@ -143,6 +145,7 @@ chargerOffres().then(({ offres }) => {
       <span class="prix">${o.a_partir ? "dès " : ""}<b>${euros(o.unique)}</b> ou ${euros(o.mensuel)}/mois</span>`;
     a.querySelector("h3").textContent = o.nom; a.querySelector("p").textContent = o.accroche;
     if (o.abonnement_obligatoire) a.querySelector(".prix").innerHTML = `<b>${euros(o.unique)}</b> + ${euros(o.mensuel)}/mois`;
+    if (o.unique_seulement) a.querySelector(".prix").innerHTML = `<b>${euros(o.unique)}</b> en une fois`;
     el.appendChild(a); observer(a);
   });
 });
