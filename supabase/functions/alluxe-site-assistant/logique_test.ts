@@ -3,7 +3,7 @@
  */
 import { assertEquals } from "jsr:@std/assert@1";
 import {
-  cleVisiteur, CONSIGNE, MAX_CARACTERES, MAX_TOURS, nettoyerHistorique,
+  cleVisiteur, CONSIGNE, consigne, MAX_CARACTERES, MAX_TOURS, nettoyerHistorique,
   nettoyerReponse, originePermise,
 } from "./logique.ts";
 
@@ -48,6 +48,20 @@ Deno.test("l'IP n'est jamais gardee en clair", async () => {
 Deno.test("la consigne interdit le conseil financier et les prix inventes", () => {
   assertEquals(CONSIGNE.includes("AUCUN conseil financier"), true);
   assertEquals(CONSIGNE.includes("N'invente jamais de prix"), true);
-  assertEquals(CONSIGNE.includes("149 EUR"), true);
+  assertEquals(CONSIGNE.includes("ne cite aucun prix"), true);
   assertEquals(CONSIGNE.includes("Pas de robot de trading"), true);
+});
+
+Deno.test("les prix viennent de offres.json, formules comprises", () => {
+  const texte = consigne([
+    { nom: "Site vitrine", accroche: "a", unique: 99, mensuel: 15, delai: "5 jours" },
+    { nom: "Agent", accroche: "b", unique: 69, mensuel: 15, delai: "5 jours", abonnement_obligatoire: true },
+    { nom: "Kit UGC", accroche: "c", unique: 19, mensuel: 0, delai: "48 h", unique_seulement: true },
+    { nom: "Appli", accroche: "d", unique: 349, mensuel: 45, delai: "2 semaines", a_partir: true },
+  ]);
+  assertEquals(texte.includes("Site vitrine (a) : 99 EUR ou 15 EUR/mois, 5 jours."), true);
+  assertEquals(texte.includes("69 EUR puis 15 EUR/mois"), true);
+  assertEquals(texte.includes("19 EUR en une fois"), true);
+  assertEquals(texte.includes("des 349 EUR ou des 45 EUR/mois"), true);
+  assertEquals(texte.includes("{OFFRES}"), false);
 });

@@ -17,7 +17,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
-  CONSIGNE, cleVisiteur, MAX_MESSAGES_PAR_JOUR, MAX_MESSAGES_PAR_VISITEUR,
+  consigne, cleVisiteur, type Offre, MAX_MESSAGES_PAR_JOUR, MAX_MESSAGES_PAR_VISITEUR,
   nettoyerHistorique, nettoyerReponse, originePermise,
 } from "./logique.ts";
 
@@ -36,6 +36,20 @@ function reponse(corps: unknown, statut: number, origine: string | null): Respon
   // navigateur refusait alors TOUT envoi (pre-verification CORS echouee).
   const contenu = statut === 204 ? null : JSON.stringify(corps);
   return new Response(contenu, { status: statut, headers: entetes });
+}
+
+// Les prix viennent du site lui-même (offres.json), relus toutes les 10 minutes.
+let cacheOffres: { quand: number; offres: Offre[] | null } = { quand: 0, offres: null };
+async function offresDuSite(): Promise<Offre[] | null> {
+  if (Date.now() - cacheOffres.quand < 10 * 60_000 && cacheOffres.offres) return cacheOffres.offres;
+  try {
+    const r = await fetch("https://alluxe.fr/offres.json", { signal: AbortSignal.timeout(4000) });
+    const d = await r.json();
+    cacheOffres = { quand: Date.now(), offres: Array.isArray(d?.offres) ? d.offres : null };
+  } catch (e) {
+    console.error("offres.json :", (e as Error).message);
+  }
+  return cacheOffres.offres;
 }
 
 async function appelerGroq(messages: unknown[]): Promise<string> {
@@ -98,7 +112,7 @@ Deno.serve(async (requete) => {
   }
 
   try {
-    const texte = await appelerGroq([{ role: "system", content: CONSIGNE }, ...historique]);
+    const texte = await appelerGroq([{ role: "system", content: consigne(await offresDuSite()) }, ...historique]);
     return reponse({ reponse: texte }, 200, origine);
   } catch (e) {
     console.error("assistant :", (e as Error).message);

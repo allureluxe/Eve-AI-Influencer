@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>alluxe.ia — Sites, boutiques et agents IA, construits avec l'IA</title>
-<meta name="description" content="Site vitrine, boutique Shopify, e-commerce de A à Z, agent IA secrétaire, robots d'automatisation. Construits avec l'IA, en quelques jours, dès 19 €/mois.">
+<meta name="description" content="Site vitrine, boutique Shopify, e-commerce de A à Z, agent IA secrétaire, robots d'automatisation. Construits avec l'IA, en quelques jours, dès 19 €.">
 <meta property="og:title" content="alluxe.ia — Ton business en ligne, construit avec l'IA">
-<meta property="og:description" content="Sites, boutiques, agents IA et robots. En jours, pas en mois. Dès 19 €/mois.">
+<meta property="og:description" content="Sites, boutiques, agents IA et robots. En jours, pas en mois. Dès 19 €.">
 <meta property="og:image" content="https://alluxe.fr/apercus/1.jpg">
 <meta name="theme-color" content="#faf7f0">
 <link rel="icon" href="logo-alluxe.png">
@@ -28,7 +28,7 @@
         <a class="bouton" href="offres.html">Voir les offres <span class="fleche">→</span></a>
         <a class="bouton clair" href="commander.html">Commander</a>
       </div>
-      <p class="petit" style="margin-top:14px">Dès <b>19 €/mois</b> sans frais de départ, ou un paiement unique.</p>
+      <p class="petit" style="margin-top:14px">Dès <b><span data-min-unique>19 €</span></b> en une fois, ou dès <b><span data-min-mensuel>15 €</span>/mois</b> sans frais de départ.</p>
     </div>
     <div class="eventail" aria-hidden="true">
       <img src="apercus/1.jpg" alt="">
@@ -39,7 +39,7 @@
   </div>
   <div class="chiffres">
     <div class="conteneur">
-      <div><b>19 €</b><span>par mois, dès</span></div>
+      <div><b data-min-unique>19 €</b><span>pour démarrer, dès</span></div>
       <div><b>5 à 14</b><span>jours pour être en ligne</span></div>
       <div><b>0 €</b><span>de frais de départ (au mois)</span></div>
       <div><b>×10</b><span>moins cher qu'une agence</span></div>
@@ -63,9 +63,9 @@
       <table class="comparatif">
         <thead><tr><th></th><th>Agence</th><th>Freelance</th><th>alluxe.ia</th></tr></thead>
         <tbody>
-          <tr><td>Site vitrine</td><td>~3 500 €</td><td>~1 450 €</td><td class="nous">149 € ou 19 €/mois</td></tr>
-          <tr><td>Boutique Shopify</td><td>4 000 à 8 000 €</td><td>2 000 à 5 000 €</td><td class="nous">249 € ou 29 €/mois</td></tr>
-          <tr><td>Agent IA / chatbot</td><td>8 000 à 25 000 €</td><td>800 à 6 000 €</td><td class="nous">99 € + 19 €/mois</td></tr>
+          <tr><td>Site vitrine</td><td>~3 500 €</td><td>~1 450 €</td><td class="nous" data-prix="vitrine">—</td></tr>
+          <tr><td>Boutique Shopify</td><td>4 000 à 8 000 €</td><td>2 000 à 5 000 €</td><td class="nous" data-prix="shopify">—</td></tr>
+          <tr><td>Agent IA / chatbot</td><td>8 000 à 25 000 €</td><td>800 à 6 000 €</td><td class="nous" data-prix="agent">—</td></tr>
           <tr><td>Délai</td><td>1 à 3 mois</td><td>3 à 6 semaines</td><td class="nous">5 à 14 jours</td></tr>
         </tbody>
       </table>
@@ -134,6 +134,16 @@
 <script>
 chargerOffres().then(({ offres }) => {
   document.getElementById("nb-offres").textContent = offres.length;
+  // Les prix affichés ailleurs sur la page viennent du même fichier (jamais recopiés à la main).
+  const parId = Object.fromEntries(offres.map((o) => [o.id, o]));
+  document.querySelectorAll("[data-prix]").forEach((el) => {
+    const o = parId[el.dataset.prix]; if (!o) return;
+    el.textContent = o.abonnement_obligatoire ? `${euros(o.unique)} + ${euros(o.mensuel)}/mois`
+      : o.unique_seulement ? euros(o.unique) : `${euros(o.unique)} ou ${euros(o.mensuel)}/mois`;
+  });
+  const minU = Math.min(...offres.map((o) => o.unique)), minM = Math.min(...offres.filter((o) => o.mensuel > 0).map((o) => o.mensuel));
+  document.querySelectorAll("[data-min-unique]").forEach((el) => el.textContent = euros(minU));
+  document.querySelectorAll("[data-min-mensuel]").forEach((el) => el.textContent = euros(minM));
   const ICONES = { vitrine: "🌐", shopify: "🛍️", ecommerce: "🚀", agent: "🤖", robot: "⚙️", influenceuse: "🌟", complet: "⭐",
     noel_boutique: "🎄", noel_campagne: "🎁", faceless: "🎬", autopost: "📲", ugc: "🤝", clip: "🎵", marque: "👕", appli: "📱" };
   const el = document.getElementById("services");
