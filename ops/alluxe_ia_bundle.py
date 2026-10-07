@@ -214,7 +214,13 @@ def main() -> int:
         return 0
 
     cle = "reel:" + args.reel_id + (":facebook" if args.facebook_seul else "")
-    reseaux = ("FACEBOOK",) if args.facebook_seul else ("INSTAGRAM", "FACEBOOK")
+    # 7 oct., soir : Facebook RETIRÉ de l'envoi par défaut. Envoyé séparément par
+    # bundle.social, le Reel arrive sur la page SANS la musique Instagram (la page
+    # diffusait notre son de secours ; le phonk composé a été refusé par l'opérateur).
+    # Le Reel publié depuis le téléphone avec « partager sur Facebook » garde, lui, la
+    # musique : c'est le partage automatique d'Instagram vers la page qu'il faut utiliser
+    # (Espace Comptes -> Partage entre profils). --facebook-seul reste pour un cas précis.
+    reseaux = ("FACEBOOK",) if args.facebook_seul else ("INSTAGRAM",)
     publies = json.load(open(PUBLIES)) if os.path.exists(PUBLIES) else {}
     if cle in publies:
         print(f"{args.reel_id} déjà programmé/publié le {publies[cle]['le']} : rien à faire")
@@ -249,8 +255,9 @@ def main() -> int:
             duree_ms = int((int(h) * 3600 + int(mi) * 60 + float(se)) * 1000)
         except Exception:  # noqa: BLE001 -- sans durée, Instagram coupe à la fin de la vidéo
             duree_ms = None
-    fichier_fb = version_facebook(fichier, args.reel_id)
-    print(f"version Facebook (musique intégrée) : {fichier_fb}")
+    fichier_fb = version_facebook(fichier, args.reel_id) if "FACEBOOK" in reseaux else fichier
+    if "FACEBOOK" in reseaux:
+        print(f"version Facebook (musique intégrée) : {fichier_fb}")
     apercu = corps_du_post(args.reel_id, "<televersement>", args.son, quand, args.essai, debut_ms, duree_ms,
                            "<televersement facebook>", reseaux)
     print(json.dumps(apercu, ensure_ascii=False, indent=1))
@@ -258,7 +265,7 @@ def main() -> int:
         print("\nESSAI À BLANC : rien n'est envoyé. Ajouter --confirmer pour programmer.")
         return 0
     upload = televerser(fichier)
-    upload_fb = televerser(fichier_fb)
+    upload_fb = televerser(fichier_fb) if "FACEBOOK" in reseaux else None
     r = _appel("POST", "post/", json.dumps(corps_du_post(args.reel_id, upload, args.son, quand,
                                                            args.essai, debut_ms, duree_ms, upload_fb, reseaux)).encode())
     publies[cle] = {"bundle_post_id": r.get("id"), "le": quand, "son": args.son, "debut_ms": debut_ms}
