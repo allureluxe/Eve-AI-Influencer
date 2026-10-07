@@ -20,8 +20,16 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
+import glob
+
 from alluxe_ia.reel_captures_montage import (
-    CREME, ENCRE, F, FPS, HT, JAUNE, NOIR, P, RACINE, W, decor, ease, legende, mettre_logo, produire, texte)
+    CREME, ENCRE, F, FPS, H, HT, JAUNE, NOIR, P, RACINE, W, decor, ease, ecran, legende, mettre_logo, produire, texte)
+
+# Vraies captures (7 oct., l'opérateur : « mets des captures ») : la vraie sortie du
+# serveur rendue dans un terminal (term5/), et l'écran Agent de l'appli.
+DOUBLE = [Image.open(f).convert("RGB") for f in sorted(glob.glob(H + "term5/double_*.png"))]
+ARRET = [Image.open(f).convert("RGB") for f in sorted(glob.glob(H + "term5/arret_*.png"))]
+AGENT = Image.open(H + "x_Agent.png").convert("RGB").crop((0, 1150, 1080, 2338))
 
 MONO = lambda s: ImageFont.truetype(P + "JetBrainsMono.ttf", s)  # noqa: E731
 VERT, CORAIL, MENTHE, GRISC = (126, 224, 143), (255, 128, 96), (92, 224, 198), (150, 150, 150)
@@ -73,33 +81,18 @@ def glitch(img, force):
 
 def image(t: float) -> Image.Image:
     img = Image.new("RGB", (W, HT), CREME)
-    scene = sum(t >= s for s in (2.4, 5.2, 8.0, 10.6, 13.6))
-    if scene < 5: decor(img, t, scene + 2)
+    scene = sum(t >= s for s in (2.4, 5.2, 8.0, 10.6, 13.0, 15.4))
+    if scene < 6: decor(img, t, scene + 2)
     d = ImageDraw.Draw(img)
-    if t < 2.4:                                    # 1. accroche
-        u = t / 2.4
-        for k, x0 in enumerate((-520, W + 40)):    # deux terminaux qui arrivent des deux côtés
-            a = ease(u * 2.2 - k * 0.15)
-            x = int(x0 + (60 + k * 500 - x0) * a)
-            carte = terminal(f"robot {k + 1} · en marche", ROBOT1 if k == 0 else ROBOT2, 3 + int(u * 4), 460, 760, 27)
-            coller(img, carte, x, 980)
+    if t < 2.4:                                    # 1. accroche : le vrai journal monte sous le titre
+        ecran(img, DOUBLE[-1], 900 + int((1 - ease(t * 2)) * 400), 1000, decal=0.0)
         mettre_logo(img, 190)
-        texte(d, 280, [("Mon IA tournait", None), ("EN DOUBLE.", JAUNE)], 128, t=t / 0.8)
-        if t > 1.1: texte(d, 640, [("Et personne ne", None), ("l'avait vu.", None)], 84, t=(t - 1.1) / 0.7)
-    elif t < 5.2:                                  # 2. deux robots, une mémoire
+        texte(d, 260, [("Mon IA tournait", None), ("EN DOUBLE.", JAUNE)], 128, t=t / 0.8)
+        if t > 1.1: texte(d, 610, [("Et personne ne", None), ("l'avait vu.", None)], 84, t=(t - 1.1) / 0.7)
+    elif t < 5.2:                                  # 2. le vrai journal : deux démarrages
         u = (t - 2.4) / 2.8
-        n = 2 + int(u * 7)
-        coller(img, terminal("robot 1", ROBOT1, n, 470, 640, 30), 50, 200)
-        coller(img, terminal("robot 2", ROBOT2, n, 470, 640, 30, CORAIL), 560, 200)
-        # la mémoire partagée, qui clignote à chaque écriture
-        flash = 0.5 + 0.5 * math.sin(t * 14)
-        f = F(56); s = "1 seul fichier de mémoire"
-        bx = (W - f.getlength(s)) / 2
-        d.rounded_rectangle((bx - 30, 950, bx + f.getlength(s) + 30, 1050), 30,
-                            fill=(255, int(214 - 80 * flash), int(64 + 40 * flash)), outline=ENCRE, width=5)
-        d.text((bx, 968), s, font=f, fill=NOIR)
-        for x in (290, 790):
-            d.line((x, 852, W // 2 + (x - W // 2) // 3, 950), fill=ENCRE, width=8)
+        k = min(len(DOUBLE) - 1, int(u * 1.3 * (len(DOUBLE) - 1)))
+        ecran(img, DOUBLE[k], 140, 1700, decal=1.0)
         legende(img, d, 1300, [("2 robots.", None), ("1 seule mémoire.", JAUNE)], 118, u, 1)
     elif t < 8.0:                                  # 3. l'affichage qui ment
         u = (t - 5.2) / 2.8
@@ -125,12 +118,15 @@ def image(t: float) -> Image.Image:
         f2 = F(48); s2 = "du 4 oct. 22 h 31 au 5 oct. 17 h 04"
         d.text(((W - f2.getlength(s2)) / 2, 740), s2, font=f2, fill=ENCRE)
         legende(img, d, 1250, [("Pendant 18 heures.", None), ("Personne n'a rien vu.", JAUNE)], 92, u, 3)
-    elif t < 13.6:                                 # 5. Claude trouve et répare
-        u = (t - 10.6) / 3.0
-        n = min(len(CLAUDE), 1 + int(u * 1.3 * len(CLAUDE)))
-        carte = terminal("Claude Code", CLAUDE, n, 900, 1000, 34, CLAUDE_OR)
-        coller(img, carte, 90, 150)
-        legende(img, d, 1330, [("Claude l'a trouvé.", None), ("Et réparé.", JAUNE)], 118, u, 4)
+    elif t < 13.0:                                 # 5. Claude trouve et arrête (vraie sortie du serveur)
+        u = (t - 10.6) / 2.4
+        k = min(len(ARRET) - 1, int(u * 1.4 * (len(ARRET) - 1)))
+        ecran(img, ARRET[k], 140, 1700, decal=1.0)
+        legende(img, d, 1250, [("Claude l'a trouvé.", None), ("Et arrêté.", JAUNE)], 118, u, 4)
+    elif t < 15.4:                                 # 6. l'agent refuse d'y toucher (capture de l'appli)
+        u = (t - 13.0) / 2.4
+        ecran(img, AGENT, 140, 1500, zoom=1.0 + 0.05 * ease(u))
+        legende(img, d, 1180, [("Et mon agent IA", None), ("refuse d'y toucher.", JAUNE)], 98, u, 5)
     else:                                          # 6. fin
         img.paste(Image.new("RGB", (W, HT), JAUNE)); d = ImageDraw.Draw(img)
         from alluxe_ia.reel_captures_montage import logo
@@ -163,7 +159,7 @@ REELS = {
 
 
 def rendre(reel_id: str = "05-ia-en-double") -> None:
-    produire(image, 16.0, os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{reel_id}.mp4"), graine="doublon")
+    produire(image, 17.4, os.path.join(RACINE, "data", "alluxe_ia", "reels", f"{reel_id}.mp4"), graine="doublon")
 
 
 if __name__ == "__main__":
