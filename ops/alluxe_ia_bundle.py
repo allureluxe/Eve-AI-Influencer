@@ -149,8 +149,13 @@ def corps_du_post(reel_id: str, upload_id: str, son: str, quand_utc: str, essai:
             ig["musicSoundInfo"]["musicSoundEnd"] = debut_ms + duree_ms
     if essai:
         ig["trialParams"] = {"graduationStrategy": "SS_PERFORMANCE"}
+    # 7 oct., l'opérateur : publier aussi sur Facebook. Le Reel republié à la main
+    # (partagé sur Facebook) y a fait 204 vues contre 23 sur Instagram. La page
+    # « Allure luxe » est branchée sur bundle.social ; même légende, même vidéo.
+    fb = {"type": "REEL", "text": REELS[reel_id]["legende"], "uploadIds": [upload_id]}
     return {"teamId": EQUIPE, "title": f"alluxe.ia {reel_id}", "postDate": quand_utc,
-            "status": "SCHEDULED", "socialAccountTypes": ["INSTAGRAM"], "data": {"INSTAGRAM": ig}}
+            "status": "SCHEDULED", "socialAccountTypes": ["INSTAGRAM", "FACEBOOK"],
+            "data": {"INSTAGRAM": ig, "FACEBOOK": fb}}
 
 
 def _heure_utc(le: str) -> str:
