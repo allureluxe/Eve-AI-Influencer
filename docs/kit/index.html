@@ -29,6 +29,11 @@
         <a class="bouton clair" href="commander.html">Commander</a>
       </div>
       <p class="petit" style="margin-top:14px">Dès <b><span data-min-unique>19 €</span></b> en une fois, ou dès <b><span data-min-mensuel>15 €</span>/mois</b> sans frais de départ.</p>
+      <ul class="garanties">
+        <li>Tu valides chaque étape</li>
+        <li>2 séries de retouches incluses</li>
+        <li>Rappel sous 24 h</li>
+      </ul>
     </div>
     <div class="eventail" aria-hidden="true">
       <img src="apercus/1.jpg" alt="">
@@ -151,6 +156,7 @@ chargerOffres().then(({ offres }) => {
     const a = document.createElement("a");
     a.className = "service apparait"; a.href = "offres.html#" + o.id;
     a.style.setProperty("--c", `var(--${o.couleur})`);
+    a.dataset.categorie = o.categorie || "";
     a.innerHTML = `<span class="icone">${ICONES[o.id] || "✦"}</span><h3></h3><p></p>
       <span class="prix">${o.a_partir ? "dès " : ""}<b>${euros(o.unique)}</b> ou ${euros(o.mensuel)}/mois</span>`;
     a.querySelector("h3").textContent = o.nom; a.querySelector("p").textContent = o.accroche;

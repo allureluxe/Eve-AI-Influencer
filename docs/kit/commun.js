@@ -70,21 +70,48 @@
     b.querySelector("b").textContent = promo.titre + " :";
     b.querySelector(".texte").textContent = promo.texte;
     document.querySelector(".barre")?.after(b);
+    // Compte à rebours en cases (jours / h / min / s), comme un calendrier.
     const fin = new Date(promo.fin).getTime(), z = b.querySelector(".decompte");
+    z.innerHTML = ["j", "h", "min", "s"].map((u) => `<span class="case"><b>00</b>${u}</span>`).join("");
+    const cases = z.querySelectorAll("b");
     const tic = () => {
       const s = Math.max(0, Math.floor((fin - Date.now()) / 1000));
-      const j = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60, sec = s % 60;
-      z.textContent = `fin dans ${j} j ${String(h).padStart(2, "0")} h ${String(m).padStart(2, "0")} min ${String(sec).padStart(2, "0")} s`;
-      if (!s) b.remove();
+      [Math.floor(s / 86400), Math.floor(s / 3600) % 24, Math.floor(s / 60) % 60, s % 60]
+        .forEach((v, i) => { cases[i].textContent = String(v).padStart(2, "0"); });
+      if (!s) { b.remove(); document.body.classList.remove("noel"); }
     };
     tic(); setInterval(tic, 1000);
+
+    // 9 oct. : décor de Noël « premium » (tendance des sites d'agence : peu
+    // d'éléments, tons profonds rouge/or, animations lentes). Tout est décoratif
+    // (aria-hidden) et s'éteint avec la classe .noel au 25 décembre.
+    const deco = (cls, html = "") => {
+      const d = document.createElement("div"); d.className = cls; d.setAttribute("aria-hidden", "true");
+      d.innerHTML = html; return d;
+    };
+    // Guirlande lumineuse, accrochée sous le dernier bandeau (elle pend sur le haut de page).
+    const bandeaux = document.querySelectorAll(".bandeau-noel, .bandeau-kit");
+    bandeaux[bandeaux.length - 1].after(deco("guirlande", Array.from({ length: 26 }, (_, i) => `<i style="--i:${i}"></i>`).join("")));
+    // Boules suspendues + étiquette « Édition Noël » dans le haut de page.
+    const hero = document.querySelector(".eventail") || document.querySelector("header .conteneur");
+    if (hero) {
+      hero.appendChild(deco("boules", ["rouge", "or", "vert"].map((c, i) =>
+        `<span class="boule ${c}" style="--n:${i}"><i></i></span>`).join("")));
+      hero.appendChild(deco("etiquette-noel", "🎁 Édition Noël"));
+    }
+    // De la neige qui « tient » sur les blocs forts de la page.
+    document.querySelectorAll(".chiffres, .final .boite, .duel .panneau").forEach((el) => {
+      el.classList.add("enneige"); el.prepend(deco("congere"));
+    });
     if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      const neige = document.createElement("div"); neige.className = "neige"; neige.setAttribute("aria-hidden", "true");
-      for (let i = 0; i < 28; i++) {
-        const f = document.createElement("i"); f.textContent = i % 3 ? "❄" : "•";
-        f.style.left = Math.random() * 100 + "vw"; f.style.fontSize = 8 + Math.random() * 14 + "px";
-        f.style.animationDuration = 7 + Math.random() * 9 + "s"; f.style.animationDelay = -Math.random() * 16 + "s";
-        f.style.opacity = 0.35 + Math.random() * 0.5; neige.appendChild(f);
+      const neige = deco("neige");
+      const n = innerWidth < 700 ? 18 : 34;
+      for (let i = 0; i < n; i++) {
+        const f = document.createElement("i"); f.textContent = ["❄", "❅", "•", "✻"][i % 4];
+        f.style.left = Math.random() * 100 + "vw"; f.style.fontSize = 8 + Math.random() * 16 + "px";
+        f.style.animationDuration = 9 + Math.random() * 10 + "s"; f.style.animationDelay = -Math.random() * 19 + "s";
+        f.style.setProperty("--derive", (Math.random() * 80 - 40).toFixed(0) + "px");
+        f.style.opacity = 0.4 + Math.random() * 0.5; neige.appendChild(f);
       }
       document.body.appendChild(neige);
     }

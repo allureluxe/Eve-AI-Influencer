@@ -290,14 +290,88 @@ footer .liens a { color: var(--noir); font-weight: 700; text-decoration: none; }
 .plus-abonnement li::before { content: "+ "; font-weight: 800; }
 @media (max-width: 860px) { .deux-formules { grid-template-columns: 1fr; } }
 
-/* Noël : bandeau + compte à rebours + neige (commun.js, actif jusqu'à promo.fin). */
-.bandeau-noel { display: block; text-align: center; background: #c8102e; color: #fff; text-decoration: none; padding: 10px 14px;
-  font-size: 14px; border-bottom: 3px solid var(--noir); background-image: repeating-linear-gradient(45deg, #c8102e 0 14px, #b00d27 14px 28px); }
-.bandeau-noel .decompte { display: inline-block; margin-left: 6px; background: #fff; color: #c8102e; font-weight: 800; border-radius: 999px;
-  padding: 2px 10px; font-variant-numeric: tabular-nums; }
+/* Noël : bandeau + compte à rebours + neige (commun.js, actif jusqu'à promo.fin).
+   9 oct. : refonte « premium » — rouge profond, or, vert sapin ; animations lentes,
+   toutes coupées si « mouvement réduit ». Tout dépend de body.noel. */
+.noel { --rouge-noel: #b3122b; --or: #e9b949; --sapin: #14532d; }
+.bandeau-noel { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 10px; text-align: center;
+  color: #fff; text-decoration: none; padding: 10px 14px; font-size: 14px;
+  background: radial-gradient(circle at 20% 0, #d4213d 0, transparent 45%), linear-gradient(90deg, #8f0c22, #c8102e 50%, #8f0c22); }
+.bandeau-noel b { color: var(--or, #e9b949); }
+.bandeau-noel .decompte { display: inline-flex; gap: 5px; margin-left: 4px; }
+.bandeau-noel .case { display: inline-flex; align-items: baseline; gap: 2px; background: #fff; color: #8f0c22; border-radius: 8px;
+  padding: 3px 7px; font-size: 11px; font-weight: 700; box-shadow: 0 2px 0 #5c0715; }
+.bandeau-noel .case b { color: #8f0c22; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .bandeau-noel .sapin { display: inline-block; animation: balance 2.4s ease-in-out infinite; }
 @keyframes balance { 50% { transform: rotate(-8deg) scale(1.1); } }
-.noel .barre { box-shadow: inset 0 -4px 0 #c8102e; }
+
+/* Guirlande lumineuse : un fil en arc, des ampoules qui scintillent en décalé. */
+.guirlande { position: relative; height: 30px; display: flex; justify-content: space-between; padding: 0 1.5%;
+  overflow: hidden; pointer-events: none; z-index: 6; margin-bottom: -30px; }
+.guirlande::before { content: ""; position: absolute; left: -2%; right: -2%; top: -18px; height: 30px;
+  border-bottom: 2px solid #2b2b2b; border-radius: 0 0 50% 50% / 0 0 100% 100%; }
+.guirlande i { position: relative; width: 10px; height: 15px; border-radius: 50% 50% 45% 45%; margin-top: calc(6px + 7px * sin(var(--i) * 0.24));
+  background: var(--l); box-shadow: 0 0 8px 2px var(--l); animation: scintille 2.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.37s); }
+.guirlande i::before { content: ""; position: absolute; top: -4px; left: 2px; width: 6px; height: 5px; background: #333; border-radius: 2px; }
+.guirlande i:nth-child(4n+1) { --l: #ff3b4e; } .guirlande i:nth-child(4n+2) { --l: #ffd640; }
+.guirlande i:nth-child(4n+3) { --l: #3ddc84; } .guirlande i:nth-child(4n) { --l: #6cc4ff; }
+@keyframes scintille { 50% { opacity: .35; box-shadow: 0 0 2px 0 var(--l); } }
+
+/* Boules suspendues au-dessus du visuel du haut de page. */
+.boules { position: absolute; top: -40px; right: 4%; display: flex; gap: 26px; z-index: 4; pointer-events: none; }
+.boule { position: relative; display: block; width: 2px; height: calc(60px + var(--n) * 38px); background: #8a6d2b;
+  transform-origin: top center; animation: oscille 4s ease-in-out infinite; animation-delay: calc(var(--n) * -1.3s); }
+.boule i { position: absolute; bottom: -34px; left: -17px; width: 36px; height: 36px; border-radius: 50%;
+  border: 2px solid var(--noir); box-shadow: inset -6px -6px 0 rgba(0,0,0,.18), inset 5px 5px 0 rgba(255,255,255,.35); }
+.boule i::before { content: ""; position: absolute; top: -7px; left: 11px; width: 10px; height: 7px; background: var(--or, #e9b949);
+  border: 2px solid var(--noir); border-radius: 3px; }
+.boule.rouge i { background: #c8102e; } .boule.or i { background: #e9b949; } .boule.vert i { background: #1f7a45; }
+@keyframes oscille { 0%, 100% { transform: rotate(4deg); } 50% { transform: rotate(-4deg); } }
+.etiquette-noel { position: absolute; left: 2%; top: -6px; z-index: 4; background: var(--rouge-noel, #b3122b); color: #fff;
+  font-weight: 800; font-size: 14px; padding: 7px 14px; border: 2px solid var(--noir); border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--or, #e9b949); transform: rotate(-6deg); }
+
+/* Rubans cadeau sur les offres de Noël (accueil et page Offres). */
+.noel .service[data-categorie="noel"], .noel #cat-noel .offre { position: relative; overflow: hidden;
+  background-image: linear-gradient(var(--rouge-noel), var(--rouge-noel)), linear-gradient(var(--rouge-noel), var(--rouge-noel));
+  background-size: 12px 100%, 100% 12px; background-position: calc(100% - 26px) 0, 0 0; background-repeat: no-repeat;
+  padding-right: 52px; }
+.noel .service[data-categorie="noel"]::after, .noel #cat-noel .offre::after { content: "🎀"; position: absolute; top: -6px;
+  right: 12px; font-size: 32px; filter: drop-shadow(1px 2px 0 rgba(0,0,0,.25)); }
+.noel .service[data-categorie="noel"] .icone { margin-top: 14px; }
+
+/* La neige « tient » sur les blocs forts : une congère festonnée posée dessus. */
+.enneige { position: relative; }
+.congere { position: absolute; left: 0; right: 0; top: 0; height: 24px; z-index: 3; pointer-events: none;
+  background:
+    linear-gradient(#fff, #fff) 0 0 / 100% 7px no-repeat,
+    radial-gradient(ellipse 30px 15px at 50% 0, #fff 97%, transparent 100%) 0 5px / 72px 18px repeat-x,
+    radial-gradient(ellipse 13px 11px at 50% 0, #fff 96%, transparent 100%) 40px 7px / 53px 14px repeat-x;
+  filter: drop-shadow(0 2px 1px rgba(120,170,220,.5)); }
+.final .boite .congere, .duel .panneau .congere { border-radius: 24px 24px 0 0; overflow: hidden; }
+.final .boite { overflow: hidden; } .duel .panneau { position: relative; overflow: hidden; }
+.noel .final .boite { background: linear-gradient(160deg, #c8102e, #8f0c22); color: #fff; }
+.noel .final .boite mark { color: var(--noir); }
+.noel .final .boite p { color: #ffe9ec; }
+.noel .barre { box-shadow: inset 0 -4px 0 var(--rouge-noel); }
+
 .neige { position: fixed; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
-.neige i { position: absolute; top: -20px; color: #9fd3ff; font-style: normal; animation: chute linear infinite; text-shadow: 0 0 2px #fff; }
-@keyframes chute { to { transform: translate3d(30px, 110vh, 0) rotate(240deg); } }
+.neige i { position: absolute; top: -24px; color: #fff; font-style: normal; animation: chute linear infinite;
+  text-shadow: 0 0 3px #8fc6ff, 0 0 1px #5aa9ff; }
+@keyframes chute { to { transform: translate3d(var(--derive, 30px), 110vh, 0) rotate(300deg); } }
+
+@media (max-width: 860px) {
+  .boules { top: -26px; right: 2%; gap: 16px; } .boule { height: calc(34px + var(--n) * 24px); }
+  .boule i { width: 28px; height: 28px; left: -13px; bottom: -28px; } .boule i::before { left: 7px; }
+  .guirlande i:nth-child(n+16) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guirlande i, .boule, .bandeau-noel .sapin { animation: none; }
+}
+
+/* Réassurance sous les boutons (9 oct.) : ce que les sites d'agence mettent
+   tous en avant. Uniquement des promesses déjà écrites (FAQ, CGV, bas de page). */
+.garanties { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px; font-size: 14px; font-weight: 600; }
+.garanties li::before { content: "✓"; display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 6px;
+  border-radius: 50%; background: var(--menthe); border: 1.5px solid var(--noir); font-size: 12px; font-weight: 800; }
