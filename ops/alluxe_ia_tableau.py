@@ -85,6 +85,11 @@ def _total(metrique: str, depuis: int, jusqua: int) -> int | None:
 
 def stats() -> None:
     compte = graph(IG, fields="followers_count,media_count")
+    # 8 oct. : l'API répondait « API access blocked » et ce script écrasait les chiffres
+    # de l'appli par des vides. Une erreur ne remplace plus jamais une valeur connue.
+    if "err" in compte or compte.get("followers_count") is None:
+        print(f"stats NON mises à jour, API Instagram en erreur : {str(compte.get('err', compte))[:160]}")
+        return
     maintenant = int(dt.datetime.now().timestamp())
     il_y_a_7j = maintenant - 7 * 86400
     ligne = {"reseau": "instagram", "abonnes": compte.get("followers_count"),
