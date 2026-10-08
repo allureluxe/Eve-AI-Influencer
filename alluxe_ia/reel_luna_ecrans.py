@@ -17,7 +17,7 @@ Aucun montant de trading à l'écran (loi du 9 juin 2023). Rien n'est publié.
 
     python3 alluxe_ia/reel_luna_ecrans.py images
     python3 alluxe_ia/reel_luna_ecrans.py videos
-    python3 alluxe_ia/reel_luna_ecrans.py montage
+    python3 alluxe_ia/reel_luna_ecrans.py montage [complet ig15 tiktok10]
 """
 from __future__ import annotations
 
@@ -151,19 +151,51 @@ SCENES = [
     },
 ]
 
-#: (début, fin, texte, style) — secondes dans le Reel final
-TEXTES = [
-    (0.0, 4.2, "J'AI DEMANDÉ À MON IA\nDE FAIRE ÇA…", "titre"),
-    (0.6, 4.2, "ELLE A REFUSÉ !", "rouge"),
-    (4.2, 8.4, "1  Claude écrit le code.", "bas"),
-    (8.4, 12.6, "2  Un robot qui surveille\n194 marchés.", "bas"),
-    (12.6, 16.8, "3  Un labo qui a testé\n3 254 idées.", "bas"),
-    (16.8, 21.6, "4  Un agent IA qui refuse\nce qui est dangereux.", "bas"),
-    (18.6, 21.6, "ET C'EST EXACTEMENT\nCE QUE JE VEUX !", "final"),
-    (0.0, 21.6, "Je ne suis pas développeur · @alluxe.ia", "signature"),
-]
-DUREE_SCENE = 4.2
-DUREE_TOTALE = 21.6
+#: Légende de chaque scène (numérotée au montage, la 1re est l'accroche)
+LEGENDES = {
+    "2_code": "Claude écrit le code.",
+    "3_robot": "Un robot qui surveille\n194 marchés.",
+    "4_labo": "Un labo qui a testé\n3 254 idées.",
+    "5_agent": "Un agent IA qui refuse\nce qui est dangereux.",
+}
+
+#: Durée de chaque scène par version (absente = scène sautée).
+#: 9 oct., opérateur : le Reel 04 est regardé à 81 % sur 16,6 s mais le
+#: TikTok décroche à 3,2 s -> une version longue, une à 15 s, une à 10 s.
+VERSIONS = {
+    "complet": {"1_refuse": 4.2, "2_code": 4.2, "3_robot": 4.2,
+                "4_labo": 4.2, "5_agent": 4.8},
+    "ig15": {"1_refuse": 3.0, "2_code": 2.6, "3_robot": 2.6, "4_labo": 2.6,
+             "5_agent": 4.2},
+    "tiktok10": {"1_refuse": 2.6, "3_robot": 2.4, "5_agent": 5.0},
+}
+
+#: 9 oct., opérateur : « à la fin il faut toujours un abonne-toi ».
+FIN_CTA = 2.0
+
+
+def textes(version: str) -> list[tuple[float, float, str, str]]:
+    """(début, fin, texte, style), calés sur les durées de la version."""
+    durees = VERSIONS[version]
+    total = sum(durees.values())
+    t, n, sortie = 0.0, 0, []
+    for nom, d in durees.items():
+        if nom == "1_refuse":
+            sortie += [(0.0, d, "J'AI DEMANDÉ À MON IA\nDE FAIRE ÇA…", "titre"),
+                       (0.4, d, "ELLE A REFUSÉ !", "rouge")]
+        else:
+            n += 1
+            sortie.append((t, total - FIN_CTA if nom == "5_agent" else t + d,
+                           f"{n}  {LEGENDES[nom]}", "bas"))
+        t += d
+    sortie += [
+        (total - FIN_CTA - 1.6, total - FIN_CTA,
+         "ET C'EST EXACTEMENT\nCE QUE JE VEUX !", "final"),
+        (total - FIN_CTA, total, "ABONNE-TOI", "cta"),
+        # Luna est un personnage généré : on le dit, à l'écran, tout le temps.
+        (0.0, total, "@alluxe.ia · Luna, personnage IA", "signature"),
+    ]
+    return sortie
 
 
 def _journal(msg: str) -> None:
@@ -315,6 +347,20 @@ def _calque(texte: str, style: str) -> Image.Image:
         d.rectangle((x0 - 40, y0 - 30, x1 + 40, y1 + 34), fill="white")
         d.multiline_text((W // 2, 1060), texte, font=f, fill="black",
                          anchor="ma", align="center", spacing=8)
+    elif style == "cta":
+        # Bandeau sombre bas d'écran : gros « ABONNE-TOI », pseudo en jaune,
+        # rappel du kit. Luna reste visible au-dessus.
+        d.rectangle((0, 1180, W, 1780), fill=(12, 12, 14, 215))
+        d.text((W // 2, 1250), texte, font=_police(120, 900), fill="white",
+               anchor="ma")
+        f = _police(84, 900)
+        x0, y0, x1, y1 = d.textbbox((W // 2, 1430), "@alluxe.ia", font=f,
+                                    anchor="ma")
+        d.rounded_rectangle((x0 - 44, y0 - 24, x1 + 44, y1 + 30), 26,
+                            fill=(255, 214, 0))
+        d.text((W // 2, 1430), "@alluxe.ia", font=f, fill="black", anchor="ma")
+        d.text((W // 2, 1620), "Le kit gratuit est en bio", font=_police(50, 700),
+               fill=(235, 235, 235), anchor="ma")
     elif style == "signature":
         f = _police(34, 600)
         d.text((W // 2, 1840), texte, font=f, fill="white", anchor="ma",
@@ -322,17 +368,19 @@ def _calque(texte: str, style: str) -> Image.Image:
     return im
 
 
-def montage() -> Path:
+def montage(version: str = "complet") -> Path:
     vids = DOSSIER / "videos"
-    tmp = DOSSIER / "montage"
+    tmp = DOSSIER / "montage" / version
     tmp.mkdir(parents=True, exist_ok=True)
+    durees = VERSIONS[version]
+    total = sum(durees.values())
     morceaux = []
-    for i, s in enumerate(SCENES):
-        duree = DUREE_TOTALE - DUREE_SCENE * 4 if i == 4 else DUREE_SCENE
+    for i, (nom, duree) in enumerate(durees.items()):
         m = tmp / f"m{i}.mp4"
-        # 9:16 plein cadre, 30 i/s ; la dernière scène est allongée si besoin
+        # 9:16 plein cadre, 30 i/s ; une scène plus longue que le clip Kling
+        # (5 s) tient sur sa dernière image.
         subprocess.run([
-            "ffmpeg", "-v", "error", "-y", "-i", str(vids / f"{s['nom']}.mp4"),
+            "ffmpeg", "-v", "error", "-y", "-i", str(vids / f"{nom}.mp4"),
             "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,"
                    "crop=1080:1920,fps=30,tpad=stop_mode=clone:stop_duration=2",
             "-t", f"{duree:.3f}", "-an", "-c:v", "libx264", "-crf", "17",
@@ -345,26 +393,32 @@ def montage() -> Path:
                     "-i", str(liste), "-c", "copy", str(brut)], check=True)
     entrees = ["-i", str(brut), "-i", str(SOURCE)]
     filtres, prec = [], "0:v"
-    for j, (t0, t1, texte, style) in enumerate(TEXTES):
+    for j, (t0, t1, texte, style) in enumerate(textes(version)):
         p = tmp / f"t{j}.png"
         _calque(texte, style).save(p)
         entrees += ["-i", str(p)]
         sortie = f"v{j}"
         filtres.append(f"[{prec}][{j + 2}:v]overlay=0:0:enable="
-                       f"'between(t,{t0},{t1})'[{sortie}]")
+                       f"'between(t,{t0:.2f},{t1:.2f})'[{sortie}]")
         prec = sortie
-    final = DOSSIER / "reel_luna_ecrans.mp4"
+    # Le son du Reel d'origine, coupé à la durée et fondu sur la fin.
+    filtres.append(f"[1:a]atrim=0:{total},afade=t=out:st={total - 0.6:.2f}:"
+                   f"d=0.6[a]")
+    final = DOSSIER / f"reel_luna_ecrans_{version}.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", *entrees,
                     "-filter_complex", ";".join(filtres),
-                    "-map", f"[{prec}]", "-map", "1:a", "-t", str(DUREE_TOTALE),
+                    "-map", f"[{prec}]", "-map", "[a]", "-t", f"{total:.3f}",
                     "-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p",
                     "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
                     str(final)], check=True)
-    _journal(f"Reel prêt : {final}")
+    _journal(f"Reel prêt : {final} ({total:.1f} s)")
     return final
 
 
 if __name__ == "__main__":
     etape = sys.argv[1] if len(sys.argv) > 1 else "images"
-    {"captures": captures, "images": images, "videos": videos,
-     "montage": montage}[etape]()
+    if etape == "montage":
+        for v in (sys.argv[2:] or list(VERSIONS)):
+            montage(v)
+    else:
+        {"captures": captures, "images": images, "videos": videos}[etape]()
