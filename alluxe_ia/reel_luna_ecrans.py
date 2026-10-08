@@ -162,16 +162,40 @@ LEGENDES = {
 #: Durée de chaque scène par version (absente = scène sautée).
 #: 9 oct., opérateur : le Reel 04 est regardé à 81 % sur 16,6 s mais le
 #: TikTok décroche à 3,2 s -> une version longue, une à 15 s, une à 10 s.
+#: Puis : « n'oublie pas le tempo ». Le son du Reel 04 (le passage fort qu'il
+#: a choisi au téléphone) bat à ~120 BPM, un temps fort par seconde environ :
+#: chaque coupe tombe sur un temps mesuré (librosa, voir `temps_forts`).
 VERSIONS = {
-    "complet": {"1_refuse": 4.2, "2_code": 4.2, "3_robot": 4.2,
-                "4_labo": 4.2, "5_agent": 4.8},
-    "ig15": {"1_refuse": 3.0, "2_code": 2.6, "3_robot": 2.6, "4_labo": 2.6,
-             "5_agent": 4.2},
-    "tiktok10": {"1_refuse": 2.6, "3_robot": 2.4, "5_agent": 5.0},
+    "complet": {"1_refuse": 3.97, "2_code": 3.79, "3_robot": 3.85,
+                "4_labo": 4.09, "5_agent": 4.92},
+    "ig15": {"1_refuse": 2.97, "2_code": 2.81, "3_robot": 2.95,
+             "4_labo": 2.88, "5_agent": 4.09},
+    "tiktok10": {"1_refuse": 2.97, "3_robot": 2.00, "5_agent": 4.81},
 }
 
 #: 9 oct., opérateur : « à la fin il faut toujours un abonne-toi ».
 FIN_CTA = 2.0
+
+
+def temps_forts() -> list[float]:
+    """Les temps du son d'origine, pour caler textes et coupes dessus."""
+    try:
+        import librosa
+        wav = DOSSIER / "son_origine.wav"
+        if not wav.exists():
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(SOURCE),
+                            "-vn", "-ac", "1", "-ar", "22050", str(wav)],
+                           check=True)
+        y, sr = librosa.load(str(wav), sr=22050)
+        _, trames = librosa.beat.beat_track(y=y, sr=sr)
+        return [float(t) for t in librosa.frames_to_time(trames, sr=sr)]
+    except Exception:  # sans librosa : pas de calage, le montage reste juste
+        return []
+
+
+def _sur_le_temps(t: float, temps: list[float]) -> float:
+    proche = min(temps, key=lambda b: abs(b - t)) if temps else t
+    return round(proche, 2) if abs(proche - t) < 0.45 else t
 
 
 def textes(version: str) -> list[tuple[float, float, str, str]]:
@@ -182,16 +206,20 @@ def textes(version: str) -> list[tuple[float, float, str, str]]:
     for nom, d in durees.items():
         if nom == "1_refuse":
             sortie += [(0.0, d, "J'AI DEMANDÉ À MON IA\nDE FAIRE ÇA…", "titre"),
-                       (0.4, d, "ELLE A REFUSÉ !", "rouge")]
+                       (0.98, d, "ELLE A REFUSÉ !", "rouge")]   # 2e temps
         else:
             n += 1
             sortie.append((t, total - FIN_CTA if nom == "5_agent" else t + d,
                            f"{n}  {LEGENDES[nom]}", "bas"))
         t += d
+    temps = temps_forts()
+    debut_cta = _sur_le_temps(total - FIN_CTA, temps)
+    sortie = [(a, debut_cta if b == total - FIN_CTA else b, x, st)
+              for a, b, x, st in sortie]
     sortie += [
-        (total - FIN_CTA - 1.6, total - FIN_CTA,
+        (_sur_le_temps(debut_cta - 1.3, temps), debut_cta,
          "ET C'EST EXACTEMENT\nCE QUE JE VEUX !", "final"),
-        (total - FIN_CTA, total, "ABONNE-TOI", "cta"),
+        (debut_cta, total, "ABONNE-TOI", "cta"),
         # Luna est un personnage généré : on le dit, à l'écran, tout le temps.
         (0.0, total, "@alluxe.ia · Luna, personnage IA", "signature"),
     ]
