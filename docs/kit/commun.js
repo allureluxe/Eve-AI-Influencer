@@ -56,6 +56,38 @@
   };
 
   // Les prix viennent d'un seul fichier (offres.json).
-  window.chargerOffres = () => fetch("offres.json").then((r) => r.json());
+  let offresEnCours = null;   // un seul téléchargement de offres.json par page
+  window.chargerOffres = () => (offresEnCours ||= fetch("offres.json").then((r) => r.json()));
+
+  // Noël (8 oct.) : bandeau avec compte à rebours + neige, tant que l'offre court.
+  // La date de fin vient de offres.json (« promo.fin ») : après, tout disparaît seul.
+  window.chargerOffres().then(({ promo }) => {
+    if (!promo || new Date(promo.fin) <= new Date()) return;
+    document.body.classList.add("noel");
+    const b = document.createElement("a");
+    b.className = "bandeau-noel"; b.href = "offres.html#cat-noel";
+    b.innerHTML = `<span class="sapin">🎄</span> <b></b> <span class="texte"></span> <span class="decompte"></span>`;
+    b.querySelector("b").textContent = promo.titre + " :";
+    b.querySelector(".texte").textContent = promo.texte;
+    document.querySelector(".barre")?.after(b);
+    const fin = new Date(promo.fin).getTime(), z = b.querySelector(".decompte");
+    const tic = () => {
+      const s = Math.max(0, Math.floor((fin - Date.now()) / 1000));
+      const j = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60, sec = s % 60;
+      z.textContent = `fin dans ${j} j ${String(h).padStart(2, "0")} h ${String(m).padStart(2, "0")} min ${String(sec).padStart(2, "0")} s`;
+      if (!s) b.remove();
+    };
+    tic(); setInterval(tic, 1000);
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const neige = document.createElement("div"); neige.className = "neige"; neige.setAttribute("aria-hidden", "true");
+      for (let i = 0; i < 28; i++) {
+        const f = document.createElement("i"); f.textContent = i % 3 ? "❄" : "•";
+        f.style.left = Math.random() * 100 + "vw"; f.style.fontSize = 8 + Math.random() * 14 + "px";
+        f.style.animationDuration = 7 + Math.random() * 9 + "s"; f.style.animationDelay = -Math.random() * 16 + "s";
+        f.style.opacity = 0.35 + Math.random() * 0.5; neige.appendChild(f);
+      }
+      document.body.appendChild(neige);
+    }
+  });
   window.euros = (n) => n.toLocaleString("fr-FR") + " €";
 })();

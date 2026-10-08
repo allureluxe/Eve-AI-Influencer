@@ -65,3 +65,9 @@ Deno.test("les prix viennent de offres.json, formules comprises", () => {
   assertEquals(texte.includes("des 349 EUR ou des 45 EUR/mois"), true);
   assertEquals(texte.includes("{OFFRES}"), false);
 });
+
+Deno.test("l'offre de Noel n'est citee que tant qu'elle court", () => {
+  const promo = { titre: "Offre de Noel", detail: "1er mois offert", fin: "2026-12-25T00:00:00+01:00" };
+  assertEquals(consigne([], promo, new Date("2026-10-08")).includes("1er mois offert"), true);
+  assertEquals(consigne([], promo, new Date("2026-12-26")).includes("1er mois offert"), false);
+});

@@ -17,7 +17,7 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
-  consigne, cleVisiteur, type Offre, MAX_MESSAGES_PAR_JOUR, MAX_MESSAGES_PAR_VISITEUR,
+  consigne, cleVisiteur, type Offre, type Promo, MAX_MESSAGES_PAR_JOUR, MAX_MESSAGES_PAR_VISITEUR,
   nettoyerHistorique, nettoyerReponse, originePermise,
 } from "./logique.ts";
 
@@ -39,17 +39,17 @@ function reponse(corps: unknown, statut: number, origine: string | null): Respon
 }
 
 // Les prix viennent du site lui-même (offres.json), relus toutes les 10 minutes.
-let cacheOffres: { quand: number; offres: Offre[] | null } = { quand: 0, offres: null };
-async function offresDuSite(): Promise<Offre[] | null> {
-  if (Date.now() - cacheOffres.quand < 10 * 60_000 && cacheOffres.offres) return cacheOffres.offres;
+let cacheOffres: { quand: number; offres: Offre[] | null; promo?: Promo | null } = { quand: 0, offres: null };
+async function offresDuSite(): Promise<{ offres: Offre[] | null; promo?: Promo | null }> {
+  if (Date.now() - cacheOffres.quand < 10 * 60_000 && cacheOffres.offres) return cacheOffres;
   try {
     const r = await fetch("https://alluxe.fr/offres.json", { signal: AbortSignal.timeout(4000) });
     const d = await r.json();
-    cacheOffres = { quand: Date.now(), offres: Array.isArray(d?.offres) ? d.offres : null };
+    cacheOffres = { quand: Date.now(), offres: Array.isArray(d?.offres) ? d.offres : null, promo: d?.promo ?? null };
   } catch (e) {
     console.error("offres.json :", (e as Error).message);
   }
-  return cacheOffres.offres;
+  return cacheOffres;
 }
 
 async function appelerGroq(messages: unknown[]): Promise<string> {
@@ -112,7 +112,7 @@ Deno.serve(async (requete) => {
   }
 
   try {
-    const texte = await appelerGroq([{ role: "system", content: consigne(await offresDuSite()) }, ...historique]);
+    const texte = await appelerGroq([{ role: "system", content: await (async () => { const o = await offresDuSite(); return consigne(o.offres, o.promo); })() }, ...historique]);
     return reponse({ reponse: texte }, 200, origine);
   } catch (e) {
     console.error("assistant :", (e as Error).message);

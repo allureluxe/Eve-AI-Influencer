@@ -55,8 +55,11 @@ export function lignesOffres(offres: Offre[]): string {
 
 /** Si offres.json est injoignable : on le dit, plutot que d'inventer des prix. */
 export const OFFRES_INDISPONIBLES = "  (liste momentanement indisponible : renvoie vers la page Offres d'alluxe.fr, ne cite aucun prix)";
-export const consigne = (offres: Offre[] | null) =>
-  CONSIGNE_BASE.replace("{OFFRES}", offres && offres.length ? lignesOffres(offres) : OFFRES_INDISPONIBLES);
+export interface Promo { titre: string; detail: string; fin: string }
+export const consigne = (offres: Offre[] | null, promo?: Promo | null, maintenant = new Date()) =>
+  CONSIGNE_BASE.replace("{OFFRES}", (offres && offres.length ? lignesOffres(offres) : OFFRES_INDISPONIBLES) +
+    (promo && new Date(promo.fin) > maintenant ? `\n- ${promo.titre} en cours : ${promo.detail}` : "") +
+    "\n- Grand concours de Noel : 5 packs a gagner, participation gratuite sur Instagram et TikTok jusqu'au 20 decembre, tirage le 21 decembre. Details et reglement : page alluxe.fr/concours.");
 export const CONSIGNE = consigne(null);
 
 export type Message = { role: "user" | "assistant"; content: string };

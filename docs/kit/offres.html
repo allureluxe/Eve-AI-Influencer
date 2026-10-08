@@ -25,6 +25,10 @@
       <button class="actif" data-f="unique" role="tab">Paiement unique</button>
       <button data-f="mensuel" role="tab">Au mois, 0 € au départ</button>
     </div>
+    <div class="deux-formules apparait" id="explication">
+      <div><b>💳 Paiement unique</b><p data-explication="unique"></p></div>
+      <div><b>🔁 Au mois</b><p data-explication="mensuel"></p></div>
+    </div>
     <div id="offres"></div>
     <p class="petit" id="note-engagement" style="margin-top:16px"></p>
   </div>
@@ -53,7 +57,8 @@
 
 <script src="commun.js"></script>
 <script>
-chargerOffres().then(({ offres, engagement_mois, categories }) => {
+chargerOffres().then(({ offres, engagement_mois, categories, explication }) => {
+  if (explication) document.querySelectorAll("[data-explication]").forEach((el) => el.textContent = explication[el.dataset.explication]);
   const zone = document.getElementById("offres");
   let formule = "unique";
   function carte(o) {
@@ -76,12 +81,20 @@ chargerOffres().then(({ offres, engagement_mois, categories }) => {
       `<div class="entete"><h3></h3><p></p></div><div class="montant">${montant}</div>
        <div class="detail">${detail} Délai : ${o.delai}.</div><ul></ul>` +
       (o.note ? `<p class="detail"></p>` : "") +
+      (o.abonnement_plus ? `<div class="plus-abonnement"><b></b><ul></ul></div>` : "") +
       `<a class="bouton" href="commander.html?offre=${o.id}&formule=${f}">Commander <span class="fleche">→</span></a>`;
     if (ruban) c.querySelector(".ruban").textContent = ruban;
     c.querySelector("h3").textContent = o.nom;
     c.querySelector(".entete p").textContent = o.accroche;
     o.inclus.forEach((x) => { const li = document.createElement("li"); li.textContent = x; c.querySelector("ul").appendChild(li); });
     if (o.note) c.querySelectorAll(".detail")[1].textContent = o.note;
+    if (o.abonnement_plus) {
+      // La différence unique / au mois, dite sur chaque carte : ce que l'abonnement APPORTE.
+      const z = c.querySelector(".plus-abonnement"), auMois = f === "mensuel";
+      z.classList.toggle("actif", auMois);
+      z.querySelector("b").textContent = auMois ? "Inclus avec l'abonnement :" : `Au mois (${euros(o.mensuel)}/mois), en plus :`;
+      o.abonnement_plus.forEach((x) => { const li = document.createElement("li"); li.textContent = x; z.querySelector("ul").appendChild(li); });
+    }
     return c;
   }
   function afficher() {

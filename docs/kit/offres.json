@@ -17,7 +17,13 @@
     "Mise en ligne incluse",
     "Référencement Google de base"
    ],
-   "categorie": "sites"
+   "categorie": "sites",
+   "abonnement_plus": [
+    "Hébergement et nom de domaine inclus",
+    "Modifications illimitées (textes, photos, prix)",
+    "Mises à jour et sécurité",
+    "Statistiques de visites chaque mois"
+   ]
   },
   {
    "id": "shopify",
@@ -36,7 +42,12 @@
     "Pages légales prêtes"
    ],
    "note": "Abonnement Shopify à la charge du client (offres d'essai fréquentes chez Shopify).",
-   "categorie": "business"
+   "categorie": "business",
+   "abonnement_plus": [
+    "5 nouveaux produits gagnants ajoutés chaque mois",
+    "Fiches produits améliorées selon les ventes",
+    "Aide par message"
+   ]
   },
   {
    "id": "ecommerce",
@@ -53,7 +64,12 @@
     "Paiement, livraison, e-mails automatiques",
     "Comptes Instagram et Facebook prêts"
    ],
-   "categorie": "business"
+   "categorie": "business",
+   "abonnement_plus": [
+    "10 nouveaux produits ajoutés chaque mois",
+    "4 visuels promo chaque mois",
+    "Maintenance et aide par message"
+   ]
   },
   {
    "id": "agent",
@@ -71,7 +87,12 @@
     "Sur ton site, WhatsApp ou Messenger",
     "Entraîné sur TES infos, rien d'inventé"
    ],
-   "categorie": "temps"
+   "categorie": "temps",
+   "abonnement_plus": [
+    "L'agent tourne 24 h/24, hébergé chez nous",
+    "Réentraîné quand tes infos changent",
+    "Rapport des questions de tes clients"
+   ]
   },
   {
    "id": "robot",
@@ -89,7 +110,12 @@
     "Alertes par e-mail ou SMS",
     "Mode essai avant mise en route"
    ],
-   "categorie": "temps"
+   "categorie": "temps",
+   "abonnement_plus": [
+    "Le robot tourne en continu, hébergé chez nous",
+    "Réparé si une plateforme change",
+    "Une nouvelle petite tâche chaque mois"
+   ]
   },
   {
    "id": "influenceuse",
@@ -107,7 +133,12 @@
     "Étiquettes IA et mentions légales en règle"
    ],
    "note": "Au mois : création incluse, puis 30 nouvelles publications chaque mois. Outils de vidéo IA inclus.",
-   "categorie": "visible"
+   "categorie": "visible",
+   "abonnement_plus": [
+    "30 nouvelles publications et vidéos chaque mois",
+    "Calendrier de publication",
+    "Ajustements selon les statistiques"
+   ]
   },
   {
    "id": "complet",
@@ -125,7 +156,11 @@
     "Compte faceless clé en main offert",
     "Appel de lancement en visio"
    ],
-   "categorie": "business"
+   "categorie": "business",
+   "abonnement_plus": [
+    "Tout ce qu'apportent les abonnements de chaque offre",
+    "Suivi chaque mois en visio"
+   ]
   },
   {
    "id": "noel_boutique",
@@ -182,7 +217,12 @@
     "Calendrier de publication jour par jour",
     "Au mois : 30 nouveaux Reels chaque mois"
    ],
-   "note": "Le même système que celui qui fait tourner @alluxe.ia."
+   "note": "Le même système que celui qui fait tourner @alluxe.ia.",
+   "abonnement_plus": [
+    "30 nouveaux Reels montés chaque mois",
+    "Sujets choisis selon ce qui marche",
+    "Statistiques et conseils chaque mois"
+   ]
   },
   {
    "id": "autopost",
@@ -200,6 +240,10 @@
     "File d'attente : tu valides, il publie",
     "Statistiques chaque semaine",
     "Ne commente et ne like jamais à ta place (règles des réseaux)"
+   ],
+   "abonnement_plus": [
+    "Publication chaque jour, hébergée chez nous",
+    "Statistiques chaque semaine"
    ]
   },
   {
@@ -253,6 +297,10 @@
     "Photos de présentation sur vêtements",
     "Boutique en ligne reliée à l'impression à la demande",
     "Tu ne stockes rien : chaque pièce est fabriquée à la commande"
+   ],
+   "abonnement_plus": [
+    "5 nouveaux designs chaque mois",
+    "Boutique maintenue et photos mises à jour"
    ]
   },
   {
@@ -271,6 +319,11 @@
     "Ton logo et tes couleurs",
     "Mises à jour incluses au mois",
     "Android et iPhone natifs : sur devis"
+   ],
+   "abonnement_plus": [
+    "Hébergement et mises à jour",
+    "Une petite amélioration chaque mois",
+    "Aide par message"
    ]
   }
  ],
@@ -301,5 +354,15 @@
    "nom": "Gagner du temps",
    "accroche": "Des agents et robots qui travaillent pour toi."
   }
- ]
+ ],
+ "promo": {
+  "titre": "Offre de Noël",
+  "texte": "1er mois d'abonnement offert + Kit créateur UGC offert avec chaque commande",
+  "fin": "2026-12-25T00:00:00+01:00",
+  "detail": "Jusqu'au 25 décembre à minuit : sur toute formule au mois, le 1er mois est offert ; et chaque commande reçoit le Kit créateur UGC (valeur 9 €) en cadeau."
+ },
+ "explication": {
+  "unique": "Tu paies une fois, le résultat est à toi. Ensuite tu le fais vivre toi-même (hébergement à ta charge si besoin).",
+  "mensuel": "0 € au départ, tout est inclus pour que ça tourne : hébergement, mises à jour, et des nouveautés chaque mois. Engagement 12 mois."
+ }
 }
