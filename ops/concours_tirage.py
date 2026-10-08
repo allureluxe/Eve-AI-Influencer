@@ -6,12 +6,13 @@
 `liste` montre les participations sans rien tirer (à lancer avant, pour vérifier).
 `tirer` tire 1 gagnant + 2 suppléants, À FILMER pour la story.
 
-Règles appliquées (et seulement celles-là) :
-  - chaque commentaire qui identifie AU MOINS 2 comptes DIFFÉRENTS (pas soi-même, pas
-    @alluxe.ia) vaut UNE participation ; les réponses aux commentaires comptent aussi ;
-  - le compte organisateur est exclu ;
-  - TikTok : l'API ne lit pas les commentaires -> l'opérateur colle les participations
-    dans un fichier texte, une par ligne : « pseudo @ami1 @ami2 ».
+Règles appliquées (règlement du 8 oct., décision de l'opérateur : condition = PARTAGE) :
+  - un commentaire contenant « PARTAGÉ » (ou « partage », « ✅ ») inscrit son auteur ;
+  - UNE participation par compte, la même chance pour tous ; l'organisateur est exclu ;
+  - TikTok : l'API ne lit pas les commentaires -> l'opérateur colle les pseudos dans un
+    fichier texte, un par ligne.
+Le PARTAGE lui-même n'est pas vérifiable par programme (Instagram ne dit pas QUI partage) :
+l'opérateur le vérifie pour le gagnant (mention reçue ou capture), sinon suppléant.
 L'abonnement du gagnant n'est PAS vérifiable par programme (Instagram ne donne pas la
 liste des abonnés) : l'opérateur le vérifie avant l'annonce, sinon on passe au suppléant.
 
@@ -87,14 +88,14 @@ def participations(media_id: str, fichier_tiktok: str | None) -> list[dict]:
             for i, ligne in enumerate(l.strip() for l in f if l.strip()):
                 compte, _, reste = ligne.partition(" ")
                 brutes.append({"reseau": "tiktok", "compte": compte.lstrip("@"), "texte": reste, "id": f"tiktok-{i}"})
-    valides = []
+    valides, vus = [], set()
     for b in brutes:
-        compte = b["compte"].lower()
-        if compte == ORGANISATEUR:
+        compte = b["compte"].lower().lstrip("@")
+        inscrit = b["reseau"] == "tiktok" or re.search(r"partag|✅", b["texte"], re.IGNORECASE)
+        if compte == ORGANISATEUR or not compte or not inscrit or compte in vus:
             continue
-        amis = {m.lower() for m in MENTION.findall(b["texte"])} - {compte, ORGANISATEUR}
-        if len(amis) >= 2:
-            valides.append({**b, "amis": sorted(amis)})
+        vus.add(compte)
+        valides.append({**b, "compte": compte, "amis": []})
     return valides
 
 
@@ -117,7 +118,7 @@ def main() -> int:
     print(f"   empreinte de la liste : {empreinte(valides)[:16]}…")
     if a.action == "liste":
         for v in valides:
-            print(f"   {v['reseau']:9} @{v['compte']:24} -> " + " ".join("@" + x for x in v["amis"]))
+            print(f"   {v['reseau']:9} @{v['compte']:24} « {v['texte'][:40]} »")
         return 0
     if len(comptes) < 3:
         raise SystemExit("moins de 3 participants distincts : pas de tirage possible")
@@ -129,7 +130,7 @@ def main() -> int:
             tires.append(c)
     print(f"\n   🏆 GAGNANT    : @{tires[0]}")
     print(f"   suppléant 1 : @{tires[1]}\n   suppléant 2 : @{tires[2]}")
-    print("\n   → Vérifie que le gagnant est abonné à @alluxe.ia avant de l'annoncer.")
+    print("\n   → Vérifie que le gagnant est abonné ET a partagé le Reel (mention reçue ou capture) avant de l'annoncer.")
     os.makedirs(os.path.join(RACINE, "data", "alluxe_ia", "concours"), exist_ok=True)
     trace = os.path.join(RACINE, "data", "alluxe_ia", "concours",
                          dt.datetime.now().strftime("tirage-%Y%m%d-%H%M%S.json"))

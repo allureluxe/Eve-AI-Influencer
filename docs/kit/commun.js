@@ -1,7 +1,7 @@
 // Éléments communs à toutes les pages d'alluxe.fr : barre, pied de page,
 // assistant, apparition au défilement. Une seule copie, jamais recopiée.
 (() => {
-  const PAGES = [["index.html", "Accueil"], ["kit.html", "Kit gratuit"], ["offres.html", "Offres & prix"], ["kits.html", "Kits à faire soi-même"],
+  const PAGES = [["index.html", "Accueil"], ["concours.html", "🎁 Concours"], ["kit.html", "Kit gratuit"], ["offres.html", "Offres & prix"], ["kits.html", "Kits à faire soi-même"],
     ["realisations.html", "Réalisations"], ["prompts.html", "Prompts gratuits"]];
   const ici = location.pathname.split("/").pop() || "index.html";
   const barre = document.createElement("div");
