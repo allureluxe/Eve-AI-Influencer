@@ -1335,7 +1335,26 @@ class TradingEngine:
             return
 
         bonus = self.objectives.score_threshold_bonus()
-        held = {p.symbol for p in positions}
+        # LE ROBOT REEL N'A JAMAIS PYRAMIDE -- trouve le 9 oct. 2026.
+        #
+        # `exclude=held` retirait du scan TOUTE crypto deja detenue : une
+        # position ouverte n'etait plus jamais reevaluee, donc jamais
+        # renforcee. 192 trades reels depuis le 3 sept., 192 a un etage,
+        # -92 EUR ; la demo (DualScalpingEngine, qui leve ce verrou depuis
+        # septembre) : 38 pyramides a +361 EUR pour -212 sur les etages 1.
+        # Le reglage `pyramide_max: 99` etait LU, il ne s'EXECUTAIT pas.
+        # Meme pre-filtre que la demo ; l'espacement et « a l'abri » sont
+        # verifies pour de vrai dans `_execute`.
+        renforcables = set()
+        if self.config.risk.pyramide_max > 0:
+            par_symbole: dict[str, list] = {}
+            for p in positions:
+                par_symbole.setdefault(p.symbol, []).append(p)
+            for symbole, etages in par_symbole.items():
+                if self.risk.peut_renforcer(etages, etages[0].side,
+                                            verifier_espacement=False)[0]:
+                    renforcables.add(symbole)
+        held = {p.symbol for p in positions} - renforcables
 
         def exposure_ok(inst: Instrument) -> tuple[bool, str]:
             return self.risk.check_exposure(inst, Side.BUY, positions, self.universe.get)

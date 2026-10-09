@@ -26,6 +26,9 @@ from gold_bot.risk import RiskConfig, RiskManager
 from gold_bot.settings import BotConfig
 from gold_bot.universe import Universe
 
+from pathlib import Path
+RACINE_DEPOT = Path(__file__).resolve().parents[1]
+
 
 def _position(symbole="SOLUSD", entree=100.0, stop=98.0, pid="p1") -> Position:
     return Position(id=pid, symbol=symbole, side=Side.BUY, volume=1.0,
@@ -871,3 +874,54 @@ class TestLePlafondDeCorrelationEstRetire:
         assert 0 < cfg.risk.max_total_risk_pct <= 5.0, (
             "le budget de risque total est desormais le SEUL garde-fou "
             "contre une exposition sectorielle concentree")
+
+
+class TestLeMoteurReelRegardeLesPositionsRenforcables:
+    """9 oct. 2026 : le robot REEL n'a jamais pyramide.
+
+    `TradingEngine._look_for_entry` passait au scan `exclude` = TOUTES les
+    cryptos detenues : 192 trades reels, 192 a un etage, pendant que la
+    demo (DualScalpingEngine, verrou leve en septembre) pyramidait.
+    Le verrou 2 de l'en-tete etait leve dans un moteur sur deux.
+    """
+
+    def _moteur(self, tmp_path, monkeypatch, positions):
+        for cle in ("BITVAVO_API_KEY", "BITVAVO_API_SECRET",
+                    "OKX_API_KEY", "GB_STATE_FILE", "GB_TRADES_FILE"):
+            monkeypatch.delenv(cle, raising=False)
+        monkeypatch.chdir(tmp_path)
+        from gold_bot.engine import TradingEngine
+        cfg = BotConfig.load(str(RACINE_DEPOT / "robot.bitvavo.json"))
+        cfg.engine.broker = "bitvavo"
+        cfg.engine.dry_run = True
+        moteur = TradingEngine(cfg)
+        moteur.risk.sync_account(1000.0, 1000.0, "EUR")
+        monkeypatch.setattr(moteur.broker, "positions", lambda: positions)
+        monkeypatch.setattr(moteur.risk, "can_trade", lambda *a, **k: (True, ""))
+        monkeypatch.setattr(moteur.objectives, "should_stop_trading", lambda: (False, ""))
+        vus = {}
+
+        class _Resultat:
+            best = None
+            def summary(self):
+                return ""
+
+        def faux_scan(**kw):
+            vus["exclude"] = set(kw.get("exclude") or ())
+            return _Resultat()
+
+        monkeypatch.setattr(moteur.scanner, "scan", faux_scan)
+        moteur._look_for_entry()
+        return vus["exclude"]
+
+    def test_une_position_a_l_abri_n_est_plus_exclue_du_scan(self, tmp_path, monkeypatch):
+        a_l_abri = _position("SOLUSD", entree=100.0, stop=101.0, pid="a")
+        exclus = self._moteur(tmp_path, monkeypatch, [a_l_abri])
+        assert "SOLUSD" not in exclus, (
+            "le moteur reel ne regarde pas une position renforcable : "
+            "la pyramide ne peut jamais s'executer")
+
+    def test_une_position_non_protegee_reste_exclue(self, tmp_path, monkeypatch):
+        exposee = _position("SOLUSD", entree=100.0, stop=98.0, pid="b")
+        exclus = self._moteur(tmp_path, monkeypatch, [exposee])
+        assert "SOLUSD" in exclus
