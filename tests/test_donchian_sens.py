@@ -68,3 +68,43 @@ def test_sens_bas_achete_sous_le_plus_bas():
 def test_sens_bas_ignore_la_cassure_du_plus_haut():
     assert _evaluer(HAUSSE, "haut").passed is True
     assert _evaluer(HAUSSE, "bas").passed is False
+
+
+# --- Famille « mixte » (9 oct.) : cassure d'abord, sinon retour a la moyenne ---
+
+def _evaluer_mixte(motif):
+    bougies = _serie(motif)
+    ind = IndicatorSet(history=400)
+    for c in bougies:
+        ind.update(c)
+    cfg = StrategyConfig(
+        famille="mixte", entry_tf="D1", donchian_entrees=(10,),
+        reversion_ma_periode=20, reversion_entree_atr=2.0, reversion_sortie_atr=0.4,
+        min_score=0.0, min_confirmations=0, min_adx=0.0, min_headroom_atr=0.0,
+        min_atr_percentile=0.0, max_atr_percentile=1.0, min_atr_price_ratio=0.0,
+    )
+    s = Strategy(cfg, TradeManager(TradeManagerConfig()), macro=None)
+    prix = bougies[-1].close
+    return s.evaluate(Universe().get("BTCUSD"), {"M15": ind, "H1": ind, "D1": ind},
+                      Tick(bougies[-1].ts, prix * 0.9999, prix * 1.0001),
+                      news=None, charts=None, now=bougies[-1].ts)
+
+
+def test_mixte_prend_la_cassure_en_priorite():
+    ev = _evaluer_mixte(HAUSSE)
+    assert ev.valid and ev.setup.startswith("donchian")
+
+
+def test_mixte_sans_cassure_achete_le_decrochage():
+    ev = _evaluer_mixte(CHUTE)
+    assert ev.valid and ev.setup.startswith("reversion"), [g.detail for g in ev.gates]
+
+
+def test_mixte_marque_les_achats_reversion_pour_leur_sortie():
+    from types import SimpleNamespace
+    from gold_bot.strategy import achat_reversion
+    cfg = StrategyConfig(famille="mixte")
+    assert achat_reversion(cfg, SimpleNamespace(comment="reversion_ecart 0.00"))
+    assert not achat_reversion(cfg, SimpleNamespace(comment="donchian_cassure 0.00"))
+    assert not achat_reversion(StrategyConfig(famille="donchian"),
+                               SimpleNamespace(comment="reversion_ecart"))

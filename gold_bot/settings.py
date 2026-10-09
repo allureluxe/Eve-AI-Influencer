@@ -122,10 +122,10 @@ class BotConfig:
         if t.extend_at_progress >= 1.0: problems.append("le seuil d'extension doit etre inferieur a 1")
         if t.min_stop_atr > t.atr_stop_mult: problems.append("le stop minimal est plus large que le stop nominal")
         if s.min_score > 0.95: problems.append("seuil de score quasi inatteignable")
-        if s.famille not in ("tendance", "reversion", "donchian", "momentum"):
+        if s.famille not in ("tendance", "reversion", "donchian", "momentum", "mixte"):
             problems.append(f"strategy.famille invalide : {s.famille} "
-                            "(attendu 'tendance', 'reversion', 'donchian' "
-                            "ou 'momentum')")
+                            "(attendu 'tendance', 'reversion', 'donchian', "
+                            "'momentum' ou 'mixte')")
         if s.famille == "momentum":
             if s.momentum_formation < 2:
                 problems.append("momentum_formation trop courte (< 2 bougies)")
@@ -148,7 +148,7 @@ class BotConfig:
                     "la famille 'momentum' n'a aucune regle de sortie : armer "
                     "au moins trade.detention_max_jours (la regle du papier), "
                     "trade.time_stop_minutes ou trade.stagnation_jours")
-        if s.famille == "reversion":
+        if s.famille in ("reversion", "mixte"):
             if s.reversion_ma_periode < 5:
                 problems.append("reversion_ma_periode trop courte (< 5)")
             if s.reversion_entree_atr <= s.reversion_sortie_atr:

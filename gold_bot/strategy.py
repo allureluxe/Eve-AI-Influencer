@@ -598,6 +598,10 @@ class Strategy:
         if cfg.famille == "reversion":
             return self._finish_reversion(ev, instrument, entry_ind, price, atr, tick)
 
+        # ---------- Branche mixte : cassure d'abord, sinon retour a la moyenne ----------
+        if cfg.famille == "mixte":
+            return self._finish_mixte(ev, instrument, entry_ind, price, atr, tick)
+
         # ---------- Branche donchian : cassure de canal (Turtle) ----------
         if cfg.famille == "donchian":
             return self._finish_donchian(ev, instrument, entry_ind, price, atr, tick)
@@ -924,6 +928,33 @@ class Strategy:
         risque = abs(price - sl)
         ev.rr = (ev.take_profit - price) / risque if risque > 0 else 0.0
         return ev
+
+    def _finish_mixte(
+        self,
+        ev: Evaluation,
+        instrument: Instrument,
+        entry: IndicatorSet,
+        price: float,
+        atr: float,
+        tick: Tick,
+    ) -> Evaluation:
+        """Famille « mixte » (9 oct., demande de l'operateur) : la cassure du
+        plus-haut d'abord ; si elle n'est pas valide, le retour a la moyenne.
+
+        Le `setup` dit d'ou vient l'achat (« donchian_cassure » ou
+        « reversion_ecart ») et suit la position dans son commentaire : la
+        sortie « retour a la MA » et l'interdiction de pyramider ne
+        s'appliquent qu'aux achats faits par le retour a la moyenne.
+        """
+        debut = len(ev.gates)
+        ev = self._finish_donchian(ev, instrument, entry, price, atr, tick)
+        if ev.valid:
+            return ev
+        del ev.gates[debut:]
+        ev.side, ev.setup, ev.stop_loss, ev.take_profit, ev.rr = None, "", 0.0, 0.0, 0.0
+        ev.gates.append(Gate("donchian", True,
+                             "pas de cassure valide : essai du retour a la moyenne"))
+        return self._finish_reversion(ev, instrument, entry, price, atr, tick)
 
     def _finish_donchian(
         self,
@@ -1551,6 +1582,17 @@ def _nearest_kind(chart: ChartRead, price: float, kind: str, atr: float) -> Opti
     if not candidates:
         return None
     return min(candidates, key=lambda l: abs(l.price - price)).price
+
+
+def achat_reversion(cfg, position) -> bool:
+    """La position a-t-elle ete achetee par le retour a la moyenne ?
+
+    En famille « reversion » : toutes. En « mixte » : celles dont le
+    commentaire porte le setup « reversion_ecart » (pose a l'ouverture).
+    """
+    if cfg.famille == "reversion":
+        return True
+    return cfg.famille == "mixte" and str(getattr(position, "comment", "")).startswith("reversion")
 
 
 def retour_a_la_moyenne(cfg, closes: list[float], prix: float, atr: float) -> bool:
