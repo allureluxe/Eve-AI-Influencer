@@ -271,6 +271,11 @@ class StrategyConfig:
     # depasse le plus-haut d'AU MOINS UN de ces horizons.
     donchian_entrees: tuple[int, ...] = (20, 55)
     donchian_sortie: int = 10       # canal bas de sortie (regle d'origine)
+    # 9 oct., question de l'operateur : « et si on achetait le plus BAS de
+    # 10 jours au lieu du plus haut ? ». « haut » = cassure Turtle (arme) ;
+    # « bas » = achat quand le prix passe SOUS le plus-bas du canal (pari
+    # sur le rebond). Banc d'essai seulement tant qu'aucune mesure ne l'arme.
+    donchian_sens: str = "haut"
 
     # LE FILTRE DU SYSTEM 1, et c'est le coeur de la regle.
     #
@@ -974,8 +979,15 @@ class Strategy:
         # cette exclusion le plus-haut contient la bougie courante, qui le
         # depasse toujours — le signal serait vrai en permanence.
         casses = []
+        par_le_bas = getattr(cfg, "donchian_sens", "haut") == "bas"
         for n in horizons:
-            plus_haut = max(c.high for c in bougies[-(n + 1):-1])
+            fenetre = bougies[-(n + 1):-1]
+            if par_le_bas:
+                plus_bas = min(c.low for c in fenetre)
+                if price < plus_bas:
+                    casses.append(f"{n}j<{plus_bas:.6g}")
+                continue
+            plus_haut = max(c.high for c in fenetre)
             if price > plus_haut:
                 casses.append(f"{n}j>{plus_haut:.6g}")
         ev.gates.append(Gate(
