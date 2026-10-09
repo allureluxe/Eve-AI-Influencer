@@ -102,6 +102,14 @@ def _ecrire_reference(valeur: float, motif: str) -> None:
 #: sont actifs, sans supposer lequel porte le compte.
 SERVICES = ("robot-trading", "robot-dual-live")
 TEMOIN = os.path.join(RACINE, "data", "CHIEN_DE_GARDE_DECLENCHE")
+
+#: 9 oct. : DEUX LECTURES AVANT DE COUPER. Le 4 oct. a 18h45, pendant un
+#: retrait de 650 EUR, une lecture a rendu 1,07 EUR : le robot a ete coupe
+#: et le temoin, reste en place, a laisse le reel SANS chien de garde
+#: jusqu'au 9 oct. Une vraie chute est encore la 30 s plus tard ; une
+#: lecture fausse, non. Le delai ne retarde la coupure que de 30 s, alors
+#: que les stops poses chez Bitvavo couvrent chaque position entre-temps.
+CONFIRMATION_S = 30
 JOURNAL = os.path.join(RACINE, "data", "chien_de_garde.log")
 
 
@@ -195,6 +203,16 @@ def main() -> int:
     actifs = _services_actifs()
 
     if equite <= PLANCHER_EUR:
+        import time
+        _log(f"sous le plancher a la 1re lecture ({equite:.2f} EUR) : "
+             f"confirmation dans {CONFIRMATION_S} s")
+        time.sleep(CONFIRMATION_S)
+        seconde = _lire_equite()
+        if seconde is None or seconde > PLANCHER_EUR:
+            _log(f"FAUSSE ALERTE : 2e lecture {seconde if seconde is None else f'{seconde:.2f}'} EUR "
+                 f"au-dessus du plancher {PLANCHER_EUR:.2f} — rien coupe")
+            return 0
+        equite = seconde
         _log(f"DECLENCHEMENT : equite {equite:.2f} EUR <= plancher "
              f"{PLANCHER_EUR:.2f} EUR (perte {ref - equite:.2f} depuis la reference "
              f"{ref:.2f}). Si c'est un RETRAIT et non une perte : "
