@@ -34,6 +34,7 @@ os.chdir(RACINE)
 
 from alluxe_ia.reel_luna_ecrans import (COMMUN, REFERENCE_COMPO, REFERENCE_LUNA,  # noqa: E402
                                         _calque, _journal, _multipart)
+from alluxe_ia.luna_tenues import avec_tenue  # noqa: E402
 
 DOSSIER = RACINE / "data/alluxe_ia/reel_site_luna"
 REEL_06 = RACINE / "data/alluxe_ia/reels/06-site-en-1-journee.mp4"
@@ -112,7 +113,9 @@ def images() -> None:
         if cible.exists():
             continue
         refs = [("image[]", REFERENCE_COMPO), ("image[]", REFERENCE_LUNA)]
-        texte = COMMUN + " " + s["image"]
+        # Le sweat noir de 06 reste celui de 06 (registre) ; un NOUVEAU Reel
+        # copié sur ce script reçoit une autre tenue (voir luna_tenues).
+        texte = avec_tenue(COMMUN, "06-site-en-1-journee-luna") + " " + s["image"]
         if s["capture"]:
             refs.append(("image[]", s["capture"]))
             texte += (" Reference images: 1 = composition and mood, 2 = the woman's "
