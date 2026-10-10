@@ -34,6 +34,33 @@ Conséquences à ne pas oublier :
 
 ---
 
+## L'univers se relit toutes les heures — armé le 10 octobre
+
+Demande de l'opérateur : « que le robot analyse en continu toutes les
+cryptos de Bitvavo, qu'il ne rate pas les grosses hausses du jour ».
+
+**Le défaut.** L'univers n'était calculé qu'**au démarrage** (volume 24 h
+≥ 50 000 €, spread ≤ 1 %). Le 9 oct., MAGIC (+86 %) casse son plus-haut
+vers 8h mais n'est pas dans l'univers ; elle n'y entre qu'au redémarrage
+de 18h13. `TradingEngine._rafraichir_univers` relit Bitvavo **toutes les
+heures**, mêmes bornes (de la faisabilité, pas du goût — ne pas les
+retirer : sous 50 000 € un ordre de 20 € déplace le prix). Une crypto qui
+retombe sous les bornes est exclue des achats, jamais retirée (une
+position détenue reste gérée). Panne réseau = rien ne change.
+
+**Ce qui n'a PAS été changé, mesuré le même jour** (78 paires dont 38
+petites, un compte, 500 €) : le plafond de volatilité `max_atr_percentile`
+0,98 contre 1,0 donne +147/+163 € récent mais −57/−64 € sur la période
+antérieure. Pas de gain démontré, reste à 0,98.
+
+**Piège du banc trouvé en mesurant :** `Backtester` construit `Universe()`,
+le catalogue écrit en dur. Toute crypto découverte chez Bitvavo y est
+écartée « instrument inconnu », **sans rien dans les statistiques**. Aucune
+mesure antérieure ne portait donc sur les petites cryptos. Contournement :
+`bp.rejeu.universe = Universe(univers_bitvavo())`.
+
+---
+
 ## Rachat le jour même après une sortie GAGNANTE — armé le 1er octobre
 
 Décision de l'opérateur : `risk.rachat_meme_bougie_apres_gain = true`

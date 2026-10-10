@@ -431,6 +431,91 @@ class TradingEngine:
         return ecartes
 
     # ---------------------------------------------------------------
+    UNIVERS_RAFRAICHI_TOUTES_LES = 3600.0       # secondes
+
+    def _univers_dynamique(self) -> bool:
+        cfg = self.config
+        if cfg.engine.symbols:          # liste fixee a la main : on n'y touche pas
+            return False
+        return (cfg.engine.broker in ("bitvavo", "bitvavo_margin")
+                or (cfg.engine.broker == "paper"
+                    and bool(getattr(cfg.engine, "univers_dynamique_bitvavo", False))))
+
+    def _rafraichir_univers(self, maintenant: Optional[float] = None) -> list[str]:
+        """Relit les cryptos negociables chez Bitvavo, une fois par heure.
+
+        9 oct. 2026 : MAGIC prend +86 % dans la journee. Elle casse son
+        plus-haut de 10 jours vers 8h, mais elle n'est pas dans l'univers :
+        celui-ci n'etait calcule qu'AU DEMARRAGE, sur le volume du moment.
+        Elle n'y entre qu'au redemarrage de 18h13, par hasard. Une crypto qui
+        se reveille en cours de journee etait donc invisible jusqu'au
+        prochain redemarrage.
+
+        Memes bornes qu'au demarrage (volume 24 h, spread) : elles disent ce
+        qui est negociable, pas ce qui est interessant. Les cryptos du
+        catalogue ecrit en dur ne sont jamais touchees. Une crypto decouverte
+        qui retombe sous les bornes est desactivee pour l'ACHAT, jamais
+        retiree : une position detenue reste geree jusqu'a sa sortie.
+        Panne reseau = rien ne change.
+        """
+        if not self._univers_dynamique():
+            return []
+        maintenant = time.time() if maintenant is None else maintenant
+        dernier = getattr(self, "_univers_rafraichi_a", None)
+        if dernier is None:
+            # Premier passage : l'univers vient d'etre construit au demarrage.
+            self._univers_rafraichi_a = maintenant
+            return []
+        if maintenant - dernier < self.UNIVERS_RAFRAICHI_TOUTES_LES:
+            return []
+        self._univers_rafraichi_a = maintenant
+
+        from .universe import (DEFAULT_UNIVERSE, ajouter_cryptos,
+                               cryptos_bitvavo, instrument_crypto)
+        decouvertes = cryptos_bitvavo()
+        if not decouvertes:
+            return []
+        ajouter_cryptos(decouvertes)
+        broker = self.broker
+        rafraichir = getattr(broker, "rafraichir_marches", None)
+        if rafraichir is not None:
+            try:
+                rafraichir()
+            except Exception as exc:  # noqa: BLE001 - on reessaiera dans une heure
+                logger.warning("univers : regles de marche non rechargees (%s)",
+                               str(exc)[:120])
+                return []
+
+        fixes = {i.symbol for i in DEFAULT_UNIVERSE}
+        voulues = {f"{a}USD" for a in decouvertes}
+        nouvelles, retirees = [], []
+        for actif, groupe in decouvertes.items():
+            sym = f"{actif}USD"
+            if sym in fixes or self.universe.get(sym) is not None:
+                continue
+            inst = instrument_crypto(actif, groupe)
+            self.universe.add(inst)
+            if hasattr(broker, "register_instrument"):
+                broker.register_instrument(inst)
+            nouvelles.append(sym)
+        for inst in self.universe:
+            if inst.symbol in fixes or not inst.symbol.endswith("USD"):
+                continue
+            cotable = (not hasattr(broker, "supports")) or broker.supports(inst.symbol)
+            voulu = inst.symbol in voulues and cotable
+            if inst.enabled and not voulu:
+                retirees.append(inst.symbol)
+            elif voulu and not inst.enabled and inst.symbol not in nouvelles:
+                nouvelles.append(inst.symbol)
+            inst.enabled = voulu
+        if nouvelles or retirees:
+            logger.info("univers rafraichi : +%d (%s) / -%d (%s) -> %d actifs",
+                        len(nouvelles), ", ".join(nouvelles[:12]) or "-",
+                        len(retirees), ", ".join(retirees[:12]) or "-",
+                        sum(1 for i in self.universe if i.enabled))
+        return nouvelles
+
+    # ---------------------------------------------------------------
     def _appliquer_palier_de_croissance(self) -> None:
         """Plafonne le risque par trade tant que l'avantage n'est pas prouve.
 
@@ -1068,6 +1153,12 @@ class TradingEngine:
 
         # 1. Etat reel du compte et des positions
         self.broker.sync()
+        # Une crypto qui se reveille en cours de journee doit entrer dans le
+        # scan sans attendre un redemarrage (MAGIC, 9 oct.). Jamais bloquant.
+        try:
+            self._rafraichir_univers()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("rafraichissement de l'univers impossible : %s", str(exc)[:160])
         # Les contraintes de la plateforme font foi sur celles declarees par
         # defaut : tailles de lot, pas de prix, notionnel minimum.
         if hasattr(self.broker, "apply_market_rules"):
