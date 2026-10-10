@@ -95,7 +95,10 @@ MORCEAUX_06 = {"prompt_pages": (2.2, 10.4), "fin": (12.8, 15.5)}
 
 
 LEGENDE = "J'ai construit ce site en 1 journée. Je ne sais pas coder 👇\n\nLe prompt de départ (copie-le) :\n« Je veux construire [ton idée, même floue]. Je ne suis pas développeur. Pose-moi 10 questions, une à la fois, pour comprendre ce que je veux vraiment. N'écris aucun code. »\n\nPourquoi ça marche : l'IA arrête de deviner, et tu découvres ce que tu veux vraiment avant d'écrire la moindre ligne.\n\nPartie 1 sur 5 : je construis un business avec l'IA, sans coder.\n👉 Abonne-toi pour la partie 2 (le cahier des charges).\n💾 Enregistre ce Reel pour retrouver le prompt.\n📎 Les 12 prompts du kit, gratuits : lien dans ma bio\n\nLuna est un personnage créé avec l'IA.\n#ia #intelligenceartificielle #chatgpt #claude #nocode #creerunsite #entrepreneur"
-REELS = {"06-site-en-1-journee-luna": {"legende": LEGENDE}}
+#: v2 (10 oct.) : republiée avec One For Dilla, l'opérateur ayant refusé BRACELET
+#: (« il ne faut pas de paroles : ils ne peuvent pas écouter et lire en même temps »).
+REELS = {"06-site-en-1-journee-luna": {"legende": LEGENDE},
+         "06-site-en-1-journee-luna-v2": {"legende": LEGENDE}}
 
 
 def images() -> None:

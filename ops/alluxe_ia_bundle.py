@@ -92,6 +92,9 @@ SONS_TENDANCE_PREFERES = [
     # 10 oct., l'opérateur : « une musique jeune tendance, pas électronique »
     # pour le Reel 06 avec Luna (public à 84 % français).
     ("BRACELET", "Ninho"),
+    # 10 oct., l'opérateur : SANS PAROLES (on ne peut pas écouter et lire à la fois).
+    # Écouté et validé par lui sur l'aperçu monté sur le Reel 06 Luna.
+    ("One For Dilla", "Otis McDonald"),
 ]
 
 
