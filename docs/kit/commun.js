@@ -10,8 +10,17 @@
     <img src="logo-alluxe.png" alt="Logo Alluxe"><b>alluxe.ia</b></a>
     <button class="menu" aria-label="Menu">☰</button>
     <nav>${PAGES.map(([u, t]) => `<a href="${u}"${u === ici ? ' class="ici"' : ""}>${t}</a>`).join("")}
-    <a class="cadre" href="commander.html">Commander →</a></nav></div>`;
+    <a class="cadre" href="commander.html">Commandes : bientôt</a></nav></div>`;
   document.body.prepend(barre);
+  // 10 oct. 2026, l'opérateur : aucune commande tant que le projet n'est pas fini
+  // à 100 %. Le message, sur toutes les pages, avant même un clic sur « Commander »
+  // (qui mène à maintenance.html, voir .htaccess). Retirer ce bloc à l'ouverture.
+  if (ici !== "maintenance.html") {
+    const avis = document.createElement("a");
+    avis.className = "bandeau-kit"; avis.href = "kit.html";
+    avis.innerHTML = "🛠️ <b>Les prises de commande seront bientôt disponibles.</b> En attendant : le kit gratuit <span>→</span>";
+    barre.after(avis);
+  }
   barre.querySelector(".menu").onclick = () => barre.querySelector("nav").classList.toggle("ouvert");
 
   const pied = document.createElement("footer");
