@@ -74,16 +74,23 @@ SCENES = [
     },
 ]
 
-#: (début, fin, texte, style) sur la vidéo finale de 16,3 s
+#: 10 oct., l'opérateur : « règle-toi sur le tempo ». Musique choisie : BRACELET
+#: (Ninho, La Rvfleuze), mesurée sur l'extrait officiel Deezer (librosa) :
+#: 143,6 temps/min. Chaque coupe tombe sur une mesure (4 temps).
+TEMPS = 60.0 / 143.6
+S1, S06, S2, SFIN = 8 * TEMPS, 20 * TEMPS, 6 * TEMPS, 8 * TEMPS
+SCENES[0]["duree"], SCENES[1]["duree"] = S1, S2
+
+#: (début, fin, texte, style) sur la vidéo finale
 TEXTES = [
-    (0.0, 3.0, "J'AI CONSTRUIT\nCE SITE…", "titre"),
-    (0.9, 3.0, "EN 1 JOURNÉE", "rouge"),
-    (11.2, 13.6, "0 ligne de code\nécrite par moi.", "bas"),
-    (0.0, 3.0, "@alluxe.ia · Luna, personnage IA", "signature"),
-    (11.2, 13.6, "@alluxe.ia · Luna, personnage IA", "signature"),
+    (0.0, S1, "J'AI CONSTRUIT\nCE SITE…", "titre"),
+    (2 * TEMPS, S1, "EN 1 JOURNÉE", "rouge"),            # sur le 3e temps
+    (S1 + S06, S1 + S06 + S2, "0 ligne de code\nécrite par moi.", "bas"),
+    (0.0, S1, "@alluxe.ia · Luna, personnage IA", "signature"),
+    (S1 + S06, S1 + S06 + S2, "@alluxe.ia · Luna, personnage IA", "signature"),
 ]
 
-#: morceaux du Reel 06 d'origine repris tels quels (début, fin)
+#: morceaux du Reel 06 d'origine (début, fin), étirés à la durée voulue
 MORCEAUX_06 = {"prompt_pages": (2.2, 10.4), "fin": (12.8, 15.5)}
 
 
@@ -156,9 +163,11 @@ def videos() -> None:
         time.sleep(20)
 
 
-def _clip(entree: Path, sortie: Path, debut: float, duree: float) -> None:
+def _clip(entree: Path, sortie: Path, debut: float, duree: float, vitesse: float = 1.0) -> None:
+    """`vitesse` < 1 ralentit (étire) le morceau pour qu'il finisse sur une mesure."""
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{debut:.3f}", "-i", str(entree),
-                    "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
+                    "-vf", f"setpts=PTS/{vitesse:.5f},"
+                           "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
                            "fps=30,tpad=stop_mode=clone:stop_duration=2",
                     "-t", f"{duree:.3f}", "-an", "-c:v", "libx264", "-crf", "17",
                     "-pix_fmt", "yuv420p", str(sortie)], check=True)
@@ -170,14 +179,14 @@ def montage() -> Path:
     vids = DOSSIER / "videos"
     a, b = MORCEAUX_06["prompt_pages"]
     c, d = MORCEAUX_06["fin"]
-    plan = [(vids / "1_site.mp4", 0.0, SCENES[0]["duree"]),
-            (REEL_06, a, b - a),
-            (vids / "2_code.mp4", 0.0, SCENES[1]["duree"]),
-            (REEL_06, c, d - c)]
+    plan = [(vids / "1_site.mp4", 0.0, S1, 1.0),
+            (REEL_06, a, S06, (b - a) / S06),
+            (vids / "2_code.mp4", 0.0, S2, 1.0),
+            (REEL_06, c, SFIN, 1.0)]          # la fin tient sur sa dernière image
     morceaux = []
-    for i, (src, debut, duree) in enumerate(plan):
+    for i, (src, debut, duree, vitesse) in enumerate(plan):
         m = tmp / f"m{i}.mp4"
-        _clip(src, m, debut, duree)
+        _clip(src, m, debut, duree, vitesse)
         morceaux.append(m)
     total = sum(p[2] for p in plan)
     liste = tmp / "liste.txt"
