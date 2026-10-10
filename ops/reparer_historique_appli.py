@@ -91,11 +91,22 @@ def principal() -> int:
                 return False
             if l["reference"].rsplit(":", 1)[-1] != "1":
                 return False
-            proche = abs(_ts(l["published_at"]) - t["opened_at"]) <= TOLERANCE_OUVERTURE
-            meme_prix = abs(float(l["entry_price"] or 0) - entree) <= entree * 0.001
-            return proche or meme_prix
-        cands = sorted([l for l in lignes if candidate(l)],
-                       key=lambda l: abs(_ts(l["published_at"]) - t["opened_at"]))
+            # Jamais une ligne ouverte APRES la cloture du trade (MEGA, 10 oct. :
+            # deux trades a 0,0427 et 0,04269, la cloture du 1er posee sur la
+            # ligne du 2e).
+            return _ts(l["published_at"]) <= t["closed_at"] + 60
+
+        def proche(l):
+            return abs(_ts(l["published_at"]) - t["opened_at"]) <= TOLERANCE_OUVERTURE
+
+        def meme_prix(l):
+            return abs(float(l["entry_price"] or 0) - entree) <= entree * 0.001
+        # La DATE d'ouverture d'abord ; le prix seulement si aucune ligne
+        # n'a ete ouverte a ce moment-la (lignes republiees plus tard par la
+        # resynchronisation, qui portent la date de republication).
+        possibles = [l for l in lignes if candidate(l)]
+        cands = [l for l in possibles if proche(l)] or [l for l in possibles if meme_prix(l)]
+        cands.sort(key=lambda l: abs(_ts(l["published_at"]) - t["opened_at"]))
         if cands:
             l = cands[0]
             prises.add(l["reference"])
