@@ -36,8 +36,9 @@ from alluxe_ia.reel import REELS as _REELS_TEXTE  # noqa: E402  (le 02 est rendu
 from alluxe_ia.reel_photos import REELS as _REELS_PHOTOS  # noqa: E402
 from alluxe_ia.reel_captures import REELS as _REELS_CAPTURES  # noqa: E402
 from alluxe_ia.reel_doublon import REELS as _REELS_DOUBLON  # noqa: E402
+from alluxe_ia.reel_site_luna import REELS as _REELS_SITE_LUNA  # noqa: E402
 
-REELS = {**_REELS_TEXTE, **_REELS_PHOTOS, **_REELS_CAPTURES, **_REELS_DOUBLON}
+REELS = {**_REELS_TEXTE, **_REELS_PHOTOS, **_REELS_CAPTURES, **_REELS_DOUBLON, **_REELS_SITE_LUNA}
 
 API = "https://api.bundle.social/api/v1/"
 EQUIPE = "32828e26-6e40-4411-9361-13077da51aa7"   # « allureluxe's Org »
@@ -88,6 +89,9 @@ SONS_TENDANCE_PREFERES = [
     ("Deep Blue", "Giulio Cercato"),
     # 7 oct., l'opérateur : « musique adrénaline » pour le Reel 05 (bibliothèque libre).
     ("Power Drift", "Adam Griffith"),
+    # 10 oct., l'opérateur : « une musique jeune tendance, pas électronique »
+    # pour le Reel 06 avec Luna (public à 84 % français).
+    ("BRACELET", "Ninho"),
 ]
 
 
