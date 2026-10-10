@@ -73,6 +73,11 @@
   window.chargerOffres().then(({ promo }) => {
     if (!promo || new Date(promo.fin) <= new Date()) return;
     document.body.classList.add("noel");
+    // 10 oct., l'opérateur : « masque Noël » tant que les commandes sont fermées
+    // (le bandeau promettait un cadeau « avec chaque commande »). Le décor reste ;
+    // l'offre et son compte à rebours reviennent avec OFFRE_NOEL_VISIBLE = true.
+    const OFFRE_NOEL_VISIBLE = false;
+    if (OFFRE_NOEL_VISIBLE) {
     const b = document.createElement("a");
     b.className = "bandeau-noel"; b.href = "offres.html#cat-noel";
     b.innerHTML = `<span class="sapin">🎄</span> <b></b> <span class="texte"></span> <span class="decompte"></span>`;
@@ -90,6 +95,7 @@
       if (!s) { b.remove(); document.body.classList.remove("noel"); }
     };
     tic(); setInterval(tic, 1000);
+    }
 
     // 9 oct. : décor de Noël « premium » (tendance des sites d'agence : peu
     // d'éléments, tons profonds rouge/or, animations lentes). Tout est décoratif
