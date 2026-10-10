@@ -260,6 +260,26 @@ def _rang(n: int) -> str:
 # Le signal, tel qu'il part vers la base
 # ---------------------------------------------------------------------
 
+
+#: 9 oct. 2026 : LA REFERENCE DOIT ETRE UNIQUE PAR TRADE, PAS PAR CRYPTO.
+#: `signals.reference` porte un index unique, et l'id d'une position est le
+#: nom de la crypto (« PARTIUSD »). Racheter une crypto deja tradee
+#: reutilisait « PARTIUSD:1 » : Supabase refusait la ligne EN SILENCE, et la
+#: position n'apparaissait jamais dans l'application (PARTI, ZK le 9 oct.).
+#: Desormais l'heure d'achat entre dans la reference. Les positions
+#: ouvertes AVANT la bascule gardent l'ancien format, sinon leur cloture ne
+#: retrouverait plus leur ligne.
+BASCULE_REFERENCE_UNIQUE = 1791572800
+
+
+def reference_signal(position_id: str, opened_at: float | None, etage: int) -> str:
+    """« ATOMUSD~1791600000:2 » ; l'etage reste apres le dernier « : »,
+    seul endroit ou l'application le lit."""
+    if opened_at and float(opened_at) >= BASCULE_REFERENCE_UNIQUE:
+        return f"{position_id}~{int(float(opened_at))}:{etage}"
+    return f"{position_id}:{etage}"
+
+
 @dataclass
 class SignalPublie:
     """Une ligne de la table `signals`."""
@@ -393,6 +413,22 @@ class SupabaseIndisponible(Exception):
     """Le reseau ou la base a refuse. Jamais propagee au moteur."""
 
 
+class SupabaseRefus(SupabaseIndisponible):
+    """La base a refuse la DEMANDE elle-meme (doublon, valeur invalide).
+
+    10 oct. 2026 : la file d'attente etait figee depuis le 1er octobre. Sa
+    tete -- une ouverture en doublon (HTTP 409) -- echouait a chaque cycle,
+    et `rejouer` s'arretait sur elle : 38 publications coincees derriere,
+    dont des clotures reelles jamais affichees. Rejouer une demande que la
+    base refuse par principe ne la fera jamais passer ; seule une panne
+    (reseau, 5xx, 429) merite d'attendre.
+    """
+
+
+#: codes ou la DEMANDE est en cause, pas la disponibilite de la base
+CODES_DE_REFUS = (400, 404, 409, 422)
+
+
 @dataclass
 class SupabaseREST:
     """Le strict minimum de l'API REST de Supabase : inserer, modifier.
@@ -427,6 +463,8 @@ class SupabaseREST:
                 detail = exc.read().decode()[:300]
             finally:
                 exc.close()   # sinon la connexion reste ouverte (CLOSE-WAIT)
+            if exc.code in CODES_DE_REFUS:
+                raise SupabaseRefus(f"HTTP {exc.code} : {detail}") from exc
             raise SupabaseIndisponible(f"HTTP {exc.code} : {detail}") from exc
         except Exception as exc:                      # reseau, DNS, timeout
             raise SupabaseIndisponible(str(exc)) from exc
@@ -447,6 +485,18 @@ class SupabaseREST:
         """
         lignes = self._appel("GET", f"{table}?{filtre}&select=id&limit=1")
         return bool(lignes)
+
+    def lignes_actives(self, table: str, base: str, etage: str,
+                       est_demo: bool) -> list:
+        """References des lignes ACTIVES de cette position et de cet etage,
+        quel que soit le format (« ZKUSD:1 » ou « ZKUSD~1791562517:1 »)."""
+        from urllib.parse import quote
+        ou = quote(f"(reference.eq.{base}:{etage},reference.like.{base}~*:{etage})", safe="(),.*")
+        lignes = self._appel(
+            "GET", f"{table}?select=reference,published_at&status=eq.active"
+                   f"&is_demo=eq.{str(bool(est_demo)).lower()}&or={ou}"
+                   f"&order=published_at.desc")
+        return [l.get("reference") for l in lignes or [] if l.get("reference")]
 
 
 # ---------------------------------------------------------------------
@@ -554,6 +604,7 @@ class SignalPublisher:
         """
         if not self.actif:
             return False
+        reference = self._reference_active(reference)[0]
         return self._envoyer({
             "type": "suivi",
             "table": "signals",
@@ -600,6 +651,17 @@ class SignalPublisher:
         }
         if profit_eur is not None:
             corps["profit_eur"] = round(float(profit_eur), 2)
+        demandee = reference
+        reference, fantomes = self._reference_active(reference)
+        for fantome in fantomes:
+            # Au comptant, un seul avoir par crypto : si la position se ferme,
+            # toute AUTRE ligne active du meme etage est un reste d'evenement
+            # rate (ZK, 10 oct. : la cloture ecrite sur une ligne du 2 oct.,
+            # la vraie restee « ouverte »). Annulee, sans resultat.
+            self._envoyer({"type": "cloture", "table": "signals",
+                           "filtre": f"reference=eq.{fantome}",
+                           "corps": {"status": "cancelled", "closed_at": _iso(closed_at),
+                                     "result_pct": 0.0, "profit_eur": 0.0}})
         filtre = f"reference=eq.{reference}"
         # Une ouverture peut avoir ete perdue pendant une panne/restart.
         # Dans ce cas, PATCH touche zero ligne et l'historique resterait
@@ -610,6 +672,12 @@ class SignalPublisher:
             try:
                 if not self.client.existe("signals", filtre):
                     ligne = signal.vers_supabase(publier=True)
+                    # La reference de l'ETAGE, pas l'id nu de la position,
+                    # et le sens tel que l'enum de la base l'attend :
+                    # « BUY » etait refuse (22P02) et bloquait la file.
+                    ligne["reference"] = demandee
+                    ligne["side"] = ("buy" if str(ligne.get("side", "")).lower()
+                                     .startswith(("b", "a")) else "sell")
                     if published_at is not None:
                         ligne["published_at"] = _iso(published_at)
                     ligne.update(corps)
@@ -630,6 +698,28 @@ class SignalPublisher:
             "corps": corps,
         })
 
+    def _reference_active(self, reference: str) -> tuple[str, list]:
+        """(reference a modifier, autres lignes actives du meme etage).
+
+        Deux formats de reference coexistent depuis le 9 oct. ; la ligne
+        active d'une position peut porter l'un ou l'autre selon le code qui
+        l'a publiee. On modifie celle qui EXISTE, la demandee en priorite.
+        Sans client capable de lister, ou en panne : la demandee, telle quelle.
+        """
+        lister = getattr(self.client, "lignes_actives", None)
+        if lister is None or ":" not in reference:
+            return reference, []
+        base = reference.split("~")[0].rsplit(":", 1)[0]
+        etage = reference.rsplit(":", 1)[1]
+        try:
+            actives = list(lister("signals", base, etage, self.est_demo))
+        except SupabaseIndisponible:
+            return reference, []
+        if not actives:
+            return reference, []
+        retenue = reference if reference in actives else actives[0]
+        return retenue, [r for r in actives if r != retenue]
+
     # -- transport et file d'attente ----------------------------------
 
     def _envoyer(self, tache: Dict[str, Any]) -> bool:
@@ -638,6 +728,11 @@ class SignalPublisher:
             return False
         try:
             self._executer(tache)
+        except SupabaseRefus as exc:
+            log.warning("signal_publisher : publication REFUSEE, abandonnee "
+                        "(%s %s) : %s", tache.get("type"),
+                        tache.get("filtre") or tache.get("corps", {}).get("reference"), exc)
+            return False
         except SupabaseIndisponible as exc:
             self._echecs += 1
             if self._echecs >= ECHECS_AVANT_PAUSE:
@@ -674,6 +769,12 @@ class SignalPublisher:
         for tache in file:
             try:
                 self._executer(tache)
+            except SupabaseRefus as exc:
+                # Jamais elle ne passera : on l'ecarte pour liberer la file.
+                log.warning("signal_publisher : publication en attente REFUSEE, "
+                            "abandonnee (%s %s) : %s", tache.get("type"),
+                            tache.get("filtre") or tache.get("corps", {}).get("reference"),
+                            str(exc)[:160])
             except SupabaseIndisponible:
                 break
             passees += 1

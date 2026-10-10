@@ -385,7 +385,9 @@ class TestLeMoteurPubliePourDeVraiUnePositionReelle(unittest.TestCase):
         self.assertEqual(len(client.inserts), 1, "rien n'a ete publie")
         table, ligne = client.inserts[0]
         self.assertEqual(table, "signals")
-        self.assertEqual(ligne["reference"], "TRXUSD:1")
+        # 9 oct. : reference unique par trade (« TRXUSD~<heure>:1 »), sinon
+        # un rachat de TRX serait refuse par l'index unique de Supabase.
+        self.assertRegex(ligne["reference"], r"^TRXUSD~\d+:1$")
         # La devise exacte depend de l'univers charge (ici minimal, sans
         # fetch Bitvavo reel) -- voir test_le_symbole_interne_finit_toujours_en_usd_meme_coteEUR
         # pour la preuve precise du format "TRX/EUR".
@@ -429,7 +431,11 @@ class TestLeBeneficeReelEstPublie(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(len(client.inserts), 1)
         ligne = client.inserts[0][1]
-        self.assertEqual(ligne["reference"], "perdue-42")
+        # La reference de l'ETAGE (corrige le 10 oct.) : l'id nu « perdue-42 »
+        # ne se retrouvait jamais ensuite, et la 2e cloture du meme id
+        # partait en doublon (409) -- tete de file bloquee depuis le 1er oct.
+        self.assertEqual(ligne["reference"], "perdue-42:1")
+        self.assertEqual(ligne["side"], "buy")
         self.assertEqual(ligne["status"], "closed_sl")
         self.assertEqual(ligne["profit_eur"], -12.34)
         self.assertEqual(ligne["published_at"], "2023-11-14T22:13:20Z")

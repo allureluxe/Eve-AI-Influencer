@@ -1661,7 +1661,7 @@ class TradingEngine:
             # la position ENTIERE : le mettre sur chaque etage ferait
             # compter une pyramide a quatre etages quatre fois par
             # l'application, qui additionne les lignes.
-            from .signal_publisher import SignalPublie, paire_lisible
+            from .signal_publisher import SignalPublie, paire_lisible, reference_signal
             # Si l'ouverture n'est plus en base (panne/restart), fournir au
             # publieur les donnees originales afin qu'il puisse reconstruire
             # la ligne fermee au lieu de laisser l'historique a zero.
@@ -1685,7 +1685,7 @@ class TradingEngine:
             )
             for etage in range(1, (getattr(trade, "etages", 1) or 1) + 1):
                 self.publisher.publier_cloture(
-                    f"{trade.position_id}:{etage}",
+                    reference_signal(trade.position_id, getattr(trade, "opened_at", None), etage),
                     statut, trade.closed_at, result_pct,
                     profit_eur=float(trade.profit) if etage == 1 else 0.0,
                     signal=signal_repli,
@@ -1711,9 +1711,11 @@ class TradingEngine:
         if not self.publisher.actif:
             return
         try:
+            from .signal_publisher import reference_signal
             etages = int(getattr(pos, "etages", 1) or 1)
             for etage in range(1, etages + 1):
-                self.publisher.publier_suivi(f"{pos.id}:{etage}", niveau)
+                self.publisher.publier_suivi(
+                    reference_signal(pos.id, getattr(pos, "opened_at", None), etage), niveau)
         except Exception as exc:                            # noqa: BLE001
             logger.warning("publication du stop suiveur impossible : %s", exc)
 
@@ -1730,7 +1732,7 @@ class TradingEngine:
             from .signal_publisher import (SignalPublie, calculer_risk_reward,
                                            conviction_depuis_score,
                                            nom_de_compte, paire_lisible,
-                                           rediger_rationale)
+                                           rediger_rationale, reference_signal)
             inst = self.universe.get(ev.symbol)
             devise = getattr(inst, "quote_currency", "EUR") or "EUR"
             paire = paire_lisible(ev.symbol, devise)
@@ -1743,7 +1745,7 @@ class TradingEngine:
                 # L'etage fait partie de la reference : un renfort de
                 # pyramide est un signal a part entiere pour l'utilisateur,
                 # pas une modification du precedent (qui serait refusee).
-                reference=f"{pos.id}:{etage}",
+                reference=reference_signal(pos.id, getattr(pos, "opened_at", None), etage),
                 pair=paire,
                 side="buy" if ev.side.value.lower().startswith(("b", "a")) else "sell",
                 entry_price=float(pos.entry_price),
