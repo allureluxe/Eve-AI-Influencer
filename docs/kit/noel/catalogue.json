@@ -1,5 +1,5 @@
 {
-  "_note": "Coûts réels : devis Gelato du 11 oct. 2026, livraison France DPD (fabriqué en France), HT. cout_ttc = HT x 1,20 (franchise de TVA : TVA non récupérable). Plaid et boule : pas encore chiffrés. Fichiers : affiches 30x40 à 150 dpi ; toile = 346x446 mm (bords enroulés ~2 cm + 3 mm) et mug = 216x93 mm à 300 dpi (2 mm de fond perdu haut/bas) : ESTIMÉS, à confirmer par la commande d'essai.",
+  "_note": "Coûts réels : devis Gelato du 11 oct. 2026, livraison France DPD (fabriqué en France), HT. cout_ttc = HT x 1,20 (franchise de TVA : TVA non récupérable). Plaid et boule : pas encore chiffrés. Fichiers : affiches 30x40 à 150 dpi ; toile = 346x446 mm (bords enroulés ~2 cm + 3 mm) et mug = 216x93 mm à 300 dpi (2 mm de fond perdu haut/bas) : ESTIMÉS, à confirmer par la commande d'essai. 12 oct. : + cartes, verre acrylique (Gelato, devis réels) ; calendrier, coussin, plaid, décoration bois en attente (Printful / 12 portraits).",
   "commandes_ouvertes": false,
   "date_limite_noel": "2026-12-14T23:59:00+01:00",
   "styles": [
@@ -36,7 +36,8 @@
       "fichier": {
         "largeur": 1772,
         "hauteur": 2362
-      }
+      },
+      "fournisseur": "gelato"
     },
     {
       "id": "affiche-cadre",
@@ -55,7 +56,8 @@
       "fichier": {
         "largeur": 1772,
         "hauteur": 2362
-      }
+      },
+      "fournisseur": "gelato"
     },
     {
       "id": "toile",
@@ -73,7 +75,8 @@
       "fichier": {
         "largeur": 2043,
         "hauteur": 2634
-      }
+      },
+      "fournisseur": "gelato"
     },
     {
       "id": "mug",
@@ -92,25 +95,99 @@
         "largeur": 2551,
         "hauteur": 1098,
         "mode": "centre"
-      }
+      },
+      "fournisseur": "gelato"
     },
     {
       "id": "plaid",
-      "nom": "Plaid polaire",
-      "prix": 64.0,
+      "nom": "Plaid sherpa 95 × 145",
+      "prix": 74.0,
       "image": "plaid.jpg",
       "texte": "Doux, chaud, et votre animal dessus.",
-      "cout_estime": 35,
-      "actif": false
+      "cout_estime": 45,
+      "actif": false,
+      "fournisseur": "printful",
+      "printful_produit": 711,
+      "_a_faire": "compte Printful + clé API ; fabriqué en Lettonie"
     },
     {
       "id": "boule",
-      "nom": "Boule de sapin",
+      "nom": "Décoration de sapin en bois",
       "prix": 19.9,
       "image": "boule.jpg",
-      "texte": "Le portrait accroché au sapin, chaque année.",
-      "cout_estime": 9,
-      "actif": false
+      "texte": "Bois clair, ruban rouge, le portrait accroché au sapin chaque année.",
+      "cout_estime": 13,
+      "actif": false,
+      "fournisseur": "printful",
+      "printful_produit": 634,
+      "_a_faire": "compte Printful + clé API"
+    },
+    {
+      "id": "cartes",
+      "nom": "10 cartes de vœux + enveloppes",
+      "prix": 29.9,
+      "image": "cartes.jpg",
+      "texte": "Format A6 pliées, papier épais, votre portrait en couverture. Prêtes à envoyer.",
+      "actif": true,
+      "fournisseur": "gelato",
+      "gelato_uid": "pack_of_folded_cards_qt_10_pcs_pf_a6_upt_300-gsm-110lb-uncoated_cl_4-4_ft_crease-ver_ct_none_prt_none_sft_none_ver_ept_standard",
+      "cout_ht": {
+        "fabrication": 9.27,
+        "port": 6.16
+      },
+      "cout_ttc": 18.52,
+      "fichier": {
+        "largeur": 2480,
+        "hauteur": 1748,
+        "mode": "carte"
+      }
+    },
+    {
+      "id": "acrylique",
+      "nom": "Tableau verre acrylique 20 × 30",
+      "prix": 69.0,
+      "image": "acrylique.jpg",
+      "texte": "Effet verre brillant, couleurs éclatantes, se pose ou s'accroche.",
+      "actif": true,
+      "fournisseur": "gelato",
+      "gelato_uid": "acrylic_200x300-mm-8x12-inch_4-mm_4-0_ver",
+      "cout_ht": {
+        "fabrication": 29.11,
+        "port": 11.3
+      },
+      "cout_ttc": 48.49,
+      "fichier": {
+        "largeur": 1181,
+        "hauteur": 1772
+      }
+    },
+    {
+      "id": "calendrier",
+      "nom": "Calendrier 2027 — 12 portraits",
+      "prix": 34.9,
+      "image": "calendrier.jpg",
+      "texte": "Un portrait différent chaque mois, format A4 à accrocher.",
+      "actif": false,
+      "fournisseur": "gelato",
+      "_a_faire": "12 portraits par commande : l'automate n'en fait qu'un",
+      "gelato_uid": "wall_calendar_unified_pf_a4-lt_pt_250-gsm-100lb-coated-silk_cl_4-4_bt_wire-with-hook-top_ct_none_prt_none_ver",
+      "cout_ht": {
+        "fabrication": 9.23,
+        "port": 5.99
+      },
+      "cout_ttc": 18.26
+    },
+    {
+      "id": "coussin",
+      "nom": "Coussin 45 × 45",
+      "prix": 39.0,
+      "image": "coussin.jpg",
+      "texte": "Doux, housse et garnissage compris.",
+      "actif": false,
+      "fournisseur": "printful",
+      "_a_faire": "compte Printful + clé API à créer ; prix à confirmer (catalogue Printful, fabriqué en Europe)",
+      "printful_produit": 83,
+      "cout_estime": 22
     }
   ]
 }

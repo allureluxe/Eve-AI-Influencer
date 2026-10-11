@@ -97,3 +97,11 @@ def test_adresse_stripe_vers_gelato():
 def test_la_consigne_garde_le_sujet_et_la_retouche():
     t = automate.consigne("royal", "Ma famille", "les yeux plus clairs")
     assert "toutes les personnes" in t and "les yeux plus clairs" in t
+
+
+def test_carte_pliee_dos_blanc_couverture_a_droite():
+    from PIL import Image
+    im = Image.open(io.BytesIO(automate.fichier_impression(
+        _png(1024, 1536), {"largeur": 2480, "hauteur": 1748, "mode": "carte"})))
+    assert im.size == (2480, 1748)
+    assert im.getpixel((100, 874)) == (255, 255, 255)        # dos : blanc

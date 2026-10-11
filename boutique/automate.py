@@ -162,7 +162,19 @@ def fichier_impression(portrait: bytes, fmt: dict) -> bytes:
     from PIL import Image
     im = Image.open(io.BytesIO(portrait)).convert("RGB")
     L, H = fmt["largeur"], fmt["hauteur"]
-    if fmt.get("mode") == "centre":                 # mug : portrait au centre d'un fond blanc
+    if fmt.get("mode") == "carte":                  # carte pliée : dos blanc à gauche, portrait en couverture à droite
+        fond = Image.new("RGB", (L, H), "white")
+        demi = L // 2
+        cible = demi / H
+        if im.width / im.height > cible:
+            w = round(im.height * cible)
+            im = im.crop(((im.width - w) // 2, 0, (im.width - w) // 2 + w, im.height))
+        else:
+            h = round(im.width / cible)
+            im = im.crop((0, (im.height - h) // 2, im.width, (im.height - h) // 2 + h))
+        fond.paste(im.resize((L - demi, H), Image.LANCZOS), (demi, 0))
+        im = fond
+    elif fmt.get("mode") == "centre":                 # mug : portrait au centre d'un fond blanc
         fond = Image.new("RGB", (L, H), "white")
         w = round(im.width * H / im.height)
         fond.paste(im.resize((w, H), Image.LANCZOS), ((L - w) // 2, 0))

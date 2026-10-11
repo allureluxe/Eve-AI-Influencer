@@ -50,12 +50,25 @@ VISUELS = {
     "plaid": ("carre", "Un plaid polaire doux plié sur un canapé beige, ambiance cosy de Noël. Sur "
               "le plaid est imprimé le portrait illustré d'un bouledogue français en écharpe "
               "rouge, fond étoilé bleu nuit."),
-    "boule": ("carre", "Gros plan d'une boule de Noël blanche en céramique accrochée à un sapin "
-              "illuminé. Sur la boule, petit portrait peint d'un chat noir aux yeux verts avec "
+    "boule": ("carre", "Gros plan d'une décoration de sapin ronde en bois clair accrochée par "
+              "un ruban rouge à un sapin illuminé. Dessus, petit portrait peint d'un chat noir aux yeux verts avec "
               "un nœud doré."),
     "toile": ("portrait", "Une toile sur châssis accrochée dans une entrée élégante décorée pour "
               "Noël. Sur la toile, portrait style aquarelle d'un couple de chiens (un beagle et un "
               "border collie) côte à côte avec une couronne de houx."),
+    # 12 oct. : nouveaux produits (cartes, verre acrylique, calendrier chez Gelato ;
+    # coussin et décoration en bois chez Printful).
+    "cartes": ("carre", "Un paquet de cartes de vœux pliées posées sur une table en bois avec "
+               "des enveloppes kraft, une branche de sapin et un ruban rouge. Sur la carte du "
+               "dessus, portrait aquarelle d'un cavalier king charles avec un bonnet de Noël."),
+    "acrylique": ("portrait", "Un tableau en verre acrylique brillant posé sur une commode près "
+                  "d'un sapin illuminé, reflets lumineux sur le verre. Dans le tableau, portrait "
+                  "peint à l'huile d'un chat persan blanc couronné de houx, fond rouge profond."),
+    "calendrier": ("portrait", "Un calendrier mural 2027 à spirale accroché dans une cuisine "
+                   "décorée pour Noël. La page montre le portrait illustré d'un labrador chocolat "
+                   "en écharpe de laine verte, style conte de Noël."),
+    "coussin": ("carre", "Un coussin carré sur un fauteuil en velours vert, plaid et guirlande "
+                "lumineuse autour. Sur le coussin, portrait peint d'un teckel en pull de Noël."),
 }
 
 TAILLES = {"carre": "1024x1024", "paysage": "1536x1024", "portrait": "1024x1536"}

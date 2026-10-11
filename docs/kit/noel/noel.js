@@ -32,6 +32,11 @@ fetch("catalogue.json", { cache: "no-store" }).then((r) => r.json()).then((cat) 
       <div class="corps"><h3>${p.nom}</h3><p>${p.texte}</p>
         <span class="prix">${euros(p.prix)}</span>
         <a href="#commander" data-produit="${p.id}">Choisir →</a></div>
+    </article>`).join("") + cat.produits.filter((p) => !p.actif && p.texte).map((p) => `
+    <article class="produit bientot"><span class="badge">Bientôt</span>
+      <img src="${p.image}" alt="${p.nom}" loading="lazy">
+      <div class="corps"><h3>${p.nom}</h3><p>${p.texte}</p>
+        <span class="prix">${euros(p.prix)}</span></div>
     </article>`).join("");
   const choix = document.getElementById("choix-produit");
   choix.innerHTML = actifs.map((p) => `<option value="${p.id}">${p.nom} — ${euros(p.prix)}</option>`).join("");
