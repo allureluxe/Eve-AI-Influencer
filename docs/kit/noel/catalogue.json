@@ -1,24 +1,116 @@
 {
-  "_note": "Prix de vente à valider contre le devis Gelato réel (compte à ouvrir). Coût estimé = fabrication + port France, recherche web du 11 oct. 2026, à remplacer par le vrai chiffre.",
+  "_note": "Coûts réels : devis Gelato du 11 oct. 2026, livraison France DPD (fabriqué en France), HT. cout_ttc = HT x 1,20 (franchise de TVA : TVA non récupérable). Plaid et boule : pas encore chiffrés. Fichiers : affiches 30x40 à 150 dpi ; toile = 346x446 mm (bords enroulés ~2 cm + 3 mm) et mug = 216x93 mm à 300 dpi (2 mm de fond perdu haut/bas) : ESTIMÉS, à confirmer par la commande d'essai.",
   "commandes_ouvertes": false,
   "date_limite_noel": "2026-12-14T23:59:00+01:00",
   "styles": [
-    {"id": "royal", "nom": "Portrait royal", "texte": "Peinture à l'huile façon XVIIIe, pull de Noël et fond sapin doré."},
-    {"id": "aquarelle", "nom": "Aquarelle", "texte": "Douce et lumineuse, touches de houx et de neige."},
-    {"id": "conte", "nom": "Conte de Noël", "texte": "Illustration de livre pour enfants, pyjamas assortis, cheminée."}
+    {
+      "id": "royal",
+      "nom": "Portrait royal",
+      "texte": "Peinture à l'huile façon XVIIIe, pull de Noël et fond sapin doré."
+    },
+    {
+      "id": "aquarelle",
+      "nom": "Aquarelle",
+      "texte": "Douce et lumineuse, touches de houx et de neige."
+    },
+    {
+      "id": "conte",
+      "nom": "Conte de Noël",
+      "texte": "Illustration de livre pour enfants, pyjamas assortis, cheminée."
+    }
   ],
   "produits": [
-    {"id": "affiche", "nom": "Affiche 30 × 40 cm", "prix": 34.90, "image": "famille-poster.jpg",
-     "texte": "Papier mat épais, couleurs profondes. Le cadeau le plus offert.", "cout_estime": 14, "actif": true},
-    {"id": "affiche-cadre", "nom": "Affiche encadrée 30 × 40", "prix": 59.00, "image": "hero.jpg",
-     "texte": "Cadre en bois prêt à accrocher. Rien à faire en le recevant.", "cout_estime": 30, "actif": true, "vedette": true},
-    {"id": "toile", "nom": "Toile sur châssis 30 × 40", "prix": 64.00, "image": "toile.jpg",
-     "texte": "Effet tableau de galerie, bords imprimés.", "cout_estime": 32, "actif": true},
-    {"id": "mug", "nom": "Mug céramique", "prix": 24.90, "image": "chat-mug.jpg",
-     "texte": "Passe au lave-vaisselle. Le petit cadeau qui fait rire.", "cout_estime": 12, "actif": true},
-    {"id": "plaid", "nom": "Plaid polaire", "prix": 64.00, "image": "plaid.jpg",
-     "texte": "Doux, chaud, et votre animal dessus.", "cout_estime": 35, "actif": false},
-    {"id": "boule", "nom": "Boule de sapin", "prix": 19.90, "image": "boule.jpg",
-     "texte": "Le portrait accroché au sapin, chaque année.", "cout_estime": 9, "actif": false}
+    {
+      "id": "affiche",
+      "nom": "Affiche 30 × 40 cm",
+      "prix": 34.9,
+      "image": "famille-poster.jpg",
+      "texte": "Papier mat épais, couleurs profondes. Le cadeau le plus offert.",
+      "actif": true,
+      "gelato_uid": "flat_300x400-mm-12x16-inch_200-gsm-80lb-uncoated_4-0_ver",
+      "cout_ht": {
+        "fabrication": 10.69,
+        "port": 7.9
+      },
+      "cout_ttc": 22.31,
+      "fichier": {
+        "largeur": 1772,
+        "hauteur": 2362
+      }
+    },
+    {
+      "id": "affiche-cadre",
+      "nom": "Affiche encadrée 30 × 40",
+      "prix": 59.0,
+      "image": "hero.jpg",
+      "texte": "Cadre en bois prêt à accrocher. Rien à faire en le recevant.",
+      "actif": true,
+      "vedette": true,
+      "gelato_uid": "framed_poster_300x400-mm-12x16-inch_natural-wood_wood_w12xt22-mm_plexiglass_300x400-mm-12x16-inch_200-gsm-80lb-uncoated_4-0_ver",
+      "cout_ht": {
+        "fabrication": 26.6,
+        "port": 6.9
+      },
+      "cout_ttc": 40.2,
+      "fichier": {
+        "largeur": 1772,
+        "hauteur": 2362
+      }
+    },
+    {
+      "id": "toile",
+      "nom": "Toile sur châssis 30 × 40",
+      "prix": 74.0,
+      "image": "toile.jpg",
+      "texte": "Effet tableau de galerie, bords imprimés.",
+      "actif": true,
+      "gelato_uid": "canvas_300x400-mm-12x16-inch_canvas_wood-fsc-slim_4-0_ver",
+      "cout_ht": {
+        "fabrication": 23.49,
+        "port": 17.69
+      },
+      "cout_ttc": 49.42,
+      "fichier": {
+        "largeur": 2043,
+        "hauteur": 2634
+      }
+    },
+    {
+      "id": "mug",
+      "nom": "Mug céramique",
+      "prix": 24.9,
+      "image": "chat-mug.jpg",
+      "texte": "Passe au lave-vaisselle. Le petit cadeau qui fait rire.",
+      "actif": true,
+      "gelato_uid": "mug_product_msz_11-oz_mmat_ceramic-white_cl_4-0",
+      "cout_ht": {
+        "fabrication": 5.13,
+        "port": 4.99
+      },
+      "cout_ttc": 12.14,
+      "fichier": {
+        "largeur": 2551,
+        "hauteur": 1098,
+        "mode": "centre"
+      }
+    },
+    {
+      "id": "plaid",
+      "nom": "Plaid polaire",
+      "prix": 64.0,
+      "image": "plaid.jpg",
+      "texte": "Doux, chaud, et votre animal dessus.",
+      "cout_estime": 35,
+      "actif": false
+    },
+    {
+      "id": "boule",
+      "nom": "Boule de sapin",
+      "prix": 19.9,
+      "image": "boule.jpg",
+      "texte": "Le portrait accroché au sapin, chaque année.",
+      "cout_estime": 9,
+      "actif": false
+    }
   ]
 }

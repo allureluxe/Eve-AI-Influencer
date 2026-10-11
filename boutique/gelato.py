@@ -33,7 +33,9 @@ def _appel(methode: str, url: str, corps: dict | None = None) -> dict:
         raise ErreurGelato("GELATO_API_KEY absente")
     req = urllib.request.Request(url, method=methode,
                                  data=json.dumps(corps).encode() if corps is not None else None,
-                                 headers={"X-API-KEY": cle, "Content-Type": "application/json"})
+                                 # Cloudflare refuse l'agent « Python-urllib » (erreur 1010)
+                                 headers={"X-API-KEY": cle, "Content-Type": "application/json",
+                                          "User-Agent": "alluxe-boutique/1.0"})
     try:
         return json.loads(urllib.request.urlopen(req, timeout=60).read() or b"{}")
     except urllib.error.HTTPError as e:
