@@ -139,3 +139,37 @@ describe("la mise et le gain d'une position OUVERTE", () => {
     expect(eur).toBeCloseTo(3.0, 1);
   });
 });
+
+describe("l'historique reel fusionne (11 oct.)", () => {
+  const { fusionnerHistorique } = require("./format");
+  const ligne = (reference: string, pair: string, closed_at: string, profit_eur: number | null, volume = 10) =>
+    ({ id: reference, reference, pair, closed_at, profit_eur, volume });
+
+  it("un trade present dans signals ET le journal n'apparait qu'une fois", () => {
+    const signaux = [ligne("ZKUSD~1791562517:1", "ZK/EUR", "2026-10-10T07:48:41Z", -2.79)];
+    const journal = [ligne("ZKUSD", "ZK/EUR", "2026-10-10T07:48:41Z", -2.787441)];
+    const h = fusionnerHistorique(signaux, journal);
+    expect(h).toHaveLength(1);
+    expect(h[0].profit_eur).toBeCloseTo(-2.79, 2);
+  });
+
+  it("l'etage 2 a zero n'efface plus le gain de l'etage 1", () => {
+    const t = "2026-10-11T03:39:38Z";
+    const signaux = [ligne("DOSUSD:1", "DOS/EUR", t, 2.92, 100), ligne("DOSUSD:2", "DOS/EUR", t, 0, 50)];
+    const h = fusionnerHistorique(signaux, [ligne("DOSUSD", "DOS/EUR", t, 2.917979, 150)]);
+    expect(h).toHaveLength(1);
+    expect(h[0].profit_eur).toBeCloseTo(2.92, 2);
+    expect(h[0].volume).toBe(150);
+  });
+
+  it("le journal comble une cloture absente de signals", () => {
+    const h = fusionnerHistorique([], [ligne("SANDUSD", "SAND/EUR", "2026-10-02T12:04:47Z", 0.13)]);
+    expect(h).toHaveLength(1);
+  });
+
+  it("deux trades du meme symbole a des heures differentes restent deux lignes", () => {
+    const signaux = [ligne("KAIAUSD:1", "KAIA/EUR", "2026-10-01T12:45:22Z", -1.21),
+                     ligne("KAIAUSD:1", "KAIA/EUR", "2026-10-01T17:55:34Z", 2.01)];
+    expect(fusionnerHistorique(signaux, [])).toHaveLength(2);
+  });
+});

@@ -8,7 +8,7 @@
  */
 import { supabase } from "./supabase";
 import { tableAbsente } from "./postgrest";
-import { regrouperLesEtages } from "./format";
+import { fusionnerHistorique, regrouperLesEtages } from "./format";
 
 export interface EtatCapital {
   capital_eur: number;
@@ -226,18 +226,8 @@ export async function historique(limite = 1000): Promise<Position[]> {
     profit_eur: t.profit_eur == null ? null : Number(t.profit_eur),
   })) as Position[];
 
-  // Un trade present dans signals est prefere au journal car il contient
-  // les stops, objectifs et metadonnees d'origine. Le journal complete
-  // uniquement les clotures absentes.
-  const cle = (p: Position) =>
-    (p.reference ?? p.id).split(":")[0] + "|" + p.pair + "|" + (p.closed_at ?? "");
-  const fusion = new Map<string, Position>();
-  for (const p of historiques) fusion.set(cle(p), p);
-  for (const p of (signaux as Position[])) fusion.set(cle(p), p);
-
-  return [...fusion.values()]
-    .sort((a, b) => new Date(b.closed_at ?? 0).getTime() - new Date(a.closed_at ?? 0).getTime())
-    .slice(0, limite);
+  // Doublons de reference et etages a zero : voir fusionnerHistorique.
+  return fusionnerHistorique(signaux as Position[], historiques).slice(0, limite);
 }
 
 /**

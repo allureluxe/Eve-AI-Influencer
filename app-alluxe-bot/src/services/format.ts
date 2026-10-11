@@ -18,6 +18,59 @@ export function miseReelle(entree: number, stop: number, partRisqueePct: number,
 export function gainEnEuros(entree: number, stop: number, resultatPct: number | null, partRisqueePct: number | null, capital: number, volume?: number | null): number | null { if (resultatPct == null) return null; if (volume != null && volume > 0 && entree > 0) return volume * entree * (resultatPct / 100); const mise = miseConseillee(entree, stop, partRisqueePct ?? 0, capital); if (mise <= 0) return null; return mise * (resultatPct / 100); }
 export function gainRealiseDe(p: { profit_eur?: number | null; entry_price: number; stop_loss: number; result_pct: number | null; position_size_pct: number | null; capital_eur?: number | null; volume?: number | null; }, capitalParDefaut: number): number | null { if (p.profit_eur != null) return p.profit_eur; return gainEnEuros(p.entry_price, p.stop_loss, p.result_pct, p.position_size_pct, p.capital_eur ?? capitalParDefaut, p.volume); }
 
+/**
+ * L'HISTORIQUE REEL, FUSIONNE SANS DOUBLON NI GAIN PERDU (11 oct. 2026).
+ *
+ * L'operateur : « l'affichage des positions historique est faux ». Mesure
+ * ce soir-la : 128 lignes et −95,04 EUR affiches pour −75,43 EUR reels.
+ *
+ *  1. DOUBLONS : `signals` ecrit `ZKUSD~1791562517:1`, le journal `ZKUSD`.
+ *     La cle de fusion gardait le `~horodatage` : 31 trades apparaissaient
+ *     deux fois (−14,91 EUR comptes en double). La cle prend donc le
+ *     SYMBOLE seul (avant `~` et `:`), + paire + heure de cloture.
+ *  2. GAIN PERDU : les etages d'une pyramide se ferment a la meme seconde
+ *     sous la meme cle. L'etage 2 (profit 0, par construction) ecrasait
+ *     l'etage 1 qui porte le gain : DOS +2,92 et ATOM +1,65 s'affichaient
+ *     a 0. Les etages sont donc d'abord additionnes en UNE ligne.
+ *
+ * Le journal ne complete que les clotures absentes de `signals`.
+ */
+type LigneClose = {
+  id: string; reference: string | null; pair: string; closed_at: string | null;
+  profit_eur?: number | null; volume?: number | null;
+};
+
+function symboleDeReference(ref: string): string {
+  return ref.split(":")[0].split("~")[0];
+}
+
+function cleCloture(p: LigneClose): string {
+  return symboleDeReference(p.reference ?? p.id) + "|" + p.pair + "|" + (p.closed_at ?? "");
+}
+
+export function fusionnerHistorique<T extends LigneClose>(signaux: T[], journal: T[]): T[] {
+  // 1. une ligne par position close : les etages s'additionnent
+  const parPosition = new Map<string, T>();
+  for (const l of signaux) {
+    const cle = (l.reference ?? l.id).split(":")[0] + "|" + l.pair + "|" + (l.closed_at ?? "");
+    const deja = parPosition.get(cle);
+    if (!deja) { parPosition.set(cle, { ...l }); continue; }
+    const somme = (a?: number | null, b?: number | null) =>
+      a == null && b == null ? null : (a ?? 0) + (b ?? 0);
+    deja.profit_eur = somme(deja.profit_eur, l.profit_eur);
+    deja.volume = somme(deja.volume, l.volume);
+    // la ligne affichee reste celle du 1er etage (prix d'entree d'origine)
+    const n = (x: T) => Number.parseInt((x.reference ?? "").split(":")[1] ?? "1", 10) || 1;
+    if (n(l) < n(deja)) parPosition.set(cle, { ...l, profit_eur: deja.profit_eur, volume: deja.volume });
+  }
+  // 2. le journal ne comble que ce que `signals` n'a pas
+  const fusion = new Map<string, T>();
+  for (const p of journal) fusion.set(cleCloture(p), p);
+  for (const p of parPosition.values()) fusion.set(cleCloture(p), p);
+  return [...fusion.values()]
+    .sort((a, b) => new Date(b.closed_at ?? 0).getTime() - new Date(a.closed_at ?? 0).getTime());
+}
+
 export function regrouperLesEtages<T extends { reference: string | null; id: string; profit_eur?: number | null; }>(lignes: T[]): T[] {
   const parPosition = new Map<string, T>();
   for (const l of lignes) {
