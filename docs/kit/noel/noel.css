@@ -129,3 +129,100 @@ details p { color: var(--gris); margin-top: 10px; }
   .barre nav a.cta { font-size: 14px; padding: 8px 12px; } .bandeau { font-size: 13px; } }
 .vignette { max-height: 160px; border-radius: 12px; justify-self: start; }
 .case a { color: var(--rouge); }
+
+/* ================================================================
+   DÉCOR DE NOËL (11 oct. 2026) — l'opérateur : « plus rouge, plus
+   d'esprit de Noël, ça reste ridicule pour l'instant ».
+   Rouge profond en tête et en pied, neige qui tombe, guirlande
+   lumineuse, bordures sucre d'orge. Tout en CSS ; animations coupées
+   si l'appareil demande moins de mouvement.
+   ================================================================ */
+:root { --rouge-nuit: #6e0f12; --rouge-vif: #c62828; --neige: #fffaf3; }
+
+/* bandeau : rayures sucre d'orge qui défilent */
+.bandeau { background: repeating-linear-gradient(-45deg, #a3151b 0 18px, #c62828 18px 36px);
+  background-size: 51px 51px; animation: rayures 2.5s linear infinite; font-weight: 600; letter-spacing: .01em; }
+@keyframes rayures { to { background-position: 51px 0; } }
+
+/* barre + guirlande lumineuse */
+.barre { border-bottom: 0; }
+.barre::after { content: ""; position: absolute; left: 0; right: 0; bottom: -14px; height: 16px; pointer-events: none;
+  background:
+    radial-gradient(circle at 12px 9px, #ff5252 0 4px, transparent 5px),
+    radial-gradient(circle at 36px 9px, #ffd54f 0 4px, transparent 5px),
+    radial-gradient(circle at 60px 9px, #66bb6a 0 4px, transparent 5px),
+    radial-gradient(circle at 84px 9px, #fff 0 4px, transparent 5px),
+    radial-gradient(ellipse 50px 10px at 48px 0, transparent 8px, #2b2b2b 8.5px 9.5px, transparent 10px);
+  background-size: 96px 16px; filter: drop-shadow(0 0 4px rgba(255,210,120,.9)); animation: clignote 1.6s steps(2) infinite; }
+@keyframes clignote { 50% { filter: drop-shadow(0 0 1px rgba(255,210,120,.3)) brightness(.75); } }
+.marque i { color: var(--rouge-vif); }
+.barre nav a.cta { background: var(--rouge-vif); }
+
+/* ouverture : rouge profond + neige */
+.ouverture { position: relative; overflow: hidden; color: var(--neige); padding-bottom: 110px;
+  background: radial-gradient(900px 520px at 80% 0%, #d43a32 0%, transparent 65%),
+              radial-gradient(700px 500px at 0% 100%, #4a0a0d 0%, transparent 70%),
+              linear-gradient(160deg, #b3201f 0%, #8c1518 55%, var(--rouge-nuit) 100%); }
+.ouverture .conteneur { position: relative; z-index: 2; }
+.ouverture h1 { color: #fff; text-shadow: 0 2px 18px rgba(0,0,0,.25); }
+.ouverture h1 em { color: var(--or-clair); }
+.ouverture .accroche { color: #fde9dc; }
+.ouverture .pastille { background: var(--or); color: var(--rouge-nuit); }
+.ouverture .garanties { color: #ffe7b8; }
+.ouverture .bouton { background: #fff; color: var(--rouge-vif); box-shadow: 0 12px 26px -10px rgba(0,0,0,.55); }
+.ouverture .bouton.clair { background: transparent; color: #fff; box-shadow: inset 0 0 0 2px rgba(255,255,255,.85); }
+.ouverture .visuel img { box-shadow: 0 0 0 8px rgba(255,255,255,.12), 0 40px 80px -25px rgba(0,0,0,.7); }
+/* neige : trois couches de flocons qui tombent à des vitesses différentes */
+.ouverture::before, .ouverture::after, .neige { content: ""; position: absolute; inset: -200px 0 0; z-index: 1; pointer-events: none;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.95) 0 2px, transparent 3px),
+    radial-gradient(circle, rgba(255,255,255,.75) 0 1.5px, transparent 2.5px);
+  background-size: 120px 140px, 70px 90px; background-position: 0 0, 35px 45px; animation: neige 14s linear infinite; }
+.ouverture::after { background-size: 200px 220px, 150px 170px; background-position: 60px 30px, 110px 90px; opacity: .8;
+  animation-duration: 22s; filter: blur(.6px); }
+@keyframes neige { to { transform: translateY(200px); } }
+/* bas de la tête : congère de neige */
+.congere { position: absolute; left: 0; right: 0; bottom: -1px; height: 60px; z-index: 2; pointer-events: none;
+  background: radial-gradient(60px 34px at 30px 60px, var(--creme) 98%, transparent 100%) 0 0 / 60px 60px repeat-x,
+              linear-gradient(transparent 44px, var(--creme) 44px); }
+
+/* avant / après : sapin parsemé de flocons */
+.avant-apres { position: relative; background:
+  radial-gradient(circle, rgba(255,255,255,.08) 0 2px, transparent 3px) 0 0 / 60px 60px,
+  radial-gradient(circle, rgba(255,255,255,.05) 0 1.5px, transparent 2.5px) 30px 30px / 60px 60px, var(--sapin); }
+.avant-apres h2::before, .styles h2::before, .produits h2::before, .etapes-titre::before { content: "❄  "; color: var(--rouge-vif); }
+.avant-apres h2::before { color: var(--or-clair); }
+.comparateur { box-shadow: 0 0 0 6px var(--rouge-vif), 0 0 0 10px var(--or), 0 30px 60px -20px rgba(0,0,0,.6); }
+
+/* cartes de styles : liseré sucre d'orge, flocon rouge */
+.style { position: relative; overflow: hidden; padding-top: 34px; }
+.style::after { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 8px;
+  background: repeating-linear-gradient(-45deg, var(--rouge-vif) 0 10px, #fff 10px 20px); }
+.style::before { content: "❄"; color: var(--rouge-vif); font-size: 26px; }
+
+/* produits : fond chaud rosé, ruban rouge sur le badge */
+.produits { background: radial-gradient(circle, rgba(198,40,40,.07) 0 2px, transparent 3px) 0 0 / 46px 46px,
+                        linear-gradient(#fff4ee, #fbe3dc); }
+.produit { border: 2px solid #f2c9c0; }
+.produit:hover { box-shadow: 0 24px 40px -22px rgba(140,21,24,.55); }
+.produit .badge { background: var(--rouge-vif); color: #fff; box-shadow: 0 4px 12px -4px rgba(140,21,24,.8); }
+.produit .prix { color: var(--rouge-vif); }
+
+/* étapes : numéros en boules de Noël */
+.etapes b { background: radial-gradient(circle at 35% 30%, #ff7b6b, var(--rouge-vif) 45%, #7d1013);
+  color: #fff; box-shadow: 0 6px 14px -4px rgba(140,21,24,.6); position: relative; }
+.etapes b::before { content: ""; position: absolute; top: -7px; width: 12px; height: 7px; border-radius: 2px; background: var(--or); }
+
+/* commande : rouge, carte bordée sucre d'orge */
+.commander { background: linear-gradient(160deg, #a3151b, var(--rouge-nuit)); }
+.carte { border: 10px solid transparent;
+  background: linear-gradient(var(--creme), var(--creme)) padding-box,
+              repeating-linear-gradient(-45deg, var(--rouge-vif) 0 14px, #fff 14px 28px) border-box; }
+
+/* pied : rouge nuit */
+.pied { background: var(--rouge-nuit); color: #ffd9b3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bandeau, .barre::after, .ouverture::before, .ouverture::after, .neige { animation: none; }
+}
+.neige { background-size: 90px 110px, 160px 130px; background-position: 20px 10px, 80px 60px; animation-duration: 9s; opacity: .55; }
