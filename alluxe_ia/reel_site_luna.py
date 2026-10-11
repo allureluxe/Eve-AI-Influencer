@@ -34,9 +34,14 @@ os.chdir(RACINE)
 
 from alluxe_ia.reel_luna_ecrans import (COMMUN, REFERENCE_COMPO, REFERENCE_LUNA,  # noqa: E402
                                         _calque, _journal, _multipart)
-from alluxe_ia.luna_tenues import avec_tenue  # noqa: E402
+from alluxe_ia.luna_tenues import avec_tenue, imposer  # noqa: E402
 
-DOSSIER = RACINE / "data/alluxe_ia/reel_site_luna"
+#: Une version = un dossier de cache (images/vidéos payées une fois) et un fichier final.
+#: 11 oct. : v3 avec le pull crème choisi par l'opérateur (TENUE).
+ID_REEL = os.getenv("REEL_SITE_LUNA_ID", "06-site-en-1-journee-luna")
+TENUE = os.getenv("REEL_SITE_LUNA_TENUE", "")
+DOSSIER = RACINE / ("data/alluxe_ia/reel_site_luna" if ID_REEL == "06-site-en-1-journee-luna"
+                    else f"data/alluxe_ia/reel_site_luna_{ID_REEL.rsplit('-', 1)[-1]}")
 REEL_06 = RACINE / "data/alluxe_ia/reels/06-site-en-1-journee.mp4"
 SITE = RACINE / "data/alluxe_ia/captures/site/accueil.png"
 CODE = sorted((RACINE / "data/alluxe_ia/captures/term").glob("claude_*.png"))
@@ -99,7 +104,8 @@ LEGENDE = "J'ai construit ce site en 1 journée. Je ne sais pas coder 👇\n\nLe
 #: v2 (10 oct.) : republiée avec One For Dilla, l'opérateur ayant refusé BRACELET
 #: (« il ne faut pas de paroles : ils ne peuvent pas écouter et lire en même temps »).
 REELS = {"06-site-en-1-journee-luna": {"legende": LEGENDE},
-         "06-site-en-1-journee-luna-v2": {"legende": LEGENDE}}
+         "06-site-en-1-journee-luna-v2": {"legende": LEGENDE},
+         "06-site-en-1-journee-luna-v3": {"legende": LEGENDE}}
 
 
 def images() -> None:
@@ -115,7 +121,9 @@ def images() -> None:
         refs = [("image[]", REFERENCE_COMPO), ("image[]", REFERENCE_LUNA)]
         # Le sweat noir de 06 reste celui de 06 (registre) ; un NOUVEAU Reel
         # copié sur ce script reçoit une autre tenue (voir luna_tenues).
-        texte = avec_tenue(COMMUN, "06-site-en-1-journee-luna") + " " + s["image"]
+        if TENUE:
+            imposer(ID_REEL, TENUE)
+        texte = avec_tenue(COMMUN, ID_REEL) + " " + s["image"]
         if s["capture"]:
             refs.append(("image[]", s["capture"]))
             texte += (" Reference images: 1 = composition and mood, 2 = the woman's "
@@ -213,7 +221,7 @@ def montage() -> Path:
         filtres.append(f"[{prec}][{j + 2}:v]overlay=0:0:enable='between(t,{t0:.2f},{t1:.2f})'[v{j}]")
         prec = f"v{j}"
     filtres.append(f"[1:a]atrim=0:{total},afade=t=out:st={total - 0.6:.2f}:d=0.6[a]")
-    final = RACINE / "data/alluxe_ia/reels/06-site-en-1-journee-luna.mp4"
+    final = RACINE / f"data/alluxe_ia/reels/{ID_REEL}.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", *entrees, "-filter_complex", ";".join(filtres),
                     "-map", f"[{prec}]", "-map", "[a]", "-t", f"{total:.3f}", "-c:v", "libx264",
                     "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k",

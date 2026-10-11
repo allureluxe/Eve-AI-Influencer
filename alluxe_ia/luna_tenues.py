@@ -69,6 +69,15 @@ def choisir(reel: str) -> str:
     return cle
 
 
+def imposer(reel: str, cle: str) -> None:
+    """La tenue choisie par l'opérateur pour ce Reel (prime sur le tirage)."""
+    if cle not in TENUES:
+        raise ValueError(f"tenue inconnue : {cle}")
+    histo = [l for l in _lire() if l["reel"] != reel] + [{"reel": reel, "tenue": cle}]
+    REGISTRE.parent.mkdir(parents=True, exist_ok=True)
+    REGISTRE.write_text(json.dumps(histo, ensure_ascii=False, indent=1))
+
+
 def avec_tenue(texte_commun: str, reel: str) -> str:
     """Le texte commun des images, avec la tenue de CE Reel à la place du sweat noir."""
     if PAR_DEFAUT not in texte_commun:
