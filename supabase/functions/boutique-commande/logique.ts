@@ -10,7 +10,7 @@ export type Commande = { produit: Produit; style: string; sujet: string; prenom:
   photo: Uint8Array; type: "image/jpeg" | "image/png" };
 
 const coupe = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
-export const SUJETS = ["Mon bébé", "Mon enfant", "Mes enfants", "Ma famille", "Mon couple", "Une femme", "Un homme", "Mon chien", "Mon chat", "Un autre animal"];
+export const SUJETS = ["Ma famille", "Mon couple", "Mes enfants", "Mon enfant", "Mon bébé", "Une femme", "Un homme", "Mon chien", "Mon chat", "Un autre animal"];
 
 function decoder(b64: string): Uint8Array {
   const bin = atob(b64);

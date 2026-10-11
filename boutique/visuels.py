@@ -25,12 +25,11 @@ STYLE = ("Photographie produit réaliste, lumière chaude de Noël, profondeur d
          "rendu haut de gamme pour une boutique en ligne. Aucun texte, aucun logo, aucune marque.")
 
 VISUELS = {
+    # 12 oct. : l'opérateur recentre sur famille, couple, enfants, amour (moins d'animaux).
     "hero": ("paysage", "Salon chaleureux le soir de Noël, sapin illuminé flou à l'arrière-plan. "
-             "Au mur, une grande affiche encadrée de bois clair : le portrait peint d'un golden "
-             "retriever portant un pull de Noël rouge et blanc, style peinture à l'huile classique. "
-             "Sous l'affiche, un paquet cadeau ouvert avec du papier kraft et un ruban rouge."),
-    # La photo « client » : volontairement banale, SANS le style produit (le 11 oct. le
-    # suffixe « lumière de Noël » a donné une bougie en pomme de pin au lieu du chien).
+             "Au mur, une grande affiche encadrée de bois clair : le portrait peint à l'huile "
+             "d'une jeune famille (un père, une mère, une petite fille et un bébé) en pulls de "
+             "Noël rouges, regards tendres. Sous l'affiche, des cadeaux emballés de rouge."),
     "avant-chien": ("carre", "Photo amateur prise au smartphone : un golden retriever assis sur "
                     "la pelouse d'un jardin, regarde l'objectif, lumière de jour ordinaire, "
                     "cadrage banal, aucune décoration.", None),
@@ -42,35 +41,31 @@ VISUELS = {
                     "doré. Aucun texte.", "avant-chien.jpg"),
     "chat-mug": ("carre", "Un mug en céramique blanche posé sur une table en bois près d'une "
                  "fenêtre enneigée, à côté de biscuits de Noël. Sur le mug, illustration aquarelle "
-                 "d'un chat tigré roux coiffé d'un bonnet de Père Noël."),
+                 "d'un jeune couple amoureux qui s'embrasse sous le gui, bonnets rouges."),
     "famille-poster": ("portrait", "Affiche encadrée posée contre un mur blanc, à côté d'une "
                        "branche de sapin et de bougies. L'affiche montre une illustration douce, "
                        "style livre pour enfants, d'une famille (deux parents, deux enfants et un "
                        "chien) en pyjamas de Noël assortis devant une cheminée."),
     "plaid": ("carre", "Un plaid polaire doux plié sur un canapé beige, ambiance cosy de Noël. Sur "
-              "le plaid est imprimé le portrait illustré d'un bouledogue français en écharpe "
-              "rouge, fond étoilé bleu nuit."),
+              "le plaid est imprimé le portrait illustré d'un couple enlacé sous la neige, "
+              "écharpes rouges, ciel étoilé."),
     "boule": ("carre", "Gros plan d'une décoration de sapin ronde en bois clair accrochée par "
               "un ruban rouge à un sapin illuminé. Dessus, petit portrait peint d'un chat noir aux yeux verts avec "
               "un nœud doré."),
     "toile": ("portrait", "Une toile sur châssis accrochée dans une entrée élégante décorée pour "
-              "Noël. Sur la toile, portrait style aquarelle d'un couple de chiens (un beagle et un "
-              "border collie) côte à côte avec une couronne de houx."),
-    # 12 oct. : nouveaux produits (cartes, verre acrylique, calendrier chez Gelato ;
-    # coussin et décoration en bois chez Printful).
+              "Noël. Sur la toile, portrait style aquarelle d'un frère et d'une sœur (6 et 4 ans) "
+              "qui rient ensemble, couronne de houx et flocons."),
     "cartes": ("carre", "Un paquet de cartes de vœux pliées posées sur une table en bois avec "
                "des enveloppes kraft, une branche de sapin et un ruban rouge. Sur la carte du "
-               "dessus, portrait aquarelle d'un cavalier king charles avec un bonnet de Noël."),
+               "dessus, portrait aquarelle d'une famille de quatre en bonnets de Noël."),
     "acrylique": ("portrait", "Un tableau en verre acrylique brillant posé sur une commode près "
                   "d'un sapin illuminé, reflets lumineux sur le verre. Dans le tableau, portrait "
-                  "peint à l'huile d'un chat persan blanc couronné de houx, fond rouge profond."),
+                  "peint à l'huile d'une maman qui tient son bébé, couronne de houx, fond rouge."),
     "calendrier": ("portrait", "Un calendrier mural 2027 à spirale accroché dans une cuisine "
                    "décorée pour Noël. La page montre le portrait illustré d'un labrador chocolat "
                    "en écharpe de laine verte, style conte de Noël."),
-    "coussin": ("carre", "Un coussin carré sur un fauteuil en velours vert, plaid et guirlande "
-                "lumineuse autour. Sur le coussin, portrait peint d'un teckel en pull de Noël."),
-    # 12 oct., 2e vague : boutique complète, PAS QUE DES ANIMAUX (bébé, enfants, famille,
-    # couple). Personnages et costumes toujours inventés, jamais de marque existante.
+    "coussin": ("carre", "Un coussin carré sur un fauteuil en velours rouge, plaid et guirlande "
+                "lumineuse autour. Sur le coussin, portrait peint d'un bébé en bonnet de lutin."),
     "body-bebe": ("carre", "Un body bébé blanc posé à plat sur une couverture en laine crème avec "
                   "une petite branche de sapin. Sur le body, illustration aquarelle tendre d'un bébé "
                   "souriant avec un bonnet de lutin vert."),
@@ -109,6 +104,13 @@ VISUELS = {
                "éclairée d'une petite lumière, mousse et branches de sapin autour."),
     "couronne": ("carre", "Une couronne de porte de Noël en branches de sapin, pommes de pin, baies "
                  "rouges et ruban de velours rouge, sur une porte d'entrée verte."),
+    "avant-famille": ("carre", "Photo amateur prise au smartphone : un jeune couple et leur fille de "
+                      "5 ans assis sur un canapé, ils sourient à l'objectif, lumière de salon "
+                      "ordinaire, cadrage banal, aucune décoration.", None),
+    "apres-famille": ("carre", "Transforme cette photo en portrait de Noël peint à l'huile : garde "
+                      "exactement les visages, coiffures et expressions des trois personnes. Ils "
+                      "portent des pulls de Noël rouges assortis, fond rouge profond avec sapin "
+                      "illuminé et bokeh doré. Aucun texte.", "avant-famille.jpg"),
 }
 
 TAILLES = {"carre": "1024x1024", "paysage": "1536x1024", "portrait": "1024x1536"}

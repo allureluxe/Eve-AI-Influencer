@@ -57,6 +57,8 @@ STYLES = {
                    "logo ni emblème de personnage existant",
     "animation": "une image de film d'animation 3D familial, personnages ORIGINAUX au rendu doux "
                  "et expressif, village enneigé illuminé, sans ressembler à un personnage existant",
+    "amoureux": "un portrait romantique de Noël : le couple enlacé sous une branche de gui, "
+                "lumières dorées, neige légère, tons rouges et chauds, regard tendre",
     "neige": "une photo de Noël réaliste sous la neige qui tombe, manteau et écharpe d'hiver, "
              "marché de Noël illuminé en arrière-plan, lumière dorée",
 }

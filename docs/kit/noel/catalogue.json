@@ -4,6 +4,11 @@
   "date_limite_noel": "2026-12-14T23:59:00+01:00",
   "styles": [
     {
+      "id": "amoureux",
+      "nom": "Amoureux sous le gui",
+      "texte": "Pour le couple : enlacés sous le gui, lumières dorées et neige légère."
+    },
+    {
       "id": "royal",
       "nom": "Portrait royal",
       "texte": "Peinture à l'huile façon XVIIIe, pull de Noël et fond sapin doré."
