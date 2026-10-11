@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portrait de Noël de votre animal — peint d'après votre photo | alluxe</title>
+<meta name="description" content="Envoyez une photo de votre chien, chat ou famille : on en fait un portrait de Noël imprimé sur affiche, toile ou mug. Aperçu offert avant impression, livré en France.">
+<meta property="og:title" content="Leur portrait de Noël, d'après votre photo">
+<meta property="og:description" content="Affiche, toile ou mug. Aperçu offert avant impression.">
+<meta property="og:image" content="https://alluxe.fr/noel/hero.jpg">
+<meta name="theme-color" content="#0f2a1f">
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="noel.css">
+</head>
+<body>
+
+<div class="bandeau" id="bandeau">🎄 Commandes pour Noël jusqu'au <b>14 décembre</b> · <span id="rebours"></span></div>
+
+<header class="barre">
+  <div class="conteneur">
+    <a class="marque" href="./"><img src="logo.png" alt=""> <span>alluxe <i>Noël</i></span></a>
+    <nav>
+      <a href="#exemples">Exemples</a>
+      <a href="#produits">Produits</a>
+      <a href="#comment">Comment ça marche</a>
+      <a href="#questions">Questions</a>
+      <a class="cta" href="#commander">Créer mon portrait</a>
+    </nav>
+  </div>
+</header>
+
+<section class="ouverture">
+  <div class="conteneur">
+    <div class="texte">
+      <span class="pastille">Cadeau personnalisé · Imprimé en Europe</span>
+      <h1>Leur portrait de Noël, <em>d'après votre photo.</em></h1>
+      <p class="accroche">Votre chien, votre chat ou toute la famille, peints en tenue de fête. Sur une affiche, une toile ou un mug, livré chez vous avant Noël.</p>
+      <div class="boutons">
+        <a class="bouton" href="#commander">Créer mon portrait →</a>
+        <a class="bouton clair" href="#exemples">Voir des exemples</a>
+      </div>
+      <ul class="garanties">
+        <li>✓ Aperçu offert avant impression</li>
+        <li>✓ Retouches jusqu'à ce qu'il vous plaise</li>
+        <li>✓ Paiement sécurisé</li>
+      </ul>
+    </div>
+    <figure class="visuel"><img src="hero.jpg" alt="Portrait de Noël d'un golden retriever encadré dans un salon décoré" fetchpriority="high"></figure>
+  </div>
+</section>
+
+<section class="avant-apres" id="exemples">
+  <div class="conteneur">
+    <h2>Une photo prise au téléphone suffit.</h2>
+    <p class="sous">Glissez le curseur.</p>
+    <div class="comparateur" id="comparateur">
+      <img src="apres-chien.jpg" alt="Le portrait de Noël réalisé">
+      <div class="avant" id="avant"><img src="avant-chien.jpg" alt="La photo d'origine"></div>
+      <span class="etiquette g">Votre photo</span><span class="etiquette d">Son portrait</span>
+      <input type="range" min="0" max="100" value="50" aria-label="Comparer avant et après" id="curseur">
+      <div class="poignee" id="poignee"></div>
+    </div>
+    <p class="note">Exemples réalisés pour la boutique : animaux et familles inventés.</p>
+  </div>
+</section>
+
+<section class="styles">
+  <div class="conteneur">
+    <h2>Trois styles, un seul critère : qu'on le reconnaisse.</h2>
+    <div class="grille-styles" id="styles"></div>
+  </div>
+</section>
+
+<section class="produits" id="produits">
+  <div class="conteneur">
+    <h2>Choisissez le support.</h2>
+    <div class="grille-produits" id="grille"></div>
+    <p class="note-visuels">Visuels d'illustration : votre portrait est réalisé d'après votre propre photo.</p>
+  </div>
+</section>
+
+<section class="comment" id="comment">
+  <div class="conteneur">
+    <h2>Comment ça marche</h2>
+    <ol class="etapes">
+      <li><b>1</b><h3>Envoyez la photo</h3><p>Une photo nette, de face, où l'on voit bien les yeux. Le téléphone suffit.</p></li>
+      <li><b>2</b><h3>Validez l'aperçu</h3><p>Vous recevez le portrait par e-mail. On le retouche jusqu'à ce qu'il vous ressemble. Rien n'est imprimé sans votre accord.</p></li>
+      <li><b>3</b><h3>On imprime et on livre</h3><p>Fabriqué en Europe près de chez vous, livré à domicile, prêt à offrir.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section class="commander" id="commander">
+  <div class="conteneur">
+    <div class="carte">
+      <h2>Créer mon portrait</h2>
+      <p class="sous" id="etat-commandes">Les commandes ouvrent dans quelques jours. Laissez votre e-mail : vous serez prévenu en premier.</p>
+      <form id="formulaire">
+        <div class="ligne">
+          <label>Pour qui ?
+            <select name="sujet"><option>Mon chien</option><option>Mon chat</option><option>Ma famille</option><option>Un autre animal</option></select>
+          </label>
+          <label>Style
+            <select name="style" id="choix-style"></select>
+          </label>
+        </div>
+        <label>Support
+          <select name="produit" id="choix-produit"></select>
+        </label>
+        <div class="ligne">
+          <label>Votre prénom <input name="nom" autocomplete="given-name" required></label>
+          <label>Votre e-mail <input name="email" type="email" autocomplete="email" required></label>
+        </div>
+        <input class="piege" name="site_web" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <label class="case"><input type="checkbox" name="consentement"> J'accepte d'être recontacté par e-mail au sujet de ma demande.</label>
+        <button class="bouton" id="envoyer">Être prévenu à l'ouverture</button>
+        <p class="retour" id="retour" role="status"></p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section class="questions" id="questions">
+  <div class="conteneur">
+    <h2>Questions fréquentes</h2>
+    <details><summary>Quelle photo envoyer ?</summary><p>Une photo nette, bien éclairée, où le visage occupe une bonne partie de l'image. Pour une famille, une photo de groupe où tout le monde regarde l'objectif.</p></details>
+    <details><summary>Et si le portrait ne me plaît pas ?</summary><p>Vous voyez l'aperçu avant toute impression, et on le retouche jusqu'à ce qu'il vous convienne. S'il ne vous plaît toujours pas, on annule sans rien imprimer.</p></details>
+    <details><summary>Quand vais-je le recevoir ?</summary><p>Comptez quelques jours après la validation de l'aperçu. Pour Noël, commandez au plus tard le 14 décembre.</p></details>
+    <details><summary>Puis-je le retourner ?</summary><p>Un objet fabriqué sur mesure d'après votre photo n'ouvre pas droit à la rétractation de 14 jours (art. L221-28 du Code de la consommation). C'est pour cela que l'aperçu est validé avant impression. Un objet abîmé à la livraison est bien sûr remplacé.</p></details>
+    <details><summary>Que devient ma photo ?</summary><p>Elle sert uniquement à réaliser votre portrait, n'est jamais publiée sans votre accord, et est supprimée après la livraison.</p></details>
+  </div>
+</section>
+
+<footer class="pied">
+  <div class="conteneur">
+    <span>alluxe · Portraits de Noël</span>
+    <nav><a href="../mentions-legales.html">Mentions légales</a><a href="../cgv.html">CGV</a><a href="https://www.instagram.com/alluxe.ia/">Instagram</a></nav>
+  </div>
+</footer>
+
+<script src="noel.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "_note": "Prix de vente à valider contre le devis Gelato réel (compte à ouvrir). Coût estimé = fabrication + port France, recherche web du 11 oct. 2026, à remplacer par le vrai chiffre.",
+  "commandes_ouvertes": false,
+  "date_limite_noel": "2026-12-14T23:59:00+01:00",
+  "styles": [
+    {"id": "royal", "nom": "Portrait royal", "texte": "Peinture à l'huile façon XVIIIe, pull de Noël et fond sapin doré."},
+    {"id": "aquarelle", "nom": "Aquarelle", "texte": "Douce et lumineuse, touches de houx et de neige."},
+    {"id": "conte", "nom": "Conte de Noël", "texte": "Illustration de livre pour enfants, pyjamas assortis, cheminée."}
+  ],
+  "produits": [
+    {"id": "affiche", "nom": "Affiche 30 × 40 cm", "prix": 34.90, "image": "famille-poster.jpg",
+     "texte": "Papier mat épais, couleurs profondes. Le cadeau le plus offert.", "cout_estime": 14, "actif": true},
+    {"id": "affiche-cadre", "nom": "Affiche encadrée 30 × 40", "prix": 59.00, "image": "hero.jpg",
+     "texte": "Cadre en bois prêt à accrocher. Rien à faire en le recevant.", "cout_estime": 30, "actif": true, "vedette": true},
+    {"id": "toile", "nom": "Toile sur châssis 30 × 40", "prix": 64.00, "image": "toile.jpg",
+     "texte": "Effet tableau de galerie, bords imprimés.", "cout_estime": 32, "actif": true},
+    {"id": "mug", "nom": "Mug céramique", "prix": 24.90, "image": "chat-mug.jpg",
+     "texte": "Passe au lave-vaisselle. Le petit cadeau qui fait rire.", "cout_estime": 12, "actif": true},
+    {"id": "plaid", "nom": "Plaid polaire", "prix": 64.00, "image": "plaid.jpg",
+     "texte": "Doux, chaud, et votre animal dessus.", "cout_estime": 35, "actif": false},
+    {"id": "boule", "nom": "Boule de sapin", "prix": 19.90, "image": "boule.jpg",
+     "texte": "Le portrait accroché au sapin, chaque année.", "cout_estime": 9, "actif": false}
+  ]
+}
