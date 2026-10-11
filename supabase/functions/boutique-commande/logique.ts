@@ -4,7 +4,7 @@
 export const MAX_PHOTO_OCTETS = 6_000_000;   // après redimensionnement côté navigateur (~2048 px)
 export const PAYS_LIVRES = ["FR", "BE", "LU", "CH", "DE", "ES", "IT", "NL", "PT", "AT", "IE"];
 
-export type Produit = { id: string; nom: string; prix: number; actif: boolean };
+export type Produit = { id: string; nom: string; prix: number; actif: boolean; livraison?: number };
 export type Catalogue = { commandes_ouvertes: boolean; styles: { id: string }[]; produits: Produit[] };
 export type Commande = { produit: Produit; style: string; sujet: string; prenom: string; email: string;
   photo: Uint8Array; type: "image/jpeg" | "image/png" };
@@ -56,6 +56,13 @@ export function corpsStripe(c: Commande, id: string, base: string): URLSearchPar
     "line_items[0][price_data][unit_amount]": String(Math.round(c.produit.prix * 100)),
     "line_items[0][price_data][product_data][name]": `Portrait de Noël — ${c.produit.nom}`,
     "phone_number_collection[enabled]": "true",
+    // 12 oct. : livraison affichée À PART, comme les concurrents (prix produit le plus bas du marché)
+    ...(c.produit.livraison ? {
+      "shipping_options[0][shipping_rate_data][type]": "fixed_amount",
+      "shipping_options[0][shipping_rate_data][display_name]": "Livraison à domicile",
+      "shipping_options[0][shipping_rate_data][fixed_amount][amount]": String(Math.round(c.produit.livraison * 100)),
+      "shipping_options[0][shipping_rate_data][fixed_amount][currency]": "eur",
+    } : {}),
     locale: "fr",
   });
   PAYS_LIVRES.forEach((pays, i) => p.set(`shipping_address_collection[allowed_countries][${i}]`, pays));

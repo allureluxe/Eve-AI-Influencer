@@ -241,3 +241,4 @@ details p { color: var(--gris); margin-top: 10px; }
   linear-gradient(160deg, #a3151b, #6e0f12); }
 .comparateur { box-shadow: 0 0 0 6px #fff, 0 0 0 10px var(--or), 0 30px 60px -20px rgba(0,0,0,.6); }
 .message-ok { background: #fdecea; color: var(--rouge-nuit); }
+.produit .port { color: var(--gris); font-size: 13px; margin-top: -4px; }

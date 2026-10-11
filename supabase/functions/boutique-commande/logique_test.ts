@@ -22,3 +22,11 @@ Deno.test("les refus", () => {
   assertEquals(valider({ ...bon, photo: "data:image/gif;base64,AAAA" }, cat), "Ajoutez une photo (JPEG ou PNG).");
   assertEquals(valider({ ...bon, site_web: "http://spam" }, cat), "spam");
 });
+
+Deno.test("la livraison s'ajoute à part, au prix du catalogue", () => {
+  const c = valider(bon, { ...cat, produits: [{ id: "mug", nom: "Mug", prix: 14.9, actif: true, livraison: 4.9 }] });
+  if (typeof c === "string") throw new Error(c);
+  const b = corpsStripe(c, "abc", "https://alluxe.fr/noel");
+  assertEquals(b.get("line_items[0][price_data][unit_amount]"), "1490");
+  assertEquals(b.get("shipping_options[0][shipping_rate_data][fixed_amount][amount]"), "490");
+});

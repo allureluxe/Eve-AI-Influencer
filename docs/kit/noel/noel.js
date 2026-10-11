@@ -32,7 +32,7 @@ fetch("catalogue.json", { cache: "no-store" }).then((r) => r.json()).then((cat) 
     <article class="produit">${p.vedette ? '<span class="badge">Le plus choisi</span>' : ""}
       <img src="${p.image}" alt="${p.nom}" loading="lazy">
       <div class="corps"><h3>${p.nom}</h3><p>${p.texte}</p>
-        <span class="prix">${euros(p.prix)}</span>
+        <span class="prix">${euros(p.prix)}</span>${p.livraison ? `<small class="port">+ ${euros(p.livraison)} de livraison</small>` : ""}
         <a href="#commander" data-produit="${p.id}">Choisir →</a></div>
     </article>` : `
     <article class="produit bientot"><span class="badge">Bientôt</span>
@@ -48,7 +48,7 @@ fetch("catalogue.json", { cache: "no-store" }).then((r) => r.json()).then((cat) 
     return `<div class="rayon" id="rayon-${r.id}"><h3>❄ ${r.nom}</h3><p>${r.texte}</p></div>` + lot.map(carte).join("");
   }).join("");
   const choix = document.getElementById("choix-produit");
-  choix.innerHTML = actifs.map((p) => `<option value="${p.id}">${p.nom} — ${euros(p.prix)}</option>`).join("");
+  choix.innerHTML = actifs.map((p) => `<option value="${p.id}">${p.nom} — ${euros(p.prix)}${p.livraison ? " + livraison " + euros(p.livraison) : ""}</option>`).join("");
   document.querySelectorAll("[data-produit]").forEach((a) => a.onclick = () => { choix.value = a.dataset.produit; });
 
   if (cat.commandes_ouvertes) {
