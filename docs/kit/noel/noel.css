@@ -227,3 +227,7 @@ details p { color: var(--gris); margin-top: 10px; }
 }
 .neige { background-size: 90px 110px, 160px 130px; background-position: 20px 10px, 80px 60px; animation-duration: 9s; opacity: .55; }
 .produit.bientot img { filter: saturate(.85); } .produit.bientot .badge { background: var(--sapin); color: var(--or-clair); z-index: 2; }
+.rayon { grid-column: 1 / -1; text-align: center; margin: 34px 0 4px; }
+.rayon:first-child { margin-top: 0; }
+.rayon h3 { font-family: Fraunces, serif; font-size: clamp(24px, 3vw, 32px); color: var(--rouge-vif); }
+.rayon p { color: var(--gris); }

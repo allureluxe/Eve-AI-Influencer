@@ -69,6 +69,46 @@ VISUELS = {
                    "en écharpe de laine verte, style conte de Noël."),
     "coussin": ("carre", "Un coussin carré sur un fauteuil en velours vert, plaid et guirlande "
                 "lumineuse autour. Sur le coussin, portrait peint d'un teckel en pull de Noël."),
+    # 12 oct., 2e vague : boutique complète, PAS QUE DES ANIMAUX (bébé, enfants, famille,
+    # couple). Personnages et costumes toujours inventés, jamais de marque existante.
+    "body-bebe": ("carre", "Un body bébé blanc posé à plat sur une couverture en laine crème avec "
+                  "une petite branche de sapin. Sur le body, illustration aquarelle tendre d'un bébé "
+                  "souriant avec un bonnet de lutin vert."),
+    "sweat-enfant": ("carre", "Une petite fille de 6 ans souriante devant un sapin illuminé, elle porte "
+                     "un sweat rouge sur lequel est imprimé son propre portrait illustré en costume "
+                     "de super-héroïne inventée, cape dorée, sans logo."),
+    "pull-famille": ("paysage", "Une famille (deux parents, un garçon, une fille) assise sur un canapé "
+                     "devant la cheminée, tous en sweats de Noël rouges assortis, imprimés du portrait "
+                     "illustré de la famille en lutins. Ambiance chaleureuse et joyeuse."),
+    "bonnet": ("carre", "Un bonnet à pompon tricoté rouge posé sur une écharpe, neige légère, "
+               "petit écusson rond brodé avec le portrait d'un garçon souriant."),
+    "chaussettes": ("carre", "Une paire de chaussettes de Noël colorées posées près d'une tasse de "
+                    "chocolat chaud, motif répété de petits visages illustrés d'une famille en "
+                    "bonnets de Père Noël, flocons et sapins."),
+    "tablier": ("carre", "Un tablier en coton écru porté par une femme qui décore des biscuits de Noël "
+                "dans une cuisine chaleureuse ; sur le tablier, illustration de la famille en lutins."),
+    "papier-cadeau": ("carre", "Des cadeaux emballés dans un papier cadeau rouge et doré au motif "
+                      "répété : petits portraits illustrés d'un couple et de leur chien en bonnets "
+                      "de Noël, entre des flocons et des étoiles. Rubans dorés, sapin flou derrière."),
+    "housse-couette": ("paysage", "Une chambre d'enfant décorée pour Noël, lit avec une housse de "
+                       "couette imprimée d'une grande illustration du garçon de la famille en "
+                       "pilote de traîneau inventé, ciel étoilé et rennes."),
+    "chaussons": ("carre", "Une paire de chaussons moelleux rouges près d'une cheminée, sur chacun "
+                  "le visage illustré d'une petite fille en bonnet de Père Noël."),
+    "pyjama": ("paysage", "Une famille en pyjamas de Noël assortis rouges et verts, imprimés de leurs "
+               "propres petits portraits illustrés, assise par terre devant le sapin le matin de Noël."),
+    "sapin": ("portrait", "Un grand sapin de Noël artificiel très fourni, décoré de boules rouges et "
+              "dorées et d'une guirlande lumineuse chaude, dans un salon élégant."),
+    "guirlande": ("paysage", "Une guirlande lumineuse LED blanc chaud accrochée en festons le long "
+                  "d'un escalier en bois, branches de sapin, ambiance du soir."),
+    "boules": ("carre", "Un lot de boules de Noël rouges, dorées et blanches, mates et brillantes, "
+               "disposées dans une coupe en verre, fond chaleureux flou."),
+    "fenetre": ("paysage", "Une fenêtre décorée pour Noël vue de l'intérieur : silhouettes lumineuses "
+                "de flocons et d'étoiles, rideau lumineux LED, neige dehors, la nuit."),
+    "creche": ("paysage", "Une crèche de Noël traditionnelle en bois et figurines peintes, étable "
+               "éclairée d'une petite lumière, mousse et branches de sapin autour."),
+    "couronne": ("carre", "Une couronne de porte de Noël en branches de sapin, pommes de pin, baies "
+                 "rouges et ruban de velours rouge, sur une porte d'entrée verte."),
 }
 
 TAILLES = {"carre": "1024x1024", "paysage": "1536x1024", "portrait": "1024x1536"}

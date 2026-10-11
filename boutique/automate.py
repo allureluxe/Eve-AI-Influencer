@@ -48,14 +48,33 @@ STYLES = {
                  "et flocons de neige, fond clair",
     "conte": "une illustration de livre pour enfants, pyjamas de Noël assortis, devant une "
              "cheminée et un sapin illuminé",
+    # 12 oct. : l'opérateur veut tout le monde, pas que les animaux. JAMAIS de personnage
+    # ou de marque existants (Disney, Marvel, stars…) : contrefaçon. Tout est inventé.
+    "pere-noel": "une photo de Noël féerique où chaque sujet porte un costume de Père Noël, de "
+                 "Mère Noël ou de lutin, dans l'atelier du Père Noël avec jouets et guirlandes",
+    "super-heros": "une affiche de film de super-héros ORIGINALE : costume, cape et masque "
+                   "inventés aux couleurs rouge et or de Noël, ville enneigée la nuit, sans aucun "
+                   "logo ni emblème de personnage existant",
+    "animation": "une image de film d'animation 3D familial, personnages ORIGINAUX au rendu doux "
+                 "et expressif, village enneigé illuminé, sans ressembler à un personnage existant",
+    "neige": "une photo de Noël réaliste sous la neige qui tombe, manteau et écharpe d'hiver, "
+             "marché de Noël illuminé en arrière-plan, lumière dorée",
 }
+
+ANIMAUX = {"Mon chien", "Mon chat", "Un autre animal"}
 
 
 def consigne(style: str, sujet: str, note: str = "") -> str:
-    qui = "toutes les personnes et animaux de la photo" if sujet == "Ma famille" else "l'animal de la photo"
+    if sujet in ANIMAUX:
+        qui = "l'animal de la photo"
+    elif sujet == "Mon bébé":
+        qui = "le bébé de la photo, avec un rendu tendre et adapté à son âge"
+    else:
+        qui = "toutes les personnes et animaux de la photo"
     texte = (f"Transforme cette photo en {STYLES[style]}. Garde exactement {qui} : visages, "
              "pelage, couleurs, marques distinctives et expression doivent rester reconnaissables. "
-             "Cadrage centré, portrait. Aucun texte, aucun logo.")
+             "Tenues correctes et adaptées à tous les âges. Cadrage centré, portrait. "
+             "Aucun texte, aucun logo, aucun personnage ni marque existants.")
     if note:
         texte += f" Correction demandée par le client : {note}"
     return texte

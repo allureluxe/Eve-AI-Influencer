@@ -1,5 +1,5 @@
 {
-  "_note": "Coûts réels : devis Gelato du 11 oct. 2026, livraison France DPD (fabriqué en France), HT. cout_ttc = HT x 1,20 (franchise de TVA : TVA non récupérable). Plaid et boule : pas encore chiffrés. Fichiers : affiches 30x40 à 150 dpi ; toile = 346x446 mm (bords enroulés ~2 cm + 3 mm) et mug = 216x93 mm à 300 dpi (2 mm de fond perdu haut/bas) : ESTIMÉS, à confirmer par la commande d'essai. 12 oct. : + cartes, verre acrylique (Gelato, devis réels) ; calendrier, coussin, plaid, décoration bois en attente (Printful / 12 portraits).",
+  "_note": "Coûts réels : devis Gelato du 11 oct. 2026, livraison France DPD (fabriqué en France), HT. cout_ttc = HT x 1,20 (franchise de TVA : TVA non récupérable). Plaid et boule : pas encore chiffrés. Fichiers : affiches 30x40 à 150 dpi ; toile = 346x446 mm (bords enroulés ~2 cm + 3 mm) et mug = 216x93 mm à 300 dpi (2 mm de fond perdu haut/bas) : ESTIMÉS, à confirmer par la commande d'essai. 12 oct. : + cartes, verre acrylique (Gelato, devis réels) ; calendrier, coussin, plaid, décoration bois en attente (Printful / 12 portraits). 12 oct. 1h : boutique complète (textile, papier cadeau, déco) — tous « Bientôt » tant que les comptes Printful / Printify / Prodigi / BigBuy ne sont pas ouverts ; prix de vente provisoires, déco sans prix.",
   "commandes_ouvertes": false,
   "date_limite_noel": "2026-12-14T23:59:00+01:00",
   "styles": [
@@ -17,6 +17,26 @@
       "id": "conte",
       "nom": "Conte de Noël",
       "texte": "Illustration de livre pour enfants, pyjamas assortis, cheminée."
+    },
+    {
+      "id": "pere-noel",
+      "nom": "Père Noël & lutins",
+      "texte": "Toute la famille en costume, dans l'atelier du Père Noël."
+    },
+    {
+      "id": "super-heros",
+      "nom": "Super-héros de Noël",
+      "texte": "Cape, masque et ville enneigée : votre propre héros, 100 % inventé."
+    },
+    {
+      "id": "animation",
+      "nom": "Film d'animation",
+      "texte": "Comme dans un dessin animé de Noël, en 3D douce et colorée."
+    },
+    {
+      "id": "neige",
+      "nom": "Sous la neige",
+      "texte": "Une vraie photo de Noël, flocons et marché illuminé."
     }
   ],
   "produits": [
@@ -37,7 +57,8 @@
         "largeur": 1772,
         "hauteur": 2362
       },
-      "fournisseur": "gelato"
+      "fournisseur": "gelato",
+      "categorie": "portrait"
     },
     {
       "id": "affiche-cadre",
@@ -57,7 +78,8 @@
         "largeur": 1772,
         "hauteur": 2362
       },
-      "fournisseur": "gelato"
+      "fournisseur": "gelato",
+      "categorie": "portrait"
     },
     {
       "id": "toile",
@@ -76,7 +98,8 @@
         "largeur": 2043,
         "hauteur": 2634
       },
-      "fournisseur": "gelato"
+      "fournisseur": "gelato",
+      "categorie": "portrait"
     },
     {
       "id": "mug",
@@ -96,7 +119,8 @@
         "hauteur": 1098,
         "mode": "centre"
       },
-      "fournisseur": "gelato"
+      "fournisseur": "gelato",
+      "categorie": "portrait"
     },
     {
       "id": "plaid",
@@ -108,7 +132,8 @@
       "actif": false,
       "fournisseur": "printful",
       "printful_produit": 711,
-      "_a_faire": "compte Printful + clé API ; fabriqué en Lettonie"
+      "_a_faire": "compte Printful + clé API ; fabriqué en Lettonie",
+      "categorie": "textile"
     },
     {
       "id": "boule",
@@ -120,7 +145,8 @@
       "actif": false,
       "fournisseur": "printful",
       "printful_produit": 634,
-      "_a_faire": "compte Printful + clé API"
+      "_a_faire": "compte Printful + clé API",
+      "categorie": "portrait"
     },
     {
       "id": "cartes",
@@ -140,7 +166,8 @@
         "largeur": 2480,
         "hauteur": 1748,
         "mode": "carte"
-      }
+      },
+      "categorie": "portrait"
     },
     {
       "id": "acrylique",
@@ -159,7 +186,8 @@
       "fichier": {
         "largeur": 1181,
         "hauteur": 1772
-      }
+      },
+      "categorie": "portrait"
     },
     {
       "id": "calendrier",
@@ -175,7 +203,8 @@
         "fabrication": 9.23,
         "port": 5.99
       },
-      "cout_ttc": 18.26
+      "cout_ttc": 18.26,
+      "categorie": "portrait"
     },
     {
       "id": "coussin",
@@ -187,7 +216,212 @@
       "fournisseur": "printful",
       "_a_faire": "compte Printful + clé API à créer ; prix à confirmer (catalogue Printful, fabriqué en Europe)",
       "printful_produit": 83,
-      "cout_estime": 22
+      "cout_estime": 22,
+      "categorie": "textile"
+    },
+    {
+      "id": "body-bebe",
+      "nom": "Body bébé personnalisé",
+      "prix": 29.9,
+      "categorie": "textile",
+      "image": "body-bebe.jpg",
+      "texte": "Coton doux, son portrait de lutin ou d'ange imprimé.",
+      "actif": false,
+      "fournisseur": "printful",
+      "_a_faire": "compte printful à ouvrir ; prix et coût à confirmer (Printful, fabriqué en Europe)",
+      "printful_produit": 843
+    },
+    {
+      "id": "sweat-enfant",
+      "nom": "Sweat enfant de Noël",
+      "prix": 34.9,
+      "categorie": "textile",
+      "image": "sweat-enfant.jpg",
+      "texte": "Son portrait en super-héros, lutin ou personnage de conte.",
+      "actif": false,
+      "fournisseur": "printful",
+      "_a_faire": "compte printful à ouvrir ; prix et coût à confirmer (Printful, fabriqué en Europe)",
+      "printful_produit": 968
+    },
+    {
+      "id": "pull-famille",
+      "nom": "Sweat de Noël assorti (adulte)",
+      "prix": 54.9,
+      "categorie": "textile",
+      "image": "pull-famille.jpg",
+      "texte": "Toute la famille habillée pareil pour la photo de Noël.",
+      "actif": false,
+      "fournisseur": "printful",
+      "_a_faire": "compte printful à ouvrir ; prix et coût à confirmer (Printful, fabriqué en Europe)",
+      "printful_produit": 845
+    },
+    {
+      "id": "pyjama",
+      "nom": "Pyjama de Noël famille",
+      "prix": 49.9,
+      "categorie": "textile",
+      "image": "pyjama.jpg",
+      "texte": "Pyjamas assortis à vos visages, pour le matin de Noël.",
+      "actif": false,
+      "fournisseur": "printify",
+      "_a_faire": "compte printify à ouvrir ; prix et coût à confirmer (Printify, fournisseur européen à choisir)"
+    },
+    {
+      "id": "chaussons",
+      "nom": "Chaussons personnalisés",
+      "prix": 39.9,
+      "categorie": "textile",
+      "image": "chaussons.jpg",
+      "texte": "Moelleux, avec le visage illustré de qui vous voulez.",
+      "actif": false,
+      "fournisseur": "printify",
+      "_a_faire": "compte printify à ouvrir ; prix et coût à confirmer (Printify, fournisseur européen à choisir)"
+    },
+    {
+      "id": "housse-couette",
+      "nom": "Housse de couette de Noël",
+      "prix": 99.0,
+      "categorie": "textile",
+      "image": "housse-couette.jpg",
+      "texte": "La grande illustration de Noël de votre enfant, sur tout le lit.",
+      "actif": false,
+      "fournisseur": "printify",
+      "_a_faire": "compte printify à ouvrir ; prix et coût à confirmer (Printify, fournisseur européen à choisir)"
+    },
+    {
+      "id": "chaussettes",
+      "nom": "Chaussettes de Noël à vos visages",
+      "prix": 24.9,
+      "categorie": "textile",
+      "image": "chaussettes.jpg",
+      "texte": "Motif de petits portraits, flocons et sapins.",
+      "actif": false,
+      "fournisseur": "printful",
+      "_a_faire": "compte printful à ouvrir ; prix et coût à confirmer (Printful, fabriqué en Europe)",
+      "printful_produit": 186
+    },
+    {
+      "id": "bonnet",
+      "nom": "Bonnet à pompon brodé",
+      "prix": 29.9,
+      "categorie": "textile",
+      "image": "bonnet.jpg",
+      "texte": "Rouge tricoté, petit portrait en écusson.",
+      "actif": false,
+      "fournisseur": "printful",
+      "_a_faire": "compte printful à ouvrir ; prix et coût à confirmer (Printful, fabriqué en Europe)",
+      "printful_produit": 451
+    },
+    {
+      "id": "tablier",
+      "nom": "Tablier de Noël",
+      "prix": 44.9,
+      "categorie": "textile",
+      "image": "tablier.jpg",
+      "texte": "Pour les biscuits de Noël, avec la famille en lutins.",
+      "actif": false,
+      "fournisseur": "printful",
+      "_a_faire": "compte printful à ouvrir ; prix et coût à confirmer (Printful, fabriqué en Europe)",
+      "printful_produit": 565
+    },
+    {
+      "id": "papier-cadeau",
+      "nom": "Papier cadeau à vos visages (3 feuilles)",
+      "prix": 19.9,
+      "categorie": "papier",
+      "image": "papier-cadeau.jpg",
+      "texte": "Vos portraits en motif répété, rouge et or, 50 × 70 cm.",
+      "actif": false,
+      "fournisseur": "prodigi",
+      "_a_faire": "compte prodigi à ouvrir ; prix et coût à confirmer (Prodigi, imprimé au Royaume-Uni / en Europe)"
+    },
+    {
+      "id": "sapin",
+      "nom": "Sapin artificiel 180 cm",
+      "prix": null,
+      "categorie": "deco",
+      "image": "sapin.jpg",
+      "texte": "Très fourni, pied inclus, réutilisable chaque année.",
+      "actif": false,
+      "fournisseur": "bigbuy",
+      "_a_faire": "compte bigbuy à ouvrir ; prix et coût à confirmer (BigBuy (grossiste européen))"
+    },
+    {
+      "id": "guirlande",
+      "nom": "Guirlande lumineuse LED",
+      "prix": null,
+      "categorie": "deco",
+      "image": "guirlande.jpg",
+      "texte": "Blanc chaud, pour le sapin, l'escalier ou la façade.",
+      "actif": false,
+      "fournisseur": "bigbuy",
+      "_a_faire": "compte bigbuy à ouvrir ; prix et coût à confirmer (BigBuy)"
+    },
+    {
+      "id": "boules",
+      "nom": "Lot de boules de Noël",
+      "prix": null,
+      "categorie": "deco",
+      "image": "boules.jpg",
+      "texte": "Rouge, or et blanc, mates et brillantes.",
+      "actif": false,
+      "fournisseur": "bigbuy",
+      "_a_faire": "compte bigbuy à ouvrir ; prix et coût à confirmer (BigBuy)"
+    },
+    {
+      "id": "fenetre",
+      "nom": "Décorations lumineuses de fenêtre",
+      "prix": null,
+      "categorie": "deco",
+      "image": "fenetre.jpg",
+      "texte": "Rideau LED, flocons et étoiles qui scintillent.",
+      "actif": false,
+      "fournisseur": "bigbuy",
+      "_a_faire": "compte bigbuy à ouvrir ; prix et coût à confirmer (BigBuy)"
+    },
+    {
+      "id": "creche",
+      "nom": "Crèche de Noël traditionnelle",
+      "prix": null,
+      "categorie": "deco",
+      "image": "creche.jpg",
+      "texte": "Étable en bois et santons peints.",
+      "actif": false,
+      "fournisseur": "bigbuy",
+      "_a_faire": "compte bigbuy à ouvrir ; prix et coût à confirmer (BigBuy)"
+    },
+    {
+      "id": "couronne",
+      "nom": "Couronne de porte",
+      "prix": null,
+      "categorie": "deco",
+      "image": "couronne.jpg",
+      "texte": "Sapin, pommes de pin, baies rouges et ruban de velours.",
+      "actif": false,
+      "fournisseur": "bigbuy",
+      "_a_faire": "compte bigbuy à ouvrir ; prix et coût à confirmer (BigBuy)"
+    }
+  ],
+  "categories": [
+    {
+      "id": "portrait",
+      "nom": "Leur portrait, imprimé",
+      "texte": "Affiche, toile, verre, mug, cartes : le portrait d'après votre photo."
+    },
+    {
+      "id": "textile",
+      "nom": "À porter et à câliner",
+      "texte": "Pulls de famille, pyjamas, bodys, plaids, coussins : tout le monde dans l'esprit de Noël."
+    },
+    {
+      "id": "papier",
+      "nom": "Papier cadeau personnalisé",
+      "texte": "Vos visages en motif sur l'emballage : le cadeau commence avant d'être ouvert."
+    },
+    {
+      "id": "deco",
+      "nom": "La décoration de Noël",
+      "texte": "Sapins, guirlandes, boules, fenêtres et crèches, livrés chez vous."
     }
   ]
 }

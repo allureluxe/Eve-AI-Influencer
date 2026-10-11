@@ -26,18 +26,27 @@ fetch("catalogue.json", { cache: "no-store" }).then((r) => r.json()).then((cat) 
     `<option value="${s.id}">${s.nom}</option>`).join("");
 
   const actifs = cat.produits.filter((p) => p.actif);
-  document.getElementById("grille").innerHTML = actifs.map((p) => `
+  // 12 oct. : la boutique complète est rangée par rayons ; un produit dont le
+  // fournisseur n'est pas encore branché s'affiche « Bientôt », sans bouton.
+  const carte = (p) => p.actif ? `
     <article class="produit">${p.vedette ? '<span class="badge">Le plus choisi</span>' : ""}
       <img src="${p.image}" alt="${p.nom}" loading="lazy">
       <div class="corps"><h3>${p.nom}</h3><p>${p.texte}</p>
         <span class="prix">${euros(p.prix)}</span>
         <a href="#commander" data-produit="${p.id}">Choisir →</a></div>
-    </article>`).join("") + cat.produits.filter((p) => !p.actif && p.texte).map((p) => `
+    </article>` : `
     <article class="produit bientot"><span class="badge">Bientôt</span>
       <img src="${p.image}" alt="${p.nom}" loading="lazy">
       <div class="corps"><h3>${p.nom}</h3><p>${p.texte}</p>
-        <span class="prix">${euros(p.prix)}</span></div>
-    </article>`).join("");
+        <span class="prix">${p.prix ? euros(p.prix) : "Prix bientôt"}</span></div>
+    </article>`;
+  const rayons = cat.categories || [{ id: "portrait", nom: "", texte: "" }];
+  document.getElementById("grille").innerHTML = rayons.map((r) => {
+    const lot = cat.produits.filter((p) => (p.categorie || "portrait") === r.id && p.texte)
+                            .sort((x, y) => (y.actif ? 1 : 0) - (x.actif ? 1 : 0));
+    if (!lot.length) return "";
+    return `<div class="rayon" id="rayon-${r.id}"><h3>❄ ${r.nom}</h3><p>${r.texte}</p></div>` + lot.map(carte).join("");
+  }).join("");
   const choix = document.getElementById("choix-produit");
   choix.innerHTML = actifs.map((p) => `<option value="${p.id}">${p.nom} — ${euros(p.prix)}</option>`).join("");
   document.querySelectorAll("[data-produit]").forEach((a) => a.onclick = () => { choix.value = a.dataset.produit; });
