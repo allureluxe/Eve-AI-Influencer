@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Votre portrait de Noël — aperçu</title>
+<link rel="icon" href="logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="noel.css">
+</head>
+<body>
+<section class="commander" style="min-height:100vh">
+  <div class="conteneur"><div class="carte" id="carte"><p class="sous">Chargement…</p></div></div>
+</section>
+<script>
+const API = "https://jwksajhtvhwktkbkpits.supabase.co/functions/v1/boutique-apercu";
+const j = new URLSearchParams(location.search).get("j") || "";
+const carte = document.getElementById("carte");
+const MESSAGES = {
+  attente_paiement: "Nous attendons la confirmation du paiement.",
+  payee: "Paiement reçu ! Votre portrait est en cours de création : vous recevez un e-mail dès qu'il est prêt.",
+  a_retoucher: "Retouche en cours : vous recevez un e-mail dès qu'elle est prête.",
+  validee: "Merci ! Votre portrait part à l'impression.",
+  envoyee_imprimeur: "Votre portrait est en fabrication.",
+  expediee: "Votre colis est en route.",
+  a_verifier: "Nous vérifions votre commande et revenons vers vous par e-mail.",
+  annulee: "Cette commande a été annulée.",
+};
+async function charger() {
+  const r = await fetch(`${API}?j=${encodeURIComponent(j)}`); const d = await r.json();
+  if (d.erreur) { carte.innerHTML = `<h2>Lien invalide</h2><p class="sous">${d.erreur}</p>`; return; }
+  if (d.statut !== "portrait_pret") {
+    carte.innerHTML = `<h2>Bonjour ${d.prenom}</h2><p class="sous">${MESSAGES[d.statut] || ""}</p>` +
+      (d.suivi ? `<p style="text-align:center"><a class="bouton" href="${d.suivi}">Suivre mon colis</a></p>` : "");
+    return;
+  }
+  carte.innerHTML = `<h2>Votre portrait, ${d.prenom}</h2>
+    <p class="sous">Rien n'est imprimé sans votre accord.</p>
+    <img src="${d.portrait}" alt="Votre portrait" style="border-radius:18px;margin:0 auto 22px;max-height:70vh">
+    <button class="bouton" id="ok" style="width:100%">Il est parfait, j'imprime</button>
+    ${d.retouches_restantes > 0 ? `<form id="retouche" style="margin-top:22px">
+      <label>Quelque chose à changer ? (${d.retouches_restantes} retouche${d.retouches_restantes > 1 ? "s" : ""} possible${d.retouches_restantes > 1 ? "s" : ""})
+        <input name="note" maxlength="500" placeholder="ex. ses yeux sont plus clairs, il a une tache blanche sur le museau"></label>
+      <button class="bouton clair" style="margin-top:10px">Demander une retouche</button></form>`
+      : `<p class="sous" style="margin-top:18px">Pour toute autre modification, répondez simplement à notre e-mail.</p>`}
+    <p class="retour" id="retour"></p>`;
+  document.getElementById("ok").onclick = () => agir({ action: "valider" });
+  const f = document.getElementById("retouche");
+  if (f) f.onsubmit = (e) => { e.preventDefault(); agir({ action: "retoucher", note: f.note.value }); };
+}
+async function agir(corps) {
+  document.getElementById("retour").textContent = "Envoi…";
+  const r = await fetch(API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ j, ...corps }) });
+  const d = await r.json();
+  if (d.ok) charger(); else document.getElementById("retour").textContent = d.erreur || "Erreur, réessayez.";
+}
+charger();
+</script>
+</body>
+</html>

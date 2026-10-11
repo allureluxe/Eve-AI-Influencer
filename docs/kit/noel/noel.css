@@ -127,3 +127,5 @@ details p { color: var(--gris); margin-top: 10px; }
 .marque span, .barre nav a { white-space: nowrap; }
 @media (max-width: 480px) { .marque { font-size: 20px; } .marque img { width: 38px; height: 38px; }
   .barre nav a.cta { font-size: 14px; padding: 8px 12px; } .bandeau { font-size: 13px; } }
+.vignette { max-height: 160px; border-radius: 12px; justify-self: start; }
+.case a { color: var(--rouge); }

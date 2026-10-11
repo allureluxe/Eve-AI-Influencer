@@ -38,16 +38,50 @@ fetch("catalogue.json", { cache: "no-store" }).then((r) => r.json()).then((cat) 
   document.querySelectorAll("[data-produit]").forEach((a) => a.onclick = () => { choix.value = a.dataset.produit; });
 
   if (cat.commandes_ouvertes) {
-    document.getElementById("etat-commandes").textContent = "Envoyez votre demande : on vous répond avec l'aperçu.";
-    document.getElementById("envoyer").textContent = "Envoyer ma demande";
+    ouvert = true;
+    document.getElementById("etat-commandes").textContent = "Envoyez la photo, payez, et recevez l'aperçu par e-mail avant impression.";
+    document.getElementById("envoyer").textContent = "Commander et payer";
+    document.querySelectorAll(".si-ouvert").forEach((e) => e.hidden = false);
+    document.querySelectorAll(".si-ferme").forEach((e) => e.hidden = true);
   }
 });
+
+let ouvert = false, photo = null;
+// Photo redimensionnée dans le navigateur (2048 px, JPEG) : légère à envoyer, et
+// les photos HEIC d'iPhone sont converties par Safari au passage.
+document.getElementById("photo").onchange = (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    const k = Math.min(1, 2048 / Math.max(img.width, img.height));
+    const cv = document.createElement("canvas"); cv.width = img.width * k; cv.height = img.height * k;
+    cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+    photo = cv.toDataURL("image/jpeg", 0.9);
+    const v = document.getElementById("vignette"); v.src = photo; v.hidden = false;
+  };
+  img.src = URL.createObjectURL(f);
+};
+
+async function commander(f) {
+  if (!photo) { retour.textContent = "Ajoutez une photo."; return; }
+  if (!form.cgv.checked) { retour.textContent = "Cochez la case des conditions de vente."; return; }
+  bouton.disabled = true; retour.textContent = "Envoi de la photo…";
+  try {
+    const r = await fetch("https://jwksajhtvhwktkbkpits.supabase.co/functions/v1/boutique-commande", { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify({ produit: f.produit, style: f.style,
+        sujet: f.sujet, prenom: f.nom, email: f.email, site_web: f.site_web, cgv: true, photo }) });
+    const d = await r.json();
+    if (d.paiement) { location.href = d.paiement; return; }
+    retour.textContent = d.erreur || "Une erreur est survenue, réessayez."; bouton.disabled = false;
+  } catch { retour.textContent = "Connexion impossible, réessayez dans un instant."; bouton.disabled = false; }
+}
 
 // Liste d'attente : même fonction que le bon de commande d'alluxe.fr (offre « noel »).
 const form = document.getElementById("formulaire"), retour = document.getElementById("retour"), bouton = document.getElementById("envoyer");
 form.onsubmit = async (e) => {
   e.preventDefault();
   const f = Object.fromEntries(new FormData(form).entries());
+  if (ouvert) return commander(f);
   if (!form.consentement.checked) { retour.textContent = "Cochez la case pour qu'on puisse vous écrire."; return; }
   const corps = { offre: "noel", formule: "unique", nom: f.nom, email: f.email, site_web: f.site_web,
     consentement: true, activite: f.sujet, message: `noel | style=${f.style} | produit=${f.produit} | sujet=${f.sujet}` };

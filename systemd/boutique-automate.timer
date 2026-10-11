@@ -1,0 +1,9 @@
+[Unit]
+Description=Boutique de Noel -- automate toutes les 2 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+
+[Install]
+WantedBy=timers.target

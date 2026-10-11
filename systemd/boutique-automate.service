@@ -1,0 +1,19 @@
+# Boutique de Noël : fait avancer les commandes (boutique/automate.py).
+# Sans clé Stripe/Gelato, les étapes correspondantes sont sautées : sans risque.
+# BOUTIQUE_GELATO_MODE=draft par défaut (brouillons chez Gelato, rien d'imprimé).
+#
+#   sudo cp systemd/boutique-automate.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now boutique-automate.timer
+[Unit]
+Description=Boutique de Noel -- automate des commandes
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ubuntu/Eve-AI-Influencer/.venv/bin/python -m boutique.automate
+TimeoutStartSec=900

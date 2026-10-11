@@ -113,8 +113,13 @@
           <label>Votre prénom <input name="nom" autocomplete="given-name" required></label>
           <label>Votre e-mail <input name="email" type="email" autocomplete="email" required></label>
         </div>
+        <label class="si-ouvert" hidden>Votre photo (nette, de face)
+          <input type="file" name="photo" id="photo" accept="image/*">
+        </label>
+        <img id="vignette" class="vignette" hidden alt="">
         <input class="piege" name="site_web" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <label class="case"><input type="checkbox" name="consentement"> J'accepte d'être recontacté par e-mail au sujet de ma demande.</label>
+        <label class="case si-ferme"><input type="checkbox" name="consentement"> J'accepte d'être recontacté par e-mail au sujet de ma demande.</label>
+        <label class="case si-ouvert" hidden><input type="checkbox" name="cgv"> J'accepte les <a href="../cgv.html" target="_blank">conditions de vente</a> et je sais qu'un objet personnalisé n'est pas rétractable.</label>
         <button class="bouton" id="envoyer">Être prévenu à l'ouverture</button>
         <p class="retour" id="retour" role="status"></p>
       </form>
