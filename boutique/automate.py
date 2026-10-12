@@ -139,6 +139,13 @@ def livraison_de(session: dict) -> dict:
 
 
 # ------------------------------------------------------------------- Courriels
+#: signature des courriels clients : le « flyer » alluxe.ia (12 oct., demande de l'opérateur ;
+#: un flyer imprimé coûtait 13,40 EUR par colis chez Gelato, d'où la version numérique).
+SIGNATURE = ("\n\nalluxe · Portraits de Noël\n\n"
+             "P.S. Votre portrait est fait avec l'IA. Pour votre activité, alluxe.ia crée aussi sites, "
+             "boutiques en ligne, contenus de Noël et agents IA, à petit prix : https://alluxe.fr/offres.html")
+
+
 def envoyer_mail(a: str, sujet: str, texte: str) -> None:
     hote, port = os.getenv("SMTP_HOTE", "smtp.gmail.com"), int(os.getenv("SMTP_PORT", "587"))
     utilisateur, mdp = os.getenv("SMTP_UTILISATEUR", ""), os.getenv("SMTP_MOTDEPASSE", "")
@@ -251,7 +258,7 @@ def etape_portraits(base: Base, base_url: str) -> None:
                          f"Bonjour {c['prenom']},\n\nVotre portrait est prêt. Regardez-le ici :\n"
                          f"{base_url}/apercu.html?j={c['jeton']}\n\n"
                          "S'il vous plaît, cliquez « Valider » et nous l'imprimons. Sinon, dites-nous "
-                         "quoi changer : rien n'est imprimé sans votre accord.\n\nalluxe · Portraits de Noël")
+                         "quoi changer : rien n'est imprimé sans votre accord." + SIGNATURE)
 
 
 def etape_impression(base: Base, cat: dict) -> None:
@@ -276,7 +283,7 @@ def etape_impression(base: Base, cat: dict) -> None:
                  statut="envoyee_imprimeur", gelato_order_id=o.get("id"), impression_path=chemin)
         envoyer_mail(c["email"], "Votre portrait part à l'impression",
                      f"Bonjour {c['prenom']},\n\nMerci ! Votre portrait est en fabrication. Vous recevrez le "
-                     "lien de suivi dès l'expédition.\n\nalluxe · Portraits de Noël")
+                     "lien de suivi dès l'expédition." + SIGNATURE)
 
 
 def etape_expeditions(base: Base) -> None:
@@ -287,7 +294,7 @@ def etape_expeditions(base: Base) -> None:
             base.maj(c, f"expédiée ({e['statut']})", statut="expediee", suivi_url=e["suivi"] or None)
             envoyer_mail(c["email"], "Votre portrait de Noël est en route",
                          f"Bonjour {c['prenom']},\n\nVotre colis est parti."
-                         + (f" Suivi : {e['suivi']}" if e["suivi"] else "") + "\n\nalluxe · Portraits de Noël")
+                         + (f" Suivi : {e['suivi']}" if e["suivi"] else "") + SIGNATURE)
         elif e["statut"] in ("canceled", "failed"):
             base.maj(c, f"Gelato : {e['statut']}", statut="a_verifier")
             alerter(c, f"Gelato indique « {e['statut']} ».")

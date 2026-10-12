@@ -242,3 +242,21 @@ details p { color: var(--gris); margin-top: 10px; }
 .comparateur { box-shadow: 0 0 0 6px #fff, 0 0 0 10px var(--or), 0 30px 60px -20px rgba(0,0,0,.6); }
 .message-ok { background: #fdecea; color: var(--rouge-nuit); }
 .produit .port { color: var(--gris); font-size: 13px; margin-top: -4px; }
+
+/* 12 oct. : le « flyer » alluxe.ia (pros.js), sur la boutique et la page merci */
+.pros { background: var(--neige); border-top: 6px solid var(--rouge-vif); }
+.pros-marque { text-align: center; font-family: Fraunces, serif; font-weight: 800; font-size: 20px; margin-bottom: 8px; }
+.pros-marque i { color: var(--rouge-vif); }
+.pros-offres { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 18px; }
+@media (min-width: 900px) { .pros-offres { grid-template-columns: repeat(4, 1fr); } }
+.pro { display: flex; flex-direction: column; gap: 6px; padding: 22px; border-radius: 20px; background: #fff;
+  border: 2px solid #f2c9c0; color: var(--encre); text-decoration: none; transition: transform .2s, box-shadow .2s; }
+.pro:hover { transform: translateY(-3px); box-shadow: 0 24px 40px -22px rgba(140,21,24,.55); }
+.pro b { font-family: Fraunces, serif; font-size: 20px; }
+.pro span { color: var(--gris); font-size: 15px; flex: 1; }
+.pro em { font-style: normal; font-weight: 700; color: var(--rouge-vif); }
+.pro small { color: var(--gris); font-weight: 600; }
+.pros-promo { text-align: center; font-weight: 600; color: var(--rouge-nuit); margin-bottom: 22px; }
+.pros-promo:empty { display: none; }
+.merci-pros { padding: 0 0 60px; background: linear-gradient(160deg, #a3151b, var(--rouge-nuit)); }
+.merci-pros .carte { max-width: 980px; }
