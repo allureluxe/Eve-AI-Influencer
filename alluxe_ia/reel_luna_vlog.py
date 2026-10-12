@@ -7,7 +7,7 @@ alluxe.fr/apercu/noel qui défile (capture du navigateur, gratuite). 73 % des to
 de la niche utilisent le son original ; ici la musique est composée et intégrée (TikTok),
 Instagram peut poser un son tendance par-dessus à la publication.
 
-    python3 alluxe_ia/reel_luna_vlog.py images video voix montage
+    python3 alluxe_ia/reel_luna_vlog.py images video voix levres montage
 
 Rien n'est publié par ce script.
 """
@@ -42,6 +42,22 @@ MARGE_PLAN = 0.1
 ACCELERATION_MAX = 1.3
 
 SCENES = {
+    # 12 oct., v6 — l'opérateur : « commence par Luna, pas par une image : Luna qui parle
+    # directement et montre le site sur un iPad ». Clip tourné POUR la parole, lèvres
+    # synchronisées ensuite sur la 1re réplique (levres()). L'écran porte le VRAI
+    # avant/après de la boutique (ecran/avant_apres.png, donné en référence).
+    "ipad": (" Morning in her cosy Lyon living room, soft daylight, a decorated Christmas tree "
+             "behind her. She stands facing the camera and holds an iPad with both hands at chest "
+             "height, its screen turned towards the camera. The iPad screen shows EXACTLY the second "
+             "reference image (a split before/after photo: a man and a girl on the left, the same "
+             "family in Christmas sweaters in front of a Christmas tree on the right). She looks "
+             "straight into the camera, mouth slightly open as if starting to speak, excited smile. "
+             "Vertical phone photo, natural.",
+             "Vertical handheld video. The woman talks to the camera with excitement, like an "
+             "Instagram story, holding the iPad steady with both hands at chest height, screen "
+             "facing the camera; small head movements, expressive eyebrows, natural blinking. The "
+             "iPad and its screen stay still and unchanged. No pointing, no other object. Same "
+             "face throughout, no morphing."),
     "nuit": (" Night scene in her small cosy Lyon apartment: she sits at a desk in front of an "
              "open laptop, warm Christmas fairy lights on the wall behind her, a mug of tea. She "
              "looks up at the camera with a mischievous, excited smile, as if she just had a "
@@ -59,6 +75,9 @@ SCENES = {
 
 #: (début y, fin y) dans la capture du site, en px — repérés sur la capture du 12 oct.
 SITE = {"tete": (0, 250), "avant_apres": (2390, 2420), "produits": (8200, 12000)}
+#: décalage vertical du texte, par plan : sur « ipad » il couvrait les yeux de Luna,
+#: il passe sous l'iPad (le visage doit rester visible, c'est elle qui parle).
+DECALAGE_TEXTE = {"ipad": 1200}
 #: bande du haut recouverte de la couleur du fond, par plan : le titre du site
 #: (« Une photo prise au téléphone suffit ») se mêlait au texte de la 1re image.
 MASQUE = {"avant_apres": (270, "0x9b141a")}
@@ -70,7 +89,7 @@ MASQUE = {"avant_apres": (270, "0x9b141a")}
 #: 1re image), le plan « tete » retiré, 15-17 s visés. Un plan s'allonge si sa réplique
 #: est plus longue que sa durée visée (calage dans voix()).
 TRAME = [
-    ("avant_apres", 3.0, "Boutique créée en 1 nuit.\nSans savoir coder.", "titre"),
+    ("ipad", 3.0, "Boutique créée en 1 nuit.\nSans savoir coder.", "titre"),
     ("nuit", 2.5, "23h. Je n'ai jamais codé.", "titre"),
     ("produits", 4.0, "Affiches, toiles, mugs,\npyjamas, papier cadeau…", "titre"),
     ("matin", 3.0, "8h. La boutique est en ligne.", "titre"),
@@ -112,6 +131,9 @@ LEGENDE = (
 #: plus chic ». Le plan du matin a SA tenue (elle s'est changée pour la nuit) ; ample et
 #: boutonné, voir la mise en garde de `luna_tenues` sur les tenues moulantes.
 TENUE_SCENE = {
+    "ipad": "elegant loose deep burgundy silk-satin pyjama set: long-sleeved button-up shirt "
+            "with a notched collar and thin cream piping, buttoned up to the collar, matching "
+            "wide-leg trousers; chic, cosy, Christmas-morning look",
     "matin": "elegant loose deep burgundy silk-satin pyjama set: long-sleeved button-up shirt "
              "with a notched collar and thin cream piping, buttoned up to the collar, matching "
              "wide-leg trousers; chic, cosy, Christmas-morning look",
@@ -122,7 +144,10 @@ def images() -> None:
     base = r.avec_tenue(r.LUNA, ID_REEL)
     for nom, (scene, _) in SCENES.items():
         texte = r.LUNA.replace("black sweatshirt", TENUE_SCENE[nom]) if nom in TENUE_SCENE else base
-        r._image(nom, texte + scene, [("image[]", r.REFERENCE_LUNA)])
+        refs = [("image[]", r.REFERENCE_LUNA)]
+        if nom == "ipad":
+            refs.append(("image[]", DOSSIER / "ecran" / "avant_apres.png"))
+        r._image(nom, texte + scene, refs)
 
 
 def video() -> None:
@@ -220,6 +245,41 @@ def voix() -> None:
     _journal("plans : " + ", ".join(f"{d:.1f}" for d in durees) + f" → {total:.1f} s")
 
 
+def levres() -> None:
+    """Kling lip-sync du plan « ipad » sur la 1re réplique (même audio que le mixage final)."""
+    from luna.budget import Depenses
+    from luna.media import KlingVideo, MediaErreur, telecharger
+    k = KlingVideo()
+    cible = DOSSIER / "videos" / "ipad_levres.mp4"
+    if cible.exists():
+        return
+    taches_f = DOSSIER / "videos" / "taches.json"
+    taches = json.loads(taches_f.read_text())
+    if "ipad_levres" not in taches:
+        src = k._appel("GET", f"/v1/videos/image2video/{taches['ipad']}")
+        vid = src["task_result"]["videos"][0]["id"]   # id de la VIDÉO, pas de la tâche
+        replique = DOSSIER / "voix" / f"0-{'-'.join(VOIX_MOTEUR)}-net.wav"
+        mp3 = DOSSIER / "voix" / "ipad_levres.mp3"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(replique), "-ar", "44100",
+                        "-b:a", "160k", str(mp3)], check=True)
+        Depenses().reserver(0.30, "lip-sync kling reel 10")
+        rep = k._appel("POST", "/v1/videos/lip-sync", {"input": {
+            "video_id": vid, "mode": "audio2video", "audio_type": "file",
+            "audio_file": base64.b64encode(mp3.read_bytes()).decode()}})
+        taches["ipad_levres"] = rep["task_id"]
+        taches_f.write_text(json.dumps(taches, indent=1))
+    while True:
+        rep = k._appel("GET", f"/v1/videos/lip-sync/{taches['ipad_levres']}")
+        statut = rep.get("task_status")
+        if statut == "succeed":
+            telecharger(rep["task_result"]["videos"][0]["url"], str(cible))
+            _journal("lèvres ipad prêtes")
+            return
+        if statut == "failed":
+            raise MediaErreur(f"lip-sync échoué : {rep.get('task_status_msg')}")
+        time.sleep(10)
+
+
 def _plan_site(sortie: Path, y0: int, y1: int, duree: float, masque: tuple | None = None) -> None:
     """Le site qui défile : fenêtre 1080×1920 qui glisse de y0 à y1 dans la capture."""
     n = int(duree * 30)
@@ -238,11 +298,12 @@ def montage() -> Path:
     for i, ((plan, _, texte, style), d) in enumerate(zip(TRAME, durees)):
         m = tmp / f"m{i}.mp4"
         if plan in SCENES:
-            r._plan_video(DOSSIER / "videos" / f"{plan}.mp4", m, 0.0, d)
+            levres_ = DOSSIER / "videos" / f"{plan}_levres.mp4"
+            r._plan_video(levres_ if levres_.exists() else DOSSIER / "videos" / f"{plan}.mp4", m, 0.0, d)
         else:
             _plan_site(m, *SITE[plan], d, MASQUE.get(plan))
         morceaux.append(m)
-        calques.append((t, t + d, texte, style))
+        calques.append((t, t + d, texte, style, DECALAGE_TEXTE.get(plan, 0)))
         t += d
     # fin : le plan du matin repris, « commente NOËL » puis « ABONNE-TOI » (règle du 9 oct.)
     fin = tmp / "fin.mp4"
@@ -250,9 +311,9 @@ def montage() -> Path:
     r._plan_video(DOSSIER / "videos" / "matin.mp4", fin, 1.5, d_fin)
     morceaux.append(fin)
     total = t + d_fin
-    calques.append((t, total - FIN_CTA, "Commente NOËL\net je t'explique tout", "titre"))
-    calques.append((total - FIN_CTA, total, "ABONNE-TOI", "cta"))
-    calques.append((0.0, total, "@alluxe.ia · Luna, personnage IA", "signature"))
+    calques.append((t, total - FIN_CTA, "Commente NOËL\net je t'explique tout", "titre", 0))
+    calques.append((total - FIN_CTA, total, "ABONNE-TOI", "cta", 0))
+    calques.append((0.0, total, "@alluxe.ia · Luna, personnage IA", "signature", 0))
 
     liste = tmp / "liste.txt"
     liste.write_text("".join(f"file '{m}'\n" for m in morceaux))
@@ -275,11 +336,11 @@ def montage() -> Path:
                f"[md][vv]amix=inputs=2:normalize=0,afade=t=out:st={total - 1:.2f}:d=1,"
                "loudnorm=I=-14:TP=-1.5[a]"]
     prec = "0:v"
-    for j, (t0, t1, texte, style) in enumerate(calques):
+    for j, (t0, t1, texte, style, dy) in enumerate(calques):
         p = tmp / f"t{j}.png"
         _calque(texte, style).save(p)
         entrees += ["-loop", "1", "-t", f"{total:.3f}", "-i", str(p)]
-        filtres.append(f"[{prec}][{3 + j}:v]overlay=0:0:enable='between(t,{t0:.2f},{t1:.2f})'[v{j}]")
+        filtres.append(f"[{prec}][{3 + j}:v]overlay=0:{dy}:enable='between(t,{t0:.2f},{t1:.2f})'[v{j}]")
         prec = f"v{j}"
     final = RACINE / f"data/alluxe_ia/reels/{ID_REEL}.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-filter_complex_threads", "1", *entrees,
@@ -293,6 +354,6 @@ def montage() -> Path:
 
 
 if __name__ == "__main__":
-    etapes = {"images": images, "video": video, "voix": voix, "montage": montage}
+    etapes = {"images": images, "video": video, "voix": voix, "levres": levres, "montage": montage}
     for nom in (sys.argv[1:] or list(etapes)):
         etapes[nom]()
