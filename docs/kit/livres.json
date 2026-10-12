@@ -1,0 +1,47 @@
+{
+  "_note": "Livres de Noël personnalisés (13 oct. 2026). Fabrication Gelato : livre photo couverture rigide, 28 pages, papier 170 g satiné. Devis Gelato du 13 oct. 2026, France : 15,06 € HT fabrication + 5,39 € HT port (DHL, 8 à 10 jours). Pas encore de chaîne de fabrication automatique (l'automate ne sait faire que les objets d'une seule image) : les commandes passent par la liste d'attente tant que commandes_ouvertes est false.",
+  "commandes_ouvertes": false,
+  "livraison": 6.9,
+  "livres": [
+    {
+      "id": "noel-magique",
+      "nom": "Le Noël magique de… (votre enfant)",
+      "accroche": "Votre enfant devient le héros d'un conte de Noël illustré.",
+      "texte": "Une histoire de 24 pages où votre enfant aide le Père Noël à sauver la nuit de Noël. Son prénom dans le texte, son visage dans chaque illustration, d'après une simple photo.",
+      "image": "noel/sweat-enfant.jpg",
+      "titre_couverture": "Le Noël magique de Léa",
+      "pour": "3 à 10 ans",
+      "format": "20 × 20 cm, couverture rigide, 28 pages",
+      "prix": 39.9,
+      "vedette": true,
+      "gelato_uid": "photobooks-hardcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_130-gsm-65-lb-cover-coated-silk_ver",
+      "pages": 28
+    },
+    {
+      "id": "famille-noel",
+      "nom": "Notre famille à Noël",
+      "accroche": "Toute la famille dans un livre-souvenir illustré.",
+      "texte": "Vos photos de l'année deviennent des illustrations de Noël, avec une petite histoire de famille écrite pour vous. Le livre qu'on ressort chaque 24 décembre.",
+      "image": "noel/apres-famille.jpg",
+      "titre_couverture": "Notre famille à Noël",
+      "pour": "Toute la famille",
+      "format": "21 × 28 cm à l'italienne, couverture rigide, 28 pages",
+      "prix": 44.9,
+      "gelato_uid": "photobooks-hardcover_pf_210x280-mm-8x11-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_130-gsm-65-lb-cover-coated-silk_hor",
+      "pages": 28
+    },
+    {
+      "id": "premier-noel",
+      "nom": "Mon premier Noël",
+      "accroche": "Le livre de naissance de son tout premier Noël.",
+      "texte": "Bébé en petit lutin au fil d'une douce histoire à lire le soir, avec des pages pour écrire la date, le poids et les premiers souvenirs. Un cadeau de naissance qu'on garde toute la vie.",
+      "image": "noel/body-bebe.jpg",
+      "titre_couverture": "Mon premier Noël",
+      "pour": "0 à 3 ans",
+      "format": "20 × 20 cm, couverture rigide, 28 pages",
+      "prix": 39.9,
+      "gelato_uid": "photobooks-hardcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_130-gsm-65-lb-cover-coated-silk_ver",
+      "pages": 28
+    }
+  ]
+}

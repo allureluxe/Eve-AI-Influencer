@@ -260,3 +260,11 @@ details p { color: var(--gris); margin-top: 10px; }
 .pros-promo:empty { display: none; }
 .merci-pros { padding: 0 0 60px; background: linear-gradient(160deg, #a3151b, var(--rouge-nuit)); }
 .merci-pros .carte { max-width: 980px; }
+
+/* 13 oct. — les onglets du magasin, comme sur le reste d'alluxe.fr */
+.onglets { background: #6e0f12; }
+.onglets .conteneur { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding-top: 8px; padding-bottom: 8px; }
+.onglets .conteneur::-webkit-scrollbar { display: none; }
+.onglets a { flex: none; color: #fff; text-decoration: none; font-weight: 700; font-size: 14.5px; padding: 9px 13px; border-radius: 999px; font-family: Inter, sans-serif; }
+.onglets a:hover { background: rgba(255,255,255,.14); }
+.onglets a.ici { background: #e9b949; color: #6e0f12; }

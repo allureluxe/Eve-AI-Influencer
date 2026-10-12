@@ -375,3 +375,39 @@ footer .liens a { color: var(--noir); font-weight: 700; text-decoration: none; }
 .garanties { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px; font-size: 14px; font-weight: 600; }
 .garanties li::before { content: "✓"; display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 6px;
   border-radius: 50%; background: var(--menthe); border: 1.5px solid var(--noir); font-size: 12px; font-weight: 800; }
+
+/* 12 oct. — « tout le site en mode Noël » (l'opérateur). Même palette que la boutique
+   /noel/ : rouge, or, sapin. Uniquement sous .noel, qui s'éteint seul au 25 décembre. */
+.noel { --jaune: #f2c14e; --menthe: #d7eedb; --lilas: #f8dcd7; --corail: #c62828; --ciel: #fbe7b0;
+  --creme: #fffaf3; --rouge-vif: #c62828; --rouge-nuit: #6e0f12; }
+.noel mark { background-image: linear-gradient(transparent 12%, var(--rouge-vif) 12%, var(--rouge-vif) 92%, transparent 92%);
+  color: #fff; }
+.noel .pastille { background: var(--rouge-vif); color: #fff; }
+.noel .bouton { background: var(--rouge-vif); color: #fff; box-shadow: 6px 6px 0 var(--jaune); }
+.noel .bouton:hover { box-shadow: 8px 8px 0 var(--jaune); }
+.noel .bouton .fleche { background: #fff; color: var(--rouge-vif); }
+.noel .bouton.clair { background: #fff; color: var(--rouge-nuit); border-color: var(--rouge-nuit); box-shadow: 6px 6px 0 var(--rouge-nuit); }
+.noel .chiffres { background: linear-gradient(160deg, #a3151b, var(--rouge-nuit)); }
+.noel .chiffres b { color: var(--jaune); }
+.noel .barre nav a:hover { background: #fde2dc; }
+.noel .filtre.actif, .noel .bascule button.actif, .noel .copier { background: var(--rouge-vif); color: #fff; }
+.noel #fenetre header { background: var(--rouge-vif); color: #fff; }
+.noel #bulle { box-shadow: 4px 4px 0 var(--rouge-vif); }
+.noel #bulle::after { background: var(--rouge-vif); color: #fff; }
+.noel .bandeau-kit { background: repeating-linear-gradient(-45deg, #a3151b 0 18px, #c62828 18px 36px); color: #fff; }
+.noel .barre nav a.lien-noel { background: var(--rouge-vif); color: #fff; }
+.noel .barre nav a.lien-noel:hover { background: var(--rouge-nuit); }
+.bandeau-boutique { display: block; text-align: center; background: #14532d; color: #fff; text-decoration: none;
+  font-size: 15px; padding: 10px 14px; }
+.bandeau-boutique b { color: #f3dc9a; }
+.bandeau-boutique span { display: inline-block; margin-left: 6px; transition: transform .15s; }
+.bandeau-boutique:hover span { transform: translateX(4px); }
+
+/* 13 oct. — onglets du magasin (les rayons), sous la barre, sur toutes les pages. */
+.onglets { background: #6e0f12; position: sticky; top: 116px; z-index: 9; }
+.onglets .conteneur { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding-top: 8px; padding-bottom: 8px; }
+.onglets .conteneur::-webkit-scrollbar { display: none; }
+.onglets a { flex: none; color: #fff; text-decoration: none; font-weight: 700; font-size: 14.5px; padding: 9px 13px; border-radius: 999px; }
+.onglets a:hover { background: rgba(255,255,255,.14); }
+.onglets a.ici { background: #e9b949; color: #6e0f12; }
+@media (max-width: 760px) { .onglets { top: 0; position: relative; } }

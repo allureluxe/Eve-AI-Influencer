@@ -1,25 +1,34 @@
 // Éléments communs à toutes les pages d'alluxe.fr : barre, pied de page,
 // assistant, apparition au défilement. Une seule copie, jamais recopiée.
 (() => {
-  const PAGES = [["index.html", "Accueil"], ["concours.html", "🎁 Concours"], ["kit.html", "Kit gratuit"], ["offres.html", "Offres & prix"], ["kits.html", "Kits à faire soi-même"],
-    ["realisations.html", "Réalisations"], ["prompts.html", "Prompts gratuits"]];
-  const ici = location.pathname.split("/").pop() || "index.html";
+  // 13 oct. 2026, l'opérateur : « fais le site comme une vraie boutique en ligne » pour Noël.
+  // La barre garde les liens secondaires ; les rayons du magasin sont des onglets juste dessous.
+  const PAGES = [["/realisations.html", "Réalisations"], ["/concours.html", "🎁 Concours"]];
+  const ONGLETS = [["/", "🏠 Accueil"], ["/noel/", "🎁 Cadeaux de Noël"], ["/livres.html", "📚 Livres de Noël"],
+    ["/offres.html", "💻 Création digitale"], ["/kits.html", "🧰 À faire soi-même"], ["/prompts.html", "✨ Prompts gratuits"],
+    ["/kit.html", "🎀 Kit gratuit"]];
+  const chemin = location.pathname.replace(/index\.html$/, "").replace(/\.html$/, "");
+  const est = (u) => chemin === u.replace(/\.html$/, "");
   const barre = document.createElement("div");
   barre.className = "barre";
-  barre.innerHTML = `<div class="conteneur"><a href="index.html" style="display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit">
+  barre.innerHTML = `<div class="conteneur"><a href="/" style="display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit">
     <img src="logo-alluxe.png" alt="Logo Alluxe"><b>alluxe.ia</b></a>
     <button class="menu" aria-label="Menu">☰</button>
-    <nav>${PAGES.map(([u, t]) => `<a href="${u}"${u === ici ? ' class="ici"' : ""}>${t}</a>`).join("")}
+    <nav>${PAGES.map(([u, t]) => `<a href="${u}"${est(u) ? ' class="ici"' : ""}>${t}</a>`).join("")}
     <a class="cadre" href="commander.html">Commandes : bientôt</a></nav></div>`;
   document.body.prepend(barre);
+  const onglets = document.createElement("nav");
+  onglets.className = "onglets"; onglets.setAttribute("aria-label", "Rayons de la boutique");
+  onglets.innerHTML = `<div class="conteneur">${ONGLETS.map(([u, t]) => `<a href="${u}"${est(u) ? ' class="ici"' : ""}>${t}</a>`).join("")}</div>`;
+  barre.after(onglets);
   // 10 oct. 2026, l'opérateur : aucune commande tant que le projet n'est pas fini
   // à 100 %. Le message, sur toutes les pages, avant même un clic sur « Commander »
   // (qui mène à maintenance.html, voir .htaccess). Retirer ce bloc à l'ouverture.
-  if (ici !== "maintenance.html") {
+  if (!est("/maintenance.html")) {
     const avis = document.createElement("a");
     avis.className = "bandeau-kit"; avis.href = "kit.html";
     avis.innerHTML = "🛠️ <b>Les prises de commande seront bientôt disponibles.</b> En attendant : le kit gratuit <span>→</span>";
-    barre.after(avis);
+    onglets.after(avis);
   }
   barre.querySelector(".menu").onclick = () => barre.querySelector("nav").classList.toggle("ouvert");
 

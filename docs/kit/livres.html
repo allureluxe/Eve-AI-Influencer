@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Livres de Noël personnalisés — votre enfant héros de l'histoire | alluxe</title>
+<meta name="description" content="Trois livres de Noël personnalisés d'après votre photo : le conte dont votre enfant est le héros, le livre de famille, et Mon premier Noël pour bébé. Couverture rigide, 28 pages, livré en France.">
+<meta property="og:title" content="Livres de Noël personnalisés — alluxe">
+<meta property="og:description" content="Votre enfant devient le héros d'un vrai livre de Noël illustré.">
+<meta property="og:image" content="https://alluxe.fr/noel/sweat-enfant.jpg">
+<meta name="theme-color" content="#14532d">
+<link rel="icon" href="/logo-alluxe.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css?v=20261013a">
+<link rel="stylesheet" href="/boutique.css?v=20261013a">
+</head>
+<body class="page-livres">
+
+<header class="vitrine" style="background:radial-gradient(120% 90% at 80% 0%, #1f7a43 0%, #14532d 45%, #0b3a1f 100%)">
+  <div class="conteneur">
+    <span class="pastille">📚 LIVRES DE NOËL PERSONNALISÉS</span>
+    <h1>Un vrai livre de Noël, <em>avec votre enfant dedans.</em></h1>
+    <p class="accroche">Son prénom dans l'histoire, son visage dans chaque illustration, d'après une simple photo. Imprimé en couverture rigide et livré chez vous avant Noël.</p>
+    <p class="rebours">🎁 Pour Noël : commandez avant le <b>14 décembre</b></p>
+  </div>
+</header>
+
+<div class="reassurance">
+  <ul class="conteneur">
+    <li><span>👀</span> Aperçu des pages avant impression</li>
+    <li><span>📖</span> Couverture rigide, 28 pages</li>
+    <li><span>🇪🇺</span> Imprimé en Europe</li>
+    <li><span>🎁</span> Prêt à offrir</li>
+  </ul>
+</div>
+
+<section class="rayon-livres">
+  <div class="conteneur" id="livres"></div>
+</section>
+
+<section id="commander">
+  <div class="conteneur">
+    <div class="carte-attente">
+      <h2>Réserver mon livre</h2>
+      <p id="etat">Les commandes ouvrent dans quelques jours. Laissez votre e-mail : vous serez prévenu en premier, avant la date limite de Noël.</p>
+      <form id="formulaire">
+        <label>Le livre <select name="livre" id="choix-livre"></select></label>
+        <label>Prénom du héros ou de l'héroïne <input name="heros" maxlength="40" placeholder="Ex. : Léa"></label>
+        <label>Votre prénom <input name="nom" autocomplete="given-name" required></label>
+        <label>Votre e-mail <input name="email" type="email" autocomplete="email" required></label>
+        <input class="piege" name="site_web" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <label class="case"><input type="checkbox" name="consentement"> J'accepte d'être recontacté par e-mail au sujet de ma demande.</label>
+        <button class="bouton">Être prévenu à l'ouverture <span class="fleche">→</span></button>
+        <p id="retour" role="status"></p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section id="questions">
+  <div class="conteneur">
+    <h2 class="apparait">Questions <mark>fréquentes.</mark></h2>
+    <details class="apparait"><summary>Comment le livre est-il personnalisé ?</summary><p>Vous envoyez une photo nette et le prénom. Le héros est dessiné d'après la photo dans chaque illustration, et son prénom est écrit dans l'histoire. Vous recevez l'aperçu des pages avant l'impression.</p></details>
+    <details class="apparait"><summary>Quand vais-je le recevoir ?</summary><p>Comptez 8 à 10 jours après la validation de l'aperçu. Pour Noël, commandez au plus tard le 14 décembre.</p></details>
+    <details class="apparait"><summary>Les illustrations sont-elles faites avec l'IA ?</summary><p>Oui : c'est ce qui permet de dessiner votre enfant dans chaque page à ce prix. Chaque livre est relu et vérifié avant de vous être proposé.</p></details>
+    <details class="apparait"><summary>Que devient la photo ?</summary><p>Elle sert uniquement à illustrer le livre, n'est jamais publiée sans votre accord et est supprimée après la livraison.</p></details>
+  </div>
+</section>
+
+<script src="/commun.js?v=20261013a"></script>
+<script>
+const prixFr = (n) => n.toLocaleString("fr-FR", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }) + " €";
+fetch("/livres.json", { cache: "no-store" }).then((r) => r.json()).then((d) => {
+  document.getElementById("livres").innerHTML = d.livres.map((l) => `
+    <article class="livre-detail" id="${l.id}">
+      <div class="livre${l.format.includes("italienne") ? " italienne" : ""}"><div class="couv"><img src="/${l.image}" alt="Couverture d'exemple du livre ${l.nom}" loading="lazy"><span class="titre-couv">${l.titre_couverture}</span></div><span class="pages"></span></div>
+      <div>
+        ${l.vedette ? '<span class="livre-fiche"><span class="vedette">Coup de cœur</span></span>' : ""}
+        <span class="livre-fiche"><span class="pour">${l.pour}</span></span>
+        <h2>${l.nom}</h2>
+        <p style="color:#d8eadc;font-size:17px;margin-top:8px">${l.texte}</p>
+        <ul class="infos"><li>${l.format}</li><li>Prénom et visage personnalisés</li><li>Aperçu avant impression</li></ul>
+        <p class="prix">${prixFr(l.prix)} <small style="font-size:14px;font-weight:500;color:#d8eadc">+ ${prixFr(d.livraison)} de livraison</small></p>
+        <div class="boutons"><a class="bouton" href="#commander" data-livre="${l.id}">Réserver ce livre <span class="fleche">→</span></a></div>
+      </div>
+    </article>`).join("") + '<p style="color:#b9d4bf;font-size:13px;text-align:center;padding-bottom:10px">Couvertures d\'exemple : votre livre est illustré d\'après votre propre photo.</p>';
+  const choix = document.getElementById("choix-livre");
+  choix.innerHTML = d.livres.map((l) => `<option value="${l.id}">${l.nom} — ${prixFr(l.prix)}</option>`).join("");
+  document.querySelectorAll("[data-livre]").forEach((a) => a.onclick = () => { choix.value = a.dataset.livre; });
+  const ancre = location.hash.slice(1); if (d.livres.some((l) => l.id === ancre)) choix.value = ancre;
+});
+
+// Liste d'attente : même fonction que la boutique de Noël (offre « noel »).
+const form = document.getElementById("formulaire"), retour = document.getElementById("retour");
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  const f = Object.fromEntries(new FormData(form).entries());
+  if (!form.consentement.checked) { retour.textContent = "Cochez la case pour qu'on puisse vous écrire."; return; }
+  const corps = { offre: "noel", formule: "unique", nom: f.nom, email: f.email, site_web: f.site_web, consentement: true,
+    activite: "livre", message: `livre | livre=${f.livre} | heros=${(f.heros || "").slice(0, 40)}` };
+  const b = form.querySelector("button"); b.disabled = true; retour.textContent = "Envoi…";
+  try {
+    const r = await fetch("https://jwksajhtvhwktkbkpits.supabase.co/functions/v1/alluxe-site-demande",
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(corps) });
+    const d = await r.json();
+    if (d.ok) form.innerHTML = `<p class="ok">C'est noté ! Vous serez prévenu par e-mail dès l'ouverture des commandes de livres.</p>`;
+    else { retour.textContent = d.erreur || "Une erreur est survenue, réessayez."; b.disabled = false; }
+  } catch { retour.textContent = "Connexion impossible, réessayez dans un instant."; b.disabled = false; }
+};
+</script>
+</body>
+</html>

@@ -3,167 +3,174 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>alluxe.ia — Sites, boutiques et agents IA, construits avec l'IA</title>
-<meta name="description" content="Site vitrine, boutique Shopify, e-commerce de A à Z, agent IA secrétaire, robots d'automatisation. Construits avec l'IA, en quelques jours, dès 19 €.">
-<meta property="og:title" content="alluxe.ia — Ton business en ligne, construit avec l'IA">
-<meta property="og:description" content="Sites, boutiques, agents IA et robots. En jours, pas en mois. Dès 19 €.">
-<meta property="og:image" content="https://alluxe.fr/apercus/1.jpg">
-<meta name="theme-color" content="#faf7f0">
-<link rel="icon" href="logo-alluxe.png">
+<title>alluxe — Cadeaux de Noël personnalisés, livres de Noël et création digitale</title>
+<meta name="description" content="La boutique de Noël d'alluxe : portraits, mugs, pyjamas et papier cadeau d'après votre photo, livres de Noël personnalisés, et packs de création digitale faits avec l'IA.">
+<meta property="og:title" content="La boutique de Noël d'alluxe — des cadeaux qui leur ressemblent">
+<meta property="og:description" content="Cadeaux personnalisés d'après votre photo, livres de Noël où votre enfant est le héros, et création digitale.">
+<meta property="og:image" content="https://alluxe.fr/noel/hero.jpg">
+<meta name="theme-color" content="#6e0f12">
+<link rel="icon" href="/logo-alluxe.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="/style.css?v=20261013a">
+<link rel="stylesheet" href="/boutique.css?v=20261013a">
 </head>
 <body>
 
-<a class="bandeau-kit" href="kit.html">🎁 Tu viens d'Instagram ? <b>Le kit gratuit est ici</b> <span>→</span></a>
+<!-- 13 oct. 2026, l'opérateur : l'accueil devient une boutique de Noël, trois rayons
+     à égalité — cadeaux personnalisés, livres de Noël, création digitale. « Une fois
+     Noël passé on changera » : l'ancien accueil est dans l'historique git (commit f899b3f). -->
 
-<header class="ouverture">
+<header class="vitrine">
   <div class="conteneur">
-    <div>
-      <span class="pastille">COMPTES · SITES · APPLIS · AGENTS IA</span>
-      <h1>Sois vu. Lance ton business. <mark>Avec l'IA, en quelques jours.</mark></h1>
-      <p class="accroche">Compte faceless qui publie pour toi, marque de vêtements sans stock, site, appli, agent IA, packs de Noël. L'IA fait le gros du travail, tu paies le prix juste.</p>
-      <div class="boutons">
-        <a class="bouton" href="offres.html">Voir les offres <span class="fleche">→</span></a>
-        <a class="bouton clair" href="commander.html">Commander</a>
-      </div>
-      <p class="petit" style="margin-top:14px">Dès <b><span data-min-unique>19 €</span></b> en une fois, ou dès <b><span data-min-mensuel>15 €</span>/mois</b> sans frais de départ.</p>
-      <ul class="garanties">
-        <li>Tu valides chaque étape</li>
-        <li>2 séries de retouches incluses</li>
-        <li>Rappel sous 24 h</li>
-      </ul>
-    </div>
-    <div class="eventail" aria-hidden="true">
-      <img src="apercus/1.jpg" alt="">
-      <img src="apercus/3.jpg" alt="">
-      <img src="apercus/2.jpg" alt="">
-      <img class="logo-flottant" src="logo-alluxe.png" alt="">
-    </div>
-  </div>
-  <div class="chiffres">
-    <div class="conteneur">
-      <div><b data-min-unique>19 €</b><span>pour démarrer, dès</span></div>
-      <div><b>5 à 14</b><span>jours pour être en ligne</span></div>
-      <div><b>0 €</b><span>de frais de départ (au mois)</span></div>
-      <div><b>×10</b><span>moins cher qu'une agence</span></div>
+    <span class="pastille">🎄 LA BOUTIQUE DE NOËL ALLUXE</span>
+    <h1>Des cadeaux de Noël <em>qui leur ressemblent.</em></h1>
+    <p class="accroche">Leur portrait sur une affiche, un mug ou des pyjamas assortis. Un livre de Noël dont votre enfant est le héros. Et pour les pros, tout le digital de Noël, fait avec l'IA.</p>
+    <p class="rebours">🎁 Livré pour Noël : commandez avant le <b>14 décembre</b> · <span id="rebours"></span></p>
+
+    <div class="rayons">
+      <a class="rayon-carte" href="/noel/">
+        <img src="/noel/hero.jpg" alt="Portrait de Noël d'une famille, encadré dans un salon décoré" fetchpriority="high">
+        <span class="des" data-des-cadeaux>dès 14,90 €</span>
+        <div class="corps">
+          <span class="num">RAYON 1</span>
+          <h2>Cadeaux de Noël personnalisés</h2>
+          <p>D'après votre photo : affiches, toiles, mugs, pyjamas, papier cadeau… 20 idées pour toute la famille.</p>
+          <span class="aller">Voir les cadeaux →</span>
+        </div>
+      </a>
+      <a class="rayon-carte" href="/livres.html">
+        <img src="/noel/sweat-enfant.jpg" alt="Une petite fille souriante devant le sapin de Noël">
+        <span class="des">dès 39,90 €</span>
+        <div class="corps">
+          <span class="num">RAYON 2</span>
+          <h2>Livres de Noël</h2>
+          <p>Votre enfant, votre famille ou bébé deviennent les héros d'un vrai livre illustré, à couverture rigide.</p>
+          <span class="aller">Voir les livres →</span>
+        </div>
+      </a>
+      <a class="rayon-carte" href="/offres.html">
+        <img src="/creation-noel.jpg" alt="Une créatrice travaille sur son ordinateur, un soir de Noël">
+        <span class="des" data-des-crea>dès 15 €</span>
+        <div class="corps">
+          <span class="num">RAYON 3</span>
+          <h2>Création digitale</h2>
+          <p>Boutique de Noël à vendre sur Etsy, campagne Black Friday, site, compte Instagram qui publie seul.</p>
+          <span class="aller">Voir les packs →</span>
+        </div>
+      </a>
     </div>
   </div>
 </header>
 
-<section>
+<div class="reassurance">
+  <ul class="conteneur">
+    <li><span>👀</span> Aperçu offert avant toute impression</li>
+    <li><span>🇪🇺</span> Fabriqué en Europe, près de chez vous</li>
+    <li><span>🔒</span> Paiement sécurisé par carte</li>
+    <li><span>🎁</span> Prêt à offrir, livré avant Noël</li>
+  </ul>
+</div>
+
+<section id="cadeaux">
   <div class="conteneur">
-    <h2 class="apparait">Ce que je construis <mark>pour toi.</mark></h2>
-    <p class="sous-titre apparait"><span id="nb-offres">Des</span> offres claires, prix affichés, sans devis caché. Touche une offre pour voir le détail.</p>
-    <div class="services" id="services"></div>
+    <div class="tete-rayon">
+      <div>
+        <h2>Les cadeaux <mark>les plus offerts.</mark></h2>
+        <p>Une photo prise au téléphone suffit : on en fait un portrait de Noël dans le style de votre choix, puis on l'imprime.</p>
+      </div>
+      <a class="tout" href="/noel/#produits">Toute la boutique de Noël →</a>
+    </div>
+    <div class="etal" id="etal-cadeaux"></div>
   </div>
 </section>
 
-<section class="jour">
+<section class="rayon-livres" id="livres">
   <div class="conteneur">
-    <h2 class="apparait">Pourquoi c'est <mark>si peu cher ?</mark></h2>
-    <p class="sous-titre apparait" style="color:var(--noir)">Parce qu'en 2026, l'IA écrit le code, les textes et les visuels en quelques heures. Une agence facture encore le temps d'avant. Moi, je facture le temps d'aujourd'hui.</p>
-    <div class="tableau apparait">
-      <table class="comparatif">
-        <thead><tr><th></th><th>Agence</th><th>Freelance</th><th>alluxe.ia</th></tr></thead>
-        <tbody>
-          <tr><td>Site vitrine</td><td>~3 500 €</td><td>~1 450 €</td><td class="nous" data-prix="vitrine">—</td></tr>
-          <tr><td>Boutique Shopify</td><td>4 000 à 8 000 €</td><td>2 000 à 5 000 €</td><td class="nous" data-prix="shopify">—</td></tr>
-          <tr><td>Agent IA / chatbot</td><td>8 000 à 25 000 €</td><td>800 à 6 000 €</td><td class="nous" data-prix="agent">—</td></tr>
-          <tr><td>Délai</td><td>1 à 3 mois</td><td>3 à 6 semaines</td><td class="nous">5 à 14 jours</td></tr>
-        </tbody>
-      </table>
+    <div class="tete-rayon">
+      <div>
+        <h2>Les livres <mark>de Noël.</mark></h2>
+        <p>Un vrai livre imprimé, couverture rigide, 28 pages. Le prénom dans l'histoire, le visage dans les illustrations. Le cadeau qu'on relit chaque année.</p>
+      </div>
+      <a class="tout" href="/livres.html">Découvrir les 3 livres →</a>
     </div>
-    <p class="petit apparait" style="margin-top:10px;color:var(--noir)">Prix du marché français 2026 relevés sur des grilles publiques d'agences et de freelances.</p>
+    <div class="bibliotheque" id="bibliotheque"></div>
   </div>
 </section>
 
-<section>
+<section class="rayon-crea" id="creation">
   <div class="conteneur">
-    <h2 class="apparait">Comment ça se passe, <mark>en 3 étapes.</mark></h2>
-    <div class="etapes">
-      <div class="etape apparait"><div class="num">1</div><h3>Tu commandes</h3><p>Tu choisis ton offre et tu décris ton projet en quelques lignes. Je te rappelle sous 24 h pour caler les détails.</p></div>
-      <div class="etape apparait"><div class="num">2</div><h3>Je construis</h3><p>Avec l'IA, je construis ton site, ta boutique ou ton agent. Tu vois l'avancement et tu valides chaque étape.</p></div>
-      <div class="etape apparait"><div class="num">3</div><h3>On lance</h3><p>Mise en ligne, test complet, et une courte formation pour que tu sois autonome. Le suivi est inclus.</p></div>
+    <div class="tete-rayon">
+      <div>
+        <h2>La création digitale, <mark>spécial Noël.</mark></h2>
+        <p>Vous avez une activité ? Profitez de Noël pour vendre plus : produits prêts à vendre, contenus de fêtes, site ou compte qui publie à votre place. Fait avec l'IA, prix affichés.</p>
+      </div>
+      <a class="tout" href="/offres.html">Tous les packs →</a>
     </div>
-  </div>
-</section>
-
-<section style="padding-top:10px">
-  <div class="conteneur">
-    <h2 class="apparait">Je le fais <mark>pour moi d'abord.</mark></h2>
-    <p class="sous-titre apparait">Ce site, son assistant IA, une appli mobile, un compte Instagram qui se publie tout seul deux fois par jour : tout est construit avec la même méthode que je te propose.</p>
-    <div class="grille apparait">
-      <a href="realisations.html"><img src="apercus/1.jpg" alt="Publication : tout ce que j'ai construit seul avec l'IA"></a>
-      <a href="realisations.html"><img src="apercus/2.jpg" alt="Publication : 108 testées, 108 rejetées"></a>
-      <a href="realisations.html"><img src="apercus/3.jpg" alt="Publication : ChatGPT invente quand il ne sait pas"></a>
-    </div>
-    <div class="boutons apparait" style="justify-content:center">
-      <a class="bouton clair" href="realisations.html">Voir les réalisations <span class="fleche">→</span></a>
-    </div>
-  </div>
-</section>
-
-<section class="duel">
-  <div class="conteneur">
-    <h2 class="apparait">Tu veux le faire <mark>toi-même ?</mark></h2>
-    <p class="sous-titre apparait" style="color:var(--noir)">16 kits gratuits — site, boutique, agent, robot, appli — avec un mode d'emploi simple et un prompt complet qui te guide de A à Z. Plus 34 prompts à copier en un clic.</p>
-    <div class="boutons apparait"><a class="bouton" href="kits.html">Voir les 16 kits <span class="fleche">→</span></a>
-    <a class="bouton clair" href="prompts.html">Les prompts gratuits</a></div>
+    <div class="etal" id="etal-crea"></div>
+    <div class="bandeau-cadeau"><span>🎀</span><div><b>Vous voulez le faire vous-même ?</b> Le kit gratuit, 16 kits pas à pas et 34 prompts à copier : <a href="/kit.html">commencer ici</a>.</div></div>
   </div>
 </section>
 
 <section id="questions">
   <div class="conteneur">
     <h2 class="apparait">Questions <mark>fréquentes.</mark></h2>
-    <details class="apparait"><summary>Je ne connais rien à la technique, c'est un problème ?</summary><p>Non, c'est fait pour toi. Tu décris ce que tu veux avec tes mots, je m'occupe du reste, et je te montre comment gérer ton site ou ta boutique.</p></details>
-    <details class="apparait"><summary>Paiement unique ou abonnement : je choisis quoi ?</summary><p>Le paiement unique te rend propriétaire tout de suite. L'abonnement n'a aucun frais de départ et inclut l'hébergement, les mises à jour et le suivi (engagement 12 mois). Les deux sont affichés sur chaque offre.</p></details>
-    <details class="apparait"><summary>Combien de temps avant d'être en ligne ?</summary><p>De 5 jours pour un site vitrine à 14 jours pour le pack business complet, à partir du moment où tu m'as envoyé tes textes et photos.</p></details>
-    <details class="apparait"><summary>L'agent IA va-t-il raconter n'importe quoi à mes clients ?</summary><p>Il est entraîné sur tes informations et on lui interdit d'inventer : s'il ne sait pas, il le dit et te transmet la question. C'est testé avant la mise en route.</p></details>
-    <details class="apparait"><summary>Et si je ne suis pas satisfait ?</summary><p>Tu valides chaque étape avant la suivante, et tu as deux séries de retouches incluses. Les conditions complètes sont dans les CGV.</p></details>
+    <details class="apparait"><summary>Quelle photo faut-il envoyer ?</summary><p>Une photo nette prise au téléphone, bien éclairée, où l'on voit bien les visages. Pour une famille, une photo de groupe où tout le monde regarde l'objectif.</p></details>
+    <details class="apparait"><summary>Et si le résultat ne me plaît pas ?</summary><p>Vous recevez l'aperçu par e-mail avant toute impression, et on le retouche jusqu'à ce qu'il vous plaise. Rien n'est imprimé sans votre accord.</p></details>
+    <details class="apparait"><summary>Jusqu'à quand commander pour Noël ?</summary><p>Jusqu'au 14 décembre pour les cadeaux et les livres. Les packs de création digitale n'ont pas de date limite.</p></details>
+    <details class="apparait"><summary>Puis-je retourner un objet personnalisé ?</summary><p>Un objet fabriqué d'après votre photo n'ouvre pas droit à la rétractation de 14 jours (art. L221-28 du Code de la consommation) : c'est pour cela que vous validez l'aperçu avant. Un objet abîmé à la livraison est bien sûr remplacé.</p></details>
   </div>
 </section>
 
-<section class="final">
-  <div class="conteneur">
-    <div class="boite apparait">
-      <h2>Ton projet commence <mark>aujourd'hui.</mark></h2>
-      <p>Choisis ton offre, décris ton idée, je te rappelle sous 24 h.</p>
-      <a class="bouton" href="commander.html">Commander mon projet <span class="fleche">→</span></a>
-    </div>
-  </div>
-</section>
-
-<script src="commun.js"></script>
+<script src="/commun.js?v=20261013a"></script>
 <script>
+const prixFr = (n) => n.toLocaleString("fr-FR", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }) + " €";
+
+// Rayon 1 : les cadeaux viennent du catalogue de la boutique de Noël (jamais recopiés ici).
+const VEDETTES = ["affiche", "pyjama", "mug", "toile", "pull-famille", "papier-cadeau", "cartes", "plaid"];
+fetch("/noel/catalogue.json", { cache: "no-store" }).then((r) => r.json()).then((cat) => {
+  const actifs = cat.produits.filter((p) => p.actif && p.prix);
+  const lot = VEDETTES.map((id) => actifs.find((p) => p.id === id)).filter(Boolean).slice(0, 8);
+  document.getElementById("etal-cadeaux").innerHTML = lot.map((p, i) => `
+    <a class="fiche" href="/noel/#produits">${i === 0 ? '<span class="badge">Le plus offert</span>' : ""}
+      <img src="/noel/${p.image}" alt="${p.nom}" loading="lazy">
+      <div class="corps"><h3>${p.nom}</h3><p>${p.texte}</p><span class="prix">${prixFr(p.prix)}</span></div>
+    </a>`).join("");
+  document.querySelector("[data-des-cadeaux]").textContent = "dès " + prixFr(Math.min(...actifs.map((p) => p.prix)));
+  // Compte à rebours jusqu'à la dernière commande livrable pour Noël
+  const fin = new Date(cat.date_limite_noel), z = document.getElementById("rebours");
+  const tic = () => { const ms = fin - Date.now(); if (ms <= 0) { z.parentElement.remove(); return; }
+    z.textContent = `encore ${Math.floor(ms / 864e5)} jours`; };
+  tic(); setInterval(tic, 60000);
+});
+
+// Rayon 2 : les livres (livres.json)
+fetch("/livres.json", { cache: "no-store" }).then((r) => r.json()).then((d) => {
+  document.getElementById("bibliotheque").innerHTML = d.livres.map((l) => `
+    <a class="livre-fiche" href="/livres.html#${l.id}">
+      <div class="livre${l.format.includes("italienne") ? " italienne" : ""}"><div class="couv"><img src="/${l.image}" alt="" loading="lazy"><span class="titre-couv">${l.titre_couverture}</span></div><span class="pages"></span></div>
+      ${l.vedette ? '<span class="vedette">Coup de cœur</span>' : ""}
+      <span class="pour">${l.pour}</span><h3>${l.nom}</h3><p>${l.accroche}</p>
+      <span class="prix">${prixFr(l.prix)} <small>+ ${prixFr(d.livraison)} de livraison</small></span>
+    </a>`).join("");
+});
+
+// Rayon 3 : les packs de Noël d'abord, puis les plus demandés (offres.json)
+const ICONES = { noel_boutique: "🎄", noel_campagne: "🎁", faceless: "🎬", vitrine: "🌐", shopify: "🛍️", agent: "🤖", ugc: "🤝", marque: "👕" };
 chargerOffres().then(({ offres }) => {
-  document.getElementById("nb-offres").textContent = offres.length;
-  // Les prix affichés ailleurs sur la page viennent du même fichier (jamais recopiés à la main).
-  const parId = Object.fromEntries(offres.map((o) => [o.id, o]));
-  document.querySelectorAll("[data-prix]").forEach((el) => {
-    const o = parId[el.dataset.prix]; if (!o) return;
-    el.textContent = o.abonnement_obligatoire ? `${euros(o.unique)} + ${euros(o.mensuel)}/mois`
-      : o.unique_seulement ? euros(o.unique) : `${euros(o.unique)} ou ${euros(o.mensuel)}/mois`;
+  const ordre = ["noel_boutique", "noel_campagne", "faceless", "vitrine"];
+  const lot = ordre.map((id) => offres.find((o) => o.id === id)).filter(Boolean);
+  document.getElementById("etal-crea").innerHTML = lot.map((o) => {
+    const prix = o.unique_seulement ? `${euros(o.unique)} en une fois`
+      : o.abonnement_obligatoire ? `${euros(o.unique)} + ${euros(o.mensuel)}/mois` : `${euros(o.unique)} ou ${euros(o.mensuel)}/mois`;
+    return `<a class="fiche" href="/offres.html#${o.id}">${o.categorie === "noel" ? '<span class="badge">Spécial Noël</span>' : ""}
+      <span class="icone">${ICONES[o.id] || "✦"}</span>
+      <div class="corps"><h3></h3><p></p><span class="prix">${prix}</span></div></a>`;
+  }).join("");
+  document.querySelectorAll("#etal-crea .fiche").forEach((a, i) => {
+    a.querySelector("h3").textContent = lot[i].nom; a.querySelector("p").textContent = lot[i].accroche;
   });
-  const minU = Math.min(...offres.map((o) => o.unique)), minM = Math.min(...offres.filter((o) => o.mensuel > 0).map((o) => o.mensuel));
-  document.querySelectorAll("[data-min-unique]").forEach((el) => el.textContent = euros(minU));
-  document.querySelectorAll("[data-min-mensuel]").forEach((el) => el.textContent = euros(minM));
-  const ICONES = { vitrine: "🌐", shopify: "🛍️", ecommerce: "🚀", agent: "🤖", robot: "⚙️", influenceuse: "🌟", complet: "⭐",
-    noel_boutique: "🎄", noel_campagne: "🎁", faceless: "🎬", autopost: "📲", ugc: "🤝", clip: "🎵", marque: "👕", appli: "📱" };
-  const el = document.getElementById("services");
-  offres.forEach((o) => {
-    const a = document.createElement("a");
-    a.className = "service apparait"; a.href = "offres.html#" + o.id;
-    a.style.setProperty("--c", `var(--${o.couleur})`);
-    a.dataset.categorie = o.categorie || "";
-    a.innerHTML = `<span class="icone">${ICONES[o.id] || "✦"}</span><h3></h3><p></p>
-      <span class="prix">${o.a_partir ? "dès " : ""}<b>${euros(o.unique)}</b> ou ${euros(o.mensuel)}/mois</span>`;
-    a.querySelector("h3").textContent = o.nom; a.querySelector("p").textContent = o.accroche;
-    if (o.abonnement_obligatoire) a.querySelector(".prix").innerHTML = `<b>${euros(o.unique)}</b> + ${euros(o.mensuel)}/mois`;
-    if (o.unique_seulement) a.querySelector(".prix").innerHTML = `<b>${euros(o.unique)}</b> en une fois`;
-    el.appendChild(a); observer(a);
-  });
+  document.querySelector("[data-des-crea]").textContent = "dès " + euros(Math.min(...offres.map((o) => o.unique)));
 });
 </script>
 </body>
