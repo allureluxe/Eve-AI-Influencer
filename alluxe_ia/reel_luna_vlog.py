@@ -89,13 +89,18 @@ MASQUE = {"avant_apres": (270, "0x9b141a")}
 #: 1re image), le plan « tete » retiré, 15-17 s visés. Un plan s'allonge si sa réplique
 #: est plus longue que sa durée visée (calage dans voix()).
 TRAME = [
-    ("ipad", 3.0, "Boutique créée en 1 nuit.\nSans savoir coder.", "titre"),
+    ("ipad", 1.8, "Boutique créée en 1 nuit.\nSans savoir coder.", "titre"),
+    # 12 oct., v7 — l'opérateur : « montre l'image normale et, comme un scanner qui passe
+    # dessus, fais découvrir la nouvelle image générée ». Coupe sur la pause après
+    # « …prise au téléphone, » (1,7-1,9 s) : le scanner passe sur « et l'IA en fait ça ».
+    ("scanner", 2.0, "", "titre"),
     ("nuit", 2.5, "23h. Je n'ai jamais codé.", "titre"),
     ("produits", 4.0, "Affiches, toiles, mugs,\npyjamas, papier cadeau…", "titre"),
     ("matin", 3.0, "8h. La boutique est en ligne.", "titre"),
 ]
 
-#: Voix OFF de Luna, une réplique par plan (+ la fin), dès 0,0 s.
+#: Voix OFF de Luna, dès 0,0 s. VOIX_PLAN : le plan (index dans TRAME, + la fin) où démarre
+#: chaque réplique ; elle a jusqu'au début de la suivante (la 1re couvre iPad + scanner).
 VOIX_OFF = [
     "Regarde… une photo prise au téléphone, et l'IA en fait ça.",
     "Hier soir, j'sais pas coder… alors j'ai tout demandé à l'IA.",
@@ -113,6 +118,10 @@ CONSIGNE_VOIX = (
     "tu souris en parlant, petit rire dans la voix, intonations qui montent et descendent, vraies respirations, "
     "DÉBIT RAPIDE de TikTok : tu enchaînes les mots sans longues pauses. Accent français de France, naturel, français parlé de tous les jours. "
     "Jamais monotone, jamais voix de pub.")
+VOIX_PLAN = [0, 2, 3, 4, 5]
+#: plafond imposé à une réplique : la 1re garde 2,9 s, la vitesse sur laquelle Kling a
+#: synchronisé les lèvres du plan iPad (videos/ipad_levres.mp4). La changer = les refaire.
+PLAFOND_FIXE = {0: 2.9}
 FIN = 2.5          # dernier plan : « commente NOËL » dit, puis ABONNE-TOI sur les FIN_CTA dernières s
 
 LEGENDE = (
@@ -214,9 +223,13 @@ def voix() -> None:
     # Resserrage : silences de plus de 0,12 s ramenés à 0,08 s, puis accélération douce
     # si la réplique dépasse son plan. Les plans gardent les durées du brief.
     durees = [d for _, d, _, _ in TRAME] + [FIN]
+    total = sum(durees)
+    departs = [sum(durees[:k]) for k in range(len(durees))]
+    debuts = [departs[p] for p in VOIX_PLAN]
     nettes = []
     for i in range(len(VOIX_OFF)):
-        plafond = durees[i] - MARGE_PLAN
+        suivant = debuts[i + 1] if i + 1 < len(debuts) else total
+        plafond = PLAFOND_FIXE.get(i, suivant - debuts[i] - MARGE_PLAN)
         brut, net = dossier / f"{i}-{marque}.mp3", dossier / f"{i}-{marque}-net.wav"
         coupe = ("silenceremove=start_periods=1:start_threshold=-40dB:stop_periods=-1:"
                  "stop_duration=0.12:stop_threshold=-40dB:stop_silence=0.08")
@@ -231,9 +244,6 @@ def voix() -> None:
             _journal(f"voix {i} : {l:.2f} s -> x{tempo:.2f}")
         nettes.append(net)
         _journal(f"voix {i} nette : {_duree(net):.2f} s")
-    debuts = [sum(durees[:i]) for i in range(len(durees))]
-    debuts[0] = 0.0                                              # la voix démarre à 0,0 s
-    total = sum(durees)
     entrees = sum((["-i", str(n)] for n in nettes), [])
     f = ";".join(f"[{i}:a]adelay={int(d * 1000)}:all=1[v{i}]" for i, d in enumerate(debuts))
     f += ";" + "".join(f"[v{i}]" for i in range(len(debuts))) + f"amix=inputs={len(debuts)}:normalize=0,"
@@ -280,6 +290,70 @@ def levres() -> None:
         time.sleep(10)
 
 
+def _plan_scanner(sortie: Path, duree: float) -> None:
+    """La photo de famille au téléphone, puis une ligne de scanner qui descend et révèle le
+    portrait de Noël généré (les deux images de la boutique : docs/kit/noel/)."""
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFilter
+    from alluxe_ia.reel_luna_ecrans import _police
+    W, H, C, fps = 1080, 1920, 960, 30
+    avant = np.asarray(Image.open(RACINE / "docs/kit/noel/avant-famille.jpg").convert("RGB").resize((C, C)), float)
+    apres_img = Image.open(RACINE / "docs/kit/noel/apres-famille.jpg").convert("RGB")
+    x0, y0 = (W - C) // 2, (H - C) // 2 - 20
+    # fond : dégradé rouge nuit -> rouge, quelques flocons
+    fond = Image.new("RGB", (W, H))
+    yy = np.linspace(0, 1, H)[:, None, None]
+    fond = np.broadcast_to((1 - yy) * np.array([110, 15, 18]) + yy * np.array([163, 21, 27]), (H, W, 3)).copy()
+    rng = np.random.default_rng(10)
+    for _ in range(90):
+        x, y, rr = rng.integers(0, W), rng.integers(0, H), rng.integers(2, 5)
+        fond[max(0, y - rr):y + rr, max(0, x - rr):x + rr] = fond[max(0, y - rr):y + rr, max(0, x - rr):x + rr] * 0.5 + 127
+    masque = Image.new("L", (C, C), 0)
+    ImageDraw.Draw(masque).rounded_rectangle((0, 0, C - 1, C - 1), 36, fill=255)
+    masque = np.asarray(masque, float)[:, :, None] / 255
+    police = _police(54, 800)
+
+    def etiquette(im: Image.Image, texte: str) -> None:
+        d = ImageDraw.Draw(im)
+        b = d.textbbox((W // 2, y0 - 40), texte, font=police, anchor="mb")
+        d.rounded_rectangle((b[0] - 28, b[1] - 16, b[2] + 28, b[3] + 18), 30, fill=(255, 250, 243))
+        d.text((W // 2, y0 - 40), texte, font=police, fill=(163, 21, 27), anchor="mb")
+
+    debut, balayage = 0.1, 0.85                    # le scanner passe pendant « et l'IA en fait ça »
+    n = int(duree * fps)
+    proc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24",
+                             "-s", f"{W}x{H}", "-r", str(fps), "-i", "-", "-an", "-c:v", "libx264",
+                             "-crf", "18", "-pix_fmt", "yuv420p", str(sortie)], stdin=subprocess.PIPE)
+    for k in range(n):
+        t = k / fps
+        a = min(1.0, max(0.0, (t - debut) / balayage))
+        a = a * a * (3 - 2 * a)                    # départ et arrivée en douceur
+        ligne = int(a * C)
+        zoom = 1 + 0.04 * max(0.0, (t - debut - balayage) / max(0.01, duree - debut - balayage))
+        cz = int(C * zoom)
+        apres = np.asarray(apres_img.resize((cz, cz)), float)
+        o = (cz - C) // 2
+        apres = apres[o:o + C, o:o + C]
+        carte = avant.copy()
+        carte[:ligne] = apres[:ligne]
+        if 0 < ligne < C:                          # lueur dorée sous la ligne + trait blanc
+            h = min(90, ligne)
+            lueur = np.linspace(0, 1, h)[:, None, None] ** 2
+            carte[ligne - h:ligne] = carte[ligne - h:ligne] * (1 - 0.55 * lueur) + 0.55 * lueur * np.array([255, 214, 120])
+            carte[max(0, ligne - 4):ligne + 4] = [255, 255, 245]
+        image = fond.copy()
+        zone = image[y0:y0 + C, x0:x0 + C]
+        image[y0:y0 + C, x0:x0 + C] = zone * (1 - masque) + carte * masque
+        im = Image.fromarray(image.clip(0, 255).astype("uint8"))
+        ImageDraw.Draw(im).rounded_rectangle((x0 - 8, y0 - 8, x0 + C + 8, y0 + C + 8), 42,
+                                             outline=(216, 169, 69), width=8)
+        etiquette(im, "Ta photo au téléphone" if a < 0.5 else "Ton portrait de Noël par l'IA")
+        proc.stdin.write(im.tobytes())
+    proc.stdin.close()
+    if proc.wait():
+        raise RuntimeError("ffmpeg scanner")
+
+
 def _plan_site(sortie: Path, y0: int, y1: int, duree: float, masque: tuple | None = None) -> None:
     """Le site qui défile : fenêtre 1080×1920 qui glisse de y0 à y1 dans la capture."""
     n = int(duree * 30)
@@ -300,10 +374,13 @@ def montage() -> Path:
         if plan in SCENES:
             levres_ = DOSSIER / "videos" / f"{plan}_levres.mp4"
             r._plan_video(levres_ if levres_.exists() else DOSSIER / "videos" / f"{plan}.mp4", m, 0.0, d)
+        elif plan == "scanner":
+            _plan_scanner(m, d)
         else:
             _plan_site(m, *SITE[plan], d, MASQUE.get(plan))
         morceaux.append(m)
-        calques.append((t, t + d, texte, style, DECALAGE_TEXTE.get(plan, 0)))
+        if texte:
+            calques.append((t, t + d, texte, style, DECALAGE_TEXTE.get(plan, 0)))
         t += d
     # fin : le plan du matin repris, « commente NOËL » puis « ABONNE-TOI » (règle du 9 oct.)
     fin = tmp / "fin.mp4"
