@@ -7,7 +7,7 @@ alluxe.fr/apercu/noel qui défile (capture du navigateur, gratuite). 73 % des to
 de la niche utilisent le son original ; ici la musique est composée et intégrée (TikTok),
 Instagram peut poser un son tendance par-dessus à la publication.
 
-    python3 alluxe_ia/reel_luna_vlog.py images video montage
+    python3 alluxe_ia/reel_luna_vlog.py images video voix montage
 
 Rien n'est publié par ce script.
 """
@@ -33,6 +33,7 @@ r.ID_REEL = ID_REEL
 r.DOSSIER = DOSSIER = RACINE / "data/alluxe_ia/reel_luna_vlog"
 ECRAN = DOSSIER / "ecran" / "site.png"          # capture 1080 px de large de la boutique
 FIN_CTA = 2.0
+FIN = 4.9          # dernier plan : « commente NOËL » dit puis ABONNE-TOI
 
 SCENES = {
     "nuit": (" Night scene in her small cosy Lyon apartment: she sits at a desk in front of an "
@@ -56,12 +57,34 @@ SITE = {"tete": (0, 250), "avant_apres": (2390, 2420), "produits": (8200, 12000)
 #: la trame : (plan, durée, texte à l'écran, style du texte). Pas d'emoji à l'écran :
 #: la police des calques ne les a pas (carrés vides au rendu du 12 oct.).
 TRAME = [
-    ("nuit", 4.0, "23h. Je n'ai jamais codé.\nJe lance une boutique\nde Noël.", "titre"),
-    ("tete", 4.5, "J'ai TOUT demandé\nà une IA.", "titre"),
-    ("avant_apres", 5.5, "Une photo au téléphone…\n→ un portrait de Noël.", "titre"),
-    ("produits", 8.0, "Affiches, toiles, mugs,\npyjamas, papier cadeau…", "titre"),
-    ("matin", 5.0, "8h. La boutique est en ligne.\nEn une nuit.", "titre"),
+    ("nuit", 4.4, "23h. Je n'ai jamais codé.\nJe lance une boutique\nde Noël.", "titre"),
+    ("tete", 6.8, "J'ai TOUT demandé\nà une IA.", "titre"),
+    ("avant_apres", 7.2, "Une photo au téléphone…\n→ un portrait de Noël.", "titre"),
+    ("produits", 9.0, "Affiches, toiles, mugs,\npyjamas, papier cadeau…", "titre"),
+    ("matin", 4.9, "8h. La boutique est en ligne.\nEn une nuit.", "titre"),
 ]
+
+#: 12 oct., 2e version — l'opérateur : « qu'elle parle tout le long du Reel, même quand on
+#: ne la voit pas, avec une petite musique d'ambiance Noël chez elle ». Voix OFF, une
+#: réplique par plan de TRAME (+ la fin), posées à la suite : une réplique qui déborde
+#: pousse la suivante, le montage refuse si le tout dépasse la vidéo.
+#: Texte PARLÉ exprès (élisions, « j'sais pas », points de suspension) : sur le Reel 09
+#: la voix « sonnait ordinateur » parce que le texte sonnait écrit.
+VOIX_OFF = [
+    "Vingt-trois heures… et j'ai une idée complètement folle.",
+    "Une boutique de Noël. Sauf que… j'sais pas coder. Alors j'ai tout demandé à l'IA.",
+    "Tu envoies une photo toute simple, prise au téléphone… et hop, ça devient un vrai portrait de Noël.",
+    "Après, tu choisis : une affiche, une toile, un mug, des pyjamas assortis… "
+    "et même du papier cadeau avec vos têtes dessus.",
+    "Huit heures du mat'. J'ai pas dormi… mais la boutique est en ligne.",
+    "Commente Noël… et j'te raconte tout.",
+]
+CONSIGNE_VOIX = (
+    "Tu es Luna, 22 ans, française. Tu racontes ta nuit dans un vlog, chez toi, tard le soir, "
+    "le téléphone à la main : voix posée, un peu basse, intime et complice, avec le sourire. "
+    "Surtout PAS une voix de publicité ni de présentatrice : naturelle, de vraies respirations, "
+    "de petites pauses aux points de suspension, débit normal, français parlé de tous les jours.")
+VOIX_MODELE = ("marin", "shimmer")         # la 1re qui répond ; marin est la plus naturelle
 
 LEGENDE = (
     "J'ai construit une boutique de Noël entière avec l'IA. En une nuit. Sans savoir coder. 🎄\n\n"
@@ -105,6 +128,51 @@ def video() -> None:
                 time.sleep(20)
 
 
+def voix() -> None:
+    """Une réplique par fichier, puis une piste unique calée sur la trame (voix/off.wav)."""
+    from alluxe_ia.reel_luna_parle import _duree
+    import urllib.error
+    import urllib.request
+    dossier = DOSSIER / "voix"
+    dossier.mkdir(parents=True, exist_ok=True)
+    for i, texte in enumerate(VOIX_OFF):
+        cible = dossier / f"{i}.mp3"
+        if cible.exists():
+            continue
+        for v in VOIX_MODELE:
+            corps = {"model": "gpt-4o-mini-tts", "voice": v, "input": texte,
+                     "response_format": "mp3", "instructions": CONSIGNE_VOIX}
+            req = urllib.request.Request("https://api.openai.com/v1/audio/speech", data=json.dumps(corps).encode(),
+                                         headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
+                                                  "Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=120) as r:
+                    cible.write_bytes(r.read())
+                break
+            except urllib.error.HTTPError as e:
+                _journal(f"voix {v} refusée ({e.code}), suivante")
+        _journal(f"voix {i} : {_duree(cible):.2f} s")
+    # calage : chaque réplique au début de son plan, ou juste après la précédente
+    debuts, t, fin_prec = [], 0.0, 0.0
+    for (_, d, _, _), i in zip(TRAME + [("fin", FIN, "", "")], range(len(VOIX_OFF))):
+        debut = max(t + 0.25, fin_prec + 0.2)
+        debuts.append(debut)
+        fin_prec = debut + _duree(dossier / f"{i}.mp3")
+        t += d
+    total = sum(d for _, d, _, _ in TRAME) + FIN
+    if fin_prec > total - 0.2:
+        raise SystemExit(f"la voix finit à {fin_prec:.1f} s pour une vidéo de {total:.1f} s : raccourcir le texte")
+    entrees = sum((["-i", str(dossier / f"{i}.mp3")] for i in range(len(VOIX_OFF))), [])
+    f = ";".join(f"[{i}:a]adelay={int(d * 1000)}:all=1[v{i}]" for i, d in enumerate(debuts))
+    f += ";" + "".join(f"[v{i}]" for i in range(len(debuts))) + f"amix=inputs={len(debuts)}:normalize=0,"
+    # « dans la pièce » : on coupe le très grave et le très aigu, petite réverbération de chambre
+    f += "highpass=f=90,lowpass=f=10500,aecho=0.85:0.6:28|47:0.10|0.06,apad"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", *entrees, "-filter_complex", f, "-t", f"{total:.3f}",
+                    "-ar", "44100", "-ac", "2", str(dossier / "off.wav")], check=True)
+    (dossier / "calage.json").write_text(json.dumps({"debuts": debuts, "fin_voix": fin_prec}))
+    _journal("voix off : " + ", ".join(f"{d:.1f}" for d in debuts) + f" → fin {fin_prec:.1f} s")
+
+
 def _plan_site(sortie: Path, y0: int, y1: int, duree: float) -> None:
     """Le site qui défile : fenêtre 1080×1920 qui glisse de y0 à y1 dans la capture."""
     n = int(duree * 30)
@@ -129,10 +197,10 @@ def montage() -> Path:
         t += d
     # fin : le plan du matin repris, « commente NOËL » puis « ABONNE-TOI » (règle du 9 oct.)
     fin = tmp / "fin.mp4"
-    r._plan_video(DOSSIER / "videos" / "matin.mp4", fin, 2.0, 3.5)
+    r._plan_video(DOSSIER / "videos" / "matin.mp4", fin, 0.3, FIN)
     morceaux.append(fin)
-    calques.append((t, t + 1.5, "Commente NOËL\net je t'explique tout", "titre"))
-    t += 3.5
+    calques.append((t, t + 2.4, "Commente NOËL\net je t'explique tout", "titre"))
+    t += FIN
     total = t
     calques.append((total - FIN_CTA, total, "ABONNE-TOI", "cta"))
     calques.append((0.0, total, "@alluxe.ia · Luna, personnage IA", "signature"))
@@ -144,16 +212,23 @@ def montage() -> Path:
                     "-c", "copy", str(brut)], check=True)
     from alluxe_ia.musique import ecrire_wav
     musique = tmp / "musique.wav"
-    ecrire_wav(str(musique), total, graine=ID_REEL)
+    ecrire_wav(str(musique), total, graine=ID_REEL, style="noel")
+    off = DOSSIER / "voix" / "off.wav"
 
-    entrees = ["-i", str(brut), "-i", str(musique)]
-    filtres = [f"[1:a]volume=0.55,atrim=0:{total:.3f},afade=t=out:st={total - 1:.2f}:d=1[a]"]
+    entrees = ["-i", str(brut), "-i", str(musique), "-i", str(off)]
+    # la musique s'efface sous la voix (compression déclenchée par la voix), puis on mélange
+    filtres = [f"[2:a]asplit=2[vx][vs]",
+               f"[1:a]volume=0.5,atrim=0:{total:.3f}[m]",
+               "[m][vs]sidechaincompress=threshold=0.03:ratio=6:attack=30:release=400[md]",
+               f"[vx]volume=1.6[vv]",
+               f"[md][vv]amix=inputs=2:normalize=0,afade=t=out:st={total - 1:.2f}:d=1,"
+               "loudnorm=I=-14:TP=-1.5[a]"]
     prec = "0:v"
     for j, (t0, t1, texte, style) in enumerate(calques):
         p = tmp / f"t{j}.png"
         _calque(texte, style).save(p)
         entrees += ["-loop", "1", "-t", f"{total:.3f}", "-i", str(p)]
-        filtres.append(f"[{prec}][{2 + j}:v]overlay=0:0:enable='between(t,{t0:.2f},{t1:.2f})'[v{j}]")
+        filtres.append(f"[{prec}][{3 + j}:v]overlay=0:0:enable='between(t,{t0:.2f},{t1:.2f})'[v{j}]")
         prec = f"v{j}"
     final = RACINE / f"data/alluxe_ia/reels/{ID_REEL}.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-filter_complex_threads", "1", *entrees,
@@ -167,6 +242,6 @@ def montage() -> Path:
 
 
 if __name__ == "__main__":
-    etapes = {"images": images, "video": video, "montage": montage}
+    etapes = {"images": images, "video": video, "voix": voix, "montage": montage}
     for nom in (sys.argv[1:] or list(etapes)):
         etapes[nom]()

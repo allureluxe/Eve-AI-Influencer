@@ -218,8 +218,83 @@ def composer_phonk(duree: float, graine: str = "alluxe") -> np.ndarray:
     return np.tanh(1.6 * st / crete) * 0.9
 
 
+# --- Style « noël » (ambiance chez Luna), 12 oct. ------------------------------
+# L'opérateur : « une petite musique d'ambiance Noël chez elle », sous sa voix off.
+# « Douce nuit » (Gruber, 1818) est dans le domaine public : on la rejoue ici, note
+# à note, comme le reste — aucun enregistrement existant, donc aucun droit.
+# Célesta pour la mélodie, piano doux en arpèges, nappe, feu de cheminée.
+
+#: (note MIDI, durée en temps), mesure à 3 temps, en do majeur.
+DOUCE_NUIT = [
+    (67, 1.5), (69, .5), (67, 1), (64, 3), (67, 1.5), (69, .5), (67, 1), (64, 3),
+    (74, 2), (74, 1), (71, 3), (72, 2), (72, 1), (67, 3),
+    (69, 2), (69, 1), (72, 1.5), (71, .5), (69, 1), (67, 1.5), (69, .5), (67, 1), (64, 3),
+    (69, 2), (69, 1), (72, 1.5), (71, .5), (69, 1), (67, 1.5), (69, .5), (67, 1), (64, 3),
+    (74, 2), (74, 1), (77, 1.5), (74, .5), (71, 1), (72, 3), (76, 3),
+    (72, 1), (67, 1), (64, 1), (67, 1.5), (65, .5), (62, 1), (60, 6),
+]
+#: un accord par mesure (racine MIDI grave, intervalles)
+ACCORDS_DOUCE_NUIT = ["C", "C", "C", "C", "G", "G", "C", "C", "F", "F", "C", "C",
+                      "F", "F", "C", "C", "G", "G", "C", "C", "C", "G7", "C", "C"]
+_ACC = {"C": (48, (0, 7, 16)), "F": (53, (0, 7, 15)), "G": (43, (0, 7, 16)), "G7": (43, (0, 10, 16))}
+
+
+def _celesta(freq: float, duree: float) -> np.ndarray:
+    """Célesta / boîte à musique : sinus pur + partiel aigu qui s'éteint vite."""
+    n = int(duree * TAUX)
+    t = np.arange(n) / TAUX
+    s = np.sin(2 * np.pi * freq * t) + 0.35 * np.sin(2 * np.pi * 4 * freq * t) * np.exp(-t / 0.15)
+    return s * _enveloppe(n, 0.003, 0.9)
+
+
+def _feu(n: int, rng: np.random.Generator) -> np.ndarray:
+    """Feu de cheminée : souffle grave + crépitements aléatoires."""
+    souffle = np.cumsum(rng.standard_normal(n))
+    souffle -= np.convolve(souffle, np.ones(2000) / 2000, mode="same")   # retire la dérive
+    souffle /= (np.max(np.abs(souffle)) or 1)
+    feu = 0.06 * souffle
+    t = 0.0
+    while t < n / TAUX:
+        t += rng.exponential(1 / 7)                                      # ~7 crépitements / s
+        gros = rng.random() < 0.08
+        _poser(feu, _bruit(int((0.03 if gros else 0.008) * TAUX), 0.01 if gros else 0.003, rng, 1),
+               t, (0.25 if gros else 0.07) * rng.random())
+    return feu
+
+
+def composer_noel(duree: float, graine: str = "alluxe") -> np.ndarray:
+    rng = np.random.default_rng(_graine(graine))
+    temps = 60 / 84
+    n = int((duree + 3) * TAUX)
+    melodie, piano, nappe = (np.zeros(n) for _ in range(3))
+    t = 0.4
+    for note, d in DOUCE_NUIT:
+        _poser(melodie, _celesta(_hz(note + 12), max(1.2, d * temps * 1.4)), t, 0.22)
+        t += d * temps
+    for m, nom in enumerate(ACCORDS_DOUCE_NUIT):
+        racine, iv = _ACC[nom]
+        debut = 0.4 + m * 3 * temps
+        for b, i in enumerate((0, 1, 2)):                                # arpège : grave, quinte, tierce
+            _poser(piano, _piano(_hz(racine + iv[i]), temps * 2.5), debut + b * temps, 0.13 if b == 0 else 0.08)
+        nb = int(3 * temps * TAUX)
+        for i in iv:
+            tt = np.arange(nb) / TAUX
+            env = np.minimum(1, tt / 0.8) * np.minimum(1, (nb / TAUX - tt) / 0.8)
+            _poser(nappe, np.sin(2 * np.pi * _hz(racine + 12 + i) * tt) * env, debut, 0.025)
+    mix = _echo(melodie, temps * 0.75, 0.3, 3) + piano + nappe
+    mix /= (np.max(np.abs(mix)) or 1)
+    feu = _feu(n, rng)
+    g = mix * 0.8 + feu + 0.03 * np.roll(mix, int(0.013 * TAUX))
+    d = mix * 0.8 + np.roll(feu, 900) + 0.03 * np.roll(mix, int(0.019 * TAUX))
+    st = np.stack([g, d], axis=1)[: int(duree * TAUX)]
+    ent, sor = int(0.6 * TAUX), int(min(2.0, duree / 4) * TAUX)
+    st[:ent] *= np.linspace(0, 1, ent)[:, None]
+    st[-sor:] *= np.linspace(1, 0, sor)[:, None]
+    return np.tanh(st / (np.max(np.abs(st)) or 1)) * 0.85
+
+
 def ecrire_wav(chemin: str, duree: float, graine: str = "alluxe", style: str = "lofi") -> str:
-    st = composer_phonk(duree, graine) if style == "phonk" else composer(duree, graine)
+    st = {"phonk": composer_phonk, "noel": composer_noel}.get(style, composer)(duree, graine)
     with wave.open(chemin, "wb") as w:
         w.setnchannels(2)
         w.setsampwidth(2)
