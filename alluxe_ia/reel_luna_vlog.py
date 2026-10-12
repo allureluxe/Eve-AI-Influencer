@@ -43,8 +43,8 @@ SCENES = {
              "Vertical handheld video at night. The woman looks at the camera with an excited, "
              "mischievous smile, then turns back to her laptop and starts typing quickly. Fairy "
              "lights twinkle softly. Natural small movements. Same face throughout."),
-    "matin": (" Morning in the same apartment, soft daylight through the window, she is in "
-              "pyjamas with a big mug of coffee, standing next to the desk with the open laptop, "
+    "matin": (" Morning in the same apartment, soft daylight through the window, a small "
+              "decorated Christmas tree in the background, she holds a big mug of coffee, standing next to the desk with the open laptop, "
               "looking proud and amazed, tired eyes but a big smile. Vertical phone photo.",
               "Vertical handheld video, morning light. The woman takes a sip of coffee, looks at "
               "the laptop screen, then back at the camera with a proud, amazed smile and a small "
@@ -97,10 +97,21 @@ LEGENDE = (
 )
 
 
+#: 12 oct. : l'opérateur — « à la fin avec son café, habille-la un peu mieux, un pyjama
+#: plus chic ». Le plan du matin a SA tenue (elle s'est changée pour la nuit) ; ample et
+#: boutonné, voir la mise en garde de `luna_tenues` sur les tenues moulantes.
+TENUE_SCENE = {
+    "matin": "elegant loose deep burgundy silk-satin pyjama set: long-sleeved button-up shirt "
+             "with a notched collar and thin cream piping, buttoned up to the collar, matching "
+             "wide-leg trousers; chic, cosy, Christmas-morning look",
+}
+
+
 def images() -> None:
     base = r.avec_tenue(r.LUNA, ID_REEL)
     for nom, (scene, _) in SCENES.items():
-        r._image(nom, base + scene, [("image[]", r.REFERENCE_LUNA)])
+        texte = r.LUNA.replace("black sweatshirt", TENUE_SCENE[nom]) if nom in TENUE_SCENE else base
+        r._image(nom, texte + scene, [("image[]", r.REFERENCE_LUNA)])
 
 
 def video() -> None:
