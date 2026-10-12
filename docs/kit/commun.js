@@ -3,23 +3,26 @@
 (() => {
   // 13 oct. 2026, l'opérateur : « fais le site comme une vraie boutique en ligne » pour Noël.
   // La barre garde les liens secondaires ; les rayons du magasin sont des onglets juste dessous.
+  // Tout part de la racine du site : « / » en ligne, « /apercu/ » pour la copie de relecture.
+  const BASE = location.pathname.startsWith("/apercu/") ? "/apercu/" : "/";
   const PAGES = [["/realisations.html", "Réalisations"], ["/concours.html", "🎁 Concours"]];
   const ONGLETS = [["/", "🏠 Accueil"], ["/noel/", "🎁 Cadeaux de Noël"], ["/livres.html", "📚 Livres de Noël"],
     ["/offres.html", "💻 Création digitale"], ["/kits.html", "🧰 À faire soi-même"], ["/prompts.html", "✨ Prompts gratuits"],
     ["/kit.html", "🎀 Kit gratuit"]];
-  const chemin = location.pathname.replace(/index\.html$/, "").replace(/\.html$/, "");
+  const chemin = "/" + location.pathname.slice(BASE.length).replace(/index\.html$/, "").replace(/\.html$/, "");
   const est = (u) => chemin === u.replace(/\.html$/, "");
+  const lien = (u) => BASE + u.slice(1);
   const barre = document.createElement("div");
   barre.className = "barre";
-  barre.innerHTML = `<div class="conteneur"><a href="/" style="display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit">
+  barre.innerHTML = `<div class="conteneur"><a href="${BASE}" style="display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit">
     <img src="logo-alluxe.png" alt="Logo Alluxe"><b>alluxe.ia</b></a>
     <button class="menu" aria-label="Menu">☰</button>
-    <nav>${PAGES.map(([u, t]) => `<a href="${u}"${est(u) ? ' class="ici"' : ""}>${t}</a>`).join("")}
+    <nav>${PAGES.map(([u, t]) => `<a href="${lien(u)}"${est(u) ? ' class="ici"' : ""}>${t}</a>`).join("")}
     <a class="cadre" href="commander.html">Commandes : bientôt</a></nav></div>`;
   document.body.prepend(barre);
   const onglets = document.createElement("nav");
   onglets.className = "onglets"; onglets.setAttribute("aria-label", "Rayons de la boutique");
-  onglets.innerHTML = `<div class="conteneur">${ONGLETS.map(([u, t]) => `<a href="${u}"${est(u) ? ' class="ici"' : ""}>${t}</a>`).join("")}</div>`;
+  onglets.innerHTML = `<div class="conteneur">${ONGLETS.map(([u, t]) => `<a href="${lien(u)}"${est(u) ? ' class="ici"' : ""}>${t}</a>`).join("")}</div>`;
   barre.after(onglets);
   // 10 oct. 2026, l'opérateur : aucune commande tant que le projet n'est pas fini
   // à 100 %. Le message, sur toutes les pages, avant même un clic sur « Commander »

@@ -9,11 +9,11 @@
 <meta property="og:description" content="Votre enfant devient le héros d'un vrai livre de Noël illustré.">
 <meta property="og:image" content="https://alluxe.fr/noel/sweat-enfant.jpg">
 <meta name="theme-color" content="#14532d">
-<link rel="icon" href="/logo-alluxe.png">
+<link rel="icon" href="logo-alluxe.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css?v=20261013a">
-<link rel="stylesheet" href="/boutique.css?v=20261013a">
+<link rel="stylesheet" href="style.css?v=20261013a">
+<link rel="stylesheet" href="boutique.css?v=20261013a">
 </head>
 <body class="page-livres">
 
@@ -68,13 +68,13 @@
   </div>
 </section>
 
-<script src="/commun.js?v=20261013a"></script>
+<script src="commun.js?v=20261013a"></script>
 <script>
 const prixFr = (n) => n.toLocaleString("fr-FR", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }) + " €";
-fetch("/livres.json", { cache: "no-store" }).then((r) => r.json()).then((d) => {
+fetch("livres.json", { cache: "no-store" }).then((r) => r.json()).then((d) => {
   document.getElementById("livres").innerHTML = d.livres.map((l) => `
     <article class="livre-detail" id="${l.id}">
-      <div class="livre${l.format.includes("italienne") ? " italienne" : ""}"><div class="couv"><img src="/${l.image}" alt="Couverture d'exemple du livre ${l.nom}" loading="lazy"><span class="titre-couv">${l.titre_couverture}</span></div><span class="pages"></span></div>
+      <div class="livre${l.format.includes("italienne") ? " italienne" : ""}"><div class="couv"><img src="${l.image}" alt="Couverture d'exemple du livre ${l.nom}" loading="lazy"><span class="titre-couv">${l.titre_couverture}</span></div><span class="pages"></span></div>
       <div>
         ${l.vedette ? '<span class="livre-fiche"><span class="vedette">Coup de cœur</span></span>' : ""}
         <span class="livre-fiche"><span class="pour">${l.pour}</span></span>

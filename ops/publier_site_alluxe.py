@@ -21,7 +21,9 @@ RACINE = Path(__file__).resolve().parents[1]
 SOURCE = RACINE / "docs" / "kit"
 FICHIERS = [".htaccess", "index.html", "kit.html", "payer.html", "merci.html", "concours.html", "offres.html", "kits.html", "kits.json", "realisations.html", "prompts.html", "commander.html",
             "mentions-legales.html", "cgv.html", "maintenance.html", "style.css", "commun.js", "offres.json",
-            "kit-constructeur.pdf", "alluxe.jpg", "logo-alluxe.png"]
+            "kit-constructeur.pdf", "alluxe.jpg", "logo-alluxe.png",
+            # 13 oct. : l'accueil boutique de Noël et la page Livres
+            "livres.html", "livres.json", "boutique.css", "creation-noel.jpg"]
 
 
 def _dossier(ftp: ftplib.FTP, nom: str) -> None:
