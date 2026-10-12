@@ -1,47 +1,174 @@
 {
-  "_note": "Livres de Noël personnalisés (13 oct. 2026). Fabrication Gelato : livre photo couverture rigide, 28 pages, papier 170 g satiné. Devis Gelato du 13 oct. 2026, France : 15,06 € HT fabrication + 5,39 € HT port (DHL, 8 à 10 jours). Pas encore de chaîne de fabrication automatique (l'automate ne sait faire que les objets d'une seule image) : les commandes passent par la liste d'attente tant que commandes_ouvertes est false.",
-  "commandes_ouvertes": false,
-  "livraison": 6.9,
-  "livres": [
-    {
-      "id": "noel-magique",
-      "nom": "Le Noël magique de… (votre enfant)",
-      "accroche": "Votre enfant devient le héros d'un conte de Noël illustré.",
-      "texte": "Une histoire de 24 pages où votre enfant aide le Père Noël à sauver la nuit de Noël. Son prénom dans le texte, son visage dans chaque illustration, d'après une simple photo.",
-      "image": "noel/sweat-enfant.jpg",
-      "titre_couverture": "Le Noël magique de Léa",
-      "pour": "3 à 10 ans",
-      "format": "20 × 20 cm, couverture rigide, 28 pages",
-      "prix": 39.9,
-      "vedette": true,
-      "gelato_uid": "photobooks-hardcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_130-gsm-65-lb-cover-coated-silk_ver",
-      "pages": 28
-    },
-    {
-      "id": "famille-noel",
-      "nom": "Notre famille à Noël",
-      "accroche": "Toute la famille dans un livre-souvenir illustré.",
-      "texte": "Vos photos de l'année deviennent des illustrations de Noël, avec une petite histoire de famille écrite pour vous. Le livre qu'on ressort chaque 24 décembre.",
-      "image": "noel/apres-famille.jpg",
-      "titre_couverture": "Notre famille à Noël",
-      "pour": "Toute la famille",
-      "format": "21 × 28 cm à l'italienne, couverture rigide, 28 pages",
-      "prix": 44.9,
-      "gelato_uid": "photobooks-hardcover_pf_210x280-mm-8x11-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_130-gsm-65-lb-cover-coated-silk_hor",
-      "pages": 28
-    },
-    {
-      "id": "premier-noel",
-      "nom": "Mon premier Noël",
-      "accroche": "Le livre de naissance de son tout premier Noël.",
-      "texte": "Bébé en petit lutin au fil d'une douce histoire à lire le soir, avec des pages pour écrire la date, le poids et les premiers souvenirs. Un cadeau de naissance qu'on garde toute la vie.",
-      "image": "noel/body-bebe.jpg",
-      "titre_couverture": "Mon premier Noël",
-      "pour": "0 à 3 ans",
-      "format": "20 × 20 cm, couverture rigide, 28 pages",
-      "prix": 39.9,
-      "gelato_uid": "photobooks-hardcover_pf_200x200-mm-8x8-inch_pt_170-gsm-65lb-coated-silk_cl_4-4_ccl_4-4_bt_glued-left_ct_matt-lamination_prt_1-0_cpt_130-gsm-65-lb-cover-coated-silk_ver",
-      "pages": 28
-    }
+ "_note": "13 oct. 2026 : les livres de la famille de l'opérateur, vendus sur Amazon (le site renvoie vers Amazon, il ne vend pas). Prix brochés relevés sur Amazon.fr le 13 oct. 2026 ; ils peuvent changer, d'où « dès » et « prix sur Amazon ». Couvertures téléchargées depuis Amazon dans livres/.",
+ "serie": {
+  "nom": "Les détectives maladroits",
+  "auteur": "Basutiian Liam",
+  "lien": "https://www.amazon.fr/dp/B0GPP8TPCK",
+  "accroche": "Lucie et Bastien, deux détectives aussi attachants que catastrophiques.",
+  "texte": "Burgers qui disparaissent, gnomes kidnappés, momie au musée : à chaque tome, une enquête loufoque, des quiproquos et des fous rires. Une série drôle à lire seul ou à raconter le soir.",
+  "prix_min": 8.43,
+  "tomes": [
+   {
+    "n": 1,
+    "titre": "Quand la lingerie devient une affaire d'État",
+    "asin": "B0GHZHP92M",
+    "image": "livres/dm01.jpg",
+    "prix": 10.54
+   },
+   {
+    "n": 2,
+    "titre": "Opération Burger volé",
+    "asin": "B0GJPMM7D7",
+    "image": "livres/dm02.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 3,
+    "titre": "Panique à la mairie",
+    "asin": "B0GHZZRH7T",
+    "image": "livres/dm03.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 4,
+    "titre": "La guerre des perruques",
+    "asin": "B0FX2MJ31G",
+    "image": "livres/dm04.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 5,
+    "titre": "Mystère au musée",
+    "asin": "B0GJN7HDF8",
+    "image": "livres/dm05.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 6,
+    "titre": "L'énigme des diamants",
+    "asin": "B0GK1G9LV6",
+    "image": "livres/dm06.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 7,
+    "titre": "Le voleur aux gants blancs",
+    "asin": "B0GJTZXBXD",
+    "image": "livres/dm07.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 8,
+    "titre": "Serge, t'es où ? Pas là !",
+    "asin": "B0GR6FX2RH",
+    "image": "livres/dm08.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 9,
+    "titre": "Pas touche à Bastien",
+    "asin": "B0GR6HWY27",
+    "image": "livres/dm09.jpg",
+    "prix": 8.43
+   },
+   {
+    "n": 10,
+    "titre": "Mystère au 47 rue des Lilas",
+    "asin": "B0GR68T515",
+    "image": "livres/dm10.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 11,
+    "titre": "Rendez-nous nos gnomes",
+    "asin": "B0GR5K26R9",
+    "image": "livres/dm11.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 12,
+    "titre": "La grande évasion des balançoires",
+    "asin": "B0GR6HXRSY",
+    "image": "livres/dm12.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 13,
+    "titre": "Opération plumes volées",
+    "asin": "B0GR6H4G8C",
+    "image": "livres/dm13.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 14,
+    "titre": "Une fleur dans le cœur",
+    "asin": "B0GR6MXP7N",
+    "image": "livres/dm14.jpg",
+    "prix": 10.54
+   },
+   {
+    "n": 15,
+    "titre": "Le grand sommeil",
+    "asin": "B0H3XV924V",
+    "image": "livres/dm15.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 16,
+    "titre": "Livraison spéciale",
+    "asin": "B0H3XR67F3",
+    "image": "livres/dm16.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 17,
+    "titre": "La sauvage et la mamie",
+    "asin": "B0H3Y2HG4F",
+    "image": "livres/dm17.jpg",
+    "prix": 9.48
+   },
+   {
+    "n": 18,
+    "titre": "Enquête sous le soleil",
+    "asin": "B0H3XVJXR3",
+    "image": "livres/dm18.jpg",
+    "prix": null
+   },
+   {
+    "n": 19,
+    "titre": "La cendre et le moulin",
+    "asin": "B0H3XGN4RW",
+    "image": "livres/dm19.jpg",
+    "prix": null
+   }
   ]
+ },
+ "autres": {
+  "auteur": "Christine Pierre",
+  "titre": "Pour les grands : se faire du bien",
+  "texte": "Des recueils pour apaiser les pensées, avancer sans crainte et grandir. Un cadeau de Noël qui fait du bien.",
+  "livres": [
+   {
+    "titre": "Phrases positives qui ont changé ma vie",
+    "asin": "2957687119",
+    "image": "livres/cp-phrases.jpg",
+    "prix": 19.99,
+    "texte": "Pensées incessantes, peurs, doutes : un recueil de phrases positives pour retrouver la paix intérieure."
+   },
+   {
+    "titre": "Grandir vers mon éveil",
+    "asin": "B0GK2QFQFX",
+    "image": "livres/cp-grandir.jpg",
+    "prix": null,
+    "texte": "Un vécu partagé et tous les passages qui ont permis de grandir et de se libérer des mémoires du passé."
+   },
+   {
+    "titre": "Transformation de ma vie : Je suis",
+    "asin": "B0GK2WMGQP",
+    "image": "livres/cp-jesuis.jpg",
+    "prix": null,
+    "texte": "L'ouverture, l'évolution, la transformation : avancer sans crainte, guidé pas à pas."
+   }
+  ]
+ }
 }

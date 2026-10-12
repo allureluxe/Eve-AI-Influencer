@@ -38,7 +38,8 @@ def main() -> int:
     from gold_bot.env import charger_env
     from alluxe_ia.site import construire
     charger_env()
-    fichiers = FICHIERS + construire()
+    # 13 oct. : les couvertures des livres de la famille (livres.json), dans livres/
+    fichiers = FICHIERS + construire() + sorted(f"livres/{f.name}" for f in (SOURCE / "livres").glob("*.jpg"))
     if (SOURCE / "paiements.json").exists():          # n'existe qu'une fois Stripe/PayPal branchés
         fichiers.append("paiements.json")
     apercu = "--apercu" in sys.argv
@@ -49,6 +50,7 @@ def main() -> int:
         _dossier(ftp, "apercu")
         ftp.cwd("apercu")
     _dossier(ftp, "apercus")
+    _dossier(ftp, "livres")
     for nom in fichiers:
         with open(SOURCE / nom, "rb") as fh:
             ftp.storbinary(f"STOR {nom}", fh)

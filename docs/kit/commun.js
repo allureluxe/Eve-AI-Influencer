@@ -6,7 +6,7 @@
   // Tout part de la racine du site : « / » en ligne, « /apercu/ » pour la copie de relecture.
   const BASE = location.pathname.startsWith("/apercu/") ? "/apercu/" : "/";
   const PAGES = [["/realisations.html", "Réalisations"], ["/concours.html", "🎁 Concours"]];
-  const ONGLETS = [["/", "🏠 Accueil"], ["/noel/", "🎁 Cadeaux de Noël"], ["/livres.html", "📚 Livres de Noël"],
+  const ONGLETS = [["/", "🏠 Accueil"], ["/noel/", "🎁 Cadeaux de Noël"], ["/livres.html", "📚 Livres à offrir"],
     ["/offres.html", "💻 Création digitale"], ["/kits.html", "🧰 À faire soi-même"], ["/prompts.html", "✨ Prompts gratuits"],
     ["/kit.html", "🎀 Kit gratuit"]];
   const chemin = "/" + location.pathname.slice(BASE.length).replace(/index\.html$/, "").replace(/\.html$/, "");

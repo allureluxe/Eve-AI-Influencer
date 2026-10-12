@@ -129,3 +129,27 @@
 /* l'étiquette « Édition Noël » du décor (commun.js) ferait doublon avec la pastille */
 .vitrine .etiquette-noel { display: none; }
 .page-livres .livre-detail .livre-fiche { display: block; text-align: left; }
+
+/* 13 oct. (2) — les vrais livres de la famille (Amazon) */
+.entete-livres { display: grid; grid-template-columns: 1.15fr .85fr; gap: 30px; align-items: center; }
+.entete-livres .pile { width: 100%; border-radius: 22px; border: 3px solid var(--or); box-shadow: 0 20px 40px rgba(0,0,0,.35); }
+.couvertures { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; }
+.couvertures.grands { grid-template-columns: repeat(3, minmax(0, 260px)); }
+.couverture { display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: inherit; }
+.couverture img { width: 100%; aspect-ratio: 314 / 500; object-fit: cover; border-radius: 4px 10px 10px 4px;
+  box-shadow: 6px 10px 22px rgba(0,0,0,.35); transition: transform .2s; margin-bottom: 6px; background: #fff; }
+.couverture:hover img { transform: translateY(-4px) rotate(-1deg); }
+.couverture .tome { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--or); }
+.couverture b { font-size: 15px; line-height: 1.25; }
+.couverture small { font-size: 13px; color: var(--gris); }
+.couverture .prix { font-weight: 800; font-size: 16px; }
+.rayon-livres .couverture .prix { color: #fff; }
+#pour-les-grands .couverture .prix { color: var(--rouge); }
+.etagere { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+@media (max-width: 960px) { .couvertures { grid-template-columns: repeat(3, 1fr); } .etagere { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 760px) {
+  .entete-livres { grid-template-columns: 1fr; }
+  .couvertures, .couvertures.grands { grid-template-columns: repeat(2, 1fr); }
+  .etagere { grid-template-columns: repeat(2, 1fr); }
+  .etagere .couverture:nth-child(n+5) { display: none; }
+}
