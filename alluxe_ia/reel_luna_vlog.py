@@ -218,9 +218,11 @@ def montage() -> Path:
     entrees = ["-i", str(brut), "-i", str(musique), "-i", str(off)]
     # la musique s'efface sous la voix (compression déclenchée par la voix), puis on mélange
     filtres = [f"[2:a]asplit=2[vx][vs]",
-               f"[1:a]volume=0.5,atrim=0:{total:.3f}[m]",
-               "[m][vs]sidechaincompress=threshold=0.03:ratio=6:attack=30:release=400[md]",
-               f"[vx]volume=1.6[vv]",
+               # 12 oct. : l'opérateur trouve la musique trop forte sous la voix -> 0,5 -> 0,2,
+               # et elle s'efface davantage quand Luna parle (ratio 6 -> 12)
+               f"[1:a]volume=0.2,atrim=0:{total:.3f}[m]",
+               "[m][vs]sidechaincompress=threshold=0.02:ratio=12:attack=20:release=500[md]",
+               f"[vx]volume=2.0[vv]",
                f"[md][vv]amix=inputs=2:normalize=0,afade=t=out:st={total - 1:.2f}:d=1,"
                "loudnorm=I=-14:TP=-1.5[a]"]
     prec = "0:v"
