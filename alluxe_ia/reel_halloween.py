@@ -87,7 +87,8 @@ PROMPT_HISTOIRE = "Écris l'histoire d'horreur la plus flippante possible en deu
 #: Chaque Reel : la voix (une seule prise, pour un débit naturel) et sa consigne.
 REELS = {
     "11-halloween-photo": {
-        "voix": "Ça, c'est moi… en vampire ! Une photo, un prompt. Envoie-le à ton pote !",
+        "voix": "[excited] Attends… ça, c'est moi… en vampire ! [laughs] Une photo, un prompt, "
+                "c'est tout. [playful] Envoie-le à ta pote !",
         "consigne": CONSIGNE_VOIX,
         "legende": (
             "Ta photo version Halloween avec ChatGPT 🎃🧛‍♀️\n\n"
@@ -100,7 +101,8 @@ REELS = {
             "#astuceia #iafrance"),
     },
     "12-halloween-costume": {
-        "voix": "Pas d'costume ? Tu prends ton placard en photo, et ChatGPT t'en trouve trois !",
+        "voix": "[curious] Pas d'costume ? [excited] Tu prends ton placard en photo… et "
+                "ChatGPT t'en trouve trois !",
         "consigne": CONSIGNE_VOIX,
         "legende": (
             "Pas de costume pour Halloween ? Ton placard suffit 🎃\n\n"
@@ -112,8 +114,8 @@ REELS = {
             "#halloween #costumehalloween #chatgpt #ia #astuce #diy #halloween2026 #iafrance"),
     },
     "13-halloween-histoire": {
-        "voix": "Écrite par une IA… « Hier soir, mon IA m'a dit bonne nuit. Je ne lui avais "
-                "jamais dit que j'allais dormir. »",
+        "voix": "[whispers] Hier soir… mon I.A. m'a dit bonne nuit. Je ne lui avais "
+                "jamais dit… que j'allais dormir.",
         "consigne": (CONSIGNE_VOIX + " Ici, ton : « Écrite par une IA » dit vite, complice, "
                      "puis la suite chuchotée et inquiétante, sans traîner. N'ajoute AUCUN mot, "
                      "aucune didascalie, aucune introduction."),
@@ -135,7 +137,12 @@ REELS = {
 #: parle super vite » = Rina, ralentie par ffmpeg (atempo : même hauteur de voix).
 #: Essais : data/alluxe_ia/essais_voix_runway/.
 VOIX_RUNWAY = "Rina"
-VITESSE = 0.9
+#: puis « on dirait qu'elle lit un texte » : modèle eleven_v3, qui JOUE le texte
+#: grâce aux balises d'émotion ([excited], [laughs], [whispers]…) écrites dans la
+#: réplique — elles ne sont pas prononcées (vérifié par transcription). Débit
+#: naturel du v3 validé tel quel : plus de ralenti.
+MODELE_VOIX = "eleven_v3"
+VITESSE = 1.0
 
 
 def _dire(texte: str, consigne: str, cible: Path) -> None:
@@ -154,7 +161,7 @@ def _dire(texte: str, consigne: str, cible: Path) -> None:
             return json.load(rep)
 
     tache = appel("POST", "/v1/text_to_speech", {
-        "model": "eleven_multilingual_v2", "promptText": texte,
+        "model": MODELE_VOIX, "promptText": texte,
         "voice": {"type": "runway-preset", "presetId": VOIX_RUNWAY}})["id"]
     while True:
         r = appel("GET", f"/v1/tasks/{tache}")
@@ -162,7 +169,8 @@ def _dire(texte: str, consigne: str, cible: Path) -> None:
             brut = cible.with_suffix(".brut.mp3")
             urllib.request.urlretrieve(r["output"][0], str(brut))
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(brut), "-af",
-                            f"atempo={VITESSE}", "-b:a", "192k", str(cible)], check=True)
+                            f"atempo={VITESSE}" if VITESSE != 1.0 else "anull",
+                            "-b:a", "192k", str(cible)], check=True)
             brut.unlink()
             _journal(f"voix {VOIX_RUNWAY} ×{VITESSE} : {texte[:60]}")
             return
