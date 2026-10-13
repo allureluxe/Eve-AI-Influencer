@@ -49,12 +49,12 @@ CHAMPS = {
                   "video_average_time_watched", "video_full_watched_rate",
                   "video_duration", "video_likes", "video_shares", "video_new_followers"],
     },
-    # Noms de champs à vérifier une fois la chaîne reliée dans Windsor : la
-    # plateforme est ignorée proprement (« pas encore reliée ») en cas d'erreur.
+    # Champs « Data API » (totaux à vie par vidéo) : les champs « Analytics »
+    # (durée regardée, abonnés gagnés par vidéo) arrivent avec 2-3 jours de
+    # retard chez YouTube et rendaient des lignes vides le 13 oct.
     "youtube": {
-        "compte": ["subscriber_count"],
-        "posts": ["date", "video_id", "video_title", "views", "average_view_duration",
-                  "subscribers_gained", "likes", "shares"],
+        "compte": ["channel_title", "subscriber_count", "video_count"],
+        "posts": ["video_title", "published_at", "video_view_count", "video_like_count"],
     },
 }
 NOMS = {"instagram": "Instagram", "tiktok_organic": "TikTok", "youtube": "YouTube"}
@@ -167,10 +167,11 @@ def rapport(inst: dict) -> str:
     else:
         abos = _n(yt["compte"].get("subscriber_count"))
         lignes += ["", f"▶️ YouTube : {abos} abonnés"]
-        for p in sorted(yt["posts"], key=lambda p: p.get("date", ""))[-5:]:
-            lignes.append(f"• {p['date'][5:]} {_titre(p.get('video_title'))}\n"
-                          f"   {_n(p.get('views'))} vues · {_n(p.get('average_view_duration'))} s regardées"
-                          f" · +{_n(p.get('subscribers_gained'))} abonnés")
+        hier = _n(_veille("youtube").get("compte", {}).get("subscriber_count")) or abos
+        lignes[-1] += f" ({abos - hier:+d} depuis hier)"
+        for p in sorted(yt["posts"], key=lambda p: p.get("published_at") or "")[-5:]:
+            lignes.append(f"• {(p.get('published_at') or '')[5:10]} {_titre(p.get('video_title'))}\n"
+                          f"   {_n(p.get('video_view_count'))} vues · {_n(p.get('video_like_count'))} j'aime")
     return "\n".join(lignes)
 
 
