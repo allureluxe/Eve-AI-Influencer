@@ -1,5 +1,5 @@
 {
- "_note": "SEULE source des prix du site ET de l'assistant (qui relit ce fichier). 8 oct. : l'operateur veut « etre le moins cher du marche » (boutiques Shopify dropshipping vendues 20-30 EUR ailleurs) -> tout sous 100 EUR. A ces prix, chaque offre = modele adapte par l'IA, pas du sur-mesure. Changer ici, puis ops/publier_site_alluxe.py. 13 oct. : l'opérateur — « pour les packs, prix unique ; et une option abonnement style suivi et coaching si besoin pour la suite de leur projet ». La formule « au mois, 0 € au départ » n'est plus proposée ; les champs mensuel restent pour les offres abonnement_obligatoire (agent, autopost : le service tourne et coûte chaque mois). 13 oct. (2) : prix recalculés après l'étude de rentabilité (docs/RENTABILITE.md) — l'opérateur : « faire un bon bénéfice, rester rentable et parmi les moins chers ». Toujours très loin des prix du marché (site vitrine freelance : 2 000 à 8 000 €).",
+ "_note": "SEULE source des prix du site ET de l'assistant (qui relit ce fichier). 8 oct. : l'operateur veut « etre le moins cher du marche » (boutiques Shopify dropshipping vendues 20-30 EUR ailleurs) -> tout sous 100 EUR. A ces prix, chaque offre = modele adapte par l'IA, pas du sur-mesure. Changer ici, puis ops/publier_site_alluxe.py. 13 oct. : l'opérateur — « pour les packs, prix unique ; et une option abonnement style suivi et coaching si besoin pour la suite de leur projet ». La formule « au mois, 0 € au départ » n'est plus proposée ; les champs mensuel restent pour les offres abonnement_obligatoire (agent, autopost : le service tourne et coûte chaque mois). 13 oct. (2) : prix recalculés après l'étude de rentabilité (docs/RENTABILITE.md) — l'opérateur : « faire un bon bénéfice, rester rentable et parmi les moins chers ». Toujours très loin des prix du marché (site vitrine freelance : 2 000 à 8 000 €). 13 oct. (3) : l'opérateur — « pas d'appel visio, j'ai pas le temps, je travaille aussi » : suivi uniquement par écrit (e-mail / WhatsApp).",
  "paiement_en_ligne": false,
  "offres": [
   {
@@ -154,12 +154,12 @@
     "Agent IA secrétaire (3 mois offerts)",
     "1 robot d'automatisation au choix",
     "Compte faceless clé en main offert",
-    "Appel de lancement en visio"
+    "Plan de lancement écrit, étape par étape"
    ],
    "categorie": "business",
    "abonnement_plus": [
     "Tout ce qu'apportent les abonnements de chaque offre",
-    "Suivi chaque mois en visio"
+    "Un point écrit chaque mois"
    ]
   },
   {
@@ -371,7 +371,7 @@
   "engagement": "sans engagement, résiliable chaque mois",
   "accroche": "Pour aller plus loin après la livraison : je reste à tes côtés pour la suite de ton projet.",
   "inclus": [
-   "Un appel visio de 45 min par mois pour faire le point et décider des prochaines étapes",
+   "Un point écrit chaque mois : ce qui marche, ce qui bloque et les prochaines étapes",
    "Tes questions par e-mail ou WhatsApp, réponse sous 48 h",
    "Les petites modifications de ton site, boutique ou compte",
    "Des conseils pour vendre plus : contenus, publicité, réseaux",
