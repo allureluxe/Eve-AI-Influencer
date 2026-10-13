@@ -10,6 +10,15 @@ curseur.oninput = () => {
 };
 
 fetch("catalogue.json", { cache: "no-store" }).then((r) => r.json()).then((cat) => {
+  // Pour Google : les produits avec leur prix (précommande tant que les commandes sont fermées)
+  const ld = document.createElement("script");
+  ld.type = "application/ld+json";
+  ld.textContent = JSON.stringify({ "@context": "https://schema.org", "@type": "ItemList", name: "Cadeaux de Noël personnalisés",
+    itemListElement: cat.produits.filter((p) => p.actif && p.prix).map((p, i) => ({ "@type": "ListItem", position: i + 1, item: {
+      "@type": "Product", name: p.nom, description: p.texte, image: new URL(p.image, location.href).href, brand: { "@type": "Brand", name: "alluxe" },
+      offers: { "@type": "Offer", price: p.prix.toFixed(2), priceCurrency: "EUR", url: location.origin + location.pathname,
+        availability: cat.commandes_ouvertes ? "https://schema.org/InStock" : "https://schema.org/PreOrder" } } })) });
+  document.head.appendChild(ld);
   // Compte à rebours jusqu'à la dernière commande livrable pour Noël
   const fin = new Date(cat.date_limite_noel), rebours = document.getElementById("rebours");
   const tic = () => {

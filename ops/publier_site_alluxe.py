@@ -23,7 +23,9 @@ FICHIERS = [".htaccess", "index.html", "kit.html", "payer.html", "merci.html", "
             "mentions-legales.html", "cgv.html", "maintenance.html", "style.css", "commun.js", "offres.json",
             "kit-constructeur.pdf", "alluxe.jpg", "logo-alluxe.png",
             # 13 oct. : l'accueil boutique de Noël et la page Livres
-            "livres.html", "livres.json", "boutique.css", "creation-noel.jpg"]
+            "livres.html", "livres.json", "boutique.css", "creation-noel.jpg",
+            # 13 oct. : référencement Google
+            "robots.txt", "sitemap.xml"]
 
 
 def _dossier(ftp: ftplib.FTP, nom: str) -> None:

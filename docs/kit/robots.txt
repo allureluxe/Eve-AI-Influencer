@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /apercu/
+Disallow: /commander.html
+Disallow: /payer.html
+Disallow: /merci.html
+
+Sitemap: https://alluxe.fr/sitemap.xml

@@ -8,6 +8,12 @@
 <meta property="og:title" content="Les détectives maladroits — 19 enquêtes drôles à offrir à Noël">
 <meta property="og:description" content="La série pour enfants de Basutiian Liam, disponible sur Amazon.">
 <meta property="og:image" content="https://alluxe.fr/livres/vitrine.jpg">
+<link rel="canonical" href="https://alluxe.fr/livres.html">
+<meta property="og:url" content="https://alluxe.fr/livres.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="alluxe">
+<meta property="og:locale" content="fr_FR">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#14532d">
 <link rel="icon" href="logo-alluxe.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -139,6 +145,17 @@ fetch("livres.json", { cache: "no-store" }).then((r) => r.json()).then((d) => {
   document.querySelectorAll("#grille-autres .couverture").forEach((el, i) => {
     el.querySelector("b").textContent = a.livres[i].titre; el.querySelector("small").textContent = a.livres[i].texte; });
   document.querySelectorAll(".couverture[data-asin]").forEach((el) => el.addEventListener("click", () => ouvrirFiche(el.dataset.asin)));
+  // Pour Google : chaque livre (titre, auteur, couverture, résumé, lien Amazon)
+  const ld = document.createElement("script");
+  ld.type = "application/ld+json";
+  ld.textContent = JSON.stringify({ "@context": "https://schema.org", "@type": "ItemList", name: "Livres à offrir",
+    itemListElement: Object.values(livres).map((f, i) => ({ "@type": "ListItem", position: i + 1, item: {
+      "@type": "Book", name: f.livre.titre, author: { "@type": "Person", name: f.auteur }, inLanguage: "fr",
+      image: new URL(f.livre.image, location.href).href, url: amazon(f.livre.asin),
+      ...(f.livre.pages ? { numberOfPages: f.livre.pages } : {}),
+      ...(f.livre.description ? { description: f.livre.description.join(" ") } : {}),
+      ...(f.tome ? { isPartOf: { "@type": "BookSeries", name: s.nom } } : {}) } })) });
+  document.head.appendChild(ld);
   if (location.hash.length > 1) ouvrirFiche(location.hash.slice(1));   // lien direct vers un livre : alluxe.fr/livres.html#ASIN
 });
 </script>
