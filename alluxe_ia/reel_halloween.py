@@ -38,8 +38,9 @@ sys.path.insert(0, str(RACINE))
 os.chdir(RACINE)
 
 from alluxe_ia.reel_luna_ecrans import REFERENCE_LUNA, _calque, _journal, _multipart  # noqa: E402
-from alluxe_ia.reel_luna_parle import (LUNA, CONSIGNE_VOIX, _duree, _plan_image,  # noqa: E402
-                                       _plan_video, _texte_prompt)
+from alluxe_ia.reel_luna_parle import (LUNA, _duree, _plan_image, _plan_video,  # noqa: E402
+                                       _texte_prompt)
+from alluxe_ia.reel_luna_vlog import CONSIGNE_VOIX, VOIX_MOTEUR  # noqa: E402
 
 DOSSIER = RACINE / "data/alluxe_ia/reel_halloween"
 CLIP = 10.0
@@ -99,7 +100,7 @@ REELS = {
             "#astuceia #iafrance"),
     },
     "12-halloween-costume": {
-        "voix": "Pas de costume ? Une photo de ton placard, et ChatGPT t'en trouve trois !",
+        "voix": "Pas d'costume ? Tu prends ton placard en photo, et ChatGPT t'en trouve trois !",
         "consigne": CONSIGNE_VOIX,
         "legende": (
             "Pas de costume pour Halloween ? Ton placard suffit 🎃\n\n"
@@ -113,9 +114,9 @@ REELS = {
     "13-halloween-histoire": {
         "voix": "Écrite par une IA… « Hier soir, mon IA m'a dit bonne nuit. Je ne lui avais "
                 "jamais dit que j'allais dormir. »",
-        "consigne": ("Jeune femme française de 22 ans. Première phrase complice et rapide, "
-                     "puis l'histoire entre guillemets chuchotée et inquiétante, sans traîner, "
-                     "comme au coin du feu un soir d'Halloween."),
+        "consigne": (CONSIGNE_VOIX + " Ici, ton : « Écrite par une IA » dit vite, complice, "
+                     "puis la suite chuchotée et inquiétante, sans traîner. N'ajoute AUCUN mot, "
+                     "aucune didascalie, aucune introduction."),
         "legende": (
             "Histoire d'horreur en 2 phrases, écrite par une IA 👻\n\n"
             "Ton tour : écris la tienne en commentaire 👇 La plus flippante sera lue par "
@@ -128,20 +129,34 @@ REELS = {
 
 
 # ------------------------------------------------------------------ voix
+def _dire(texte: str, consigne: str, cible: Path) -> None:
+    """La voix de Luna validée le 12 oct. (reel_luna_vlog : gpt-audio-1.5 « marin »).
+    NE PAS revenir à gpt-4o-mini-tts « coral » : l'opérateur l'a refusée deux fois,
+    le 12 puis le 13 oct. (« trop ordinateur, ça ne va pas avec la personne »)."""
+    modele, voix_ = VOIX_MOTEUR
+    corps = {"model": modele, "modalities": ["text", "audio"],
+             "audio": {"voice": voix_, "format": "mp3"},
+             "messages": [{"role": "system", "content": consigne + " Tu es comédienne voix off : "
+                           "tu lis EXACTEMENT le texte donné, mot pour mot, sans rien ajouter "
+                           "ni répondre."},
+                          {"role": "user", "content": "Lis ce texte :\n" + texte}]}
+    req = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions", data=json.dumps(corps).encode(),
+        headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
+                 "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=120) as rep:
+        audio = json.load(rep)["choices"][0]["message"]["audio"]
+    cible.write_bytes(base64.b64decode(audio["data"]))
+    _journal(f"voix lue : {audio.get('transcript', '')}")
+
+
 def voix() -> None:
     sortie = DOSSIER / "voix"
     sortie.mkdir(parents=True, exist_ok=True)
     for id_reel, r in REELS.items():
         cible = sortie / f"{id_reel}.mp3"
         if not cible.exists():
-            corps = {"model": "gpt-4o-mini-tts", "voice": "coral", "input": r["voix"],
-                     "response_format": "mp3", "instructions": r["consigne"]}
-            req = urllib.request.Request(
-                "https://api.openai.com/v1/audio/speech", data=json.dumps(corps).encode(),
-                headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
-                         "Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=120) as rep:
-                cible.write_bytes(rep.read())
+            _dire(r["voix"], r["consigne"], cible)
         d = _duree(cible)
         _journal(f"voix {id_reel} : {d:.2f} s")
         if d > CLIP - FIN_CTA - 0.5:
@@ -293,7 +308,8 @@ def _monter(id_reel: str) -> Path:
     tmp.mkdir(parents=True, exist_ok=True)
     clip = DOSSIER / "videos" / f"{id_reel}.mp4"
     voix_f = DOSSIER / "voix" / f"{id_reel}.mp3"
-    total = round(min(CLIP - 0.1, 0.1 + _duree(voix_f) + FIN_CTA + 0.2), 2)
+    # au moins 7 s : le plan « résultat » du 12 doit rester lisible même si la voix est courte
+    total = round(min(CLIP - 0.1, max(7.0, 0.1 + _duree(voix_f) + FIN_CTA + 0.2)), 2)
     plans, calques = _plans(id_reel, total)
 
     morceaux = []
