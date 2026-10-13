@@ -1,5 +1,5 @@
 {
-  "_note": "Coûts réels : devis Gelato du 11 oct. 2026, livraison France DPD (fabriqué en France), HT. cout_ttc = HT x 1,20 (franchise de TVA : TVA non récupérable). Plaid et boule : pas encore chiffrés. Fichiers : affiches 30x40 à 150 dpi ; toile = 346x446 mm (bords enroulés ~2 cm + 3 mm) et mug = 216x93 mm à 300 dpi (2 mm de fond perdu haut/bas) : ESTIMÉS, à confirmer par la commande d'essai. 12 oct. : + cartes, verre acrylique (Gelato, devis réels) ; calendrier, coussin, plaid, décoration bois en attente (Printful / 12 portraits). 12 oct. 1h : boutique complète (textile, papier cadeau, déco) — tous « Bientôt » tant que les comptes Printful / Printify / Prodigi / BigBuy ne sont pas ouverts ; prix de vente provisoires, déco sans prix. 12 oct. 1h : prix les plus bas du marché, livraison à part (accord opérateur).",
+  "_note": "Coûts réels : devis Gelato du 11 oct. 2026, livraison France DPD (fabriqué en France), HT. cout_ttc = HT x 1,20 (franchise de TVA : TVA non récupérable). Plaid et boule : pas encore chiffrés. Fichiers : affiches 30x40 à 150 dpi ; toile = 346x446 mm (bords enroulés ~2 cm + 3 mm) et mug = 216x93 mm à 300 dpi (2 mm de fond perdu haut/bas) : ESTIMÉS, à confirmer par la commande d'essai. 12 oct. : + cartes, verre acrylique (Gelato, devis réels) ; calendrier, coussin, plaid, décoration bois en attente (Printful / 12 portraits). 12 oct. 1h : boutique complète (textile, papier cadeau, déco) — tous « Bientôt » tant que les comptes Printful / Printify / Prodigi / BigBuy ne sont pas ouverts ; prix de vente provisoires, déco sans prix. 12 oct. 1h : prix les plus bas du marché, livraison à part (accord opérateur). 13 oct. (2) : affiche, affiche encadrée, toile, cartes et verre acrylique remontés (ils étaient vendus à perte, voir docs/RENTABILITE.md).",
   "commandes_ouvertes": false,
   "date_limite_noel": "2026-12-14T23:59:00+01:00",
   "styles": [
@@ -48,7 +48,7 @@
     {
       "id": "affiche",
       "nom": "Affiche 30 × 40 cm",
-      "prix": 19.9,
+      "prix": 24.9,
       "image": "famille-poster.jpg",
       "texte": "Papier mat épais, couleurs profondes. Le cadeau le plus offert.",
       "actif": true,
@@ -69,7 +69,7 @@
     {
       "id": "affiche-cadre",
       "nom": "Affiche encadrée 30 × 40",
-      "prix": 39.9,
+      "prix": 49.9,
       "image": "hero.jpg",
       "texte": "Cadre en bois prêt à accrocher. Rien à faire en le recevant.",
       "actif": true,
@@ -91,7 +91,7 @@
     {
       "id": "toile",
       "nom": "Toile sur châssis 30 × 40",
-      "prix": 44.9,
+      "prix": 54.9,
       "image": "toile.jpg",
       "texte": "Effet tableau de galerie, bords imprimés.",
       "actif": true,
@@ -160,7 +160,7 @@
     {
       "id": "cartes",
       "nom": "10 cartes de vœux + enveloppes",
-      "prix": 16.9,
+      "prix": 21.9,
       "image": "cartes.jpg",
       "texte": "Format A6 pliées, papier épais, votre portrait en couverture. Prêtes à envoyer.",
       "actif": true,
@@ -182,7 +182,7 @@
     {
       "id": "acrylique",
       "nom": "Tableau verre acrylique 20 × 30",
-      "prix": 44.9,
+      "prix": 54.9,
       "image": "acrylique.jpg",
       "texte": "Effet verre brillant, couleurs éclatantes, se pose ou s'accroche.",
       "actif": true,

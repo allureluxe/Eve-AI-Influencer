@@ -24,8 +24,8 @@
     <form class="formulaire" id="commande" novalidate>
       <div class="deux">
         <label>Offre<select name="offre" id="offre" required></select></label>
-        <label>Formule<select name="formule" id="formule">
-          <option value="unique">Paiement unique</option><option value="mensuel">Au mois, 0 € au départ</option></select></label>
+        <label>Suivi &amp; coaching (facultatif)<select name="suivi" id="suivi">
+          <option value="non">Non merci, le prix unique suffit</option><option value="oui">Oui, ajouter le suivi au mois</option></select></label>
       </div>
       <div class="recap" id="recap">…</div>
       <div class="deux">
@@ -48,27 +48,24 @@
 
 <script src="commun.js?v=20261013b"></script>
 <script>
-chargerOffres().then(({ offres, engagement_mois, paiement_en_ligne }) => {
+chargerOffres().then(({ offres, paiement_en_ligne, suivi }) => {
   const q = new URLSearchParams(location.search);
-  const choixOffre = document.getElementById("offre"), choixFormule = document.getElementById("formule");
+  const choixOffre = document.getElementById("offre"), choixSuivi = document.getElementById("suivi");
   offres.forEach((o) => choixOffre.add(new Option(o.nom, o.id)));
   if (q.get("offre")) choixOffre.value = q.get("offre");
-  if (q.get("formule")) choixFormule.value = q.get("formule");
+  if (q.get("suivi") === "oui") choixSuivi.value = "oui";
+  if (suivi) choixSuivi.options[1].textContent = `Oui, ajouter le suivi (${euros(suivi.prix_mensuel)}/mois, sans engagement)`;
   document.getElementById("avis-paiement").textContent = paiement_en_ligne
     ? "Après validation des détails, tu reçois un lien pour régler l'acompte en ligne."
     : "Aucun paiement maintenant : je te recontacte pour valider ton projet, puis je t'envoie le récapitulatif et le moyen de paiement.";
   function recap() {
     const o = offres.find((x) => x.id === choixOffre.value);
-    choixFormule.disabled = !!(o.abonnement_obligatoire || o.unique_seulement);
-    if (o.abonnement_obligatoire) choixFormule.value = "mensuel";
-    if (o.unique_seulement) choixFormule.value = "unique";
-    const mensuel = o.abonnement_obligatoire || choixFormule.value === "mensuel";
-    const prix = o.abonnement_obligatoire ? `${euros(o.unique)} puis ${euros(o.mensuel)}/mois`
-      : mensuel ? `${o.a_partir ? "dès " : ""}${euros(o.mensuel)}/mois, 0 € au départ (engagement ${engagement_mois} mois)`
+    const prix = o.abonnement_obligatoire ? `${euros(o.unique)} puis ${euros(o.mensuel)}/mois de fonctionnement`
       : `${o.a_partir ? "dès " : ""}${euros(o.unique)} en une fois`;
-    document.getElementById("recap").textContent = `${o.nom} : ${prix} · délai ${o.delai}`;
+    const plus = choixSuivi.value === "oui" && suivi ? ` + suivi & coaching ${euros(suivi.prix_mensuel)}/mois` : "";
+    document.getElementById("recap").textContent = `${o.nom} : ${prix}${plus} · délai ${o.delai}`;
   }
-  choixOffre.onchange = recap; choixFormule.onchange = recap; recap();
+  choixOffre.onchange = recap; choixSuivi.onchange = recap; recap();
 
   const form = document.getElementById("commande"), retour = document.getElementById("retour"), bouton = document.getElementById("envoyer");
   form.onsubmit = async (e) => {
@@ -76,7 +73,10 @@ chargerOffres().then(({ offres, engagement_mois, paiement_en_ligne }) => {
     const f = new FormData(form);
     const corps = Object.fromEntries(f.entries());
     corps.consentement = form.consentement.checked;
-    corps.formule = choixFormule.value;
+    const o = offres.find((x) => x.id === choixOffre.value);
+    corps.formule = o.abonnement_obligatoire ? "mensuel" : "unique";
+    if (choixSuivi.value === "oui") corps.message = `[option suivi & coaching] ${corps.message || ""}`;
+    delete corps.suivi;
     if (!corps.nom || !corps.email) { retour.textContent = "Indique ton nom et ton e-mail."; return; }
     if (!corps.consentement) { retour.textContent = "Coche la case pour accepter d'être recontacté."; return; }
     bouton.disabled = true; retour.textContent = "Envoi…";

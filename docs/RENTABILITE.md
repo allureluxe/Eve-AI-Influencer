@@ -1,6 +1,47 @@
 # Rentabilité des prix alluxe.fr (13 oct. 2026)
 
-Calcul par vente, sur les prix actuels de `docs/kit/offres.json` et `docs/kit/noel/catalogue.json`.
+Première partie : les **nouveaux prix** (13 oct., après l'étude). Seconde partie : l'étude des anciens prix.
+
+## Nouveaux prix (13 oct. 2026)
+
+Objectif de l'opérateur : « faire un bon bénéfice, rester rentable et parmi les moins chers ». Livraison facturée inchangée.
+
+| Objet | Ancien prix | Nouveau prix | Bénéfice net / vente |
+|---|---|---|---|
+| Affiche 30×40 | 19,90 | **24,90** | 4,47 (avant : 0,22) |
+| Affiche encadrée | 39,90 | **49,90** | 7,83 (avant : −0,67) |
+| Toile 30×40 | 44,90 | **54,90** | 5,41 (avant : −3,09) |
+| 10 cartes de vœux | 16,90 | **21,90** | 4,01 (avant : −0,24) |
+| Verre acrylique | 44,90 | **54,90** | 6,34 (avant : −2,16) |
+| Mug | 14,90 | 14,90 | 4,44 |
+| Calendrier | 34,90 | 34,90 | 11,15 |
+
+| Service | Ancien prix | Nouveau prix | Bénéfice net | Net par heure (est.) |
+|---|---|---|---|---|
+| Site vitrine | 29 | **49** | 33,29 | 11,10 €/h |
+| Boutique Shopify | 25 | **39** | 26,24 | 6,56 €/h |
+| E-commerce de A à Z | 49 | **79** | 53,45 | 6,68 €/h |
+| Agent IA secrétaire | 29 + 9/mois | **49 + 12/mois** | 33,29 + 5,21/mois | 11,10 €/h |
+| Robot d'automatisation | 29 | **39** | 26,24 | 8,75 €/h |
+| Influenceuse IA | 49 | **79** | 40,45 | 6,74 €/h |
+| Pack business IA | 99 | **149** | 89,79 | 5,99 €/h |
+| Boutique de Noël numérique | 15 | **19** | 12,14 | 4,05 €/h |
+| Campagne de Noël | 19 | **29** | 17,20 | 5,73 €/h |
+| Compte faceless | 19 | **29** | 16,20 | 5,40 €/h |
+| Agent de publication auto | 19 + 9/mois | **29** + 9/mois | 19,70 + 5,09/mois | 13,13 €/h |
+| Kit créateur UGC | 9 | 9 | 5,59 | 5,59 €/h |
+| Clip vidéo IA | 15 | **29** | 15,20 | 7,60 €/h |
+| Marque de vêtements | 39 | **59** | 39,34 | 7,87 €/h |
+| Création d'application | 99 | **149** | 102,79 | 10,28 €/h |
+| Suivi & coaching | 29/mois | 29/mois | 20,20/mois | — |
+
+Repère marché : un site vitrine chez un freelance coûte 2 000 à 8 000 € (médiane 3 500 €).
+
+---
+
+## Étude des anciens prix
+
+Calcul par vente, sur les prix de `docs/kit/offres.json` et `docs/kit/noel/catalogue.json`.
 
 ## Hypothèses
 

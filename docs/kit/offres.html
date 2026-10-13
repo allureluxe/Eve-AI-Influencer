@@ -16,21 +16,13 @@
 <header class="page-titre"><div class="conteneur">
   <span class="pastille">PRIX AFFICHÉS · SANS DEVIS CACHÉ</span>
   <h1>Des prix de 2026, <mark>pas de 2015.</mark></h1>
-  <p class="accroche">Paie une fois et c'est à toi, ou démarre sans frais avec l'abonnement mensuel (hébergement, mises à jour et suivi inclus).</p>
+  <p class="accroche">Un prix unique, affiché, et le résultat est à toi. Besoin d'être accompagné ensuite ? Ajoute l'option Suivi &amp; coaching, sans engagement.</p>
 </div></header>
 
 <section style="padding-top:24px">
   <div class="conteneur">
-    <div class="formule" role="tablist">
-      <button class="actif" data-f="unique" role="tab">Paiement unique</button>
-      <button data-f="mensuel" role="tab">Au mois, 0 € au départ</button>
-    </div>
-    <div class="deux-formules apparait" id="explication">
-      <div><b>💳 Paiement unique</b><p data-explication="unique"></p></div>
-      <div><b>🔁 Au mois</b><p data-explication="mensuel"></p></div>
-    </div>
     <div id="offres"></div>
-    <p class="petit" id="note-engagement" style="margin-top:16px"></p>
+    <div class="option-suivi apparait" id="suivi"></div>
   </div>
 </section>
 
@@ -49,7 +41,7 @@
   <div class="conteneur">
     <h2 class="apparait">Questions <mark>sur les prix.</mark></h2>
     <details class="apparait"><summary>Pourquoi 10 fois moins cher qu'une agence ?</summary><p>L'IA écrit le code, les textes et prépare les visuels en quelques heures. Je facture ce temps-là, pas celui d'avant l'IA. La qualité est vérifiée à la main à chaque étape.</p></details>
-    <details class="apparait"><summary>Que comprend l'abonnement ?</summary><p>La création sans frais de départ, l'hébergement, le nom de domaine, les mises à jour, les petites modifications et le suivi. Engagement de 12 mois, puis sans engagement.</p></details>
+    <details class="apparait"><summary>Que comprend l'option Suivi &amp; coaching ?</summary><p>Un appel par mois pour faire le point, tes questions par e-mail ou WhatsApp, les petites modifications et des conseils pour vendre plus. Elle est facultative, sans engagement, et tu peux l'arrêter quand tu veux.</p></details>
     <details class="apparait"><summary>Y a-t-il des frais en plus ?</summary><p>Seulement ceux des plateformes que tu choisis, payés directement à elles : l'abonnement Shopify pour une boutique Shopify, et les commissions de paiement de ta banque ou de Stripe sur tes ventes.</p></details>
     <details class="apparait"><summary>Mon projet ne rentre dans aucune case.</summary><p>Commande l'offre la plus proche et décris ton besoin dans le formulaire : je te réponds avec un prix précis avant tout paiement.</p></details>
   </div>
@@ -57,67 +49,54 @@
 
 <script src="commun.js?v=20261013b"></script>
 <script>
-chargerOffres().then(({ offres, engagement_mois, categories, explication }) => {
-  if (explication) document.querySelectorAll("[data-explication]").forEach((el) => el.textContent = explication[el.dataset.explication]);
+chargerOffres().then(({ offres, categories, suivi }) => {
+  // 13 oct. : prix unique pour tous les packs ; le suivi est une option à part.
   const zone = document.getElementById("offres");
-  let formule = "unique";
   function carte(o) {
     const c = document.createElement("article");
     const ruban = o.ruban || (o.populaire ? "LE PLUS DEMANDÉ" : o.meilleur ? "MEILLEUR RAPPORT" : "");
     c.className = "offre" + (ruban ? " vedette" : ""); c.id = o.id;
     c.style.setProperty("--c", `var(--${o.couleur})`);
-    let montant, detail, f = formule;
+    let montant, detail;
     if (o.abonnement_obligatoire) {
       montant = `${euros(o.unique)}<small> + ${euros(o.mensuel)}/mois</small>`;
-      detail = "Installation, puis abonnement (le service tourne en continu)."; f = "mensuel";
-    } else if (formule === "unique" || o.unique_seulement) {
-      montant = `${o.a_partir ? "<small>dès </small>" : ""}${euros(o.unique)}`;
-      detail = o.unique_seulement ? "Paiement unique seulement · c'est à toi." : "Paiement unique · c'est à toi."; f = "unique";
+      detail = "Installation, puis le fonctionnement au mois (le service tourne en continu).";
     } else {
-      montant = `${o.a_partir ? "<small>dès </small>" : ""}${euros(o.mensuel)}<small>/mois</small>`;
-      detail = `0 € au départ · engagement ${engagement_mois} mois · hébergement et suivi inclus.`;
+      montant = `${o.a_partir ? "<small>dès </small>" : ""}${euros(o.unique)}`;
+      detail = "Prix unique · c'est à toi.";
     }
     c.innerHTML = (ruban ? `<span class="ruban"></span>` : "") +
       `<div class="entete"><h3></h3><p></p></div><div class="montant">${montant}</div>
        <div class="detail">${detail} Délai : ${o.delai}.</div><ul></ul>` +
       (o.note ? `<p class="detail"></p>` : "") +
-      (o.abonnement_plus ? `<div class="plus-abonnement"><b></b><ul></ul></div>` : "") +
-      `<a class="bouton" href="commander.html?offre=${o.id}&formule=${f}">Commander <span class="fleche">→</span></a>`;
+      (suivi && !o.abonnement_obligatoire ? `<p class="plus-suivi">➕ Option <a href="#suivi">Suivi &amp; coaching</a> : ${euros(suivi.prix_mensuel)}/mois, sans engagement</p>` : "") +
+      `<a class="bouton" href="commander.html?offre=${o.id}">Commander <span class="fleche">→</span></a>`;
     if (ruban) c.querySelector(".ruban").textContent = ruban;
     c.querySelector("h3").textContent = o.nom;
     c.querySelector(".entete p").textContent = o.accroche;
     o.inclus.forEach((x) => { const li = document.createElement("li"); li.textContent = x; c.querySelector("ul").appendChild(li); });
     if (o.note) c.querySelectorAll(".detail")[1].textContent = o.note;
-    if (o.abonnement_plus) {
-      // La différence unique / au mois, dite sur chaque carte : ce que l'abonnement APPORTE.
-      const z = c.querySelector(".plus-abonnement"), auMois = f === "mensuel";
-      z.classList.toggle("actif", auMois);
-      z.querySelector("b").textContent = auMois ? "Inclus avec l'abonnement :" : `Au mois (${euros(o.mensuel)}/mois), en plus :`;
-      o.abonnement_plus.forEach((x) => { const li = document.createElement("li"); li.textContent = x; z.querySelector("ul").appendChild(li); });
-    }
     return c;
   }
-  function afficher() {
-    const groupes = (categories || [{ id: null, nom: "", accroche: "" }]).map((g) => {
-      const liste = offres.filter((o) => !g.id || o.categorie === g.id);
-      if (!liste.length) return null;
-      const bloc = document.createElement("div"); bloc.className = "categorie"; bloc.id = "cat-" + g.id;
-      bloc.innerHTML = `<h2 class="titre-categorie"></h2><p class="sous-titre"></p><div class="offres"></div>`;
-      bloc.querySelector("h2").textContent = g.nom; bloc.querySelector("p").textContent = g.accroche;
-      bloc.querySelector(".offres").replaceChildren(...liste.map(carte));
-      return bloc;
-    }).filter(Boolean);
-    zone.replaceChildren(...groupes);
-    document.getElementById("note-engagement").textContent = formule === "mensuel"
-      ? `Formule au mois : engagement ${engagement_mois} mois, puis résiliable à tout moment. Les offres « paiement unique seulement » restent en une fois.` : "";
-    if (location.hash) document.querySelector(location.hash)?.scrollIntoView({ block: "center" });
+  const groupes = (categories || [{ id: null, nom: "", accroche: "" }]).map((g) => {
+    const liste = offres.filter((o) => !g.id || o.categorie === g.id);
+    if (!liste.length) return null;
+    const bloc = document.createElement("div"); bloc.className = "categorie"; bloc.id = "cat-" + g.id;
+    bloc.innerHTML = `<h2 class="titre-categorie"></h2><p class="sous-titre"></p><div class="offres"></div>`;
+    bloc.querySelector("h2").textContent = g.nom; bloc.querySelector("p").textContent = g.accroche;
+    bloc.querySelector(".offres").replaceChildren(...liste.map(carte));
+    return bloc;
+  }).filter(Boolean);
+  zone.replaceChildren(...groupes);
+  if (suivi) {
+    const z = document.getElementById("suivi");
+    z.innerHTML = `<span class="pastille">OPTION · ${suivi.engagement.toUpperCase()}</span><h2></h2><p class="accroche-suivi"></p>
+      <div class="prix-suivi">${euros(suivi.prix_mensuel)}<small>/mois</small></div><ul></ul>
+      <a class="bouton" href="commander.html?suivi=oui">Ajouter le suivi à mon projet <span class="fleche">→</span></a>`;
+    z.querySelector("h2").textContent = suivi.nom; z.querySelector(".accroche-suivi").textContent = suivi.accroche;
+    suivi.inclus.forEach((x) => { const li = document.createElement("li"); li.textContent = x; z.querySelector("ul").appendChild(li); });
   }
-  document.querySelectorAll(".formule button").forEach((b) => b.onclick = () => {
-    formule = b.dataset.f;
-    document.querySelectorAll(".formule button").forEach((x) => x.classList.toggle("actif", x === b));
-    afficher();
-  });
-  afficher();
+  if (location.hash) document.querySelector(location.hash)?.scrollIntoView({ block: "center" });
 });
 </script>
 </body>

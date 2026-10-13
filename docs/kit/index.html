@@ -162,7 +162,7 @@ chargerOffres().then(({ offres }) => {
   const lot = ordre.map((id) => offres.find((o) => o.id === id)).filter(Boolean);
   document.getElementById("etal-crea").innerHTML = lot.map((o) => {
     const prix = o.unique_seulement ? `${euros(o.unique)} en une fois`
-      : o.abonnement_obligatoire ? `${euros(o.unique)} + ${euros(o.mensuel)}/mois` : `${euros(o.unique)} ou ${euros(o.mensuel)}/mois`;
+      : o.abonnement_obligatoire ? `${euros(o.unique)} + ${euros(o.mensuel)}/mois` : `${euros(o.unique)} prix unique`;
     return `<a class="fiche" href="offres.html#${o.id}">${o.categorie === "noel" ? '<span class="badge">Spécial Noël</span>' : ""}
       <span class="icone">${ICONES[o.id] || "✦"}</span>
       <div class="corps"><h3></h3><p></p><span class="prix">${prix}</span></div></a>`;

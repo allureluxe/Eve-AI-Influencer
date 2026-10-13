@@ -11,7 +11,7 @@
     bloc.querySelector(".pros-offres").innerHTML = liste.map((o) => `
       <a class="pro" href="/offres.html#${o.id}">
         <b>${o.nom}</b><span>${o.accroche}</span>
-        <em>dès ${o.unique} €${o.mensuel ? ` <small>ou ${o.mensuel} €/mois</small>` : ""}</em>
+        <em>dès ${o.unique} € <small>prix unique</small></em>
       </a>`).join("");
     const p = bloc.querySelector(".pros-promo");
     if (p && promo && new Date(promo.fin) > Date.now()) p.textContent = `🎁 ${promo.titre} : ${promo.texte}.`;
