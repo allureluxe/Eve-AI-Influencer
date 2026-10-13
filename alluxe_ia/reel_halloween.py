@@ -129,25 +129,39 @@ REELS = {
 
 
 # ------------------------------------------------------------------ voix
+#: 13 oct. : coral PUIS gpt-audio « marin » refusées (« trop ordinateur », « elle va pas »).
+#: Choix de l'opérateur parmi 6 essais ElevenLabs via Runway : « la 1, elle est
+#: rigolote » = Ella. Essais : data/alluxe_ia/essais_voix_runway/.
+VOIX_RUNWAY = "Ella"
+
+
 def _dire(texte: str, consigne: str, cible: Path) -> None:
-    """La voix de Luna validée le 12 oct. (reel_luna_vlog : gpt-audio-1.5 « marin »).
-    NE PAS revenir à gpt-4o-mini-tts « coral » : l'opérateur l'a refusée deux fois,
-    le 12 puis le 13 oct. (« trop ordinateur, ça ne va pas avec la personne »)."""
-    modele, voix_ = VOIX_MOTEUR
-    corps = {"model": modele, "modalities": ["text", "audio"],
-             "audio": {"voice": voix_, "format": "mp3"},
-             "messages": [{"role": "system", "content": consigne + " Tu es comédienne voix off : "
-                           "tu lis EXACTEMENT le texte donné, mot pour mot, sans rien ajouter "
-                           "ni répondre."},
-                          {"role": "user", "content": "Lis ce texte :\n" + texte}]}
-    req = urllib.request.Request(
-        "https://api.openai.com/v1/chat/completions", data=json.dumps(corps).encode(),
-        headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
-                 "Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=120) as rep:
-        audio = json.load(rep)["choices"][0]["message"]["audio"]
-    cible.write_bytes(base64.b64decode(audio["data"]))
-    _journal(f"voix lue : {audio.get('transcript', '')}")
+    """La voix de Luna : ElevenLabs (eleven_multilingual_v2) par l'API Runway, déjà
+    payée — pas de compte de plus. `consigne` est ignorée : ElevenLabs n'en prend
+    pas, le ton passe par la ponctuation du texte."""
+    import urllib.error
+    entetes = {"Authorization": f"Bearer {os.environ['RUNWAYML_API_SECRET']}",
+               "X-Runway-Version": "2024-11-06", "Content-Type": "application/json"}
+
+    def appel(methode: str, chemin: str, corps: dict | None = None) -> dict:
+        req = urllib.request.Request("https://api.dev.runwayml.com" + chemin, method=methode,
+                                     data=json.dumps(corps).encode() if corps else None,
+                                     headers=entetes)
+        with urllib.request.urlopen(req, timeout=60) as rep:
+            return json.load(rep)
+
+    tache = appel("POST", "/v1/text_to_speech", {
+        "model": "eleven_multilingual_v2", "promptText": texte,
+        "voice": {"type": "runway-preset", "presetId": VOIX_RUNWAY}})["id"]
+    while True:
+        r = appel("GET", f"/v1/tasks/{tache}")
+        if r.get("status") == "SUCCEEDED":
+            urllib.request.urlretrieve(r["output"][0], str(cible))
+            _journal(f"voix {VOIX_RUNWAY} : {texte[:60]}")
+            return
+        if r.get("status") in ("FAILED", "CANCELLED"):
+            raise SystemExit(f"voix Runway échouée : {r.get('failure')}")
+        time.sleep(3)
 
 
 def voix() -> None:
