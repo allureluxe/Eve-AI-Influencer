@@ -25,7 +25,7 @@ FICHIERS = [".htaccess", "index.html", "kit.html", "payer.html", "merci.html", "
             # 13 oct. : l'accueil boutique de Noël et la page Livres
             "livres.html", "livres.json", "boutique.css", "creation-noel.jpg",
             # 13 oct. : référencement Google
-            "robots.txt", "sitemap.xml"]
+            "robots.txt", "sitemap.xml", "c2ba7a960916d0a9984e475e18a51ea7.txt"]
 
 
 def _dossier(ftp: ftplib.FTP, nom: str) -> None:
@@ -58,6 +58,9 @@ def main() -> int:
             ftp.storbinary(f"STOR {nom}", fh)
         print(f"déposé : {'apercu/' if apercu else ''}{nom}")
     ftp.quit()
+    if not apercu:                                     # 13 oct. : prévient Bing & co (ops/indexnow.py)
+        from ops.indexnow import main as indexnow
+        indexnow()
     return 0
 
 
