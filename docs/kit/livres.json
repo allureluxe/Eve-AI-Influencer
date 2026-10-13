@@ -1,5 +1,5 @@
 {
- "_note": "13 oct. 2026 : les livres de la famille de l'opérateur, vendus sur Amazon (le site renvoie vers Amazon, il ne vend pas). Prix brochés relevés sur Amazon.fr le 13 oct. 2026 ; ils peuvent changer, d'où « dès » et « prix sur Amazon ». Couvertures téléchargées depuis Amazon dans livres/.",
+ "_note": "13 oct. 2026 : les livres de la famille de l'opérateur, vendus sur Amazon (le site renvoie vers Amazon, il ne vend pas). Prix brochés relevés sur Amazon.fr le 13 oct. 2026 ; ils peuvent changer, d'où « dès » et « prix sur Amazon ». Couvertures téléchargées depuis Amazon dans livres/. Descriptions (« description ») et nombre de pages repris des fiches Amazon le 13 oct. 2026, affichés dans la fiche du livre avant l'envoi vers Amazon.",
  "serie": {
   "nom": "Les détectives maladroits",
   "auteur": "Basutiian Liam",
@@ -13,133 +13,283 @@
     "titre": "Quand la lingerie devient une affaire d'État",
     "asin": "B0GHZHP92M",
     "image": "livres/dm01.jpg",
-    "prix": 10.54
+    "prix": 10.54,
+    "description": [
+     "Lucie et Bastien étaient non seulement amis, mais aussi des êtres complètement différents qui se complétaient à la perfection. Ils formaient un duo unique dans un monde où les normes semblaient dictées par d'autres. Leur amitié était comme une bulle d'air frais, un refuge contre la monotonie de la vie quotidienne.",
+     "Leur existence était faite de quiproquos et de situations loufoques, souvent causées par leur maladresse et leur manque de compétences notoires. Mais un événement inattendu allait venir bouleverser le cours de leur vie déjà chaotique. Lucie, prise d'une crise de panique sans précédent, avait besoin d'une aventure pour retrouver un semblant de calme intérieur. C'est ainsi que l'idée farfelue de devenir détectives privés pour retrouver ses strings disparus germa dans son esprit déjà agité."
+    ],
+    "pages": 107
    },
    {
     "n": 2,
     "titre": "Opération Burger volé",
     "asin": "B0GJPMM7D7",
     "image": "livres/dm02.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Bastien et Lucie voulaient juste manger un burger tranquillement. Mais voilà que TOUS les burgers de la ville disparaissent mystérieusement !",
+     "Dès qu'un burger est prêt... POUF ! Envolé !",
+     "Les voilà repartis malgré eux dans une enquête complètement folle : courses-poursuites sur les toits, suspects bizarres, et un voleur obsédé par les burgers qui cache un secret touchant.",
+     "Entre catastrophes et fous rires, nos deux détectives maladroits vont-ils enfin résoudre le mystère ? Et surtout... vont-ils ENFIN pouvoir manger ?!",
+     "Une enquête délirante pour les amateurs d'humour et de burgers !"
+    ],
+    "pages": 69
    },
    {
     "n": 3,
     "titre": "Panique à la mairie",
     "asin": "B0GHZZRH7T",
     "image": "livres/dm03.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Bastien et Lucie viennent d'ouvrir leur bureau de détectives. Première mission professionnelle : retrouver Spooky, le chien du maire, kidnappé trois jours avant la grande Fête de la Ville !",
+     "Mais entre les chutes dans les piscines, les jets d'eau en pleine figure, et les interrogatoires complètement ratés, nos deux détectives maladroits vont devoir prouver qu'ils sont capables de mener une vraie enquête.",
+     "Course contre la montre, fausses pistes, et kidnappeur inattendu… Bastien et Lucie vont-ils sauver Spooky à temps ? Et surtout, vont-ils survivre à leur propre maladresse",
+     "Une enquête délirante où chaque indice trouvé s'accompagne d'une catastrophe !"
+    ],
+    "pages": 91
    },
    {
     "n": 4,
     "titre": "La guerre des perruques",
     "asin": "B0FX2MJ31G",
     "image": "livres/dm04.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Fabienne Lacroix, coiffeuse star, appelle Bastien et Lucie en panique : 12 perruques de collection valant 3 MILLIONS d'euros ont disparu !",
+     "Mais elle pleure surtout pour... un peigne en plastique à 2 euros.",
+     "Entre suspects louches et motivations ridicules, nos détectives vont découvrir que tout a commencé avec une simple frange ratée. Et que parfois, une coupe de cheveux peut mener au crime !",
+     "Au programme :",
+     "• Enquête capillaire déjantée",
+     "• Lucie qui défile (CATASTROPHE !)",
+     "• Bastien qui casse tout",
+     "Le Gala de la Coiffure est dans 5 jours... Il faut retrouver les perruques !"
+    ],
+    "pages": 125
    },
    {
     "n": 5,
     "titre": "Mystère au musée",
     "asin": "B0GJN7HDF8",
     "image": "livres/dm05.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Bastien et Lucie reçoivent un appel urgent du Musée Municipal : la Chaussette de Toutencamion, un artefact égyptien de 500 000 euros, a été volée !",
+     "Mais cette enquête va rapidement devenir leur plus flippante aventure...",
+     "Entre momies qui bougent, sarcophages suspects et caméras cachées, nos détectives vont devoir résoudre un mystère où rien n'est ce qu'il semble être.",
+     "Au programme :",
+     "• Une chaussette antique disparue",
+     "• Bastien TERRIFIÉ par les momies",
+     "• Lucie qui adore ça",
+     "• Un youtubeur qui filme TOUT",
+     "Ils ont 5 jours pour retrouver la chaussette... avant l'incident diplomatique international !"
+    ],
+    "pages": 78
    },
    {
     "n": 6,
     "titre": "L'énigme des diamants",
     "asin": "B0GK1G9LV6",
     "image": "livres/dm06.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Bastien et Lucie sont appelés d'urgence à la Bijouterie Dubois : 15 diamants d'une valeur de 200 000 euros ont disparu !",
+     "Mais cette enquête va les emmener bien plus loin qu'ils ne l'imaginaient...",
+     "Entre un vendeur mystérieux qui refuse de dire son prénom, un fan TROP enthousiaste qui connaît toutes leurs méthodes, et des caméras désactivées de façon suspecte, nos détectives vont devoir démêler le vrai du faux.",
+     "Au programme :",
+     "• Des diamants volatilisés",
+     "• Bastien et ses déguisements RIDICULES",
+     "• Lucie amoureuse (puis désabusée)",
+     "• Un voleur qui les manipule depuis le début",
+     "Mais qui vole vraiment les diamants ? Et surtout... POURQUOI",
+     "Une enquête pleine de rebondissements où rien n'est ce qu'il semble être !"
+    ],
+    "pages": 107
    },
    {
     "n": 7,
     "titre": "Le voleur aux gants blancs",
     "asin": "B0GJTZXBXD",
     "image": "livres/dm07.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Un million d'euros. Trois tableaux volés au Musée d'Art Moderne. Et pour la première fois, Bastien et Lucie font face à de vrais rivaux : les Détectives d'Élite, une agence réputée qui les traite de \"débutants amateurs\".",
+     "Mais quand les indices pointent vers les rivaux eux-mêmes, l'affaire prend une tournure inattendue. Vol, évasion, chantage... Cette fois, c'est personnel.",
+     "Heureusement, Bastien a une arme secrète : sa maladresse légendaire. Et un extincteur qui tombe au bon moment peut changer toute une enquête.",
+     "L'affaire la plus difficile des Détectives Maladroits. Et la plus satisfaisante à résoudre."
+    ],
+    "pages": 144
    },
    {
     "n": 8,
     "titre": "Serge, t'es où ? Pas là !",
     "asin": "B0GR6FX2RH",
     "image": "livres/dm08.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Serge Dupont a disparu. Le célèbre fabricant de sopalin de la ville n'est pas rentré chez lui depuis trois jours, et sa femme Marguerite est désespérée.",
+     "Bastien et Lucie se lancent dans l'enquête, mais rien ne se passe comme prévu. Entre braquage raté, kidnapping improvisé et trois frères aussi dangereux que maladroits, les indices mènent nos détectives de cachette en cachette.",
+     "Et le temps presse : Serge est diabétique. Sans ses médicaments, chaque heure compte.",
+     "Course-poursuite en camion, appel à la police avec le nez, et découverte touchante : le secret des sopalins magiques de Serge n'est pas une formule chimique... mais cinquante-deux ans d'amour pour Marguerite.",
+     "Une affaire où chaque maladresse peut sauver une vie. Ou la perdre."
+    ],
+    "pages": 81
    },
    {
     "n": 9,
     "titre": "Pas touche à Bastien",
     "asin": "B0GR6HWY27",
     "image": "livres/dm09.jpg",
-    "prix": 8.43
+    "prix": 8.43,
+    "description": [
+     "Un soir, en rentrant chez lui, il s'évapore. Aucune trace. Aucun indice. Juste ses clés, son téléphone et son portefeuille abandonnés dans son appartement vide.",
+     "Pour Lucie, c'est le début d'un cauchemar.",
+     "Pendant sept jours, elle va chercher partout. Hurler dans les rues. Défoncer des portes. Taguer des murs. Voler une voiture. Perdre la tête.",
+     "Parce que personne ne la croit. La police pense que Bastien s'est juste \"égaré\". Le maire lui dit d'attendre. Tout le monde lui répète de se calmer.",
+     "Mais Lucie ne peut pas se calmer. Pas quand il s'agit de son meilleur ami.",
+     "Alors elle continue. Seule. Désespérée. Prête à tout détruire pour le retrouver.",
+     "Même si ça doit la briser.",
+     "Une course contre la montre. Une amitié à l'épreuve. Et une Lucie comme on ne l'a jamais vue."
+    ],
+    "pages": 72
    },
    {
     "n": 10,
     "titre": "Mystère au 47 rue des Lilas",
     "asin": "B0GR68T515",
     "image": "livres/dm10.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Bastien et Lucie reviennent de vacances. Enfin un peu de repos !",
+     "Enfin... pas vraiment.",
+     "Madame Beaumont appelle : son chat parle. Oui. PARLE. En français. Avec des citations de philosophie.",
+     "Comment c'est possible ? Un vétérinaire louche. Un produit bizarre. Et surtout... un réseau de scientifiques fous qui testent des sérums sur des animaux !",
+     "Entre poursuites dans la forêt, trahisons, et sauts entre les toits (encore !), Bastien et Lucie vont devoir tout donner pour sauver des dizaines d'animaux prisonniers.",
+     "Mais attention ! La police est corrompue. Les médias aussi. Et le Professeur Moreau sait TOUT de leurs moindres gestes...",
+     "Une affaire dangereuse. Des méchants partout. Et un chat philosophe qui cite Platon.",
+     "Bienvenue dans l'aventure la plus folle des Détectives Maladroits !",
+     "\"La possibilité n'est qu'une construction humaine face à l'inexplicable.\" — Félix le chat"
+    ],
+    "pages": 116
    },
    {
     "n": 11,
     "titre": "Rendez-nous nos gnomes",
     "asin": "B0GR5K26R9",
     "image": "livres/dm11.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Bastien et Lucie reviennent de vacances. Enfin un peu de calme !",
+     "Enfin... pas vraiment.",
+     "Madame Rivière appelle en panique : des gnomes de jardin disparaissent dans tout le quartier ! Henri, Gustave, Léon... Tous volatilisés pendant la nuit ! Sans bruit. Sans traces.",
+     "Qui vole des gnomes ? Et surtout... POURQUOI",
+     "L'enquête mène Bastien et Lucie à l'École d'Art, où ils infiltrent un cours de peinture (et deviennent accidentellement des \"génies artistiques\"), font des planques catastrophiques derrière des buissons, et découvrent un jeune artiste rebelle avec un projet bien étrange...",
+     "Entre courses de gnomes ridicules, flamants roses mystérieux, et leçons sur l'art et l'honnêteté, les Détectives Maladroits vont devoir résoudre leur affaire la plus colorée !",
+     "Parce que voler pour l'art, ça reste du vol. Même si c'est pour \"libérer\" des gnomes.",
+     "Une enquête absurde, touchante, et pleine de maladresses !"
+    ],
+    "pages": 111
    },
    {
     "n": 12,
     "titre": "La grande évasion des balançoires",
     "asin": "B0GR6HXRSY",
     "image": "livres/dm12.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Bastien et Lucie pensaient avoir tout vu. Des gnomes volés, des chats qui parlent, des diamants disparus... Mais des balançoires qui s'évadent en pleine nuit ? Ça, c'est nouveau.",
+     "Tout commence avec l'appel désespéré de Madame Fontaine : sa balançoire adorée a disparu ! Et elle n'est pas la seule victime. Bientôt, c'est tout le quartier qui perd ses objets de jardin. Des bancs. Des toboggans. Des hamacs. Quarante-deux objets envolés !",
+     "Entre catastrophes monumentales, nuits blanches et tasses de thé renversées, Bastien et Lucie vont devoir aider une voleuse involontaire à comprendre son erreur... et à tout rendre avant que le quartier entier ne se retrouve sans jardin.",
+     "Parce que parfois, être détective, c'est aussi savoir pardonner."
+    ],
+    "pages": 92
    },
    {
     "n": 13,
     "titre": "Opération plumes volées",
     "asin": "B0GR6H4G8C",
     "image": "livres/dm13.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Bastien et Lucie pensaient avoir tout vu. Des gnomes disparus, des balançoires envolées... Mais des oiseaux kidnappés en pleine nuit par une mystérieuse \"Ligue de Libération Aviaire\" ? Ça, c'est nouveau.",
+     "Tout commence avec Kiki, le perroquet de Madame Leblanc, volatilisé sans laisser de traces. Enfin presque : un petit mot rose affirme que les oiseaux \"méritent la liberté\". Très poétique. Sauf que vingt-et-un oiseaux disparaissent en quelques jours, laissant familles et enfants en larmes.",
+     "Entre paillettes magiques collées pendant deux semaines, chutes spectaculaires dans des haies, et une course-poursuite avec des gamines plus rapides qu'elles, Bastien et Lucie vont devoir convaincre la Ligue qu'on ne sauve pas les animaux en les mettant en danger.",
+     "Parce que parfois, les meilleures intentions causent les pires catastrophes."
+    ],
+    "pages": 105
    },
    {
     "n": 14,
     "titre": "Une fleur dans le cœur",
     "asin": "B0GR6MXP7N",
     "image": "livres/dm14.jpg",
-    "prix": 10.54
+    "prix": 10.54,
+    "description": [
+     "Un champ de marguerites saccagé. Un homme dont le cœur saigne autant que son jardin. Et derrière les coupables, une vérité que Bastien n'attendait pas. Cette affaire-là n'est pas comme les autres. Pas d'immeuble en feu. Pas de perroquet en fuite. Pas de course-poursuite dans les ruelles du quartier des Oliviers. Juste des fleurs blanches et jaunes. Des gens simples. Et des deuils qu'on croyait bien rangés. Bastien va découvrir que certaines enquêtes ne se résolvent pas seulement avec un carnet et un stylo. Parfois il faut aussi mettre les mains dans la terre."
+    ],
+    "pages": 203
    },
    {
     "n": 15,
     "titre": "Le grand sommeil",
     "asin": "B0H3XV924V",
     "image": "livres/dm15.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Un lundi matin ordinaire. Les pieds sur le bureau. Un café. Le calme.",
+     "Jusqu'à ce que le quartier des Oliviers s'endorme.",
+     "Pas métaphoriquement. Vraiment. Les gens s'effondrent dans la rue, dans leurs voitures, sur leurs comptoirs. Cent quarante-sept personnes endormies en plein jour. Et personne pour comprendre pourquoi.",
+     "Personne sauf Bastien et Lucie. Debout. Réveillés. En chaussettes roses.",
+     "Ce n'est pas les chaussettes. Probablement.",
+     "Au cœur de cette affaire impossible : une camionnette mystérieuse, une machine aux ondes somnifères, et quelque part dans un château au fond d'une forêt — un certain Docteur Cocotte, savant fou, génie ridicule, avec son thé et ses plans de domination mondiale qui tombent toujours à moitié à l'eau.",
+     "Ils ont une nuit pour trouver le code. Un chien pour les aider. Et leur maladresse habituelle pour tout compliquer.",
+     "Comme toujours."
+    ],
+    "pages": 152
    },
    {
     "n": 16,
     "titre": "Livraison spéciale",
     "asin": "B0H3XR67F3",
     "image": "livres/dm16.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Un mardi matin ordinaire. Un café. Les pigeons sur le rebord. Le calme. Jusqu'à ce que le quartier des Oliviers reçoive des colis. Pas métaphoriquement. Vraiment. Des boîtes brunes avec de la ficelle de chanvre et des petits mots à l'encre bleue. Une chaussette perdue en 2021. Une photo de grand-père qu'on n'avait jamais vue. Un harmonica. Une boule à neige Paris. Personne comprend. Tout le monde est touché. Et personne ne sait d'où ça vient. Personne sauf Bastien et Lucie. Enfin. Presque. Au cœur de cette affaire impossible : trois employés de la poste plus ou moins suspects, des déguisements de plus en plus catastrophiques, et quelque part dans le quartier un enfant de douze ans, un petit génie nonchalant, qui se croit plus intelligent que tout le monde. Il a probablement raison. Mais ils ont quand même essayé."
+    ],
+    "pages": 128
    },
    {
     "n": 17,
     "titre": "La sauvage et la mamie",
     "asin": "B0H3Y2HG4F",
     "image": "livres/dm17.jpg",
-    "prix": 9.48
+    "prix": 9.48,
+    "description": [
+     "Le marché du quartier des Oliviers a un problème. Depuis trois samedis, les étals s'effondrent dans la nuit. Des produits disparaissent. Des rumeurs circulent contre certains marchands. Et personne ne sait qui ni pourquoi. Bastien et Lucie, eux, n'étaient venus que faire leurs courses. Comme d'habitude, ça ne s'est pas passé comme prévu. Les voilà donc repartis pour une enquête avec leurs méthodes approximatives, leurs déguisements douteux, leurs surveillances nocturnes chaotiques, et leur talent habituel pour trouver les preuves en trébuchant dessus. Sur leur chemin : une galerie de marchands hauts en couleur, un commissaire qui apprécie les madeleines, et une certaine Monique petite dame en manteau beige, souriante, adorée de tout le quartier, qui distribue des gâteaux d'une main et appelle Lucie \"la sauvage\" de l'autre. Une coïncidence, sûrement. Ou pas."
+    ],
+    "pages": 130
    },
    {
     "n": 18,
     "titre": "Enquête sous le soleil",
     "asin": "B0H3XVJXR3",
     "image": "livres/dm18.jpg",
-    "prix": null
+    "prix": null,
+    "description": [
+     "Bastien et Lucie avaient prévu des vacances simples. La mer. Le soleil. Pas d'enquête. C'était sans compter sur la Nonna. À l'hôtel Bella Vista en Calabre, Rosa Esposito cuisine la meilleure sauce tomate du monde depuis cinquante ans. Sa recette, transmise de mère en fille depuis cinq générations, dort dans un petit carnet rouge au fond d'un tiroir. Jusqu'au matin où le tiroir est vide. Le carnet a disparu. Et la Nonna ne cuisine plus. Bastien et Lucie n'ont rien demandé. Mais ils sont là. Et quand une famille entière pointe dans cinq directions différentes, quand le suspect numéro un est trop charmant pour être innocent, quand le seul témoin fiable est japonais et que leur application de traduction donne des girafes et des melons, que voulez-vous faire d'autre que d'enquêter ? Entre un parasol vengeur, une piscine dont Lucie ressort habillée, une filature dans les ruelles d'un village calabrais et un vieux monsieur qui sait tout depuis son fauteuil sans jamais bouger, Bastien et Lucie vont résoudre cette affaire. Par accident, comme toujours. Mais la résoudre quand même. La recette n'est pas dans le carnet. Elle est dans les mains de celle qui la fait."
+    ],
+    "pages": 114
    },
    {
     "n": 19,
     "titre": "La cendre et le moulin",
     "asin": "B0H3XGN4RW",
     "image": "livres/dm19.jpg",
-    "prix": null
+    "prix": null,
+    "description": [
+     "Bastien et Lucie rentrent d'Italie avec des cailloux de plage, un pot de sauce de la Nonna, et la certitude que les vacances se terminent toujours trop vite. Le lendemain matin, leur bureau n'est plus là. À la place : des cendres, des murs noircis, et un tag sur la pierre. PYROMENCIENS. Avec un E. Pendant que Lucie installe un bureau de fortune chez elle et que le Dr Cocotte fulmine dans son château parce que personne n'a le droit de toucher à ses ennemis sauf lui, Bastien remarque quelque chose que personne d'autre n'a vu. Une faute d'orthographe. Toujours la même. Sur chaque mur de la ville. C'est un fil. Et les fils, ça se tire. La Cendre et le Moulin est le dix-neuvième tome des Détectives Maladroits. Celui où tout ce qu'ils ont construit part en fumée. Celui où ils restent quand même."
+    ],
+    "pages": 129
    }
   ]
  },
@@ -153,21 +303,42 @@
     "asin": "2957687119",
     "image": "livres/cp-phrases.jpg",
     "prix": 19.99,
-    "texte": "Pensées incessantes, peurs, doutes : un recueil de phrases positives pour retrouver la paix intérieure."
+    "texte": "Pensées incessantes, peurs, doutes : un recueil de phrases positives pour retrouver la paix intérieure.",
+    "description": [
+     "Et si nos pensées ne devaient plus nous empêcher de vivre pleinement ?",
+     "Pensées incessantes, peurs, doutes, mal-être… Christine Pierre nous invite, à travers ce recueil, à nous libérer de ce qui nous enferme et à retrouver le chemin du bien-être.",
+     "Il y a dix ans, Christine peinait à se déplacer. Aujourd’hui, elle marche longuement, rayonne et partage autour d’elle une joie communicative. Malgré les épreuves traversées, son sourire ne la quitte pas.",
+     "Son secret ? Apprendre à transformer son regard sur la vie, à faire confiance et à accueillir le positif.",
+     "À travers des textes transmis par ses guides et expérimentés dans son quotidien, elle nous offre des clés pour nous libérer, vivre en conscience et retrouver notre joie intérieure.",
+     "« Que du BONHEUR, la VIE est BELLE ! »",
+     "Et si, vous aussi, vous décidiez de faire de cette phrase une nouvelle façon de vivre ?",
+     "Un livre à découvrir, à ressentir… et surtout à mettre en pratique."
+    ],
+    "pages": 133
    },
    {
     "titre": "Grandir vers mon éveil",
     "asin": "B0GK2QFQFX",
     "image": "livres/cp-grandir.jpg",
     "prix": null,
-    "texte": "Un vécu partagé et tous les passages qui ont permis de grandir et de se libérer des mémoires du passé."
+    "texte": "Un vécu partagé et tous les passages qui ont permis de grandir et de se libérer des mémoires du passé.",
+    "description": [
+     "Dans ce recueil, je dépose mon vécu et tous les passages qui m'ont permis de grandir en évacuant les mémoires de mon passé familial, ancestral, dont j'ai hérité. Dans toute l'expérience de ma vie, le nettoyage de mon corps, de mes cellules et de mon âme m'a libérée de beaucoup de poids en moi. Dans ce processus, je me suis reconnectée à mon âme, à mon énergie pour me retrouver moi-même avec ma lumière intérieur. Cela m'a permis d'évoluer, de grandir et de rayonner qui je suis.",
+     "OUI, il y a eu des passages très chauds, même des fois pas top, mais au combien, au bout, c'est le bonheur, la joie et la douceur ! Mes cellules souches me récompensent et je sens circuler ma force vitale que je bénis, que je remercie, et je lui rend grâce. Je me positionne aujourd'hui en tant que Christine et sans les conditionnements d'antan. Je remercie ma bienfaitrice âme sœur qui a su trouver les mots au moment où j'en avais besoin.",
+     "« Je ressens en moi une grande liberté de sagesse, de plénitude et de bien-être. Je suis la vie, je suis l'amour, je suis la paix. »"
+    ],
+    "pages": 106
    },
    {
     "titre": "Transformation de ma vie : Je suis",
     "asin": "B0GK2WMGQP",
     "image": "livres/cp-jesuis.jpg",
     "prix": null,
-    "texte": "L'ouverture, l'évolution, la transformation : avancer sans crainte, guidé pas à pas."
+    "texte": "L'ouverture, l'évolution, la transformation : avancer sans crainte, guidé pas à pas.",
+    "description": [
+     "Chaque partie de ce livre montre l'ouverture, l'évolution, la transformation, l'assurance que l'on peut avancer sans crainte et sans risque grâce à nos guides qui sont près de nous. Les récits sont l’expérience du vécu de l'auteur Christine PIERRE qui lui a permis de grandir et de devenir la personne d'aujourd'hui. Dans le contexte de sa vie, elle a appris que l'on peut vivre sans peur, sans doutes, sans refus d'être heureux et qu'elle avait en elle cette lumière Divine dans son cœur d'amour. Cette belle histoire continue la confiance de ce qu'elle perçoit tout en avançant sur ce chemin. Laissez-vous imprégner de cette lecture qui vas vous transporter dans votre être intérieur."
+    ],
+    "pages": 97
    }
   ]
  }

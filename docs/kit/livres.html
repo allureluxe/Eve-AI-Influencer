@@ -12,8 +12,8 @@
 <link rel="icon" href="logo-alluxe.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261013b">
-<link rel="stylesheet" href="boutique.css?v=20261013b">
+<link rel="stylesheet" href="style.css?v=20261013c">
+<link rel="stylesheet" href="boutique.css?v=20261013c">
 </head>
 <body class="page-livres2">
 
@@ -43,7 +43,7 @@
 <section class="rayon-livres" id="tomes">
   <div class="conteneur">
     <div class="tete-rayon"><div><h2>Les 19 <mark>tomes.</mark></h2>
-      <p>Chaque tome est une enquête complète : on peut commencer par n'importe lequel. Touchez une couverture pour l'acheter sur Amazon.</p></div></div>
+      <p>Chaque tome est une enquête complète : on peut commencer par n'importe lequel. Touchez une couverture pour découvrir l'histoire.</p></div></div>
     <div class="couvertures" id="grille-tomes"></div>
   </div>
 </section>
@@ -59,32 +59,87 @@
   <div class="conteneur"><p class="petit" style="text-align:center">Les livres sont vendus et livrés par Amazon. Prix relevés sur Amazon.fr le 13 octobre 2026 : le prix affiché sur Amazon fait foi.</p></div>
 </section>
 
-<script src="commun.js?v=20261013b"></script>
+<dialog class="fiche-livre" id="fiche-livre" aria-labelledby="fiche-titre">
+  <button class="fermer" type="button" aria-label="Fermer">×</button>
+  <div class="fiche-contenu">
+    <img id="fiche-image" alt="">
+    <div>
+      <span class="tome" id="fiche-tome"></span>
+      <h3 id="fiche-titre"></h3>
+      <p class="auteur" id="fiche-auteur"></p>
+      <div class="resume" id="fiche-resume"></div>
+      <div class="fiche-achat">
+        <div class="prix" id="fiche-prix"></div>
+        <p class="info-amazon">📦 Ce livre est vendu et envoyé par <b>Amazon</b>. En cliquant sur «&nbsp;Commander&nbsp;», vous arrivez directement sur sa page Amazon pour finaliser votre achat.</p>
+        <a class="bouton" id="fiche-commander" href="#" target="_blank" rel="noopener">Commander sur Amazon <span class="fleche">→</span></a>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script src="commun.js?v=20261013c"></script>
 <script>
 const prixFr = (n) => n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const amazon = (asin) => "https://www.amazon.fr/dp/" + asin;
+const fiche = document.getElementById("fiche-livre");
+const livres = {};   // asin -> { livre, tome, auteur }
+
+// La fiche du livre : description d'abord, Amazon seulement au clic sur « Commander »
+function ouvrirFiche(asin) {
+  const f = livres[asin];
+  if (!f) return;
+  const l = f.livre;
+  document.getElementById("fiche-image").src = l.image;
+  document.getElementById("fiche-image").alt = "Couverture : " + l.titre;
+  document.getElementById("fiche-tome").textContent = f.tome || "";
+  document.getElementById("fiche-titre").textContent = l.titre;
+  document.getElementById("fiche-auteur").textContent = "Par " + f.auteur + (l.pages ? " · " + l.pages + " pages" : "");
+  const resume = document.getElementById("fiche-resume");
+  resume.replaceChildren(...(l.description || [l.texte || ""]).map((t) => {
+    const p = document.createElement("p");
+    p.textContent = t.replace(/ ([!?:;»])/g, "\u00a0$1").replace(/« /g, "«\u00a0");   // pas de « ! » seul en début de ligne
+    if (t.startsWith("•")) p.className = "puce";
+    return p;
+  }));
+  document.getElementById("fiche-prix").textContent = l.prix ? prixFr(l.prix) + " en livre broché" : "Prix affiché sur Amazon";
+  document.getElementById("fiche-commander").href = amazon(asin);
+  if (!fiche.open) fiche.showModal();
+  fiche.scrollTop = 0;
+  history.replaceState(null, "", "#" + asin);
+}
+function fermerFiche() { if (fiche.open) fiche.close(); }
+fiche.addEventListener("close", () => history.replaceState(null, "", location.pathname + location.search));
+fiche.querySelector(".fermer").addEventListener("click", fermerFiche);
+fiche.addEventListener("click", (e) => { if (e.target === fiche) fermerFiche(); });   // clic à côté de la fiche
+
 fetch("livres.json", { cache: "no-store" }).then((r) => r.json()).then((d) => {
   const s = d.serie;
   document.getElementById("accroche-serie").textContent = s.accroche + " " + s.texte;
   document.getElementById("lien-serie").href = s.lien;
   document.getElementById("prix-min").textContent = prixFr(s.prix_min);
+  s.tomes.forEach((t) => livres[t.asin] = { livre: t, tome: "Les détectives maladroits · Tome " + t.n, auteur: s.auteur });
   document.getElementById("grille-tomes").innerHTML = s.tomes.map((t) => `
-    <a class="couverture" href="${amazon(t.asin)}" target="_blank" rel="noopener">
+    <button class="couverture" type="button" data-asin="${t.asin}">
       <img src="${t.image}" alt="Couverture du tome ${t.n} : ${t.titre}" loading="lazy">
       <span class="tome">Tome ${t.n}</span><b></b>
       <span class="prix">${t.prix ? prixFr(t.prix) : "Prix sur Amazon"}</span>
-    </a>`).join("");
+      <span class="voir">Lire le résumé</span>
+    </button>`).join("");
   document.querySelectorAll("#grille-tomes b").forEach((b, i) => b.textContent = s.tomes[i].titre);
   const a = d.autres;
+  a.livres.forEach((l) => livres[l.asin] = { livre: l, tome: "", auteur: a.auteur });
   document.getElementById("titre-autres").textContent = a.titre;
   document.getElementById("texte-autres").textContent = a.texte + " Par " + a.auteur + ".";
   document.getElementById("grille-autres").innerHTML = a.livres.map((l) => `
-    <a class="couverture" href="${amazon(l.asin)}" target="_blank" rel="noopener">
+    <button class="couverture" type="button" data-asin="${l.asin}">
       <img src="${l.image}" alt="Couverture : ${l.titre}" loading="lazy"><b></b><small></small>
       <span class="prix">${l.prix ? prixFr(l.prix) : "Prix sur Amazon"}</span>
-    </a>`).join("");
-  document.querySelectorAll("#grille-autres a").forEach((el, i) => {
+      <span class="voir">Lire le résumé</span>
+    </button>`).join("");
+  document.querySelectorAll("#grille-autres .couverture").forEach((el, i) => {
     el.querySelector("b").textContent = a.livres[i].titre; el.querySelector("small").textContent = a.livres[i].texte; });
+  document.querySelectorAll(".couverture[data-asin]").forEach((el) => el.addEventListener("click", () => ouvrirFiche(el.dataset.asin)));
+  if (location.hash.length > 1) ouvrirFiche(location.hash.slice(1));   // lien direct vers un livre : alluxe.fr/livres.html#ASIN
 });
 </script>
 </body>

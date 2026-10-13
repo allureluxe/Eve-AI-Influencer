@@ -153,3 +153,30 @@
   .etagere { grid-template-columns: repeat(2, 1fr); }
   .etagere .couverture:nth-child(n+5) { display: none; }
 }
+
+/* 13 oct. (3) — la fiche du livre : on lit l'histoire sur alluxe, puis « Commander » envoie sur Amazon */
+button.couverture { background: none; border: 0; padding: 0; font: inherit; text-align: left; cursor: pointer; }
+.couverture .voir { font-size: 13px; font-weight: 700; text-decoration: underline; opacity: .85; }
+.fiche-livre { margin: auto; border: 0; padding: 0; border-radius: 22px; width: min(860px, calc(100% - 24px)); max-height: calc(100% - 24px);
+  background: var(--neige); color: var(--noir); box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+.fiche-livre::backdrop { background: rgba(11,58,31,.72); }
+.fiche-livre .fermer { position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; border-radius: 50%; border: 0;
+  background: #fff; font-size: 22px; line-height: 1; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.fiche-contenu { display: grid; grid-template-columns: 240px 1fr; gap: 28px; padding: 30px; }
+.fiche-contenu img { width: 100%; aspect-ratio: 314 / 500; object-fit: cover; border-radius: 4px 10px 10px 4px;
+  box-shadow: 6px 10px 22px rgba(0,0,0,.3); background: #fff; }
+.fiche-contenu .tome { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--rouge); }
+.fiche-contenu h3 { font-family: "Bricolage Grotesque", sans-serif; font-size: clamp(22px, 3vw, 30px); line-height: 1.15; margin: 6px 0 4px; padding-right: 40px; }
+.fiche-contenu .auteur { color: var(--gris); margin: 0 0 14px; }
+.fiche-contenu .resume p { margin: 0 0 10px; line-height: 1.55; }
+.fiche-contenu .resume p.puce { margin: 0 0 4px; padding-left: 6px; }
+.fiche-contenu .resume p.puce + p:not(.puce) { margin-top: 10px; }
+.fiche-achat { margin-top: 18px; padding: 16px; border-radius: 16px; background: #fff; border: 2px solid var(--or); }
+.fiche-achat .prix { font-weight: 800; font-size: 22px; color: var(--rouge); }
+.fiche-achat .info-amazon { margin: 8px 0 14px; font-size: 14px; color: var(--gris); }
+.fiche-achat .bouton { background: var(--sapin); color: #fff; box-shadow: 6px 6px 0 var(--or); }
+.fiche-achat .bouton .fleche { background: var(--or); color: var(--sapin); }
+@media (max-width: 760px) {
+  .fiche-contenu { grid-template-columns: 1fr; padding: 22px 18px; gap: 16px; }
+  .fiche-contenu img { width: 150px; }
+}
