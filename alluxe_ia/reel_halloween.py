@@ -131,8 +131,11 @@ REELS = {
 # ------------------------------------------------------------------ voix
 #: 13 oct. : coral PUIS gpt-audio « marin » refusées (« trop ordinateur », « elle va pas »).
 #: Choix de l'opérateur parmi 6 essais ElevenLabs via Runway : « la 1, elle est
-#: rigolote » = Ella. Essais : data/alluxe_ia/essais_voix_runway/.
-VOIX_RUNWAY = "Ella"
+#: rigolote » = Ella ; puis, le même jour : « la voix 6, légèrement moins vite, elle
+#: parle super vite » = Rina, ralentie par ffmpeg (atempo : même hauteur de voix).
+#: Essais : data/alluxe_ia/essais_voix_runway/.
+VOIX_RUNWAY = "Rina"
+VITESSE = 0.9
 
 
 def _dire(texte: str, consigne: str, cible: Path) -> None:
@@ -156,8 +159,12 @@ def _dire(texte: str, consigne: str, cible: Path) -> None:
     while True:
         r = appel("GET", f"/v1/tasks/{tache}")
         if r.get("status") == "SUCCEEDED":
-            urllib.request.urlretrieve(r["output"][0], str(cible))
-            _journal(f"voix {VOIX_RUNWAY} : {texte[:60]}")
+            brut = cible.with_suffix(".brut.mp3")
+            urllib.request.urlretrieve(r["output"][0], str(brut))
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(brut), "-af",
+                            f"atempo={VITESSE}", "-b:a", "192k", str(cible)], check=True)
+            brut.unlink()
+            _journal(f"voix {VOIX_RUNWAY} ×{VITESSE} : {texte[:60]}")
             return
         if r.get("status") in ("FAILED", "CANCELLED"):
             raise SystemExit(f"voix Runway échouée : {r.get('failure')}")
