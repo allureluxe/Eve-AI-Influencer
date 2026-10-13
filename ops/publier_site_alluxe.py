@@ -25,7 +25,10 @@ FICHIERS = [".htaccess", "index.html", "kit.html", "payer.html", "merci.html", "
             # 13 oct. : l'accueil boutique de Noël et la page Livres
             "livres.html", "livres.json", "boutique.css", "creation-noel.jpg",
             # 13 oct. : référencement Google
-            "robots.txt", "sitemap.xml", "c2ba7a960916d0a9984e475e18a51ea7.txt"]
+            "robots.txt", "sitemap.xml", "c2ba7a960916d0a9984e475e18a51ea7.txt",
+            # 13 oct. : pages « idées cadeaux » (ops/pages_idees.py)
+            "idee-cadeau-noel-personnalise.html", "idee-cadeau-noel-grands-parents.html",
+            "idee-livre-enfant-drole.html", "idee-livre-developpement-personnel.html"]
 
 
 def _dossier(ftp: ftplib.FTP, nom: str) -> None:

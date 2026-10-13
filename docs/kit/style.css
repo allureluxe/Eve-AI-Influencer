@@ -421,3 +421,17 @@ footer .liens a { color: var(--noir); font-weight: 700; text-decoration: none; }
 .option-suivi .prix-suivi { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 44px; margin: 10px 0; }
 .option-suivi .prix-suivi small { font-size: 20px; }
 .option-suivi ul { margin: 6px 0 20px 20px; display: grid; gap: 6px; }
+
+/* 13 oct. — liste d'e-mails (commun.js, blocs data-inscription) */
+.inscription { background: #fff; border: 3px solid var(--noir); border-radius: 22px; padding: 26px; box-shadow: 8px 8px 0 #e9b949;
+  max-width: 760px; margin: 0 auto; color: var(--noir); }
+.inscription h3 { font-family: "Bricolage Grotesque", sans-serif; font-size: clamp(22px, 3vw, 30px); margin: 0 0 6px; }
+.inscription .texte-inscription { color: var(--gris); margin: 0 0 14px; }
+.inscription form { display: grid; grid-template-columns: 1fr auto; gap: 10px 12px; align-items: center; }
+.inscription input[type=email] { font: inherit; padding: 14px 16px; border: 2px solid var(--noir); border-radius: 999px; min-width: 0; }
+.inscription .accord { grid-column: 1 / -1; font-size: 13px; color: var(--gris); display: flex; gap: 8px; align-items: flex-start; }
+.inscription .accord input { margin-top: 3px; }
+.inscription .retour { grid-column: 1 / -1; margin: 0; font-size: 14px; font-weight: 600; }
+.inscription .piege { position: absolute; left: -9999px; width: 1px; height: 1px; }
+.inscription .message-ok { font-weight: 700; margin: 0; }
+@media (max-width: 560px) { .inscription form { grid-template-columns: 1fr; } }

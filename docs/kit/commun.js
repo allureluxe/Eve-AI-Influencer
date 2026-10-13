@@ -144,4 +144,33 @@
     }
   });
   window.euros = (n) => n.toLocaleString("fr-FR") + " €";
+
+  // Liste d'e-mails (13 oct.) : tout bloc <div data-inscription="noel|livres|offres|tout"> devient
+  // un petit formulaire. Fonction Edge alluxe-site-inscription, table alluxe_site_inscrits.
+  document.querySelectorAll("[data-inscription]").forEach((bloc) => {
+    const interet = bloc.dataset.inscription || "tout";
+    bloc.classList.add("inscription");
+    bloc.innerHTML = `<h3></h3><p class="texte-inscription"></p>
+      <form><input type="email" name="email" required placeholder="ton@email.fr" autocomplete="email" aria-label="Adresse e-mail">
+        <input type="text" name="site_web" tabindex="-1" autocomplete="off" class="piege" aria-hidden="true">
+        <button class="bouton" type="submit">Me prévenir <span class="fleche">→</span></button>
+        <label class="accord"><input type="checkbox" name="consentement" required><span>J'accepte de recevoir les e-mails d'alluxe (2 à 4 par mois au plus). Désinscription en un clic, voir les <a href="mentions-legales.html">mentions légales</a>.</span></label>
+        <p class="retour" aria-live="polite"></p></form>`;
+    bloc.querySelector("h3").textContent = bloc.dataset.titre || "Reste au courant";
+    bloc.querySelector(".texte-inscription").textContent = bloc.dataset.texte || "Ouverture des commandes, nouveautés et bons plans de Noël : on te prévient par e-mail.";
+    const form = bloc.querySelector("form"), retour = bloc.querySelector(".retour");
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      if (!form.consentement.checked) { retour.textContent = "Coche la case pour accepter de recevoir les e-mails."; return; }
+      const bouton = form.querySelector("button"); bouton.disabled = true; retour.textContent = "Envoi…";
+      try {
+        const r = await fetch("https://jwksajhtvhwktkbkpits.supabase.co/functions/v1/alluxe-site-inscription", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: form.email.value, site_web: form.site_web.value, consentement: true, interet, page: location.pathname }) });
+        const d = await r.json();
+        if (d.ok) form.innerHTML = '<p class="message-ok">C\'est noté ! Tu seras parmi les premiers prévenus. 🎄</p>';
+        else { retour.textContent = d.erreur || "Une erreur est survenue, réessaie."; bouton.disabled = false; }
+      } catch { retour.textContent = "Connexion impossible, réessaie dans un instant."; bouton.disabled = false; }
+    };
+  });
 })();

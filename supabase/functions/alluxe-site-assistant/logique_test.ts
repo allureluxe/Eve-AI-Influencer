@@ -59,10 +59,10 @@ Deno.test("les prix viennent de offres.json, formules comprises", () => {
     { nom: "Kit UGC", accroche: "c", unique: 19, mensuel: 0, delai: "48 h", unique_seulement: true },
     { nom: "Appli", accroche: "d", unique: 349, mensuel: 45, delai: "2 semaines", a_partir: true },
   ]);
-  assertEquals(texte.includes("Site vitrine (a) : 99 EUR ou 15 EUR/mois, 5 jours."), true);
+  assertEquals(texte.includes("Site vitrine (a) : 99 EUR, prix unique, 5 jours."), true);
   assertEquals(texte.includes("69 EUR puis 15 EUR/mois"), true);
   assertEquals(texte.includes("19 EUR en une fois"), true);
-  assertEquals(texte.includes("des 349 EUR ou des 45 EUR/mois"), true);
+  assertEquals(texte.includes("des 349 EUR, prix unique"), true);
   assertEquals(texte.includes("{OFFRES}"), false);
 });
 
@@ -70,4 +70,11 @@ Deno.test("l'offre de Noel n'est citee que tant qu'elle court", () => {
   const promo = { titre: "Offre de Noel", detail: "1er mois offert", fin: "2026-12-25T00:00:00+01:00" };
   assertEquals(consigne([], promo, new Date("2026-10-08")).includes("1er mois offert"), true);
   assertEquals(consigne([], promo, new Date("2026-12-26")).includes("1er mois offert"), false);
+});
+
+Deno.test("l'option de suivi est citee, par ecrit et sans appel", () => {
+  const texte = consigne([], null, new Date(), { nom: "Suivi & coaching", prix_mensuel: 29, engagement: "sans engagement" });
+  assertEquals(texte.includes("Suivi & coaching : 29 EUR/mois, sans engagement"), true);
+  assertEquals(texte.includes("JAMAIS d'appel"), true);
+  assertEquals(consigne([]).includes("Suivi & coaching"), false);
 });

@@ -21,9 +21,9 @@ Tu reponds en francais, en tutoyant, simplement, en 4 phrases maximum.
 
 Ce que tu sais, et rien d'autre :
 - alluxe.ia construit avec l'IA, pour des particuliers, createurs et petites entreprises : comptes faceless, publication automatique, sites vitrines, boutiques, e-commerce, applications, marques de vetements, agents IA, robots d'automatisation, packs de Noel. Prix bas parce que l'IA fait le gros du travail.
-- Les offres (prix affiches sur la page Offres ; paiement unique OU abonnement mensuel sans frais de depart, engagement 12 mois, sauf mention) :
+- Les offres (prix affiches sur la page Offres ; PRIX UNIQUE paye une fois, sauf les offres marquees « puis X EUR/mois » dont le service tourne chaque mois) :
 {OFFRES}
-- Pour commander : la page Commander (formulaire). Reponse sous 24 h, aucun paiement avant d'avoir valide le projet ensemble.
+- Les prises de commande ouvrent bientot : en attendant, le visiteur peut laisser son e-mail sur le site (bloc « on te previent ») pour etre prevenu en premier. Aucun paiement avant d'avoir valide le projet ensemble.
 - Gratuit : la page Kits (16 kits a faire soi-meme : site vitrine, influenceuse IA Instagram et TikTok, page de vente, boutique Shopify, boutique simple sans Shopify, agent IA secretaire, chatbot de site, robot d'automatisation, robot reseaux sociaux, application mobile simple, logo et identite, newsletter, prise de rendez-vous, ebook, assistant personnel, CV et portfolio ; chacun avec un mode d'emploi et un prompt complet a copier), la page Prompts gratuits (34 prompts a copier) et le kit du constructeur en PDF.
 - Le createur n'est pas developpeur : tout est construit avec Claude et ChatGPT. Realisations : ce site et son assistant, un compte Instagram qui se publie seul, une appli mobile privee, un agent IA, un labo d'idees automatique.
 
@@ -47,7 +47,7 @@ export function lignesOffres(offres: Offre[]): string {
     const des = o.a_partir ? "des " : "";
     const prix = o.abonnement_obligatoire ? `${o.unique} EUR puis ${o.mensuel} EUR/mois`
       : o.unique_seulement ? `${o.unique} EUR en une fois`
-      : `${des}${o.unique} EUR ou ${des}${o.mensuel} EUR/mois`;
+      : `${des}${o.unique} EUR, prix unique`;
     const detail = [o.accroche, ...(o.inclus ?? [])].join(" ; ");
     return `  ${o.nom} (${detail}) : ${prix}, ${o.delai}.${o.note ? " " + o.note : ""}`;
   }).join("\n");
@@ -56,8 +56,13 @@ export function lignesOffres(offres: Offre[]): string {
 /** Si offres.json est injoignable : on le dit, plutot que d'inventer des prix. */
 export const OFFRES_INDISPONIBLES = "  (liste momentanement indisponible : renvoie vers la page Offres d'alluxe.fr, ne cite aucun prix)";
 export interface Promo { titre: string; detail: string; fin: string }
-export const consigne = (offres: Offre[] | null, promo?: Promo | null, maintenant = new Date()) =>
+export interface Suivi { nom: string; prix_mensuel: number; engagement: string; inclus?: string[] }
+/** L'option de suivi (offres.json « suivi ») : 13 oct., uniquement par ecrit, jamais d'appel. */
+export const ligneSuivi = (s: Suivi) =>
+  `\n- Option ${s.nom} : ${s.prix_mensuel} EUR/mois, ${s.engagement}, a ajouter a n'importe quelle offre. Tout se fait PAR ECRIT (e-mail ou WhatsApp) : JAMAIS d'appel, de visio ni de rendez-vous, ne le propose pas.${s.inclus?.length ? " Inclus : " + s.inclus.join(" ; ") + "." : ""}`;
+export const consigne = (offres: Offre[] | null, promo?: Promo | null, maintenant = new Date(), suivi?: Suivi | null) =>
   CONSIGNE_BASE.replace("{OFFRES}", (offres && offres.length ? lignesOffres(offres) : OFFRES_INDISPONIBLES) +
+    (suivi ? ligneSuivi(suivi) : "") +
     (promo && new Date(promo.fin) > maintenant ? `\n- ${promo.titre} en cours : ${promo.detail}` : "") +
     "\n- Grand concours de Noel : le gagnant choisit le pack de son choix parmi toutes les offres, participation gratuite jusqu'au 20 decembre (s'abonner, partager le Reel du concours en story en identifiant @alluxe.ia, commenter PARTAGE), tirage le 21 decembre. Details et reglement : page alluxe.fr/concours.");
 export const CONSIGNE = consigne(null);

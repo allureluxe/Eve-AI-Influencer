@@ -180,3 +180,21 @@ button.couverture { background: none; border: 0; padding: 0; font: inherit; text
   .fiche-contenu { grid-template-columns: 1fr; padding: 22px 18px; gap: 16px; }
   .fiche-contenu img { width: 150px; }
 }
+
+/* 13 oct. (4) — pages « idées cadeaux » (ops/pages_idees.py) */
+.page-idee .idee-bloc { padding: 46px 0 0; }
+.page-idee .idee-bloc:last-of-type { padding-bottom: 60px; }
+.page-idee .idee-bloc h2 { font-size: clamp(26px, 3.4vw, 38px); margin-bottom: 14px; }
+.page-idee .idee-bloc p { max-width: 760px; line-height: 1.65; margin: 0 0 14px; font-size: 17px; }
+.page-idee .etal { margin-top: 18px; }
+.page-idee .voir-lien { margin-top: auto; padding-top: 8px; font-weight: 700; color: var(--rouge); }
+.page-idee .fiche .sous { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--rouge); }
+.page-idee .fiche-livre-idee img { aspect-ratio: 314 / 500; object-fit: cover; }
+.page-idee .faq { display: grid; gap: 10px; max-width: 820px; }
+.page-idee .faq details { background: #fff; border: 1px solid var(--trait, #e6dccf); border-radius: 14px; padding: 14px 18px; }
+.page-idee .faq summary { font-weight: 700; cursor: pointer; }
+.page-idee .faq details p { margin: 10px 0 0; font-size: 16px; }
+.page-idee .autres-idees { font-size: 15px; }
+.page-idee .autres-idees a.ici { font-weight: 800; text-decoration: none; }
+.bloc-inscription { padding: 50px 0; }
+.idees-liens { text-align: center; margin: 22px auto 0; max-width: 860px; font-size: 15px; line-height: 1.7; }

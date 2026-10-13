@@ -18,8 +18,8 @@
 <link rel="icon" href="logo-alluxe.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261013c">
-<link rel="stylesheet" href="boutique.css?v=20261013c">
+<link rel="stylesheet" href="style.css?v=20261013d">
+<link rel="stylesheet" href="boutique.css?v=20261013d">
 </head>
 <body class="page-livres2">
 
@@ -65,6 +65,9 @@
   <div class="conteneur"><p class="petit" style="text-align:center">Les livres sont vendus et livrés par Amazon. Prix relevés sur Amazon.fr le 13 octobre 2026 : le prix affiché sur Amazon fait foi.</p></div>
 </section>
 
+<section class="bloc-inscription"><div class="conteneur"><div data-inscription="livres" data-titre="Reste au courant des nouveautés" data-texte="Nouveaux tomes des détectives maladroits et nouveaux livres : on te prévient par e-mail."></div>
+  <p class="idees-liens">💡 Idées cadeaux : <a href="idee-cadeau-noel-personnalise.html">cadeaux de Noël personnalisés</a> · <a href="idee-cadeau-noel-grands-parents.html">cadeau pour les grands-parents</a> · <a href="idee-livre-enfant-drole.html">livre drôle pour enfant</a> · <a href="idee-livre-developpement-personnel.html">livre de développement personnel</a></p></div></section>
+
 <dialog class="fiche-livre" id="fiche-livre" aria-labelledby="fiche-titre">
   <button class="fermer" type="button" aria-label="Fermer">×</button>
   <div class="fiche-contenu">
@@ -83,7 +86,7 @@
   </div>
 </dialog>
 
-<script src="commun.js?v=20261013c"></script>
+<script src="commun.js?v=20261013d"></script>
 <script>
 const prixFr = (n) => n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 const amazon = (asin) => "https://www.amazon.fr/dp/" + asin;
