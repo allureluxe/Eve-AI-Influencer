@@ -1,0 +1,22 @@
+# alluxe.ia : rapport quotidien des statistiques Instagram, TikTok, YouTube
+# (ops/stats_reseaux.py), envoyé sur Telegram.
+#
+# Il faut WINDSOR_API_KEY dans .env :
+#   python3 ops/stats_reseaux_cle.py <cle>
+#
+#   sudo cp systemd/alluxe-ia-stats.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now alluxe-ia-stats.timer
+
+[Unit]
+Description=alluxe.ia -- rapport des statistiques des reseaux
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Eve-AI-Influencer
+EnvironmentFile=/home/ubuntu/Eve-AI-Influencer/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ubuntu/Eve-AI-Influencer/.venv/bin/python /home/ubuntu/Eve-AI-Influencer/ops/stats_reseaux.py --telegram

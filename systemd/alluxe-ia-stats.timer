@@ -1,0 +1,10 @@
+# Chaque jour à 11h45 (Paris) : avant le service de 12h, jamais plus tôt.
+[Unit]
+Description=alluxe.ia -- rapport des statistiques chaque jour a 11h45
+
+[Timer]
+OnCalendar=*-*-* 11:45:00 Europe/Paris
+Persistent=true
+
+[Install]
+WantedBy=timers.target
