@@ -9,6 +9,44 @@
 <style>
 :root{--bg:#0b100e;--panel:#121a17;--panel2:#17221e;--line:#28352f;--text:#f3f7f5;--muted:#a8b5af;--mint:#62d0b9;--gold:#e7aa50}*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{background:radial-gradient(circle at 50% -15%,#244239 0,#0b100e 43%);color:var(--text);font-family:Inter,system-ui,sans-serif;line-height:1.55}a{color:inherit}.wrap{max-width:1120px;margin:auto;padding:0 22px}.top{height:76px;display:flex;align-items:center;justify-content:space-between}.brand{display:flex;align-items:center;gap:11px;text-decoration:none}.brand img{width:45px;height:45px}.brand b{font-size:19px}.brand small{display:block;color:var(--muted);font-size:10px}.nav{display:flex;gap:24px}.nav a{color:var(--muted);text-decoration:none;font-size:13px}.nav a:hover{color:#fff}.hero{text-align:center;padding:78px 0 85px}.tag{display:inline-block;border:1px solid #31554a;background:#12211c;color:var(--mint);padding:7px 12px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em}.hero h1{font-size:clamp(42px,7vw,76px);line-height:1;letter-spacing:-.055em;max-width:900px;margin:18px auto}.hero h1 em{font-style:normal;color:var(--gold)}.hero p{max-width:720px;margin:auto;color:var(--muted);font-size:18px}.actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:30px 0 12px}.btn{display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;border:1px solid var(--line)}.primary{background:var(--gold);color:#171109;border-color:var(--gold)}.secondary{background:var(--panel);color:#fff}.note{font-size:11px;color:var(--muted)}.section{padding:72px 0}.heading{text-align:center;max-width:700px;margin:0 auto 30px}.heading .ey{color:var(--mint);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}.heading h2{font-size:clamp(30px,4vw,44px);line-height:1.05;letter-spacing:-.035em;margin:8px 0 12px}.heading p{color:var(--muted)}.services{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{background:linear-gradient(145deg,rgba(23,34,30,.96),rgba(14,20,18,.96));border:1px solid var(--line);border-radius:18px;padding:24px;min-height:205px;transition:.2s}.card:hover{transform:translateY(-3px);border-color:#426357}.card.feature{border-color:#496e60;background:linear-gradient(145deg,#192b25,#111916)}.num{color:var(--mint);font-size:11px;font-weight:800;letter-spacing:.08em}.icon{font-size:25px;margin:10px 0 5px}.card h3{font-size:19px;margin-bottom:7px}.card p{color:var(--muted);font-size:13px}.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}.chip{font-size:10px;border:1px solid var(--line);padding:5px 8px;border-radius:99px;color:#c4d0cb}.process{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.step{padding:20px;border-top:1px solid var(--line)}.step strong{color:var(--gold);font-size:12px}.step h3{margin:8px 0 4px;font-size:16px}.step p{font-size:12px;color:var(--muted)}.kit{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:stretch}.box{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:30px}.box h2{font-size:30px;line-height:1.1;margin:7px 0 12px}.box p{color:var(--muted)}.list{margin:18px 0;display:grid;gap:9px}.list span{font-size:13px}.list span:before{content:'✓';color:var(--mint);font-weight:800;margin-right:9px}.cta{margin:30px 0 70px;text-align:center;padding:48px 22px;border:1px solid var(--line);border-radius:22px;background:radial-gradient(circle at 50% 0,#1c332b,#111714)}.cta h2{font-size:34px;letter-spacing:-.03em}.cta p{color:var(--muted);max-width:620px;margin:10px auto 22px}.footer{border-top:1px solid var(--line);padding:25px 0 45px;color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:20px}.footer a{color:var(--mint);text-decoration:none}@media(max-width:800px){.services{grid-template-columns:1fr 1fr}.process{grid-template-columns:1fr 1fr}.kit{grid-template-columns:1fr}}@media(max-width:560px){.nav{display:none}.hero{padding:55px 0 65px}.services,.process{grid-template-columns:1fr}.card{min-height:0}.footer{display:block}.footer p+ p{margin-top:8px}}
 #bulle{position:fixed;right:18px;bottom:18px;width:60px;height:60px;border-radius:50%;border:2px solid var(--mint);background:var(--bg);padding:4px;cursor:pointer;box-shadow:0 8px 28px #0008;z-index:20}#bulle img{width:100%;height:100%;border-radius:50%}#fenetre{position:fixed;right:18px;bottom:88px;width:min(380px,calc(100vw - 36px));height:min(520px,calc(100vh - 110px));background:var(--panel);border:1px solid var(--line);border-radius:16px;display:none;flex-direction:column;overflow:hidden;z-index:20;box-shadow:0 14px 50px #0009}#fenetre.ouverte{display:flex}#fenetre header{display:flex;align-items:center;gap:9px;padding:12px;border-bottom:1px solid var(--line);font-weight:700}#fenetre header img{width:30px;height:30px;border-radius:50%}#fenetre header button{margin-left:auto;background:none;border:0;color:var(--muted);font-size:22px}#fil{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:8px}.msg{max-width:88%;padding:9px 12px;border-radius:12px;font-size:13px;white-space:pre-wrap}.msg.ia{background:var(--line)}.msg.moi{background:var(--mint);color:#08120f;align-self:flex-end}#saisie{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}#saisie input{flex:1;background:var(--bg);color:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;font-size:16px}#saisie button{background:var(--gold);border:0;border-radius:10px;padding:0 14px;font-weight:800}
+
+/* Alluxe Noël 2026 — ajouts isolés, sans modifier les styles existants */
+.noel-section{position:relative;overflow:hidden;border:1px solid #34483e;border-radius:24px;background:radial-gradient(circle at 90% 0,#25483b 0,transparent 38%),linear-gradient(135deg,#121d18,#0e1411);padding:clamp(24px,4vw,42px)}
+.noel-section:before{content:"✦";position:absolute;right:7%;top:8%;font-size:56px;color:#e7aa50;opacity:.28;pointer-events:none}
+.noel-kicker{display:inline-flex;align-items:center;gap:8px;border:1px solid #4d6555;background:#14241d;color:#e7aa50;padding:7px 12px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.noel-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.noel-product{display:flex;flex-direction:column;gap:12px;background:linear-gradient(150deg,#17231e,#101613);border:1px solid #2b3a32;border-radius:18px;padding:21px;min-height:245px}
+.noel-product:hover{border-color:#557b68;transform:translateY(-2px)}
+.noel-product .noel-emoji{font-size:30px}
+.noel-product h3{font-size:18px;line-height:1.2}
+.noel-product p{font-size:13px;color:var(--muted)}
+.noel-price{font-size:13px;font-weight:800;color:var(--gold);margin-top:auto}
+.noel-product .btn{font-size:12px;padding:11px 12px}
+.noel-callout{margin-top:20px;padding:17px;border-radius:15px;border:1px solid #4b5b4e;background:#121d17;color:#dce7e0;font-size:13px}
+.noel-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(3,8,6,.78);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.noel-modal-backdrop[hidden]{display:none}
+.noel-modal{position:relative;width:min(740px,100%);max-height:min(92vh,850px);overflow:auto;border:1px solid #3a5145;border-radius:24px;background:linear-gradient(145deg,#14241d,#0c110f 72%);box-shadow:0 28px 100px #000b;color:#f3f7f5}
+.noel-modal-close{position:absolute;right:13px;top:13px;z-index:2;width:40px;height:40px;border:1px solid #64776a;border-radius:50%;background:#0b100eeb;color:#fff;font-size:25px;line-height:1;cursor:pointer}
+.noel-modal-art{position:relative;min-height:190px;padding:22px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 100%,#315a45,#14251d 60%,#0c120f)}
+.noel-modal-art svg{width:min(460px,100%);height:auto;max-height:230px}
+.noel-modal-content{padding:clamp(22px,4vw,36px);text-align:center}
+.noel-modal-content .noel-kicker{margin-bottom:13px}
+.noel-modal-content h2{font-size:clamp(28px,5vw,44px);line-height:1.03;letter-spacing:-.04em;margin:4px 0 14px}
+.noel-modal-content h2 em{font-style:normal;color:var(--gold)}
+.noel-modal-content>p{max-width:570px;margin:0 auto 20px;color:var(--muted);font-size:14px}
+.noel-prizes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:20px 0}
+.noel-prize{padding:15px 8px;border:1px solid #34463b;border-radius:15px;background:#17221c}
+.noel-prize span{display:block;color:#c6d2cb;font-size:11px;font-weight:700}
+.noel-prize strong{display:block;color:var(--gold);font-size:clamp(23px,4vw,32px);line-height:1.25;margin-top:4px}
+.noel-modal-note{font-size:11px!important;margin-bottom:18px!important}
+.noel-modal-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.noel-modal-actions .btn{min-width:180px}
+.noel-modal-actions .primary{background:var(--gold);color:#171109}
+.noel-modal-actions .secondary{background:#111a15}
+.noel-product .btn:hover,.noel-modal-actions .btn:hover{filter:brightness(1.08)}
+@media(max-width:800px){.noel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.noel-grid{grid-template-columns:1fr}.noel-product{min-height:0}.noel-prizes{gap:6px}.noel-prize{padding:12px 4px}.noel-modal-backdrop{padding:10px}.noel-modal{border-radius:18px;max-height:95vh}.noel-modal-art{min-height:135px;padding:14px}.noel-modal-art svg{max-height:150px}.noel-modal-content{padding:22px 17px}.noel-modal-actions{flex-direction:column}.noel-modal-actions .btn{width:100%}}
+@media(prefers-reduced-motion:reduce){.noel-product{transition:none}.noel-product:hover{transform:none}}
 </style></head>
 <body><header class="top wrap"><a class="brand" href="./"><img src="logo-alluxe.png" alt="Alluxe"><span><b>alluxe.ia</b><small>Créer avec l'intelligence artificielle</small></span></a><nav class="nav"><a href="#services">Services</a><a href="#methode">Méthode</a><a href="#kit">Kit gratuit</a><a href="https://www.instagram.com/alluxe.ia/" rel="noopener">Instagram</a></nav></header>
 <main>
@@ -24,10 +62,102 @@
 <article class="card"><div class="num">08 · ENTREPRISE</div><div class="icon">🏢</div><h3>IA pour les entreprises</h3><p>Audit, intégration et outils IA pour gagner du temps et améliorer les opérations.</p><div class="chips"><span class="chip">Audit</span><span class="chip">Process</span><span class="chip">Formation</span></div></article>
 <article class="card"><div class="num">09 · RÉSEAUX</div><div class="icon">📱</div><h3>Réseaux sociaux IA</h3><p>Stratégie, calendrier, idées, visuels et automatisation de production de contenu.</p><div class="chips"><span class="chip">Instagram</span><span class="chip">TikTok</span><span class="chip">Reels</span></div></article>
 </div></section>
+
+<section class="section wrap" id="editions-noel">
+  <div class="noel-section">
+    <div class="heading"><div class="noel-kicker">🎄 Éditions de Noël · 2026</div><h2>Des idées cadeaux qui font avancer vos projets.</h2><p>Des créations personnalisées et des solutions IA pour les fêtes, les entrepreneurs et ceux qui veulent commencer 2027 avec une longueur d'avance.</p></div>
+    <div class="noel-grid">
+      <article class="noel-product"><div class="noel-emoji">🎁</div><div class="num">01 · POUR LES PROS</div><h3>Pack Noël Express</h3><p>10 visuels festifs, 10 textes de publication et 5 stories adaptés à votre activité pour communiquer pendant les fêtes.</p><div class="noel-price">À partir de 29 €</div><a class="btn secondary" href="https://www.instagram.com/alluxe.ia/" target="_blank" rel="noopener noreferrer">Demander ce pack →</a></article>
+      <article class="noel-product"><div class="noel-emoji">🎬</div><div class="num">02 · MESSAGE PERSONNALISÉ</div><h3>Le message de Noël vivant</h3><p>Une vidéo de vœux personnalisée, avec un message sur mesure et une ambiance festive, pour un proche ou vos clients.</p><div class="noel-price">15–35 € selon le projet</div><a class="btn secondary" href="https://www.instagram.com/alluxe.ia/" target="_blank" rel="noopener noreferrer">Personnaliser ma vidéo →</a></article>
+      <article class="noel-product"><div class="noel-emoji">🖼️</div><div class="num">03 · CADEAU CRÉATIF</div><h3>Portrait de Noël IA</h3><p>Un portrait festif créé à partir de votre photo, avec un style à choisir : élégant, cinéma de Noël ou décalé.</p><div class="noel-price">9–25 € selon le style</div><a class="btn secondary" href="https://www.instagram.com/alluxe.ia/" target="_blank" rel="noopener noreferrer">Créer mon portrait →</a></article>
+      <article class="noel-product"><div class="noel-emoji">💳</div><div class="num">04 · À OFFRIR</div><h3>Carte cadeau Alluxe</h3><p>Offrez un crédit à utiliser sur les services Alluxe : création web, contenus IA ou accompagnement de projet. Modalités à convenir avant achat.</p><div class="noel-price">Montant à définir</div><a class="btn secondary" href="https://www.instagram.com/alluxe.ia/" target="_blank" rel="noopener noreferrer">Demander une carte cadeau →</a></article>
+      <article class="noel-product"><div class="noel-emoji">🗓️</div><div class="num">05 · CAP SUR 2027</div><h3>Réveillon Business</h3><p>Un mini-plan personnalisé : idées d’offres, calendrier de contenu et prochaines actions pour préparer votre activité à la nouvelle année.</p><div class="noel-price">19–39 € selon le périmètre</div><a class="btn secondary" href="https://www.instagram.com/alluxe.ia/" target="_blank" rel="noopener noreferrer">Préparer mon plan →</a></article>
+      <article class="noel-product"><div class="noel-emoji">🛍️</div><div class="num">06 · POUR LES COMMERÇANTS</div><h3>Mini-boutique de Noël</h3><p>Une page dédiée à vos offres de fêtes, avec présentation des produits, informations pratiques et boutons de contact.</p><div class="noel-price">Sur devis · délai à confirmer</div><a class="btn secondary" href="https://www.instagram.com/alluxe.ia/" target="_blank" rel="noopener noreferrer">Parler de ma boutique →</a></article>
+      <article class="noel-product"><div class="noel-emoji">🤖</div><div class="num">07 · ASSISTANT IA</div><h3>Le Lutin IA des commerçants</h3><p>Un assistant adapté à votre commerce pour répondre aux questions fréquentes sur les horaires, les produits et les commandes, selon les outils disponibles.</p><div class="noel-price">Sur devis · selon les intégrations</div><a class="btn secondary" href="https://www.instagram.com/alluxe.ia/" target="_blank" rel="noopener noreferrer">Étudier mon assistant IA →</a></article>
+    </div>
+    <div class="noel-callout">✨ Chaque offre est réalisée selon un périmètre défini avec vous. Les prix indicatifs seront confirmés avant toute commande. Contactez Alluxe pour vérifier les disponibilités, le délai et le contenu exact de la prestation.</div>
+  </div>
+</section>
+<section class="section wrap" id="concours-noel">
+  <div class="noel-section">
+    <div class="heading"><div class="noel-kicker">🎁 Grand concours de Noël Alluxe</div><h2>300 € de bons d’achat à gagner.</h2><p>Trois gagnants pourront utiliser leur bon d’achat sur l’ensemble des services Alluxe, selon les conditions du règlement.</p></div>
+    <div class="noel-prizes">
+      <div class="noel-prize"><span>🥇 1ER PRIX</span><strong>150 €</strong><span>Bon Alluxe</span></div>
+      <div class="noel-prize"><span>🥈 2E PRIX</span><strong>100 €</strong><span>Bon Alluxe</span></div>
+      <div class="noel-prize"><span>🥉 3E PRIX</span><strong>50 €</strong><span>Bon Alluxe</span></div>
+    </div>
+    <p style="text-align:center;color:var(--muted);font-size:13px">Ouverture prévue le 30 novembre 2026 · Clôture le 20 décembre 2026 à 23 h 59 (heure de Paris) · Tirage prévu le 21 décembre 2026.</p>
+    <div class="actions"><a class="btn primary" href="https://www.instagram.com/alluxe.ia/" target="_blank" rel="noopener noreferrer">Retrouver Alluxe sur Instagram →</a></div>
+    <p style="text-align:center;font-size:11px">Concours sous réserve de publication du règlement définitif. Participation gratuite et sans obligation d’achat.</p>
+  </div>
+</section>
 <section class="section wrap" id="methode"><div class="heading"><div class="ey">Notre méthode</div><h2>Simple : comprendre, construire, tester, automatiser.</h2></div><div class="process"><div class="step"><strong>01</strong><h3>Brief</h3><p>Objectif, cible, contraintes et résultat attendu.</p></div><div class="step"><strong>02</strong><h3>Construction</h3><p>On choisit les bons modèles, outils et intégrations.</p></div><div class="step"><strong>03</strong><h3>Tests</h3><p>On vérifie que le système fonctionne réellement.</p></div><div class="step"><strong>04</strong><h3>Automatisation</h3><p>On transforme le prototype en système exploitable.</p></div></div></section>
 <section class="section wrap" id="kit"><div class="kit"><div class="box"><div class="ey">Ressource gratuite</div><h2>Le kit du constructeur IA</h2><p>12 prompts pratiques pour passer d'une idée à un système fonctionnel avec Claude et ChatGPT.</p><div class="list"><span>Cadrer une idée</span><span>Diagnostiquer un problème</span><span>Découper un projet</span><span>Automatiser sans perdre le contrôle</span></div><a class="btn primary" href="kit-constructeur.pdf" download>⬇ Télécharger gratuitement</a></div><div class="box"><div class="ey">Besoin spécifique ?</div><h2>On construit votre solution.</h2><p>Vous avez une idée, un problème ou un processus à automatiser ? Expliquez-nous simplement ce que vous voulez obtenir.</p><div class="actions" style="justify-content:flex-start"><a class="btn secondary" href="https://www.instagram.com/alluxe.ia/" rel="noopener">Parler à alluxe.ia →</a></div></div></div></section>
 <section class="cta wrap"><h2>Une idée ? Construisons-la avec l'IA.</h2><p>Pas besoin de savoir coder pour commencer. Décrivez votre projet et nous cherchons la solution la plus adaptée.</p><a class="btn primary" href="https://www.instagram.com/alluxe.ia/" rel="noopener">Démarrer un projet →</a></section>
-</main><footer class="footer wrap"><p>alluxe.ia · Solutions IA, création et automatisation.</p><p>Créations générées ou assistées par IA. <a href="https://www.instagram.com/alluxe.ia/">Instagram</a></p></footer>
+</main>
+<div class="noel-modal-backdrop" id="alluxe-noel-modal" hidden>
+  <section class="noel-modal" role="dialog" aria-modal="true" aria-labelledby="alluxe-noel-title" aria-describedby="alluxe-noel-description" tabindex="-1">
+    <button class="noel-modal-close" type="button" aria-label="Fermer la fenêtre de Noël">×</button>
+    <div class="noel-modal-art" aria-hidden="true">
+      <svg viewBox="0 0 560 230" xmlns="http://www.w3.org/2000/svg" role="img">
+        <defs><linearGradient id="giftGold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f5d995"/><stop offset="1" stop-color="#c58a36"/></linearGradient><linearGradient id="giftGreen" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2c634b"/><stop offset="1" stop-color="#153b2b"/></linearGradient><radialGradient id="glow"><stop stop-color="#d7b05c" stop-opacity=".34"/><stop offset="1" stop-color="#d7b05c" stop-opacity="0"/></radialGradient></defs>
+        <circle cx="280" cy="120" r="150" fill="url(#glow)"/>
+        <g fill="#e7aa50"><circle cx="78" cy="45" r="3"/><circle cx="462" cy="55" r="2.5"/><circle cx="420" cy="175" r="3"/><path d="M130 25l3 8 8 3-8 3-3 8-3-8-8-3 8-3z"/><path d="M487 104l3 8 8 3-8 3-3 8-3-8-8-3 8-3z"/></g>
+        <ellipse cx="280" cy="202" rx="185" ry="15" fill="#07100b" opacity=".45"/>
+        <g transform="translate(94 85)"><rect x="0" y="43" width="130" height="67" rx="5" fill="url(#giftGreen)" stroke="#d7b05c" stroke-width="1.5"/><rect x="-6" y="34" width="142" height="17" rx="3" fill="#1e5138" stroke="#d7b05c" stroke-width="1.5"/><rect x="57" y="34" width="16" height="76" fill="url(#giftGold)"/><path d="M65 35C35 20 29 -1 46 0c16 1 21 20 19 35C75 20 91 1 102 7c14 8-7 26-29 28" fill="none" stroke="url(#giftGold)" stroke-width="8" stroke-linecap="round"/></g>
+        <g transform="translate(246 54)"><rect x="0" y="51" width="160" height="100" rx="5" fill="url(#giftGold)" stroke="#ffe9b2" stroke-width="1.5"/><rect x="-7" y="39" width="174" height="22" rx="4" fill="#f1d08a" stroke="#ffe9b2" stroke-width="1.5"/><rect x="70" y="39" width="18" height="112" fill="#174b34"/><path d="M79 39C48 22 47 0 65 2c13 2 17 17 16 37C90 17 111 2 121 10c12 10-12 27-35 29" fill="none" stroke="#174b34" stroke-width="9" stroke-linecap="round"/></g>
+        <g transform="translate(397 118)"><rect x="0" y="28" width="70" height="54" rx="4" fill="url(#giftGreen)" stroke="#d7b05c"/><rect x="-4" y="21" width="78" height="12" rx="3" fill="#2b6349" stroke="#d7b05c"/><rect x="30" y="21" width="10" height="61" fill="url(#giftGold)"/></g>
+      </svg>
+    </div>
+    <div class="noel-modal-content">
+      <div class="noel-kicker">✨ Édition de Noël 2026</div>
+      <h2 id="alluxe-noel-title">300 € de bons d’achat <em>à gagner</em></h2>
+      <p id="alluxe-noel-description">Alluxe prépare son concours de Noël : trois gagnants, trois bons d’achat utilisables sur les services Alluxe, selon le règlement définitif.</p>
+      <div class="noel-prizes">
+        <div class="noel-prize"><span>🥇 1ER PRIX</span><strong>150 €</strong><span>Bon Alluxe</span></div>
+        <div class="noel-prize"><span>🥈 2E PRIX</span><strong>100 €</strong><span>Bon Alluxe</span></div>
+        <div class="noel-prize"><span>🥉 3E PRIX</span><strong>50 €</strong><span>Bon Alluxe</span></div>
+      </div>
+      <p class="noel-modal-note">Ouverture prévue le 30 novembre 2026. La participation sera gratuite, sans obligation d’achat. Le règlement et le lien de participation seront ajoutés avant le lancement.</p>
+      <div class="noel-modal-actions"><a class="btn primary" href="#concours-noel" id="alluxe-noel-see">Découvrir le concours ↓</a><button class="btn secondary" type="button" id="alluxe-noel-dismiss">Continuer sur Alluxe</button></div>
+    </div>
+  </section>
+</div>
+<footer class="footer wrap"><p>alluxe.ia · Solutions IA, création et automatisation.</p><p>Créations générées ou assistées par IA. <a href="https://www.instagram.com/alluxe.ia/">Instagram</a></p></footer>
 <button id="bulle" aria-label="Poser une question"><img src="logo-alluxe.png" alt=""></button><section id="fenetre" aria-label="Assistant alluxe.ia"><header><img src="logo-alluxe.png" alt="">Assistant alluxe.ia<button id="fermer">×</button></header><div id="fil"></div><form id="saisie"><input id="texte" maxlength="600" placeholder="Votre question…" autocomplete="off"><button>➤</button></form></section>
+
+<script>
+(()=> {
+  const backdrop=document.getElementById('alluxe-noel-modal');
+  if(!backdrop) return;
+  const dialog=backdrop.querySelector('.noel-modal');
+  const close=backdrop.querySelector('.noel-modal-close');
+  const dismiss=document.getElementById('alluxe-noel-dismiss');
+  const see=document.getElementById('alluxe-noel-see');
+  let previousFocus=null;
+  const key='alluxeNoelModalDismissed2026';
+  const closeModal=()=>{backdrop.hidden=true;document.body.style.overflow='';if(previousFocus&&typeof previousFocus.focus==='function')previousFocus.focus();};
+  const openModal=()=>{previousFocus=document.activeElement;backdrop.hidden=false;document.body.style.overflow='hidden';close.focus();};
+  const dismissForSession=()=>{try{sessionStorage.setItem(key,'1')}catch(e){}closeModal();};
+  close.addEventListener('click',dismissForSession);
+  dismiss.addEventListener('click',dismissForSession);
+  backdrop.addEventListener('click',e=>{if(e.target===backdrop)dismissForSession()});
+  see.addEventListener('click',()=>{dismissForSession()});
+  document.addEventListener('keydown',e=>{
+    if(backdrop.hidden)return;
+    if(e.key==='Escape'){e.preventDefault();dismissForSession();return;}
+    if(e.key==='Tab'){
+      const items=dialog.querySelectorAll('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])');
+      if(!items.length)return;
+      const first=items[0],last=items[items.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+    }
+  });
+  let already=false;try{already=sessionStorage.getItem(key)==='1'}catch(e){}
+  if(!already&&new Date()<new Date('2026-12-21T00:00:00+01:00')) window.setTimeout(openModal,450);
+})();
+</script>
+
 <script>(()=>{const A="https://jwksajhtvhwktkbkpits.supabase.co/functions/v1/alluxe-site-assistant",b=document.getElementById('bulle'),f=document.getElementById('fenetre'),fil=document.getElementById('fil'),form=document.getElementById('saisie'),input=document.getElementById('texte'),h=[];const add=(t,c)=>{let d=document.createElement('div');d.className='msg '+c;d.textContent=t;fil.appendChild(d);fil.scrollTop=fil.scrollHeight;return d};let ok=false;b.onclick=()=>{f.classList.toggle('ouverte');if(!ok){ok=true;add('Bonjour ! Je peux vous aider sur les services alluxe.ia et les projets IA.','ia')}input.focus()};document.getElementById('fermer').onclick=()=>f.classList.remove('ouverte');form.onsubmit=async e=>{e.preventDefault();let q=input.value.trim();if(!q)return;input.value='';add(q,'moi');h.push({role:'user',content:q});let a=add('…','ia');try{let r=await fetch(A,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:h.slice(-8)})}),d=await r.json(),rep=d.reponse||'Je n’arrive pas à répondre pour l’instant.';a.textContent=rep;if(d.reponse)h.push({role:'assistant',content:rep});else h.pop()}catch{a.textContent='Connexion impossible, réessayez dans un instant.';h.pop()}}})()</script>
 </body></html>
